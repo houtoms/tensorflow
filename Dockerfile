@@ -1,8 +1,8 @@
 FROM nvdl.githost.io:4678/dgx/cuda:8.0-cudnn5-devel-ubuntu14.04
 MAINTAINER NVIDIA CORPORATION <cudatools@nvidia.com>
 
-ENV TENSORFLOW_VERSION 0.10
-LABEL com.nvidia.tensorflow.version="0.10"
+ENV TENSORFLOW_VERSION 0.10.0
+LABEL com.nvidia.tensorflow.version="0.10.0"
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
         build-essential \
