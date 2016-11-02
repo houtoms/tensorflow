@@ -32,8 +32,6 @@ class NCCLOp : public OpKernel {
                 devicesString += std::to_string(allRanks.data()[i]) + ", ";
             devicesString += "]";
 
-            //std::cout << "Hi, I got " << nDev << " GPUs: " << devicesString << ", and I am " << myRank << std::endl;
-
             std::string myRankString = std::to_string(myRank);
             std::string commString = myRankString + ", " + devicesString;
 
@@ -41,10 +39,7 @@ class NCCLOp : public OpKernel {
             if(comm == NULL)
             {
                 ncclUniqueId id = nccl_mgr->giveNCCLId(devicesString);
-                std::cout << id.internal << std::endl;
                 ncclResult_t status = ncclCommInitRank(&comm, nDev, id, myRank);
-                std::cout << "Exited ncclCommInitRank with " << status << std::endl;
-                std::cout << "Rank " << myRank << ": I got communicator! " << comm << std::endl;
                 nccl_mgr->storeCommunicator(commString, comm);
             }
 
@@ -90,10 +85,7 @@ class AllReduceOp : public NCCLOp {
             perftools::gputools::cuda::CUDAStream * cudastream = perftools::gputools::cuda::AsCUDAStream(s);
             CUstream stream = cudastream->cuda_stream();
 
-            //std::cout << "Rank " << myRank << ": I will allreduce!" << std::endl;
-            //b.Wait();
             ncclAllReduce(input_data, output.data(), N, nccl_type<T>::value, ncclSum, comm, stream);
-            //std::cout << "Allreduced!" << std::endl;
         }
 };
 
@@ -152,7 +144,6 @@ class BcastOp : public NCCLOp {
             perftools::gputools::cuda::CUDAStream * cudastream = perftools::gputools::cuda::AsCUDAStream(s);
             CUstream stream = cudastream->cuda_stream();
 
-            //std::cout << "Rank " << myRank << ": I will bcast from " << fromRank <<"!" << std::endl;
             if(myRank == fromRank)
             {
                 ncclBcast(input_data, N, nccl_type<T>::value, fromRank, comm, stream);
@@ -162,8 +153,6 @@ class BcastOp : public NCCLOp {
             {
                 ncclBcast(output_data, N, nccl_type<T>::value, fromRank, comm, stream);
             }
-
-            //std::cout << "Bcasted!" << std::endl;
         }
 };
 
