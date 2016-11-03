@@ -100,6 +100,37 @@ while [ "$TF_NEED_HDFS" == "" ]; do
   esac
 done
 
+while [ "$TF_NEED_LIBJPEG_TURBO" == "" ]; do
+  read -p "Do you wish to build TensorFlow with "\
+"libjpeg-turbo (2x faster than libjpeg but requires autoconf, automake, libtool, nasm)? [y/N] " INPUT
+  case $INPUT in 
+    [Yy]* ) echo "Libjpeg-Turbo will replace Libjpeg for TensorFlow if dependencies are met."; TF_NEED_LIBJPEG_TURBO=1;;
+    [Nn]* ) echo "Libjpeg will be used instead of Libjpeg-Turbo."; TF_NEED_LIBJPEG_TURBO=0;;
+    * ) echo "Invalid selection: " $INPUT;;
+  esac
+done
+
+if [ "$TF_NEED_LIBJPEG_TURBO" ]; then
+  for i in "autoconf" "automake" "libtool" "nasm"; do
+    hash $i 2>/dev/null || { 
+      echo "";
+      echo >&2 "Installation with libjpeg-turbo enabled requires $i" \
+      "to be installed on the operating system.";
+      echo >&2 "Please install $i or select N for libjpeg-turbo" \
+      "(libjpeg will be used instead). Aborting.";
+      echo "";
+      exit 1; 
+    }
+  done  
+
+  echo "autoconf, automake, libtool, nasm dependencies met for libjpeg.turbo"
+  perl -pi -e "s,WITH_LIBJPEG_TURBO_SUPPORT = (False|True),WITH_LIBJPEG_TURBO_SUPPORT = True,s" tensorflow/core/platform/default/build_config.bzl
+
+else
+  echo "Using libjpeg instead of libjpeg-turbo"
+  perl -pi -e "s,WITH_LIBJPEG_TURBO_SUPPORT = (False|True),WITH_LIBJPEG_TURBO_SUPPORT = False,s" tensorflow/core/platform/default/build_config.bzl
+fi
+
 if [ "$TF_NEED_HDFS" == "1" ]; then
   # Update Bazel build configuration.
   perl -pi -e "s,WITH_HDFS_SUPPORT = (False|True),WITH_HDFS_SUPPORT = True,s" tensorflow/core/platform/default/build_config.bzl

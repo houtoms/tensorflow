@@ -26,8 +26,10 @@ limitations under the License.
 #include <stdlib.h>
 #include <sys/types.h>
 extern "C" {
-#include <jerror.h>
-#include <jpeglib.h>
+#include "libjpeg-turbo-1.5.1/jerror.h"
+#include "libjpeg-turbo-1.5.1/jinclude.h"
+#include "libjpeg-turbo-1.5.1/jpeglib.h"
+#include "libjpeg-turbo-1.5.1/transupp.h"  // for rotations
 }
 #else
 #error Define the appropriate PLATFORM_<foo> macro for this platform
