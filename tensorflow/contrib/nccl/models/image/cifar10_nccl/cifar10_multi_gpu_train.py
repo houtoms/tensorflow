@@ -48,6 +48,7 @@ import numpy as np
 from six.moves import xrange  # pylint: disable=redefined-builtin
 import tensorflow as tf
 from tensorflow.models.image.cifar10 import cifar10
+import tensorflow.contrib.nccl as nccl
 
 FLAGS = tf.app.flags.FLAGS
 
@@ -153,7 +154,6 @@ def average_gradients(tower_grads):
 
 
 def train():
-  nccl_module = tf.load_op_library("tf_nccl.so")
   """Train CIFAR-10 for a number of steps."""
   with tf.Graph().as_default(), tf.device('/cpu:0'):
     # Create a variable to count the number of train() calls. This equals the
@@ -203,15 +203,13 @@ def train():
             # tower_grads.append(grads)
             average_grads = []
             just_grads = []
-            for g, v in grads:
+            for g, v in reversed(grads):
                 if g is None:
                     print(v.name)
                     continue
-                with tf.control_dependencies(just_grads):
-                    grad = nccl_module.all_reduce(tf.scalar_mul(1/float(FLAGS.num_gpus), g), my_rank = i, all_ranks = range(FLAGS.num_gpus))
-                    grad_and_var = (grad, v)
-                    average_grads.append(grad_and_var)
-                    just_grads.append(grad)
+                grad = nccl.all_reduce(tf.scalar_mul(1/float(FLAGS.num_gpus), g), my_rank = i, all_ranks = range(FLAGS.num_gpus))
+                grad_and_var = (grad, v)
+                average_grads.append(grad_and_var)
             tower_grads.append(average_grads);
 
     # We must calculate the mean of each gradient. Note that this is the
@@ -252,19 +250,17 @@ def train():
     # Build an initialization operation to run below.
     init = tf.initialize_all_variables()
 
+    nccl.clean()
     bcasts = []
     for i in xrange(FLAGS.num_gpus):
-      bcasts_per_gpu = []
       with tf.device('/gpu:%d' % i):
         with tf.name_scope('%s_%d' % (cifar10.TOWER_NAME, i)):
             with tf.variable_scope('var_%s_%d' % (cifar10.TOWER_NAME, i), reuse=True) as vs:
                 variables = tf.get_collection(tf.GraphKeys.VARIABLES, scope = vs.name)
                 for v in variables:
-                    with tf.control_dependencies(bcasts_per_gpu):
-                        v2 = nccl_module.bcast(v, from_rank = 0, my_rank = i, all_ranks = range(FLAGS.num_gpus))
-                        new_v = tf.assign(v, v2)
-                        bcasts.append(new_v)
-                        bcasts_per_gpu.append(v2)
+                    v2 = nccl.bcast(v, from_rank = 0, my_rank = i, all_ranks = range(FLAGS.num_gpus))
+                    new_v = tf.assign(v, v2)
+                    bcasts.append(new_v)
 
     # Start running operations on the Graph. allow_soft_placement must be set to
     # True to build towers on GPU, as some of the ops do not have GPU

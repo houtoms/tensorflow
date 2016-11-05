@@ -2,8 +2,8 @@
 #include "tensorflow/stream_executor/cuda/cuda_stream.h"
 #include <iostream>
 #include <vector>
-#include "third_party/nccl/nccl.h"
-#include "third_party/nccl/nccl_manager.h"
+#include "tensorflow/contrib/nccl/third_party/nccl/nccl.h"
+#include "tensorflow/contrib/nccl/third_party/nccl/nccl_manager.h"
 
 using namespace tensorflow;
 

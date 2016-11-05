@@ -4,7 +4,7 @@
 #include <map>
 #include <string>
 #include <mutex>
-#include "third_party/nccl/nccl.h"
+#include "tensorflow/contrib/nccl/third_party/nccl/nccl.h"
 
 using std::mutex;
 using std::lock_guard;
