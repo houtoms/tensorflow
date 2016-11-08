@@ -110,24 +110,27 @@ while [ "$TF_NEED_LIBJPEG_TURBO" == "" ]; do
   esac
 done
 
-if [ "$TF_NEED_LIBJPEG_TURBO" ]; then
+if [ $TF_NEED_LIBJPEG_TURBO == 1 ]; then
+  ALL_LJT_DEPS_MET=1;
   for i in "autoconf" "automake" "libtool" "nasm"; do
     hash $i 2>/dev/null || { 
-      echo "";
-      echo >&2 "Installation with libjpeg-turbo enabled requires $i" \
-      "to be installed on the operating system.";
-      echo >&2 "Please install $i or select N for libjpeg-turbo" \
-      "(libjpeg will be used instead). Aborting.";
-      echo "";
-      exit 1; 
+      echo >&2 -e "\e[31mInstallation with libjpeg-turbo enabled requires $i" \
+      "to be installed on the operating system.\e[0m";
+      echo >&2 -e "\e[31mPlease install $i or select N for libjpeg-turbo" \
+      "(libjpeg will be used instead).\e[0m";
+      ALL_LJT_DEPS_MET=0;
     }
   done  
+
+  if [ $ALL_LJT_DEPS_MET == 0 ]; then
+    echo -e "\e[31mAborting.\e[0m";
+    exit 1;
+  fi
 
   echo "autoconf, automake, libtool, nasm dependencies met for libjpeg.turbo"
   perl -pi -e "s,WITH_LIBJPEG_TURBO_SUPPORT = (False|True),WITH_LIBJPEG_TURBO_SUPPORT = True,s" tensorflow/core/platform/default/build_config.bzl
 
 else
-  echo "Using libjpeg instead of libjpeg-turbo"
   perl -pi -e "s,WITH_LIBJPEG_TURBO_SUPPORT = (False|True),WITH_LIBJPEG_TURBO_SUPPORT = False,s" tensorflow/core/platform/default/build_config.bzl
 fi
 

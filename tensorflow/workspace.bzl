@@ -62,11 +62,22 @@ def tf_workspace(path_prefix = "", tf_repo_name = ""):
     strip_prefix = "highwayhash-4bce8fc6a9ca454d9d377dbc4c4d33488bbab78f",
   )
 
+
   native.new_http_archive(
     name = "jpeg_archive",
-    url = "https://sourceforge.net/projects/libjpeg-turbo/files/1.5.1/libjpeg-turbo-1.5.1.tar.gz",
-    sha256 = "41429d3d253017433f66e3d472b8c7d998491d2f41caa7306b8d9a6f2a2c666c",
-    build_file = path_prefix + "jpeg.BUILD",
+    url = "http://www.ijg.org/files/jpegsrc.v9a.tar.gz",
+    sha256 = "3a753ea48d917945dd54a2d97de388aa06ca2eb1066cbfdc6652036349fe05a7",
+    strip_prefix = "jpeg-9a",
+    build_file = str(Label("//:jpeg.BUILD")),
+  )
+
+  native.new_http_archive(
+    name = "jpeg_turbo_archive",
+    url = "https://github.com/libjpeg-turbo/libjpeg-turbo/archive/1.5.1.tar.gz",
+    sha256 = "c15a9607892113946379ccea3ca8b85018301b200754f209453ab21674268e77",
+#    url = "https://sourceforge.net/projects/libjpeg-turbo/files/1.5.1/libjpeg-turbo-1.5.1.tar.gz",
+#    sha256 = "41429d3d253017433f66e3d472b8c7d998491d2f41caa7306b8d9a6f2a2c666c",
+    build_file = path_prefix + "jpeg_turbo.BUILD",
   )
 
   native.new_http_archive(
