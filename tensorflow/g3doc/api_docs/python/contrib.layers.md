@@ -121,9 +121,8 @@ can have speed penalty, specially in distributed settings.
 
 *  <b>`ValueError`</b>: if `batch_weights` is not None and `fused` is True.
 *  <b>`ValueError`</b>: if `data_format` is neither `NHWC` nor `NCHW`.
-*  <b>`ValueError`</b>: if `data_format` is `NCHW` while `fused` is False.
 *  <b>`ValueError`</b>: if the rank of `inputs` is undefined.
-*  <b>`ValueError`</b>: if rank or last dimension of `inputs` is undefined.
+*  <b>`ValueError`</b>: if rank or channels dimension of `inputs` is undefined.
 
 
 - - -
@@ -528,7 +527,7 @@ layers are called with `scope='stack'`.
 
 - - -
 
-### `tf.contrib.layers.safe_embedding_lookup_sparse(embedding_weights, sparse_ids, sparse_weights=None, combiner=None, default_id=None, name=None, partition_strategy='div')` {#safe_embedding_lookup_sparse}
+### `tf.contrib.layers.safe_embedding_lookup_sparse(embedding_weights, sparse_ids, sparse_weights=None, combiner=None, default_id=None, name=None, partition_strategy='div', max_norm=None)` {#safe_embedding_lookup_sparse}
 
 Lookup embedding results, accounting for invalid IDs and empty features.
 
@@ -565,6 +564,8 @@ along the last dimension.
 *  <b>`name`</b>: A name for this operation (optional).
 *  <b>`partition_strategy`</b>: A string specifying the partitioning strategy.
       Currently `"div"` and `"mod"` are supported. Default is `"div"`.
+*  <b>`max_norm`</b>: If not None, all embeddings are l2-normalized to max_norm before
+      combining.
 
 
 ##### Returns:

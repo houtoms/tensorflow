@@ -723,7 +723,7 @@ then compares them using self._AssertProtoEqual().
 
 - - -
 
-#### `tf.test.TestCase.assertProtoEqualsVersion(expected, actual, producer=15, min_consumer=0)` {#TestCase.assertProtoEqualsVersion}
+#### `tf.test.TestCase.assertProtoEqualsVersion(expected, actual, producer=17, min_consumer=0)` {#TestCase.assertProtoEqualsVersion}
 
 
 
@@ -1475,7 +1475,7 @@ differentiation of graphs for comparison against registered analytic gradients.
 
 - - -
 
-### `tf.test.compute_gradient(x, x_shape, y, y_shape, x_init_value=None, delta=0.001, init_targets=None)` {#compute_gradient}
+### `tf.test.compute_gradient(x, x_shape, y, y_shape, x_init_value=None, delta=0.001, init_targets=None, extra_feed_dict=None)` {#compute_gradient}
 
 Computes and returns the theoretical and numerical Jacobian.
 
@@ -1507,6 +1507,8 @@ with shape `[n]`, each Jacobian `J` will have shape `[m * 2, n * 2]` with
 *  <b>`delta`</b>: (optional) the amount of perturbation.
 *  <b>`init_targets`</b>: list of targets to run to initialize model params.
     TODO(mrry): remove this argument.
+*  <b>`extra_feed_dict`</b>: dict that allows fixing specified tensor values
+    during the Jacobian calculation.
 
 ##### Returns:
 
@@ -1518,7 +1520,7 @@ with shape `[n]`, each Jacobian `J` will have shape `[m * 2, n * 2]` with
 
 - - -
 
-### `tf.test.compute_gradient_error(x, x_shape, y, y_shape, x_init_value=None, delta=0.001, init_targets=None)` {#compute_gradient_error}
+### `tf.test.compute_gradient_error(x, x_shape, y, y_shape, x_init_value=None, delta=0.001, init_targets=None, extra_feed_dict=None)` {#compute_gradient_error}
 
 Computes the gradient error.
 
@@ -1549,6 +1551,8 @@ function in the session constructor).
 *  <b>`delta`</b>: (optional) the amount of perturbation.
 *  <b>`init_targets`</b>: list of targets to run to initialize model params.
     TODO(mrry): Remove this argument.
+*  <b>`extra_feed_dict`</b>: dict that allows fixing specified tensor values
+    during the Jacobian calculation.
 
 ##### Returns:
 

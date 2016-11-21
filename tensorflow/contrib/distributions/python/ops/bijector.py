@@ -715,6 +715,9 @@ class Bijector(object):
         ildj = self._constant_ildj  # Ignore any ildj we may/not have.
       elif self.is_constant_jacobian:
         self._constant_ildj = ildj
+      # We use the mapped version of x, even if we re-computed x above with a
+      # call to self._inverse_and_inverse_log_det_jacobian.  This prevents
+      # re-evaluation of the inverse in a common case.
       x = x if mapping.x is None else mapping.x
       mapping = mapping.merge(x=x, ildj=ildj)
       self._cache(mapping)
@@ -1394,7 +1397,7 @@ class ScaleAndShift(Bijector):
 
   def _forward(self, x):
     x, sample_shape = self.shaper.make_batch_of_event_sample_matrices(x)
-    x = math_ops.batch_matmul(self.scale, x)
+    x = math_ops.matmul(self.scale, x)
     x = self.shaper.undo_make_batch_of_event_sample_matrices(x, sample_shape)
     x += self.shift
     return x
@@ -1455,24 +1458,36 @@ class Softplus(Bijector):
     return nn_ops.softplus(x)
 
   def _inverse_and_inverse_log_det_jacobian(self, y):
-    # The most stable inverse of softplus is not the most direct one.
+    # The most stable inverse of softplus is not the most obvious one.
     # y = softplus(x) = Log[1 + exp{x}], (which means y > 0).
-    # ==> exp{y} = 1 + exp{x}
-    # ==> x = Log[exp{y} - 1]
+    # ==> exp{y} = 1 + exp{x}                                (1)
+    # ==> x = Log[exp{y} - 1]                                (2)
     #       = Log[(exp{y} - 1) / exp{y}] + Log[exp{y}]
     #       = Log[(1 - exp{-y}) / 1] + Log[exp{y}]
-    #       = Log[1 - exp{-y}] + y
-    # Recalling y > 0, you see that this is more stable than Log[exp{y} - 1].
+    #       = Log[1 - exp{-y}] + y                           (3)
+    # (2) is the "obvious" inverse, but (3) is more stable than (2) for large y.
+    # For small y (e.g. y = 1e-10), (3) will become -inf since 1 - exp{-y} will
+    # be zero.  To fix this, we use 1 - exp{-y} approx y for small y > 0.
     #
     # Stable inverse log det jacobian.
     # Y = Log[1 + exp{X}] ==> X = Log[exp{Y} - 1]
     # ==> dX/dY = exp{Y} / (exp{Y} - 1)
     #           = 1 / (1 - exp{-Y}),
-    # which is the most stable for Y > 0.
+    # which is the most stable for large Y > 0.  For small Y, we use
+    # 1 - exp{-Y} approx Y.
     if self.shaper is None:
       raise ValueError("Jacobian cannot be computed with unknown event_ndims")
     _, _, event_dims = self.shaper.get_dims(y)
-    log_one_minus_exp_neg = math_ops.log(1. - math_ops.exp(-y))
+    # eps is smallest positive number such that 1 + eps != 1.
+    eps = np.finfo(y.dtype.base_dtype.as_numpy_dtype).eps
+    # Approximate exp{-y} ~ 1 - y for small y > 0, then use exp{-y} elsewhere.
+    # Note we are careful to never send an NaN through ANY branch of where.
+    # TODO(langmore) replace with -tf.expm1(y) when it exists.
+    one_minus_exp_neg_y = array_ops.where(
+        y < eps,
+        y,
+        1. - math_ops.exp(-y))
+    log_one_minus_exp_neg = math_ops.log(one_minus_exp_neg_y)
     x = y + log_one_minus_exp_neg
     ildj = -math_ops.reduce_sum(
         log_one_minus_exp_neg, reduction_indices=event_dims)
@@ -1764,7 +1779,7 @@ class CholeskyOuterProduct(Bijector):
       x = control_flow_ops.with_dependencies([is_matrix, is_square], x)
     # For safety, explicitly zero-out the upper triangular part.
     x = array_ops.matrix_band_part(x, -1, 0)
-    return math_ops.batch_matmul(x, x, adj_y=True)
+    return math_ops.matmul(x, x, adjoint_b=True)
 
   def _inverse_and_inverse_log_det_jacobian(self, y):
     x = (math_ops.sqrt(y) if self._static_event_ndims == 0
@@ -1843,8 +1858,7 @@ class CholeskyOuterProduct(Bijector):
         dim=1)
 
     sum_weighted_log_diag = array_ops.squeeze(
-        math_ops.batch_matmul(math_ops.log(diag), exponents),
-        squeeze_dims=-1)
+        math_ops.matmul(math_ops.log(diag), exponents), squeeze_dims=-1)
     fldj = p * math.log(2.) + sum_weighted_log_diag
 
     if x.get_shape().ndims is not None:

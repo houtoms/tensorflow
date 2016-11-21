@@ -140,7 +140,7 @@ uint8* UncompressLow(const void* srcdata, FewerArgsForCompiler* argball) {
   cinfo.scale_num = 1;
   cinfo.scale_denom = ratio;
   // Activating this has a quality/speed trade-off implication:
-  cinfo.dct_method = JDCT_IFAST;
+  // cinfo.dct_method = JDCT_IFAST;
 
   jpeg_start_decompress(&cinfo);
 

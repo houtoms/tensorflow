@@ -1898,7 +1898,7 @@ class JpegTest(test_util.TensorFlowTestCase):
       jpeg0, image0, image1 = sess.run([jpeg0, image0, image1])
       self.assertEqual(len(jpeg0), 3771)
       self.assertEqual(image0.shape, (256, 128, 3))
-      self.assertLess(self.averageError(image0, image1), 1.36)
+      self.assertLess(self.averageError(image0, image1), 0.8)
 
   def testCmyk(self):
     # Confirm that CMYK reads in as RGB
@@ -1928,10 +1928,10 @@ class JpegTest(test_util.TensorFlowTestCase):
       jpeg0, image0, image1, image2 = sess.run([jpeg0, image0, image1, image2])
 
       # The decoded-encoded image should be similar to the input
-      self.assertLess(self.averageError(image0, image1), 0.98)
+      self.assertLess(self.averageError(image0, image1), 0.6)
 
       # We should be very close to a fixpoint
-      self.assertLess(self.averageError(image1, image2), 1.05)
+      self.assertLess(self.averageError(image1, image2), 0.02)
 
       # Smooth ramps compress well (input size is 153600)
       self.assertGreaterEqual(len(jpeg0), 5000)

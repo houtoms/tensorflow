@@ -5,13 +5,9 @@ ENV TENSORFLOW_VERSION 0.12.0-dev
 LABEL com.nvidia.tensorflow.version="0.12.0-dev"
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
-        autoconf \
-        automake \
         build-essential \
         curl \
         git \
-        libtool \
-        nasm \
         pkg-config \
         python \
         python-dev \
@@ -54,10 +50,9 @@ COPY . .
 ENV CUDA_TOOLKIT_PATH /usr/local/cuda
 ENV CUDNN_INSTALL_PATH /usr/lib/x86_64-linux-gnu
 ENV TF_NEED_CUDA 1
-ENV TF_CUDA_COMPUTE_CAPABILITIES "5.2,6.0,6.1"
+ENV TF_CUDA_COMPUTE_CAPABILITIES "5.2,6.0"
 ENV TF_NEED_GCP 0
 ENV TF_NEED_HDFS 0
-ENV TF_NEED_LIBJPEG_TURBO 1
 RUN yes "" | ./configure && \
     bazel build -c opt --config=cuda tensorflow/tools/pip_package:build_pip_package && \
     bazel-bin/tensorflow/tools/pip_package/build_pip_package /tmp/pip && \

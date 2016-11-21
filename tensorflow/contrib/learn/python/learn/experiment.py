@@ -28,6 +28,7 @@ from tensorflow.contrib.framework import deprecated_arg_values
 from tensorflow.contrib.learn.python.learn import evaluable
 from tensorflow.contrib.learn.python.learn import monitors
 from tensorflow.contrib.learn.python.learn import trainable
+from tensorflow.contrib.learn.python.learn.estimators import run_config
 from tensorflow.contrib.learn.python.learn.estimators._sklearn import NotFittedError
 from tensorflow.python.platform import tf_logging as logging
 from tensorflow.python.training import server_lib
@@ -191,16 +192,20 @@ class Experiment(object):
     # we (optionally) sleep for the case where no device_filters are set.
     # Otherwise, the servers will wait to connect to each other before starting
     # to train. We might as well start as soon as we can.
-    if self._estimator.config.cluster_spec and self._estimator.config.master:
+    config = self._estimator.config
+    if (config.environment != run_config.Environment.LOCAL and
+        config.environment != run_config.Environment.GOOGLE and
+        config.cluster_spec and config.master):
       self._start_server()
 
     extra_hooks = []
     if delay_secs is None:
-      task_id = self._estimator.config.task or 0
+      task_id = self._estimator.config.task_id or 0
       if self._delay_workers_by_global_step:
         # Wait 5500 global steps for the second worker. Each worker waits more
         # then previous one but with a diminishing number of steps.
-        extra_hooks.append(_GlobalStepWaiterHook(8000*int(math.log(task_id+1))))
+        extra_hooks.append(
+            _GlobalStepWaiterHook(int(8000.0*math.log(task_id+1))))
         delay_secs = 0
       else:
         # Wait 5 secs more for each new worker up to 60 secs.
@@ -397,15 +402,15 @@ class Experiment(object):
   def _start_server(self):
     """Creates, starts, and returns a server_lib.Server."""
     config = self._estimator.config
-    if (not config.cluster_spec or not config.job_name or not config.master or
-        config.task is None):
+    if (not config.cluster_spec or not config.task_type or not config.master or
+        config.task_id is None):
       raise ValueError("Could not start server; be sure to specify "
-                       "cluster_spec, job_name, master, and task in "
+                       "cluster_spec, task_type, master, and task in "
                        "RunConfig or set the TF_CONFIG environment variable.")
     server = server_lib.Server(
         config.cluster_spec,
-        job_name=config.job_name,
-        task_index=config.task,
+        job_name=config.task_type,
+        task_index=config.task_id,
         config=config.tf_config,
         start=False)
     server.start()
