@@ -50,7 +50,7 @@ COPY . .
 ENV CUDA_TOOLKIT_PATH /usr/local/cuda
 ENV CUDNN_INSTALL_PATH /usr/lib/x86_64-linux-gnu
 ENV TF_NEED_CUDA 1
-ENV TF_CUDA_COMPUTE_CAPABILITIES "5.2,6.0"
+ENV TF_CUDA_COMPUTE_CAPABILITIES "5.2,6.0,6.1"
 ENV TF_NEED_GCP 0
 ENV TF_NEED_HDFS 0
 RUN yes "" | ./configure && \
@@ -61,3 +61,27 @@ RUN yes "" | ./configure && \
 
 # TensorBoard
 EXPOSE 6006
+
+RUN chmod -R a+w /workspace
+
+################################################################################
+# Show installed packages
+################################################################################
+
+RUN echo "------------------------------------------------------" && \
+    echo "-- INSTALLED PACKAGES --------------------------------" && \
+    echo "------------------------------------------------------" && \
+    echo "[[dpkg -l]]" && \
+    dpkg -l && \
+    echo "" && \
+    echo "[[pip list]]" && \
+    pip list && \
+    echo "" && \
+    echo "------------------------------------------------------" && \
+    echo "-- FILE SIZE, DATE, HASH -----------------------------" && \
+    echo "------------------------------------------------------" && \
+    echo "[[find /usr/bin /usr/sbin /usr/lib /usr/local /workspace -type f | xargs ls -al]]" && \
+    (find /usr/bin /usr/sbin /usr/lib /usr/local /workspace -type f | xargs ls -al || true) && \
+    echo "" && \
+    echo "[[find /usr/bin /usr/sbin /usr/lib /usr/local /workspace -type f | xargs md5sum]]" && \
+    (find /usr/bin /usr/sbin /usr/lib /usr/local /workspace -type f | xargs md5sum || true)
