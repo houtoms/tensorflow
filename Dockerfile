@@ -1,4 +1,4 @@
-FROM nvdl.githost.io:4678/dgx/cuda:8.0-cudnn5-devel-ubuntu14.04
+FROM nvdl.githost.io:4678/dgx/cuda:8.0-cudnn6-devel-ubuntu14.04
 MAINTAINER NVIDIA CORPORATION <cudatools@nvidia.com>
 
 ENV TENSORFLOW_VERSION 0.12.0-dev
@@ -11,18 +11,20 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         pkg-config \
         python \
         python-dev \
-        python-numpy \
         rsync \
         software-properties-common \
         swig \
         unzip \
         zip \
-        zlib1g-dev && \
+        zlib1g-dev \
+        vim && \
     rm -rf /var/lib/apt/lists/*
 
 RUN curl -O https://bootstrap.pypa.io/get-pip.py && \
     python get-pip.py && \
     rm get-pip.py
+
+RUN pip install --upgrade numpy
 
 # Set up Bazel.
 RUN add-apt-repository -y ppa:openjdk-r/ppa && apt-get update && \
