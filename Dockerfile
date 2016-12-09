@@ -46,7 +46,7 @@ RUN BAZEL_VERSION=0.3.2 && \
     rm -rf /bazel
 
 # Download and build TensorFlow.
-WORKDIR /workspace
+WORKDIR /opt/tensorflow
 COPY . .
 
 ENV CUDA_TOOLKIT_PATH /usr/local/cuda
@@ -64,7 +64,11 @@ RUN yes "" | ./configure && \
 # TensorBoard
 EXPOSE 6006
 
-RUN chmod -R a+w /workspace
+RUN chmod -R a+w /opt/tensorflow
+
+WORKDIR /workspace
+RUN chmod -R a+w /workspace && \
+    ln -s /opt/tensorflow/README_dgx.md README.md
 
 ################################################################################
 # Show installed packages
@@ -82,8 +86,8 @@ RUN echo "------------------------------------------------------" && \
     echo "------------------------------------------------------" && \
     echo "-- FILE SIZE, DATE, HASH -----------------------------" && \
     echo "------------------------------------------------------" && \
-    echo "[[find /usr/bin /usr/sbin /usr/lib /usr/local /workspace -type f | xargs ls -al]]" && \
-    (find /usr/bin /usr/sbin /usr/lib /usr/local /workspace -type f | xargs ls -al || true) && \
+    echo "[[find /usr/bin /usr/sbin /usr/lib /usr/local /opt/tensorflow -type f | xargs ls -al]]" && \
+    (find /usr/bin /usr/sbin /usr/lib /usr/local /opt/tensorflow -type f | xargs ls -al || true) && \
     echo "" && \
-    echo "[[find /usr/bin /usr/sbin /usr/lib /usr/local /workspace -type f | xargs md5sum]]" && \
-    (find /usr/bin /usr/sbin /usr/lib /usr/local /workspace -type f | xargs md5sum || true)
+    echo "[[find /usr/bin /usr/sbin /usr/lib /usr/local /opt/tensorflow -type f | xargs md5sum]]" && \
+    (find /usr/bin /usr/sbin /usr/lib /usr/local /opt/tensorflow -type f | xargs md5sum || true)
