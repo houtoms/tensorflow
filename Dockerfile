@@ -24,7 +24,7 @@ RUN curl -O https://bootstrap.pypa.io/get-pip.py && \
     python get-pip.py && \
     rm get-pip.py
 
-RUN pip install --upgrade numpy
+RUN pip install --upgrade --no-cache-dir numpy
 
 # Set up Bazel.
 RUN add-apt-repository -y ppa:openjdk-r/ppa && apt-get update && \
@@ -46,16 +46,17 @@ RUN BAZEL_VERSION=0.3.2 && \
     rm -rf /bazel
 
 # Download and build TensorFlow.
-WORKDIR /workspace
+WORKDIR /opt/tensorflow
 COPY . .
 
 ENV CUDA_TOOLKIT_PATH /usr/local/cuda
 ENV CUDNN_INSTALL_PATH /usr/lib/x86_64-linux-gnu
 ENV TF_NEED_CUDA 1
-ENV TF_CUDA_COMPUTE_CAPABILITIES "5.2,6.0,6.1"
+ENV TF_CUDA_COMPUTE_CAPABILITIES "3.5,5.2,6.0,6.1"
 ENV TF_NEED_GCP 0
 ENV TF_NEED_HDFS 0
-RUN yes "" | ./configure && \
+RUN umask 0000 && \
+    yes "" | ./configure && \
     bazel build -c opt --config=cuda tensorflow/tools/pip_package:build_pip_package && \
     bazel-bin/tensorflow/tools/pip_package/build_pip_package /tmp/pip && \
     pip install --upgrade /tmp/pip/tensorflow-*.whl && \
@@ -64,26 +65,7 @@ RUN yes "" | ./configure && \
 # TensorBoard
 EXPOSE 6006
 
-RUN chmod -R a+w /workspace
-
-################################################################################
-# Show installed packages
-################################################################################
-
-RUN echo "------------------------------------------------------" && \
-    echo "-- INSTALLED PACKAGES --------------------------------" && \
-    echo "------------------------------------------------------" && \
-    echo "[[dpkg -l]]" && \
-    dpkg -l && \
-    echo "" && \
-    echo "[[pip list]]" && \
-    pip list && \
-    echo "" && \
-    echo "------------------------------------------------------" && \
-    echo "-- FILE SIZE, DATE, HASH -----------------------------" && \
-    echo "------------------------------------------------------" && \
-    echo "[[find /usr/bin /usr/sbin /usr/lib /usr/local /workspace -type f | xargs ls -al]]" && \
-    (find /usr/bin /usr/sbin /usr/lib /usr/local /workspace -type f | xargs ls -al || true) && \
-    echo "" && \
-    echo "[[find /usr/bin /usr/sbin /usr/lib /usr/local /workspace -type f | xargs md5sum]]" && \
-    (find /usr/bin /usr/sbin /usr/lib /usr/local /workspace -type f | xargs md5sum || true)
+WORKDIR /workspace
+COPY NVREADME.md .
+COPY LICENSE .
+RUN chmod a+w /opt/tensorflow /workspace
