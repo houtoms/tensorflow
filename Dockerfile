@@ -3,6 +3,13 @@ MAINTAINER NVIDIA CORPORATION <cudatools@nvidia.com>
 
 ENV TENSORFLOW_VERSION 0.12.0-dev
 LABEL com.nvidia.tensorflow.version="0.12.0-dev"
+ENV NVIDIA_TENSORFLOW_VERSION 16.12
+
+ARG NVIDIA_BUILD_ID
+ENV NVIDIA_BUILD_ID ${NVIDIA_BUILD_ID:-<unknown>}
+LABEL com.nvidia.build.id="${NVIDIA_BUILD_ID}"
+ARG NVIDIA_BUILD_REF
+LABEL com.nvidia.build.ref="${NVIDIA_BUILD_REF}"
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
         build-essential \
@@ -55,8 +62,7 @@ ENV TF_NEED_CUDA 1
 ENV TF_CUDA_COMPUTE_CAPABILITIES "3.5,5.2,6.0,6.1"
 ENV TF_NEED_GCP 0
 ENV TF_NEED_HDFS 0
-RUN umask 0000 && \
-    yes "" | ./configure && \
+RUN yes "" | ./configure && \
     bazel build -c opt --config=cuda tensorflow/tools/pip_package:build_pip_package && \
     bazel-bin/tensorflow/tools/pip_package/build_pip_package /tmp/pip && \
     pip install --upgrade /tmp/pip/tensorflow-*.whl && \
@@ -66,6 +72,8 @@ RUN umask 0000 && \
 EXPOSE 6006
 
 WORKDIR /workspace
-COPY NVREADME.md .
-COPY LICENSE .
-RUN chmod a+w /opt/tensorflow /workspace
+COPY NVREADME.md README.md
+RUN chmod -R a+w /workspace
+
+COPY nvidia_entrypoint.sh /usr/local/bin
+ENTRYPOINT ["/usr/local/bin/nvidia_entrypoint.sh"]
