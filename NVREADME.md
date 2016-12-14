@@ -64,7 +64,8 @@ using the ```-v``` flag of ```nvidia-docker run```.
 
 TensorFlow is run simply by importing it as a Python module:
 
-```$ python
+```
+$ python
 \>\>\> import tensorflow as tf
 \>\>\> hello = tf.constant('Hello, TensorFlow!')
 \>\>\> sess = tf.Session()
