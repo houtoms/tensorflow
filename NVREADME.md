@@ -19,8 +19,7 @@ variety of other domains, as well.
 ## Contents
 
 This container has the TensorFlow Python package installed and ready to use.
-/opt/tensorflow contains the complete source of this version of version of
-TensorFlow.
+/opt/tensorflow contains the complete source of this version of TensorFlow.
  
 ## Getting Started
 
