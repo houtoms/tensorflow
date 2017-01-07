@@ -1,9 +1,8 @@
-FROM nvdl.githost.io:4678/dgx/cuda:8.0-cudnn6-devel-ubuntu14.04
-MAINTAINER NVIDIA CORPORATION <cudatools@nvidia.com>
+FROM nvdl.githost.io:4678/dgx/cuda:8.0-cudnn6-devel-ubuntu14.04--17.01
 
 ENV TENSORFLOW_VERSION 0.12.0-dev
 LABEL com.nvidia.tensorflow.version="0.12.0-dev"
-ENV NVIDIA_TENSORFLOW_VERSION 16.12
+ENV NVIDIA_TENSORFLOW_VERSION 17.01
 
 ARG NVIDIA_BUILD_ID
 ENV NVIDIA_BUILD_ID ${NVIDIA_BUILD_ID:-<unknown>}
