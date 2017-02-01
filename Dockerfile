@@ -30,7 +30,7 @@ RUN curl -O https://bootstrap.pypa.io/get-pip.py && \
     python get-pip.py && \
     rm get-pip.py
 
-RUN pip install --upgrade --no-cache-dir numpy
+RUN pip install --upgrade --no-cache-dir numpy pexpect psutil
 
 # Set up Bazel.
 RUN add-apt-repository -y ppa:openjdk-r/ppa && apt-get update && \
