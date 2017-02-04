@@ -73,6 +73,7 @@ EXPOSE 6006
 
 WORKDIR /workspace
 COPY NVREADME.md README.md
+COPY docker-examples docker-examples
 RUN chmod -R a+w /workspace
 
 COPY nvidia_entrypoint.sh /usr/local/bin
