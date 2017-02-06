@@ -1,4 +1,4 @@
-FROM nvdl.githost.io:4678/dgx/cuda:8.0-cudnn6-devel-ubuntu14.04--17.03
+FROM nvdl.githost.io:4678/dgx/cuda:8.0-cudnn6-devel-ubuntu16.04--17.03
 
 ENV TENSORFLOW_VERSION 0.12.1
 LABEL com.nvidia.tensorflow.version="${TENSORFLOW_VERSION}"
