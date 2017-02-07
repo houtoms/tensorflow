@@ -15,7 +15,7 @@ variables:
 
 stages:
     - build base
-    - build
+    - build devel
     - L0
     - L1
     - L2
@@ -51,7 +51,7 @@ tensorflow-base:
     - tags
 
 tensorflow:
-    stage: build
+    stage: build devel
     script:
     - echo -e "FROM ${BASE_IMAGE_NAME}\n"
               "COPY Dockerfile* /opt/${CI_PROJECT_NAME}/\n"
