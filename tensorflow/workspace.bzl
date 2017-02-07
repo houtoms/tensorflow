@@ -148,7 +148,7 @@ def tf_workspace(path_prefix = "", tf_repo_name = ""):
   native.new_http_archive(
     name = "swig",
     sha256 = "58a475dbbd4a4d7075e5fe86d4e54c9edde39847cdb96a3053d87cb64a23a453",
-    url = "http://cdimage.debian.org/mirror/xbmc.org/build-deps/sources/swig-3.0.8.tar.gz",
+    url = "http://pkgs.fedoraproject.org/repo/pkgs/swig/swig-3.0.8.tar.gz/c96a1d5ecb13d38604d7e92148c73c97/swig-3.0.8.tar.gz",
     strip_prefix = "swig-3.0.8",
     build_file = str(Label("//third_party:swig.BUILD")),
   )
