@@ -19,7 +19,8 @@ stages:
     - L0
     - L1
     - L2
-    - L3 and staging
+    - L3
+    - staging
 
 before_script:
     - export NV_DOCKER_ARGS="curl -s http://localhost:3476/docker/cli?dev=${RUNNER_GPUS//,/+}"     && echo "${NV_DOCKER_ARGS}"
@@ -28,7 +29,9 @@ before_script:
     - export DEVEL_IMAGE_NAME="${CI_REGISTRY_IMAGE}:${CI_BUILD_REF_NAME}"                          && echo "${DEVEL_IMAGE_NAME}"
     - export DEVEL_IMAGE_NAME_VERSIONED="${BASE_IMAGE_NAME}-devel"                                 && echo "${DEVEL_IMAGE_NAME_VERSIONED}"
     - export STAGE_IMAGE_NAME="${CI_REGISTRY_IMAGE}:${CI_BUILD_REF_NAME/%-devel/-stage}"           && echo "${STAGE_IMAGE_NAME}"
-    - ORIGIN1="${CI_BUILD_REPO##*@}" && export ORIGIN=git@${ORIGIN1/\//:}                          && echo "${ORIGIN}"
+    - export ORIGIN1="${CI_BUILD_REPO##*@}"
+    - export ORIGIN_SSH=git@${ORIGIN1/\//:}                                                        && echo "${ORIGIN_SSH}"
+    - export ORIGIN_HTTPS=https://${ORIGIN1}                                                       && echo "${ORIGIN_HTTPS}"
     - git submodule sync --recursive
     - git submodule update --init --recursive
     - docker login -u gitlab-ci-token -p "${CI_BUILD_TOKEN}" "${CI_REGISTRY}"
@@ -58,7 +61,7 @@ tensorflow:
               "COPY .git/ /opt/${CI_PROJECT_NAME}/.git/\n"
               "COPY qa/   /opt/${CI_PROJECT_NAME}/qa/\n"
         > Dockerfile.${CI_PROJECT_NAME}.${CI_BUILD_REF_NAME}
-    - git remote set-url origin ${ORIGIN}
+    - git remote set-url origin ${ORIGIN_HTTPS}
     - docker build --pull -t "${DEVEL_IMAGE_NAME}" -t "${DEVEL_IMAGE_NAME_VERSIONED}"
                    -f Dockerfile.${CI_PROJECT_NAME}.${CI_BUILD_REF_NAME} .
     - docker push "${DEVEL_IMAGE_NAME}"
@@ -66,11 +69,11 @@ tensorflow:
     except:
     - tags
 
-stage-after-L2: &STAGE_TEMPLATE
-    stage: L3 and staging
+stage:
+    stage: staging
     environment: staging
     script:
-    - git remote set-url origin ${ORIGIN}
+    - git remote set-url origin ${ORIGIN_SSH}
     - git push --delete origin refs/tags/${CI_BUILD_REF_NAME/%-devel/-stage}
     - git push origin HEAD:refs/tags/${CI_BUILD_REF_NAME/%-devel/-stage}
     - docker pull "${BASE_IMAGE_NAME}"
@@ -80,9 +83,6 @@ stage-after-L2: &STAGE_TEMPLATE
     - /^.*-devel$/
     except:
     - tags
-
-stage-manually:
-    <<: *STAGE_TEMPLATE
     when: manual
 
 .test_template: &TEST_TEMPLATE
@@ -94,7 +94,7 @@ stage-manually:
              -v $DATADIR:/data
              $(eval echo ${EXTRA_DOCKER_RUN_ARGS})
              ${DEVEL_IMAGE_NAME_VERSIONED}
-             /bin/bash -c "cd ${TEST_WORK_DIR} && bash ${TEST_SCRIPT}"
+             /bin/bash -c "cd ${TEST_WORK_DIR} && exec bash -ex ${TEST_SCRIPT}"
     tags:
     - has_gpu
     except:
@@ -115,7 +115,7 @@ stage-manually:
     when: manual
 
 .L3_test: &L3_TEST
-    stage: L3 and staging
+    stage: L3
     <<: *TEST_TEMPLATE
     when: manual
 

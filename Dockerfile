@@ -4,12 +4,6 @@ ENV TENSORFLOW_VERSION 0.12.1
 LABEL com.nvidia.tensorflow.version="${TENSORFLOW_VERSION}"
 ENV NVIDIA_TENSORFLOW_VERSION 17.03
 
-ARG NVIDIA_BUILD_ID
-ENV NVIDIA_BUILD_ID ${NVIDIA_BUILD_ID:-<unknown>}
-LABEL com.nvidia.build.id="${NVIDIA_BUILD_ID}"
-ARG NVIDIA_BUILD_REF
-LABEL com.nvidia.build.ref="${NVIDIA_BUILD_REF}"
-
 RUN apt-get update && apt-get install -y --no-install-recommends \
         build-essential \
         curl \
@@ -50,6 +44,12 @@ RUN BAZEL_VERSION=0.4.2 && \
     curl -fSsL -o /bazel/LICENSE.txt https://raw.githubusercontent.com/bazelbuild/bazel/master/LICENSE.txt && \
     bash ./bazel-$BAZEL_VERSION-installer-linux-x86_64.sh && \
     rm -rf /bazel
+
+ARG NVIDIA_BUILD_ID
+ENV NVIDIA_BUILD_ID ${NVIDIA_BUILD_ID:-<unknown>}
+LABEL com.nvidia.build.id="${NVIDIA_BUILD_ID}"
+ARG NVIDIA_BUILD_REF
+LABEL com.nvidia.build.ref="${NVIDIA_BUILD_REF}"
 
 # Download and build TensorFlow.
 WORKDIR /opt/tensorflow
