@@ -5,9 +5,6 @@ LABEL com.nvidia.tensorflow.version="${TENSORFLOW_VERSION}"
 ENV NVIDIA_TENSORFLOW_VERSION 17.03
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
-        build-essential \
-        curl \
-        git \
         pkg-config \
         python \
         python-dev \
@@ -16,8 +13,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         swig \
         unzip \
         zip \
-        zlib1g-dev \
-        vim && \
+        zlib1g-dev && \
     rm -rf /var/lib/apt/lists/*
 
 RUN curl -O https://bootstrap.pypa.io/get-pip.py && \
