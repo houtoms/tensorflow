@@ -7,8 +7,6 @@ exports_files(["LICENSE"])
 
 package(default_visibility = ["//tensorflow:__subpackages__"])
 
-load("//tensorflow:tensorflow.bzl", "if_cuda")
-
 py_library(
     name = "contrib_py",
     srcs = glob(["**/*.py"]),
@@ -50,9 +48,7 @@ py_library(
         "//tensorflow/contrib/tfprof",
         "//tensorflow/contrib/training:training_py",
         "//tensorflow/contrib/util:util_py",
-    ] + if_cuda([
-        "//tensorflow/contrib/nccl:nccl",
-    ]),
+    ],
 )
 
 cc_library(
