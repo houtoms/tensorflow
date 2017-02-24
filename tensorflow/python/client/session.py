@@ -100,11 +100,11 @@ _REGISTERED_EXPANSIONS = [
     # SparseTensorValues or normal tuples.
     (sparse_tensor.SparseTensor,
      lambda fetch: (
-         [fetch.indices, fetch.values, fetch.shape],
+         [fetch.indices, fetch.values, fetch.dense_shape],
          lambda fetched_vals: sparse_tensor.SparseTensorValue(*fetched_vals)),
      lambda feed, feed_val: list(zip(
-         [feed.indices, feed.values, feed.shape], feed_val)),
-     lambda feed: [feed.indices, feed.values, feed.shape]),
+         [feed.indices, feed.values, feed.dense_shape], feed_val)),
+     lambda feed: [feed.indices, feed.values, feed.dense_shape]),
     # IndexedSlices are fetched as IndexedSlicesValues. They can be fed
     # IndexedSlicesValues or normal tuples.
     (ops.IndexedSlices,
@@ -364,6 +364,7 @@ class _DictFetchMapper(_FetchMapper):
     Args:
       fetches: Dict of fetches.
     """
+    self._fetch_type = type(fetches)
     self._keys = fetches.keys()
     self._mappers = [_FetchMapper.for_fetch(fetch)
                      for fetch in fetches.values()]
@@ -373,7 +374,7 @@ class _DictFetchMapper(_FetchMapper):
     return self._unique_fetches
 
   def build_results(self, values):
-    results = {}
+    results = self._fetch_type()
     for k, m, vi in zip(self._keys, self._mappers, self._value_indices):
       results[k] = m.build_results([values[j] for j in vi])
     return results
@@ -604,8 +605,8 @@ class BaseSession(SessionInterface):
     """Returns a context manager that makes this object the default session.
 
     Use with the `with` keyword to specify that calls to
-    [`Operation.run()`](../../api_docs/python/framework.md#Operation.run) or
-    [`Tensor.eval()`](../../api_docs/python/framework.md#Tensor.eval) should be
+    @{tf.Operation.run} or
+    @{tf.Tensor.eval} should be
     executed in this session.
 
     ```python
@@ -618,7 +619,7 @@ class BaseSession(SessionInterface):
     ```
 
     To get the current default session, use
-    [`tf.get_default_session()`](#get_default_session).
+    @{tf.get_default_session}.
 
 
     *N.B.* The `as_default` context manager *does not* close the
@@ -661,17 +662,17 @@ class BaseSession(SessionInterface):
     `feed_dict` for the corresponding input values.
 
     The `fetches` argument may be a single graph element, or an arbitrarily
-    nested list, tuple, namedtuple, or dict containing graph elements at its
-    leaves.  A graph element can be one of the following types:
+    nested list, tuple, namedtuple, dict, or OrderedDict containing graph
+    elements at its leaves.  A graph element can be one of the following types:
 
-    * An [`Operation`](../../api_docs/python/framework.md#Operation).
+    * An @{tf.Operation}.
       The corresponding fetched value will be `None`.
-    * A [`Tensor`](../../api_docs/python/framework.md#Tensor).
+    * A @{tf.Tensor}.
       The corresponding fetched value will be a numpy ndarray containing the
       value of that tensor.
-    * A [`SparseTensor`](../../api_docs/python/sparse_ops.md#SparseTensor).
+    * A @{tf.SparseTensor}.
       The corresponding fetched value will be a
-      [`SparseTensorValue`](../../api_docs/python/sparse_ops.md#SparseTensorValue)
+      @{tf.SparseTensorValue}
       containing the value of that sparse tensor.
     * A `get_tensor_handle` op.  The corresponding fetched value will be a
       numpy ndarray containing the handle of that tensor.
@@ -707,16 +708,16 @@ class BaseSession(SessionInterface):
     the value of tensors in the graph. Each key in `feed_dict` can be
     one of the following types:
 
-    * If the key is a [`Tensor`](../../api_docs/python/framework.md#Tensor), the
+    * If the key is a @{tf.Tensor}, the
       value may be a Python scalar, string, list, or numpy ndarray
       that can be converted to the same `dtype` as that
       tensor. Additionally, if the key is a
-      [placeholder](../../api_docs/python/io_ops.md#placeholder), the shape of
+      @{tf.placeholder}, the shape of
       the value will be checked for compatibility with the placeholder.
     * If the key is a
-      [`SparseTensor`](../../api_docs/python/sparse_ops.md#SparseTensor),
+      @{tf.SparseTensor},
       the value should be a
-      [`SparseTensorValue`](../../api_docs/python/sparse_ops.md#SparseTensorValue).
+      @{tf.SparseTensorValue}.
     * If the key is a nested tuple of `Tensor`s or `SparseTensor`s, the value
       should be a nested tuple with the same structure that maps to their
       corresponding values as above.
@@ -793,7 +794,7 @@ class BaseSession(SessionInterface):
     b = array_ops.placeholder(dtypes.float32, shape=[])
     c = array_ops.placeholder(dtypes.float32, shape=[])
     r1 = math_ops.add(a, b)
-    r2 = math_ops.mul(r1, c)
+    r2 = math_ops.multiply(r1, c)
 
     h = sess.partial_run_setup([r1, r2], [a, b, c])
     res = sess.partial_run(h, r1, feed_dict={a: 1, b: 2})
@@ -1119,10 +1120,10 @@ class Session(BaseSession):
   ```
 
   A session may own resources, such as
-  [variables](../../api_docs/python/state_ops.md#Variable), [queues](../../api_docs/python/io_ops.md#QueueBase),
-  and [readers](../../api_docs/python/io_ops.md#ReaderBase). It is important to release
+  @{tf.Variable}, @{tf.QueueBase},
+  and @{tf.ReaderBase}. It is important to release
   these resources when they are no longer required. To do this, either
-  invoke the [`close()`](#Session.close) method on the session, or use
+  invoke the @{tf.Session.close} method on the session, or use
   the session as a context manager. The following two examples are
   equivalent:
 
@@ -1149,17 +1150,6 @@ class Session(BaseSession):
   sess = tf.Session(config=tf.ConfigProto(allow_soft_placement=True,
                                           log_device_placement=True))
   ```
-
-  @@__init__
-  @@run
-  @@close
-
-  @@graph
-
-  @@as_default
-
-  @@reset
-
   """
 
   def __init__(self, target='', graph=None, config=None):
@@ -1176,7 +1166,7 @@ class Session(BaseSession):
     Args:
       target: (Optional.) The execution engine to connect to.
         Defaults to using an in-process engine. See
-        [Distributed Tensorflow](https://www.tensorflow.org/how_tos/distributed/index.html)
+        @{$distributed$Distributed TensorFlow}
         for more examples.
       graph: (Optional.) The `Graph` to be launched (described above).
       config: (Optional.) A [`ConfigProto`](https://www.tensorflow.org/code/tensorflow/core/protobuf/config.proto)
@@ -1252,8 +1242,8 @@ class InteractiveSession(BaseSession):
 
   The only difference with a regular `Session` is that an `InteractiveSession`
   installs itself as the default session on construction.
-  The methods [`Tensor.eval()`](../../api_docs/python/framework.md#Tensor.eval)
-  and [`Operation.run()`](../../api_docs/python/framework.md#Operation.run)
+  The methods @{tf.Tensor.eval}
+  and @{tf.Operation.run}
   will use that session to run ops.
 
   This is convenient in interactive shells and [IPython
@@ -1284,9 +1274,6 @@ class InteractiveSession(BaseSession):
     # We can also use 'c.eval()' here.
     print(c.eval())
   ```
-
-  @@__init__
-  @@close
   """
 
   def __init__(self, target='', graph=None, config=None):

@@ -12,51 +12,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-r"""Entropy Ops.
-
-## Background
-
-Common Shannon entropy, the Evidence Lower BOund (ELBO), KL divergence, and more
-all have information theoretic use and interpretations.  They are also often
-used in variational inference.  This library brings together `Ops` for
-estimating them, e.g. using Monte Carlo expectations.
-
-## Examples
-
-Example of fitting a variational posterior with the ELBO.
-
-```python
-# We start by assuming knowledge of the log of a joint density p(z, x) over
-# latent variable z and fixed measurement x.  Since x is fixed, the Python
-# function does not take x as an argument.
-def log_joint(z):
-  theta = tf.Variable(0.)  # Trainable variable that helps define log_joint.
-  ...
-
-# Next, define a Normal distribution with trainable parameters.
-q = distributions.Normal(mu=tf.Variable(0.), sigma=tf.Variable(1.))
-
-# Now, define a loss function (negative ELBO) that, when minimized, will adjust
-# mu, sigma, and theta, increasing the ELBO, which we hope will both reduce the
-# KL divergence between q(z) and p(z | x), and increase p(x).  Note that we
-# cannot guarantee both, but in general we expect both to happen.
-elbo = entropy.elbo_ratio(log_p, q, n=10)
-loss = -elbo
-
-# Minimize the loss
-train_op = tf.train.GradientDescentOptimizer(0.1).minimize(loss)
-tf.global_variables_initializer().run()
-for step in range(100):
-  train_op.run()
-```
-
-## Ops
+"""Support for Entropy Ops. See ${python/contrib.bayesflow.entropy}.
 
 @@elbo_ratio
 @@entropy_shannon
 @@renyi_ratio
 @@renyi_alpha
-
 """
 
 from __future__ import absolute_import
@@ -143,7 +104,7 @@ def elbo_ratio(log_p,
       shape broadcastable to `q.batch_shape`.
       For example, `log_p` works "just like" `q.log_prob`.
     q:  `tf.contrib.distributions.Distribution`.
-    z:  `Tensor` of samples from `q`, produced by `q.sample_n`.
+    z:  `Tensor` of samples from `q`, produced by `q.sample(n)` for some `n`.
     n:  Integer `Tensor`.  Number of samples to generate if `z` is not provided.
     seed:  Python integer to seed the random number generator.
     form:  Either `ELBOForms.analytic_entropy` (use formula for entropy of `q`)
@@ -193,7 +154,7 @@ def entropy_shannon(p,
 
   Args:
     p:  `tf.contrib.distributions.Distribution`
-    z:  `Tensor` of samples from `p`, produced by `p.sample_n(n)` for some `n`.
+    z:  `Tensor` of samples from `p`, produced by `p.sample(n)` for some `n`.
     n:  Integer `Tensor`.  Number of samples to generate if `z` is not provided.
     seed:  Python integer to seed the random number generator.
     form:  Either `ELBOForms.analytic_entropy` (use formula for entropy of `q`)
@@ -326,7 +287,7 @@ def renyi_ratio(log_p, q, alpha, z=None, n=None, seed=None, name='renyi_ratio'):
        `float64` `dtype` recommended.
        `log_p` and `q` should be supported on the same set.
     alpha:  `Tensor` with shape `q.batch_shape` and values not equal to 1.
-    z:  `Tensor` of samples from `q`, produced by `q.sample_n`.
+    z:  `Tensor` of samples from `q`, produced by `q.sample` for some `n`.
     n:  Integer `Tensor`.  The number of samples to use if `z` is not provided.
       Note that this can be highly biased for small `n`, see docstring.
     seed:  Python integer to seed the random number generator.
