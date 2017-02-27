@@ -16,6 +16,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         zlib1g-dev && \
     rm -rf /var/lib/apt/lists/*
 
+# TF 1.0 upstream needs this symlink
+RUN mkdir -p /usr/lib/x86_64-linux-gnu/include/ && \
+     ln -s /usr/include/cudnn.h /usr/lib/x86_64-linux-gnu/include/cudnn.h
+
 RUN curl -O https://bootstrap.pypa.io/get-pip.py && \
     python get-pip.py && \
     rm get-pip.py
@@ -50,6 +54,10 @@ LABEL com.nvidia.build.ref="${NVIDIA_BUILD_REF}"
 # Download and build TensorFlow.
 WORKDIR /opt/tensorflow
 COPY . .
+
+# Link examples to workspace
+RUN mkdir -p /workspace/nvidia_examples && \
+     ln -s /opt/tensorflow/nvidia_examples/* /workspace/nvidia_examples/
 
 ENV CUDA_TOOLKIT_PATH /usr/local/cuda
 ENV CUDNN_INSTALL_PATH /usr/lib/x86_64-linux-gnu

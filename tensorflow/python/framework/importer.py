@@ -156,9 +156,10 @@ def import_graph_def(graph_def, input_map=None, return_elements=None,
   This function provides a way to import a serialized TensorFlow
   [`GraphDef`](https://www.tensorflow.org/code/tensorflow/core/framework/graph.proto)
   protocol buffer, and extract individual objects in the `GraphDef` as
-  [`Tensor`](#Tensor) and [`Operation`](#Operation) objects. See
-  [`Graph.as_graph_def()`](#Graph.as_graph_def) for a way to create a
-  `GraphDef` proto.
+  @{tf.Tensor} and @{tf.Operation} objects. Once extracted,
+  these objects are placed into the current default `Graph`. See
+  @{tf.Graph.as_graph_def} for a way to create a `GraphDef`
+  proto.
 
   Args:
     graph_def: A `GraphDef` proto containing operations to be imported into
@@ -255,6 +256,8 @@ def import_graph_def(graph_def, input_map=None, return_elements=None,
     # 1. Add operations without their inputs.
     for node in graph_def.node:
       # Set any default attr values that aren't present.
+      if node.op not in op_dict:
+        raise ValueError('No op named %s in defined operations.' % node.op)
       op_def = op_dict[node.op]
       for attr_def in op_def.attr:
         key = attr_def.name
