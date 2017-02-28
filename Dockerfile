@@ -72,6 +72,10 @@ RUN yes "" | ./configure && \
     rm -rf /tmp/pip/tensorflow-*.whl && \
     bazel clean --expunge
 
+ENV TF_ADJUST_HUE_FUSED         1
+ENV TF_ADJUST_SATURATION_FUSED  1
+ENV TF_ENABLE_WINOGRAD_NONFUSED 1
+
 # TensorBoard
 EXPOSE 6006
 
