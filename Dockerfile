@@ -56,8 +56,8 @@ WORKDIR /opt/tensorflow
 COPY . .
 
 # Link examples to workspace
-RUN mkdir -p /workspace/nvidia_examples && \
-     ln -s /opt/tensorflow/nvidia_examples/* /workspace/nvidia_examples/
+RUN mkdir -p /workspace/nvidia-examples && \
+     ln -s /opt/tensorflow/nvidia-examples/* /workspace/nvidia-examples/
 
 ENV CUDA_TOOLKIT_PATH /usr/local/cuda
 ENV CUDNN_INSTALL_PATH /usr/lib/x86_64-linux-gnu
