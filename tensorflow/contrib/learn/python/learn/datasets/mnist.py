@@ -27,8 +27,9 @@ from six.moves import xrange  # pylint: disable=redefined-builtin
 from tensorflow.contrib.learn.python.learn.datasets import base
 from tensorflow.python.framework import dtypes
 
-SOURCE_URL = 'http://yann.lecun.com/exdb/mnist/'
-
+#SOURCE_URL = 'http://yann.lecun.com/exdb/mnist/'
+#SOURCE_URL = 'https://web.archive.org/web/20160117040036/http://yann.lecun.com/exdb/mnist/'
+SOURCE_URL = 'https://s3.amazonaws.com/lasagne/recipes/datasets/mnist/'
 
 def _read32(bytestream):
   dt = numpy.dtype(numpy.uint32).newbyteorder('>')

@@ -147,12 +147,12 @@ stage:
 ##
 ######################################################
 
+L0_mnist:
+    <<: *L0_TEST
+
 L1_self_test:
     <<: *L1_TEST
 
-#L0_mnist:
-#    <<: *L0_TEST
-#
 #L1_resnet50_4gpu:
 #    <<: *L1_TEST
 #
