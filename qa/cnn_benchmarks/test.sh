@@ -1,8 +1,17 @@
 #!/bin/bash
 
-CNN_NUM_GPUS_LIST=${CNN_NUM_GPUS_LIST:-1}
+CNN_NUM_BATCHES=300
+CNN_DATA_FORMAT=NCHW
+CNN_RESIZE_METHOD=bilinear
+CNN_DISPLAY_EVERY=10
+CNN_NUM_PREPROCESS_THREADS=5
+CNN_SHARED_CONFIG=" --nodistortions --weak_scaling"
+CNN_NUM_GPUS_LIST=${CNN_NUM_GPUS_LIST:-"1 2 4"}
+CNN_PARAMETER_SERVER=${CNN_PARAMETER_SERVER:-"cpu"}
 
-(for n in ${CNN_NUM_GPUS_LIST//;/ } ; do
+cd ..
+
+for n in ${CNN_NUM_GPUS_LIST//;/ }; do
     python models/benchmark_tf_cnn.py \
         --num_gpus=$n \
         --model=$CNN_MODEL \
@@ -17,4 +26,4 @@ CNN_NUM_GPUS_LIST=${CNN_NUM_GPUS_LIST:-1}
         $CNN_SHARED_CONFIG \
         $CNN_CONFIG \
         || exit; \
-    done)
+done
