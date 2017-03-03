@@ -163,6 +163,18 @@ stage:
 L0_mnist:
     <<: *L0_TEST
 
+L0_soumith_alexnet:
+    <<: *L0_TEST
+
+L0_soumith_googlenet:
+    <<: *L0_TEST
+
+L0_soumith_overfeat:
+    <<: *L0_TEST
+
+L0_soumith_vgg:
+    <<: *L0_TEST
+
 L1_self_test:
     <<: *L1_TEST
 
