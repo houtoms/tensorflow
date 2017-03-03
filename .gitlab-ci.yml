@@ -160,6 +160,12 @@ stage:
 ##
 ######################################################
 
+L0_models_alexnet:
+    <<: *L0_TEST
+
+L0_models_imagenet:
+    <<: *L0_TEST
+
 L0_models_mnist:
     <<: *L0_TEST
 
@@ -199,20 +205,23 @@ L1_self_test_cpu:
 L2_tensorflow_benchmarks:
     <<: *L2_TEST
 
-#L2_cifar10:
-#    <<: *L2_TEST
+L2_models_cifar10:
+    <<: *L2_TEST
 
+############################################################
+## TEMPLATES
+##
 .L2_cnn_benchmark: &L2_CNN_BENCHMARK
     <<: *L2_TEST
     variables:
       TEST_WORK_DIR: "/opt/tensorflow/qa/cnn_benchmarks"
       TEST_SCRIPT: "./${CI_BUILD_NAME}.sh"
-
 .L3_cnn_benchmark: &L3_CNN_BENCHMARK
     <<: *L3_TEST
     variables:
       TEST_WORK_DIR: "/opt/tensorflow/qa/cnn_benchmarks"
       TEST_SCRIPT: "./${CI_BUILD_NAME}.sh"
+############################################################
 
 L2_cnn_alexnet_batch128_real:
     <<: *L2_CNN_BENCHMARK

@@ -1,3 +1,5 @@
 #!/bin/bash
 
-python -m tensorflow.models.image.imagenet.classify_image | grep score | ./test_result
+IMAGENET=../third_party/tensorflow_models/tutorials/image/imagenet
+
+python $IMAGENET/classify_image.py | grep score | ./test_result
