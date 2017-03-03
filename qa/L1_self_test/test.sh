@@ -7,14 +7,15 @@ curl -O https://bootstrap.pypa.io/get-pip.py && \
   pip2 install --upgrade --force-reinstall pip && \
   rm get-pip.py
 
-pip  install wheel six==1.10.0 protobuf==3.0.0 numpy==1.11.0 scipy==0.16.1 scikit-learn==0.17.1 pandas==0.18.1 psutil py-cpuinfo pylint pep8 portpicker mock
-
-pip3 install wheel six==1.10.0 protobuf==3.0.0 numpy==1.11.0 scipy==0.16.1 scikit-learn==0.17.1 pandas==0.18.1 psutil py-cpuinfo pylint pep8 portpicker
-
 tensorflow/tools/ci_build/install/install_bootstrap_deb_packages.sh
 add-apt-repository -y ppa:openjdk-r/ppa && \
   add-apt-repository -y ppa:george-edison55/cmake-3.x
 tensorflow/tools/ci_build/install/install_deb_packages.sh
+
+pip  install wheel six==1.10.0 protobuf==3.0.0 numpy==1.11.0 scipy==0.16.1 scikit-learn==0.17.1 pandas==0.18.1 psutil py-cpuinfo pylint pep8 portpicker mock
+
+pip3 install wheel six==1.10.0 protobuf==3.0.0 numpy==1.11.0 scipy==0.16.1 scikit-learn==0.17.1 pandas==0.18.1 psutil py-cpuinfo pylint pep8 portpicker
+
 tensorflow/tools/ci_build/install/install_pip_packages.sh
 tensorflow/tools/ci_build/install/install_proto3.sh
 tensorflow/tools/ci_build/install/install_auditwheel.sh
