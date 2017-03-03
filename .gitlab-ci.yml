@@ -178,6 +178,9 @@ L0_soumith_vgg:
 L1_self_test:
     <<: *L1_TEST
 
+L1_self_test_cpu:
+    <<: *L1_TEST
+
 #L1_resnet50_4gpu:
 #    <<: *L1_TEST
 #
