@@ -1,0 +1,8 @@
+[submodule "third_party/convnet-benchmarks"]
+	path = qa/third_party/convnet-benchmarks
+	url = https://github.com/soumith/convnet-benchmarks
+	branch = master
+[submodule "third_party/tensorflow_models"]
+	path = qa/third_party/tensorflow_models
+	url = https://github.com/tensorflow/models
+	branch = master
