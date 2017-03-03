@@ -24,8 +24,7 @@ export LD_LIBRARY_PATH=/usr/local/cuda/extras/CUPTI/lib64:$LD_LIBRARY_PATH
 
 NUM_GPUS=`nvidia-smi -L | wc -l` && \
   bazel build --config=cuda -c opt --test_tag_filters=local,-benchmark-test \
-              //tensorflow/... \
-              -//tensorflow/compiler/... && \
+              //tensorflow/... && \
   bazel test  --config=cuda -c opt --verbose_failures --local_test_jobs=$NUM_GPUS \
               --run_under=//tensorflow/tools/ci_build/gpu_build:parallel_gpu_execute \
               --test_tag_filters=local,-benchmark-test \
