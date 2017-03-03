@@ -160,20 +160,32 @@ stage:
 ##
 ######################################################
 
-L0_mnist:
+L0_models_mnist:
     <<: *L0_TEST
 
-L0_soumith_alexnet:
+L0_convnet_benchmarks_alexnet:
     <<: *L0_TEST
+    variables:
+      TEST_WORK_DIR: "/opt/tensorflow/qa/L0_convnet_benchmarks"
+      TEST_SCRIPT: "./test-alexnet.sh"
 
-L0_soumith_googlenet:
+L0_convnet_benchmarks_googlenet:
     <<: *L0_TEST
+    variables:
+      TEST_WORK_DIR: "/opt/tensorflow/qa/L0_convnet_benchmarks"
+      TEST_SCRIPT: "./test-googlenet.sh"
 
-L0_soumith_overfeat:
+L0_convnet_benchmarks_overfeat:
     <<: *L0_TEST
+    variables:
+      TEST_WORK_DIR: "/opt/tensorflow/qa/L0_convnet_benchmarks"
+      TEST_SCRIPT: "./test-overfeat.sh"
 
-L0_soumith_vgg:
+L0_convnet_benchmarks_vgga:
     <<: *L0_TEST
+    variables:
+      TEST_WORK_DIR: "/opt/tensorflow/qa/L0_convnet_benchmarks"
+      TEST_SCRIPT: "./test-vgga.sh"
 
 L1_word2vec:
     <<: *L1_TEST
@@ -184,11 +196,8 @@ L1_self_test:
 L1_self_test_cpu:
     <<: *L1_TEST
 
-#L1_resnet50_4gpu:
-#    <<: *L1_TEST
-#
-#L1_alexnet_4gpu:
-#    <<: *L1_TEST
-#
-#L2_seq2seq:
-#    <<: *L2_TEST
+L2_tensorflow_benchmarks:
+    <<: *L2_TEST
+
+L2_cifar10:
+    <<: *L2_TEST
