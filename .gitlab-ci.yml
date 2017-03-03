@@ -175,6 +175,9 @@ L0_soumith_overfeat:
 L0_soumith_vgg:
     <<: *L0_TEST
 
+L1_word2vec:
+    <<: *L1_TEST
+
 L1_self_test:
     <<: *L1_TEST
 
