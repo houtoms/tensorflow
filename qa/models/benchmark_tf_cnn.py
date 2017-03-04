@@ -24,6 +24,13 @@ TODO: Fix queue error when using crop with non-resized images
 ---------
 Changelog
 ---------
+v0.12
+Updated to TF 1.0 API
+Added printout of script version and cmd-line args
+Added support for passing empty string to args such as --data_dir to indicate None
+Added exit with failure code if model goes OOM during training
+Added warning message when using --resize_method=crop with a non-resized dataset
+
 v0.11
 Fixed incorrect batchnorm in NCHW mode (NOTE: With TF <= 0.11, NHWC is faster than NCHW for batchnorm models; for TF >= 0.12, NCHW is now fused and is much faster)
 Fixed slightly incorrect ResNet definition
@@ -83,6 +90,8 @@ Fixed --distortions not defaulting to True
 Added num_intra_threads option with default of 1 (slightly faster than default of 0 => TF decides)
 Added printing of final performance statistics
 """
+
+__version__ = "0.12"
 
 import tensorflow as tf
 
@@ -393,7 +402,7 @@ class ConvNetBuilder(object):
 					col_layers[c].append(self.top_layer)
 					col_layer_sizes[c].append(self.top_size)
 			catdim = 3 if self.data_format == 'NHWC' else 1
-			self.top_layer = array_ops.concat(catdim, [layers[-1] for layers in col_layers])
+			self.top_layer = array_ops.concat([layers[-1] for layers in col_layers], catdim)
 			self.top_size  = sum([sizes[-1] for sizes in col_layer_sizes])
 			return self.top_layer
 	def residual(self, net, nout=None, dH=1, dW=1, scale=1.0, activation='relu'):
@@ -446,20 +455,12 @@ class ConvNetBuilder(object):
 		name = 'batchnorm' + str(self.counts['batchnorm'])
 		self.counts['batchnorm'] += 1
 		with tf.variable_scope(name) as scope:
-			if tensorflow_version() <= 11:
-				input_layer = self.to_nhwc(input_layer)
-				bn = tf.contrib.layers.batch_norm(input_layer,
-				                                  is_training=self.phase_train,
-				                                  scope=scope,
-				                                  **kwargs)
-				bn = self.from_nhwc(bn)
-			else:
-				bn = tf.contrib.layers.batch_norm(input_layer,
-				                                  is_training=self.phase_train,
-				                                  scope=scope,
-				                                  data_format=self.data_format,
-				                                  fused=(self.data_format=='NCHW'),
-				                                  **kwargs)
+			bn = tf.contrib.layers.batch_norm(input_layer,
+			                                  is_training=self.phase_train,
+			                                  scope=scope,
+			                                  data_format=self.data_format,
+			                                  fused=(self.data_format=='NCHW'),
+			                                  **kwargs)
 		self.top_layer = bn
 		return bn
 	def to_nhwc(self, x):
@@ -929,7 +930,7 @@ def average_gradients_inception(tower_grads):
       grads.append(expanded_g)
 
     # Average over the 'tower' dimension.
-    grad = tf.concat(0, grads)
+    grad = tf.concat(grads, 0)
     grad = tf.reduce_mean(grad, 0)
 
     # Keep in mind that the Variables are redundant because they are shared
@@ -941,7 +942,8 @@ def average_gradients_inception(tower_grads):
   return average_grads
 
 def loss_function(logits, labels):
-	cross_entropy = tf.nn.sparse_softmax_cross_entropy_with_logits(logits, labels,
+	cross_entropy = tf.nn.sparse_softmax_cross_entropy_with_logits(logits=logits,
+	                                                               labels=labels,
 	                                                               name='xentropy')
 	loss = tf.reduce_mean(cross_entropy, name='xentropy_mean')
 	return loss
@@ -953,7 +955,7 @@ def loss_function_old(logits, labels):
 	batch_size = tf.size(labels)
 	labels = tf.expand_dims(labels, 1)
 	indices = tf.expand_dims(tf.range(0, batch_size, 1), 1)
-	concated = tf.concat(1, [indices, labels])
+	concated = tf.concat([indices, labels], 1)
 	onehot_labels = tf.sparse_to_dense(
 		concated, tf.pack([batch_size, nclass]), 1.0, 0.0)
 	cross_entropy = tf.nn.softmax_cross_entropy_with_logits(logits,
@@ -1027,7 +1029,7 @@ def parse_example_proto(example_serialized):
   ymax = tf.expand_dims(features['image/object/bbox/ymax'].values, 0)
 
   # Note that we impose an ordering of (y, x) just to make life difficult.
-  bbox = tf.concat(0, [ymin, xmin, ymax, xmax])
+  bbox = tf.concat([ymin, xmin, ymax, xmax], 0)
 
   # Force the variable number of bounding boxes into the shape
   # [1, num_boxes, coords].
@@ -1062,7 +1064,7 @@ def decode_jpeg(image_buffer, scope=None):#, dtype=tf.float32):
 def eval_image(image, height, width, bbox, thread_id, scope=None):
 	with tf.name_scope(scope or 'eval_image'):
 		if not thread_id:
-			tf.image_summary('original_image',
+			tf.summary.image('original_image',
 			                 tf.expand_dims(image, 0))
 		if FLAGS.resize_method == 'crop':
 			# Note: This is much slower than crop_to_bounding_box
@@ -1073,6 +1075,8 @@ def eval_image(image, height, width, bbox, thread_id, scope=None):
 			y0 = (shape[0] - height) // 2
 			x0 = (shape[1] - width)  // 2
 			#distorted_image = tf.slice(image, [y0,x0,0], [height,width,3])
+			# WARNING: This only works if all images are larger than crop size
+			#            (typically requires a pre-resized dataset).
 			distorted_image = tf.image.crop_to_bounding_box(image, y0, x0,
 			                                                height, width)
 		else:
@@ -1095,15 +1099,11 @@ def eval_image(image, height, width, bbox, thread_id, scope=None):
 			}[FLAGS.resize_method]
 			# This resizing operation may distort the images because the aspect
 			# ratio is not respected.
-			if tensorflow_version() >= 11:
-				distorted_image = tf.image.resize_images(distorted_image, [height, width],
-				                                         resize_method, align_corners=False)
-			else:
-				distorted_image = tf.image.resize_images(distorted_image, height, width,
-				                                         resize_method, align_corners=False)
+			distorted_image = tf.image.resize_images(distorted_image, [height, width],
+			                                         resize_method, align_corners=False)
 		distorted_image.set_shape([height, width, 3])
 		if not thread_id:
-			tf.image_summary('cropped_resized_image',
+			tf.summary.image('cropped_resized_image',
 			                 tf.expand_dims(distorted_image, 0))
 		image = distorted_image
 	return image
@@ -1142,7 +1142,7 @@ def distort_image(image, height, width, bbox, thread_id=0, scope=None):
     if not thread_id:
       image_with_box = tf.image.draw_bounding_boxes(tf.expand_dims(image, 0),
                                                     bbox)
-      tf.image_summary('image_with_bounding_boxes', image_with_box)
+      tf.summary.image('image_with_bounding_boxes', image_with_box)
 
   # A large fraction of image datasets contain a human-annotated bounding
   # box delineating the region of the image containing the object of interest.
@@ -1163,7 +1163,7 @@ def distort_image(image, height, width, bbox, thread_id=0, scope=None):
     if not thread_id:
       image_with_distorted_box = tf.image.draw_bounding_boxes(
           tf.expand_dims(image, 0), distort_bbox)
-      tf.image_summary('images_with_distorted_bounding_box',
+      tf.summary.image('images_with_distorted_bounding_box',
                        image_with_distorted_box)
 
     # Crop the image to the specified bounding box.
@@ -1174,17 +1174,13 @@ def distort_image(image, height, width, bbox, thread_id=0, scope=None):
     # fashion based on the thread number.
     # Note that ResizeMethod contains 4 enumerated resizing methods.
     resize_method = thread_id % 4
-    if tensorflow_version() >= 11:
-      distorted_image = tf.image.resize_images(distorted_image, [height, width],
-                                                 resize_method, align_corners=False)
-    else:
-      distorted_image = tf.image.resize_images(distorted_image, height, width,
-                                                 resize_method, align_corners=False)
+    distorted_image = tf.image.resize_images(distorted_image, [height, width],
+                                               resize_method, align_corners=False)
     # Restore the shape since the dynamic slice based upon the bbox_size loses
     # the third dimension.
     distorted_image.set_shape([height, width, 3])
     if not thread_id:
-      tf.image_summary('cropped_resized_image',
+      tf.summary.image('cropped_resized_image',
                        tf.expand_dims(distorted_image, 0))
 
     # Randomly flip the image horizontally.
@@ -1197,7 +1193,7 @@ def distort_image(image, height, width, bbox, thread_id=0, scope=None):
     distorted_image *= 255
 
     if not thread_id:
-      tf.image_summary('final_distorted_image',
+      tf.summary.image('final_distorted_image',
                        tf.expand_dims(distorted_image, 0))
     return distorted_image
 
@@ -1331,7 +1327,7 @@ class ImagePreprocessor(object):
 			images = tf.reshape(images, shape=[self.batch_size, self.height, self.width, depth])
 			label_index_batch = tf.reshape(label_index_batch, [self.batch_size])
 			# Display the training images in the visualizer.
-			tf.image_summary('images', images)
+			tf.summary.image('images', images)
 			
 			#image_shape = (self.batch_size, self.height, self.width, depth)
 			#image_buf = tf.Variable(tf.zeros(input_shape, input_data_type, trainable=False))
@@ -1604,8 +1600,8 @@ def test_cnn(model, batch_size, devices,
 			#images = tf.constant(synthetic_images)
 			#labels = tf.constant(synthetic_labels)
 		labels -= 1 # Change to 0-based (don't use background class like Inception does)
-		images_splits = tf.split(0, len(devices), images)
-		labels_splits = tf.split(0, len(devices), labels)
+		images_splits = tf.split(images, len(devices), 0)
+		labels_splits = tf.split(labels, len(devices), 0)
 	
 	print "Generating model"
 	device_grads = []
@@ -1690,7 +1686,7 @@ def test_cnn(model, batch_size, devices,
 	#all_grads = all_average_gradients(device_grads, devices)
 	#all_grads = all_average_gradients2(device_grads, devices)
 	#all_grads = all_average_gradients3(device_grads, devices)
-	all_predictions = tf.concat(0, all_predictions)
+	all_predictions = tf.concat(all_predictions, 0)
 	
 	with tf.device(param_server_device):
 		total_loss = tf.reduce_mean(losses)
@@ -1731,39 +1727,25 @@ def test_cnn(model, batch_size, devices,
 	with tf.device('/cpu:0'):
 		for grad, var in avg_grads:
 			if grad is not None:
-				if tensorflow_version() >= 12:
-					tf.summary.histogram(var.op.name + '/gradients', grad)
-				else:
-					tf.histogram_summary(var.op.name + '/gradients', grad)
+				tf.summary.histogram(var.op.name + '/gradients', grad)
 		for var in tf.trainable_variables():
-			if tensorflow_version() >= 12:
-				tf.summary.histogram(var.op.name, var)
-			else:
-				tf.histogram_summary(var.op.name, var)
+			tf.summary.histogram(var.op.name, var)
 	
 	with tf.device('/cpu:0'):
-		if tensorflow_version() >= 11:
-			tf.summary.scalar('total loss raw', total_loss)
-			tf.summary.scalar('total loss avg', total_loss_avg)
-			tf.summary.scalar('learning_rate', learning_rate)
-		else:
-			tf.scalar_summary('total loss raw', total_loss)
-			tf.scalar_summary('total loss avg', total_loss_avg)
-			tf.scalar_summary('learning_rate', learning_rate)
+		tf.summary.scalar('total loss raw', total_loss)
+		tf.summary.scalar('total loss avg', total_loss_avg)
+		tf.summary.scalar('learning_rate', learning_rate)
 	
 	if FLAGS.summaries_dir is not None:
-		all_summaries = tf.merge_all_summaries()
+		all_summaries = tf.summary.merge_all()
 		print "Creating SummaryWriter"
 		#summaries_dir = os.path.join(FLAGS.summaries_dir,
 		#                             "%s-%s" % (FLAGS.model,
 		#                                        time.strftime("%Y%m%d-%H%M%S")))
 		summaries_dir = FLAGS.summaries_dir
-		summary_writer = tf.train.SummaryWriter(summaries_dir, sess.graph)
+		summary_writer = tf.summary.FileWriter(summaries_dir, sess.graph)
 	
-	if tensorflow_version() >= 12:
-		init = tf.global_variables_initializer()
-	else:
-		init = tf.initialize_all_variables()
+	init = tf.global_variables_initializer()
 	
 	if FLAGS.graph_file is not None:
 		path, filename = os.path.split(FLAGS.graph_file)
@@ -1776,6 +1758,7 @@ def test_cnn(model, batch_size, devices,
 	
 	print "Initializing all variables"
 	# Note: This must be done before starting the queue runners to avoid errors
+	# TODO: This can go OOM and throw tf.python.errors.ResourceExhaustedError
 	sess.run(init)
 	
 	print "Starting queue runners"
@@ -1874,6 +1857,7 @@ def test_cnn(model, batch_size, devices,
 		if oom:
 			break
 	nstep = step + 1
+	
 	if nstep > nstep_burnin:
 		times = np.array(perf_results['step_train_times'][nstep_burnin:])
 		speeds     = batch_size / times
@@ -1895,6 +1879,9 @@ def test_cnn(model, batch_size, devices,
 	if FLAGS.summaries_dir is not None:
 		summary_writer.close()
 	sess.close()
+	if oom:
+		print "Out of memory error detected, exiting"
+		sys.exit(-2)
 
 def device_or_param_server(device, ps):
 	return lambda op: ps if op.type == 'Variable' else device
@@ -2093,6 +2080,14 @@ def main():
 		FLAGS.parameter_server = 'cpu'
 		FLAGS.data_format      = 'NHWC'
 	
+	# Allow passing empty strings to indicate None
+	if FLAGS.data_dir       == "": FLAGS.data_dir       = None
+	if FLAGS.perf_file      == "": FLAGS.perf_file      = None
+	if FLAGS.trace_file     == "": FLAGS.trace_file     = None
+	if FLAGS.graph_file     == "": FLAGS.graph_file     = None
+	if FLAGS.checkpoint_dir == "": FLAGS.checkpoint_dir = None
+	if FLAGS.summaries_dir  == "": FLAGS.summaries_dir  = None
+	
 	model       = FLAGS.model
 	batch_size  = FLAGS.batch_size
 	devices     = ['/%s:%i'%(FLAGS.device,i) for i in xrange(FLAGS.num_gpus)]
@@ -2108,6 +2103,8 @@ def main():
 	
 	dataset = None
 	if FLAGS.data_dir is not None:
+		if FLAGS.resize_method == 'crop' and 'resize' not in FLAGS.data_dir:
+			print "*** WARNING: --resize_method=crop requires resized dataset! ***"
 		if FLAGS.data_name is None:
 			if   "imagenet" in FLAGS.data_dir: FLAGS.data_name = "imagenet"
 			elif "flowers"  in FLAGS.data_dir: FLAGS.data_name = "flowers"
@@ -2121,6 +2118,9 @@ def main():
 	
 	tfversion = tensorflow_version_tuple()
 	print "TensorFlow:  %i.%i.%s" % tfversion
+	print "This script: v%s" % __version__
+	print "Cmd line args:"
+	print '\n'.join(['  '+arg for arg in sys.argv[1:]])
 	
 	data_format = FLAGS.data_format
 	num_batches = FLAGS.num_batches
