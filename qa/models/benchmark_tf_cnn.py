@@ -33,12 +33,23 @@
    control over how TF is used (as opposed to say relying on Keras or
    TFSlim, which may not be GPU-optimal).
 
-**TODO: Avoid H2D copy when using synthetic data
-          We want this mode to represent GPU-only perf
-
 ---------
 Changelog
 ---------
+v0.9
+Added vgg19 model and renamed old model to vgg11
+Added lenet model
+Added --display_every option
+Reduced CPU bottleneck by moving float conversion+scaling to the GPU (only in --nodistortions mode)
+Changed --num_intra_threads to default to 0 (i.e., system-defined)
+  Note: This made a significant difference while experimenting with 8-bit PCIe
+          transfers, but no difference with fp32 (which was faster overall).
+Changed --nodistortions mode to include random bbox cropping
+Changed distortions to default to False
+Added show_memory=True to Chrome trace format output
+Fixed some compatibility issues for TF r0.11
+Fixed shape bug in --gpu_prefetch mode when using multiple GPUs
+
 v0.8
 Enabled displaying of default values in cmd line help
 Added --inference mode
@@ -56,8 +67,17 @@ Added printing of final performance statistics
 """
 
 import tensorflow as tf
+
+def tensorflow_version_tuple():
+	v = tf.__version__
+	major, minor, patch = v.split('.')
+	return (int(major), int(minor), patch)
+def tensorflow_version():
+	vt = tensorflow_version_tuple()
+	return vt[0]*1000 + vt[1]
+
 from tensorflow.python.ops import array_ops
-from tensorflow.python import control_flow_ops
+from tensorflow.python.ops import control_flow_ops
 from tensorflow.python.client import timeline
 import numpy as np
 import time
@@ -351,7 +371,7 @@ def inference_alexnet(cnn):
 	cnn.dropout()
 	return cnn
 
-def inference_vgg(cnn):
+def inference_vgg11(cnn):
 	cnn.conv (64, 3, 3)
 	cnn.mpool(2, 2)
 	cnn.conv (128, 3, 3)
@@ -368,6 +388,37 @@ def inference_vgg(cnn):
 	cnn.reshape([-1, 512 * 7 * 7])
 	cnn.affine(4096)
 	cnn.affine(4096)
+	return cnn
+
+def inference_vgg19(cnn):
+	for _ in xrange(2):
+		cnn.conv (64, 3, 3)
+	cnn.mpool(2, 2)
+	for _ in xrange(2):
+		cnn.conv (128, 3, 3)
+	cnn.mpool(2, 2)
+	for _ in xrange(4):
+		cnn.conv (256, 3, 3)
+	cnn.mpool(2, 2)
+	for _ in xrange(4):
+		cnn.conv (512, 3, 3)
+	cnn.mpool(2, 2)
+	for _ in xrange(4):
+		cnn.conv (512, 3, 3)
+	cnn.mpool(2, 2)
+	cnn.reshape([-1, 512 * 7 * 7])
+	cnn.affine(4096)
+	cnn.affine(4096)
+	return cnn
+
+def inference_lenet5(cnn):
+	# Note: This matches TF's MNIST tutorial model
+	cnn.conv (32, 5, 5)
+	cnn.mpool(2, 2)
+	cnn.conv (64, 5, 5)
+	cnn.mpool(2, 2)
+	cnn.reshape([-1, 64 * 7 * 7])
+	cnn.affine(512)
 	return cnn
 
 def inference_resnet_v1(cnn, layer_counts):
@@ -801,7 +852,7 @@ def parse_example_proto(example_serialized):
 
   return features['image/encoded'], label, bbox, features['image/class/text']
 
-def decode_jpeg(image_buffer, scope=None, dtype=tf.float32):
+def decode_jpeg(image_buffer, scope=None):#, dtype=tf.float32):
   """Decode a JPEG string into one 3-D float image Tensor.
 
   Args:
@@ -821,52 +872,43 @@ def decode_jpeg(image_buffer, scope=None, dtype=tf.float32):
 
     #image = tf.Print(image, [tf.shape(image)], "Image shape: ")
 
-    # After this point, all image pixels reside in [0,1)
-    # until the very end, when they're rescaled to (-1, 1).  The various
-    # adjust_* ops all require this range for dtype float.
-    image = tf.image.convert_image_dtype(image, dtype=dtype)
     return image
 
-def eval_image(image, height, width, scope=None):
-  """Prepare one image for evaluation.
-
-  Args:
-    image: 3-D float Tensor
-    height: integer
-    width: integer
-    scope: Optional scope for op_scope.
-  Returns:
-    3-D float Tensor of prepared image.
-  """
-  #with tf.op_scope([image, height, width], scope, 'eval_image'):
-  #with tf.name_scope(scope, 'eval_image', [image, height, width]):
+def eval_image(image, height, width, bbox, thread_id, scope=None):
   with tf.name_scope(scope or 'eval_image'):
-    # Crop the central region of the image with an area containing 87.5% of
-    # the original image.
+    if not thread_id:
+      tf.image_summary('original_image',
+                       tf.expand_dims(image, 0))
 
-    image = tf.image.central_crop(image, central_fraction=0.875)
-    """
-    # HACK TESTING
-    print "*********", image.get_shape()
-    #h, w, _ = image.get_shape()
-    #
-    #image.set_shape([h,w,3])
-    image = tf.image.resize_image_with_crop_or_pad(image, height, width)
-    # **TODO: Huh!? The above function appears to erase the static depth information!
-    print "         ", image.get_shape()
-    image.set_shape([height,width,3])
-    print "         ", image.get_shape()
-    """
-    # Resize the image to the original height and width.
-    image = tf.expand_dims(image, 0)
-    
-    image = tf.image.resize_bilinear(image, [height, width],
-    #image = tf.image.resize_nearest_neighbor(image, [height, width], # HACK TESTING
-                                     align_corners=False)
-    image = tf.squeeze(image, [0])
-    
-    #image *= 1./255 # HACK TESTING
-    
+    sample_distorted_bounding_box = tf.image.sample_distorted_bounding_box(
+        tf.shape(image),
+        bounding_boxes=bbox,
+        min_object_covered=0.1,
+        aspect_ratio_range=[0.75, 1.33],
+        area_range=[0.05, 1.0],
+        max_attempts=100,
+        use_image_if_no_bounding_boxes=True)
+    bbox_begin, bbox_size, distort_bbox = sample_distorted_bounding_box
+
+    # Crop the image to the specified bounding box.
+    distorted_image = tf.slice(image, bbox_begin, bbox_size)
+    #distorted_image = tf.image.central_crop(image, central_fraction=0.875)
+
+    # This resizing operation may distort the images because the aspect
+    # ratio is not respected.
+    resize_method = tf.image.ResizeMethod.BILINEAR
+    if tensorflow_version() >= 11:
+      distorted_image = tf.image.resize_images(distorted_image, [height, width],
+                                               resize_method, align_corners=False)
+    else:
+      distorted_image = tf.image.resize_images(distorted_image, height, width,
+                                               resize_method, align_corners=False)
+    distorted_image.set_shape([height, width, 3])
+    if not thread_id:
+      tf.image_summary('cropped_resized_image',
+                       tf.expand_dims(distorted_image, 0))
+    image = distorted_image
+
     return image
 
 def distort_image(image, height, width, bbox, thread_id=0, scope=None):
@@ -893,6 +935,11 @@ def distort_image(image, height, width, bbox, thread_id=0, scope=None):
   with tf.name_scope(scope or 'distort_image'):
     # Each bounding box has shape [1, num_boxes, box coords] and
     # the coordinates are ordered [ymin, xmin, ymax, xmax].
+
+    # After this point, all image pixels reside in [0,1)
+    # until the very end, when they're rescaled to (-1, 1).  The various
+    # adjust_* ops all require this range for dtype float.
+    image = tf.image.convert_image_dtype(image, dtype=tf.float32)
 
     # Display the bounding box in the first thread only.
     if not thread_id:
@@ -930,8 +977,12 @@ def distort_image(image, height, width, bbox, thread_id=0, scope=None):
     # fashion based on the thread number.
     # Note that ResizeMethod contains 4 enumerated resizing methods.
     resize_method = thread_id % 4
-    distorted_image = tf.image.resize_images(distorted_image, height, width,
-                                             resize_method)
+    if tensorflow_version() >= 11:
+      distorted_image = tf.image.resize_images(distorted_image, [height, width],
+                                                 resize_method, align_corners=False)
+    else:
+      distorted_image = tf.image.resize_images(distorted_image, height, width,
+                                                 resize_method, align_corners=False)
     # Restore the shape since the dynamic slice based upon the bbox_size loses
     # the third dimension.
     distorted_image.set_shape([height, width, 3])
@@ -944,6 +995,9 @@ def distort_image(image, height, width, bbox, thread_id=0, scope=None):
 
     # Randomly distort the colors.
     distorted_image = distort_color(distorted_image, thread_id)
+
+    # Note: This ensures the scaling matches the output of eval_image
+    distorted_image *= 256
 
     if not thread_id:
       tf.image_summary('final_distorted_image',
@@ -1013,15 +1067,18 @@ class ImagePreprocessor(object):
 		self.num_readers = num_readers
 		self.input_queue_memory_factor = input_queue_memory_factor
 		self.distortions = distortions
+	
 	def preprocess(self, image_buffer, bbox, thread_id):
-		image = decode_jpeg(image_buffer, dtype=self.dtype)
+		# Note: Width and height of returned image is known only at runtime
+		image = tf.image.decode_jpeg(image_buffer, channels=3)
 		if self.train and self.distortions:
 			image = distort_image(image, self.height, self.width, bbox, thread_id)
 		else:
-			image = eval_image(image, self.height, self.width)
-		# Rescale to [-1,1] instead of [0, 1)
-		image = tf.sub(image, 0.5)
-		image = tf.mul(image, 2.0)
+			image = eval_image(image, self.height, self.width, bbox, thread_id)
+		# Note: image is now float32 [height,width,3] with range [0, 255]
+		
+		#image = tf.cast(image, tf.uint8) # HACK TESTING
+		
 		return image
 	
 	def minibatch(self, dataset, subset):
@@ -1069,7 +1126,8 @@ class ImagePreprocessor(object):
 			images, label_index_batch = tf.train.batch_join(
 				images_and_labels,
 				batch_size=self.batch_size,
-				capacity=2 * self.num_preprocess_threads * self.batch_size)
+				capacity=2 * self.num_preprocess_threads * self.batch_size)#,
+				#dynamic_pad=True) # HACK TESTING dynamic_pad=True
 			images = tf.cast(images, self.dtype)
 			depth = 3
 			images = tf.reshape(images, shape=[self.batch_size, self.height, self.width, depth])
@@ -1137,7 +1195,7 @@ class GPUPrefetcherOp(object):
 		return self.parent._release(self.op)
 
 class GPUPrefetcher(threading.Thread):
-	def __init__(self, sess, device, input_op, shape, dtype, nbuf=2):
+	def __init__(self, sess, device, input_op, dtype, nbuf=2):
 		super(GPUPrefetcher, self).__init__()
 		self.sess = sess
 		self.input_op = input_op
@@ -1147,6 +1205,7 @@ class GPUPrefetcher(threading.Thread):
 		self.bufnum = tf.placeholder(tf.int32)
 		self.init_op = self.empty_queue.enqueue([self.bufnum])
 		with tf.device(device):
+			shape = input_op.get_shape()
 			# TODO: This is just for a quick POC; it should be removed in favour
 			#         of using a dependency on the op(s) that use the prefetch
 			#         buffer directly.
@@ -1194,9 +1253,10 @@ class GPUPrefetcher(threading.Thread):
 			              feed_dict={self.bufnum: b})
 		b = 0
 		while not self.shutdown.is_set():
-			print "Empty size", self.sess.run(self.empty_queue.size())
-			print "Full size", self.sess.run(self.full_queue.size())
-			print "Putting", b, self.sess.run(self.put_ops[b])
+			#print "Empty size", self.sess.run(self.empty_queue.size())
+			#print "Full size", self.sess.run(self.full_queue.size())
+			#print "Putting", b
+			self.sess.run(self.put_ops[b])
 			b += 1
 			b %= self.nbuf
 		
@@ -1233,6 +1293,7 @@ def test_cnn(model, batch_size, devices,
 	
 	nstep_burnin = 10
 	perf_results = {}
+	perf_results['tf_version']     = tensorflow_version()
 	perf_results['model']          = model
 	perf_results['mode']           = 'inference' if FLAGS.inference else 'training'
 	perf_results['batch_size']     = batch_size
@@ -1252,6 +1313,7 @@ def test_cnn(model, batch_size, devices,
 	perf_results['compute_dtype']  = 'float32'
 	perf_results['mem_growth']     = enable_mem_growth
 	perf_results['trace_filename'] = trace_filename
+	perf_results['gpu_prefetch']   = FLAGS.gpu_prefetch
 	perf_results['learning_rate']  = FLAGS.learning_rate
 	perf_results['momentum']       = FLAGS.momentum
 	perf_results['weight_decay']   = FLAGS.weight_decay
@@ -1278,7 +1340,7 @@ def test_cnn(model, batch_size, devices,
 			                           separators=(',', ':'),
 			                           sort_keys=True) + '\n')
 		
-	if model == 'vgg' or model == 'googlenet' or model.startswith('resnet'):
+	if model.startswith('vgg') or model == 'googlenet' or model.startswith('resnet'):
 		image_size = 224
 	elif model == 'alexnet':
 		image_size = 224+3
@@ -1286,6 +1348,8 @@ def test_cnn(model, batch_size, devices,
 		image_size = 231
 	elif model.startswith('inception'):
 		image_size = 299
+	elif model.startswith('lenet'):
+		image_size = 28
 	else:
 		raise KeyError("Invalid model name: "+model)
 	data_type = tf.float16 if use_fp16 else tf.float32
@@ -1302,13 +1366,9 @@ def test_cnn(model, batch_size, devices,
 	
 	with tf.device("/cpu:0"):
 		if dataset is not None:
+			#*preproc_train = ImagePreprocessor(image_size, image_size, batch_size, input_data_type, train=True)
 			preproc_train = ImagePreprocessor(image_size, image_size, batch_size, input_data_type, train=True)
 			images_train, labels_train = preproc_train.minibatch(dataset, subset="train")
-			# TODO: Can't do this because it creates another set of preload threads
-			#preproc_valid = ImagePreprocessor(image_size, image_size, batch_size, input_data_type, train=False)
-			#images_valid, labels_valid = preproc_valid.minibatch(dataset, subset="validation")
-			#images = control_flow_ops.cond(phase_train, lambda: images_train, lambda: images_valid)
-			#labels = control_flow_ops.cond(phase_train, lambda: labels_train, lambda: labels_valid)
 			images = images_train
 			labels = labels_train
 			nclass = dataset.num_classes()
@@ -1330,8 +1390,6 @@ def test_cnn(model, batch_size, devices,
 		labels -= 1 # Change to 0-based (don't use background class like Inception does)
 		images_splits = tf.split(0, len(devices), images)
 		labels_splits = tf.split(0, len(devices), labels)
-	## Note: Label 0 is reserved for an (unused) background class
-	#nclass += 1
 	
 	print "Generating model"
 	device_grads = []
@@ -1342,8 +1400,8 @@ def test_cnn(model, batch_size, devices,
 		
 		host_images = images_splits[d]
 		if FLAGS.gpu_prefetch:
-			print "Creating GPU prefetcher"
-			prefetcher = GPUPrefetcher(sess, device, host_images, input_shape, input_data_type, nbuf=2)
+			print "Creating GPU prefetcher on GPU", d
+			prefetcher = GPUPrefetcher(sess, device, host_images, input_data_type, nbuf=2)
 			prefetchers.append(prefetcher)
 			images = prefetcher.output
 		else:
@@ -1358,13 +1416,23 @@ def test_cnn(model, batch_size, devices,
 					images = tf.truncated_normal(images.get_shape(), dtype=input_data_type, stddev=1e-1, name="synthetic_images")
 					images = tf.Variable(images, trainable=False, name='gpu_cached_images')
 				
+				#images = tf.cast(images, tf.float32) # HACK TESTING
+				
+				# Rescale to [0, 1)
+				images *= 1./256
+				# Rescale to [-1,1] instead of [0, 1)
+				images = tf.sub(images, 0.5)
+				images = tf.mul(images, 2.0)
+				
 				if data_format == 'NCHW':
 					images = tf.transpose(images, [0,3,1,2])
 				if input_data_type != data_type:
 					images = tf.cast(images, data_type)
 				network = ConvNetBuilder(images, input_nchan,
 				                         phase_train, data_format, data_type)
-				if   model == 'vgg':        inference_vgg(network)
+				if   model == 'vgg11':      inference_vgg11(network)
+				elif model == 'vgg19':      inference_vgg19(network)
+				elif model == 'lenet':      inference_lenet5(network)
 				elif model == 'googlenet':  inference_googlenet(network)
 				elif model == 'overfeat':   inference_overfeat(network)
 				elif model == 'alexnet':    inference_alexnet(network)
@@ -1494,20 +1562,20 @@ def test_cnn(model, batch_size, devices,
 				                       options=run_options, run_metadata=run_metadata)
 				lossval = 0.
 			train_time = time.time() - start_time
-		except tf.python.framework.errors.ResourceExhaustedError:
+		#except tf.python.framework.errors.ResourceExhaustedError:
+		except tf.python.errors.ResourceExhaustedError:
 			train_time = -1.
 			lossval    = 0.
 			oom = True
-		#print "Unlearned classes: %.7f" % np.exp(lossval)
-		#print "%i\t%.3f\t%.3f\t%.3f" % (step+1, infer_time, train_time, np.exp(lossval))
-		print "%i\t%.1f\t%.3f" % (step+1,
-		                          batch_size/train_time,
-		                          np.exp(lossval))
+		if step == 0 or (step+1) % FLAGS.display_every == 0:
+			print "%i\t%.1f\t%.3f" % (step+1,
+			                          batch_size/train_time,
+			                          np.exp(lossval))
 		if trace_filename is not None and step == 10:
 			print "Dumping trace to", trace_filename
 			trace = timeline.Timeline(step_stats=run_metadata.step_stats)
 			with open(trace_filename, 'w') as trace_file:
-				trace_file.write(trace.generate_chrome_trace_format())
+				trace_file.write(trace.generate_chrome_trace_format(show_memory=True))
 		perf_results['step_train_times'].append(train_time)
 		perf_results['step_losses'].append(float(lossval))
 		#if step == nstep_burnin+10 or step % 100 == 0:
@@ -1574,8 +1642,9 @@ def main():
 	cmdline = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 	cmdline.add_argument('-m', '--model', default='googlenet',
 	                     help="""Name of model to run:
-	                     googlenet, vgg, overfeat, alexnet, inception[3,4],
-	                     resnet[50,101,152] or inception-resnet2.""")
+	                     lenet, alexnet, overfeat, googlenet, vgg[11,19],
+	                     inception[3,4], resnet[50,101,152] or
+	                     inception-resnet2.""")
 	add_bool_argument(cmdline, '--inference', default=False,
 	                  help="""Benchmark inference performance instead of
 	                  training.""")
@@ -1588,6 +1657,9 @@ def main():
 	add_bool_argument(cmdline, '--weak_scaling',
 	                  help="""Interpret batch_size as *per GPU*
 	                  rather than total.""")
+	cmdline.add_argument('--display_every', default=1, type=int,
+	                     help="""How often (in iterations) to print out
+	                     running information.""")
 	cmdline.add_argument('--shmoo', action='store_true',
 	                     help="""Run a big shmoo over many
 	                     parameter combinations.""")
@@ -1600,7 +1672,7 @@ def main():
 	                     help="""Name of dataset: imagenet or flowers.
 	                     If not specified, it is automatically guessed
 	                     based on --data_dir.""")
-	add_bool_argument(cmdline, '--distortions', default=True,
+	add_bool_argument(cmdline, '--distortions', default=False,
 	                     help="""Enable/disable distortions during
 	                     image preprocessing.""")
 	cmdline.add_argument('--parameter_server', default='gpu',
@@ -1627,7 +1699,7 @@ def main():
 	                     help="""Number of parallel readers during training.
 	                     Setting this to 0 is a special case that causes each
 	                     preprocessing thread to do its own reading.""")
-	cmdline.add_argument('--num_intra_threads', default=1, type=int,
+	cmdline.add_argument('--num_intra_threads', default=0, type=int,
 	                     help="""Number of threads to use for intra-op
 	                     parallelism. If set to 0, the system will pick
 	                     an appropriate number.""")
@@ -1717,6 +1789,12 @@ def main():
 		elif FLAGS.data_name == "flowers":  dataset =  FlowersData(FLAGS.data_dir)
 		else: raise ValueError("Unknown dataset. Must be one of imagenet or flowers.")
 	
+	if FLAGS.gpu_prefetch:
+		print "*** WARNING: GPU prefetching is highly experimental! ***"
+	
+	tfversion = tensorflow_version_tuple()
+	print "TensorFlow:  %i.%i" % (tfversion[0], tfversion[1])
+	
 	data_format = FLAGS.data_format
 	num_batches = FLAGS.num_batches
 	use_fp16    = FLAGS.use_fp16
@@ -1739,14 +1817,14 @@ def main():
 	else: # shmoo
 		print "Running shmoo"
 		for use_fp16 in [False, True]:
-			for model in ['alexnet', 'vgg', 'googlenet', 'overfeat', 'inception3']:
+			for model in ['alexnet', 'vgg19', 'googlenet', 'overfeat', 'inception3']:
 				for ps_device in ['/cpu:0', '/gpu:0']:
 					for ngpu in [1, 2, 4, 8]:
 						if ngpu > len(devices):
 							continue
 						shmoo_devices = devices[:ngpu]
 						for batch_size in [64, 128, 256, 512]:
-							if model == 'inception3' and batch_size > 64:
+							if batch_size > 64 and model in set(['inception3', 'vgg19']):
 								# Note: A 12 GB card can fit up to batch_size=112 for inception3
 								continue
 							for distortions in [False, True]:
