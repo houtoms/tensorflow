@@ -36,6 +36,16 @@
 ---------
 Changelog
 ---------
+v0.10
+Added --resize_method=crop/bilinear/trilinear/area, with fast crop support (requires resized dataset)
+Added --device=cpu/gpu to specify computation device
+Added --cpu as a shortcut for the flags required to run purely on the CPU
+Found that crop_to_bounding_box is much faster than resize_with_crop_or_pad
+Changed number of output classes to always be 1000 (so model is now independent of dataset)
+Changed jpeg decoding to fancy_upscaling=False (no obvious perf difference)
+Changed default learning rate from 0.002 to 0.005
+Changed default weight decay from 1e-4 to 1e-5
+
 v0.9
 Added vgg19 model and renamed old model to vgg11
 Added lenet model
@@ -868,48 +878,62 @@ def decode_jpeg(image_buffer, scope=None):#, dtype=tf.float32):
     # Note that the resulting image contains an unknown height and width
     # that is set dynamically by decode_jpeg. In other words, the height
     # and width of image is unknown at compile-time.
-    image = tf.image.decode_jpeg(image_buffer, channels=3)
+    image = tf.image.decode_jpeg(image_buffer, channels=3,
+                                 fancy_upscaling=False)
 
     #image = tf.Print(image, [tf.shape(image)], "Image shape: ")
 
     return image
 
 def eval_image(image, height, width, bbox, thread_id, scope=None):
-  with tf.name_scope(scope or 'eval_image'):
-    if not thread_id:
-      tf.image_summary('original_image',
-                       tf.expand_dims(image, 0))
-
-    sample_distorted_bounding_box = tf.image.sample_distorted_bounding_box(
-        tf.shape(image),
-        bounding_boxes=bbox,
-        min_object_covered=0.1,
-        aspect_ratio_range=[0.75, 1.33],
-        area_range=[0.05, 1.0],
-        max_attempts=100,
-        use_image_if_no_bounding_boxes=True)
-    bbox_begin, bbox_size, distort_bbox = sample_distorted_bounding_box
-
-    # Crop the image to the specified bounding box.
-    distorted_image = tf.slice(image, bbox_begin, bbox_size)
-    #distorted_image = tf.image.central_crop(image, central_fraction=0.875)
-
-    # This resizing operation may distort the images because the aspect
-    # ratio is not respected.
-    resize_method = tf.image.ResizeMethod.BILINEAR
-    if tensorflow_version() >= 11:
-      distorted_image = tf.image.resize_images(distorted_image, [height, width],
-                                               resize_method, align_corners=False)
-    else:
-      distorted_image = tf.image.resize_images(distorted_image, height, width,
-                                               resize_method, align_corners=False)
-    distorted_image.set_shape([height, width, 3])
-    if not thread_id:
-      tf.image_summary('cropped_resized_image',
-                       tf.expand_dims(distorted_image, 0))
-    image = distorted_image
-
-    return image
+	with tf.name_scope(scope or 'eval_image'):
+		if not thread_id:
+			tf.image_summary('original_image',
+			                 tf.expand_dims(image, 0))
+			
+		if FLAGS.resize_method == 'crop':
+			# Note: This is much slower than crop_to_bounding_box
+			#         It seems that the redundant pad step has huge overhead
+			#distorted_image = tf.image.resize_image_with_crop_or_pad(image,
+			#                                                         height, width)
+			shape = tf.shape(image)
+			y0 = (shape[0] - height) // 2
+			x0 = (shape[1] - width)  // 2
+			#distorted_image = tf.slice(image, [y0,x0,0], [height,width,3])
+			distorted_image = tf.image.crop_to_bounding_box(image, y0, x0,
+			                                                height, width)
+		else:
+			sample_distorted_bounding_box = tf.image.sample_distorted_bounding_box(
+				tf.shape(image),
+				bounding_boxes=bbox,
+				min_object_covered=0.1,
+				aspect_ratio_range=[0.75, 1.33],
+				area_range=[0.05, 1.0],
+				max_attempts=100,
+				use_image_if_no_bounding_boxes=True)
+			bbox_begin, bbox_size, distort_bbox = sample_distorted_bounding_box
+			# Crop the image to the specified bounding box.
+			distorted_image = tf.slice(image, bbox_begin, bbox_size)
+			resize_method = {
+				'nearest':  tf.image.ResizeMethod.NEAREST_NEIGHBOR,
+				'bilinear': tf.image.ResizeMethod.BILINEAR,
+				'bicubic':  tf.image.ResizeMethod.BICUBIC,
+				'area':     tf.image.ResizeMethod.AREA
+			}[FLAGS.resize_method]
+			# This resizing operation may distort the images because the aspect
+			# ratio is not respected.
+			if tensorflow_version() >= 11:
+				distorted_image = tf.image.resize_images(distorted_image, [height, width],
+				                                         resize_method, align_corners=False)
+			else:
+				distorted_image = tf.image.resize_images(distorted_image, height, width,
+				                                         resize_method, align_corners=False)
+		distorted_image.set_shape([height, width, 3])
+		if not thread_id:
+			tf.image_summary('cropped_resized_image',
+			                 tf.expand_dims(distorted_image, 0))
+		image = distorted_image
+	return image
 
 def distort_image(image, height, width, bbox, thread_id=0, scope=None):
   """Distort one image for training a network.
@@ -1086,7 +1110,7 @@ class ImagePreprocessor(object):
 			data_files = dataset.data_files(subset)
 			shuffle  = self.train
 			capacity = 16 if self.train else 1
-			print data_files
+			#print data_files
 			filename_queue = tf.train.string_input_producer(data_files,
 			                                                shuffle=shuffle,
 			                                                capacity=capacity)
@@ -1371,7 +1395,10 @@ def test_cnn(model, batch_size, devices,
 			images_train, labels_train = preproc_train.minibatch(dataset, subset="train")
 			images = images_train
 			labels = labels_train
-			nclass = dataset.num_classes()
+			#nclass = dataset.num_classes()
+			# Note: We force all datasets to 1000 to ensure even comparison
+			#         This works because we use sparse_softmax_cross_entropy
+			nclass = 1000
 		else:
 			nclass = 1000
 			images = tf.truncated_normal(input_shape, dtype=input_data_type, stddev=1e-1, name="synthetic_images")
@@ -1654,6 +1681,8 @@ def main():
 	                     help="""Number of batches to run.""")
 	cmdline.add_argument('-g', '--num_gpus', default=1, type=int,
 	                     help="""Number of GPUs to run on.""")
+	cmdline.add_argument('--num_devices', default=1, type=int, dest='num_gpus',
+	                     help="""Number of devices to run on. EQUIVALENT TO --num_gpus.""")
 	add_bool_argument(cmdline, '--weak_scaling',
 	                  help="""Interpret batch_size as *per GPU*
 	                  rather than total.""")
@@ -1672,12 +1701,26 @@ def main():
 	                     help="""Name of dataset: imagenet or flowers.
 	                     If not specified, it is automatically guessed
 	                     based on --data_dir.""")
+	cmdline.add_argument('--resize_method', default='bilinear',
+	                     help="""Method for resizing input images:
+	                     crop,nearest,bilinear,trilinear or area.
+	                     The 'crop' mode requires source images to be at least
+	                     as large as the network input size,
+	                     while the other modes support any sizes and apply
+	                     random bbox distortions
+	                     before resizing (even with --nodistortions).""")
 	add_bool_argument(cmdline, '--distortions', default=False,
 	                     help="""Enable/disable distortions during
-	                     image preprocessing.""")
+	                     image preprocessing. These include bbox and color
+	                     distortions.""")
 	cmdline.add_argument('--parameter_server', default='gpu',
 	                     help="""Device to use as parameter server:
 	                     cpu or gpu.""")
+	cmdline.add_argument('--device', default='gpu',
+	                     help="""Device to use for computation: cpu or gpu""")
+	add_bool_argument(cmdline, '--cpu', default=False,
+	                  help="""Shortcut for --device=cpu --parameter_server=cpu
+	                  --data_format=NHWC""")
 	add_bool_argument(cmdline, '--include_h2d_in_synthetic', default=False,
 	                  help="""Include host to device memcopy when using
 	                  synthetic data.""")
@@ -1728,14 +1771,14 @@ def main():
 	cmdline.add_argument('--summaries_dir', default=None,
 	                     help="""Write TensorBoard summary to this
 	                     directory.""")
-	cmdline.add_argument('--learning_rate', default=0.002, type=float,
+	cmdline.add_argument('--learning_rate', default=0.005, type=float,
 	                     help="""Learning rate for training.""")
 	cmdline.add_argument('--momentum', default=0.9, type=float,
 	                     help="""Momentum for training.""")
 	cmdline.add_argument('--gradient_clip', default=None, type=float,
 	                     help="""Gradient clipping magnitude.
 	                     Disabled by default.""")
-	cmdline.add_argument('--weight_decay', default=1e-4, type=float,
+	cmdline.add_argument('--weight_decay', default=1e-5, type=float,
 	                     help="""Weight decay factor for training.""")
 	cmdline.add_argument('--nvprof_start', default=-1, type=int,
 	                     help="""Iteration at which to start CUDA profiling.
@@ -1766,9 +1809,14 @@ def main():
 			msg += "\nDid you mean '%s'?" % matches[0]
 		raise ValueError(msg)
 	
+	if FLAGS.cpu:
+		FLAGS.device           = 'cpu'
+		FLAGS.parameter_server = 'cpu'
+		FLAGS.data_format      = 'NHWC'
+	
 	model       = FLAGS.model
 	batch_size  = FLAGS.batch_size
-	devices     = ['/gpu:%i'%i for i in xrange(FLAGS.num_gpus)]
+	devices     = ['/%s:%i'%(FLAGS.device,i) for i in xrange(FLAGS.num_gpus)]
 	ps_device   = '/%s:0' % FLAGS.parameter_server
 	#share_vars  = FLAGS.share_variables
 	mem_growth  = FLAGS.memory_growth
