@@ -39,11 +39,20 @@
 ---------
 Changelog
 ---------
+v0.8
+Enabled displaying of default values in cmd line help
+Added --inference mode
+Added --summaries_dir for graph/training visualisation with TensorBoard
+Added --num_inter_threads for controlling TF inter-op thread pool
+Added --include_h2d_in_synthetic for optionally enabling h2d memcopy in synthetic mode
+Added --gpu_prefetch for async H2D PCIe data copying (HIGHLY EXPERIMENTAL)
+Changed --num_readers to default to 1 instead of 4
+Removed some old unused code
+
 v0.7
 Fixed --distortions not defaulting to True
 Added num_intra_threads option with default of 1 (slightly faster than default of 0 => TF decides)
 Added printing of final performance statistics
-
 """
 
 import tensorflow as tf
@@ -58,6 +67,7 @@ import json
 import argparse
 import sys
 from ctypes import cdll
+import threading
 
 libcudart = cdll.LoadLibrary('libcudart.so')
 def cudaProfilerStart():
@@ -386,7 +396,6 @@ def inference_googlenet(cnn):
 		        [('conv', n, 1, 1), ('conv', p, 5, 5)],
 		        [('mpool', 3, 3, 1, 1, 'SAME'), ('conv', q, 1, 1)]]
 		return cnn.inception_module('incept_v1', cols)
-	#cnn.use_batch_norm = True # HACK TESTING
 	cnn.conv ( 64, 7, 7, 2, 2)
 	cnn.mpool(3,   3,  2, 2, mode='SAME')
 	cnn.conv ( 64, 1, 1)
@@ -815,7 +824,7 @@ def decode_jpeg(image_buffer, scope=None, dtype=tf.float32):
     # After this point, all image pixels reside in [0,1)
     # until the very end, when they're rescaled to (-1, 1).  The various
     # adjust_* ops all require this range for dtype float.
-    image = tf.image.convert_image_dtype(image, dtype=dtype) ## HACK TESTING disabled
+    image = tf.image.convert_image_dtype(image, dtype=dtype)
     return image
 
 def eval_image(image, height, width, scope=None):
@@ -834,11 +843,23 @@ def eval_image(image, height, width, scope=None):
   with tf.name_scope(scope or 'eval_image'):
     # Crop the central region of the image with an area containing 87.5% of
     # the original image.
-    ## HACK TESTING disabled
-    image = tf.image.central_crop(image, central_fraction=0.875)
 
+    image = tf.image.central_crop(image, central_fraction=0.875)
+    """
+    # HACK TESTING
+    print "*********", image.get_shape()
+    #h, w, _ = image.get_shape()
+    #
+    #image.set_shape([h,w,3])
+    image = tf.image.resize_image_with_crop_or_pad(image, height, width)
+    # **TODO: Huh!? The above function appears to erase the static depth information!
+    print "         ", image.get_shape()
+    image.set_shape([height,width,3])
+    print "         ", image.get_shape()
+    """
     # Resize the image to the original height and width.
     image = tf.expand_dims(image, 0)
+    
     image = tf.image.resize_bilinear(image, [height, width],
     #image = tf.image.resize_nearest_neighbor(image, [height, width], # HACK TESTING
                                      align_corners=False)
@@ -1002,13 +1023,7 @@ class ImagePreprocessor(object):
 		image = tf.sub(image, 0.5)
 		image = tf.mul(image, 2.0)
 		return image
-
-#with tf.device('/gpu:X'):
-#	images_queue = tf.FIFOQueue(capacity=2, dtypes=[dtype], name='images_queue')
-#	enqueue_op = images_queue.enqueue([image])
-#	tf.train.queue_runner.add_queue_runner(
-#	  tf.train.queue_runner.QueueRunner(images_queue, [enqueue_op]))
-
+	
 	def minibatch(self, dataset, subset):
 		with tf.name_scope('batch_processing'):
 			data_files = dataset.data_files(subset)
@@ -1037,10 +1052,6 @@ class ImagePreprocessor(object):
 					dtypes=[tf.string])
 			if self.num_readers == 0: # Special case to use one reader per preproc thread
 				_, example_serialized = dataset.reader().read(filename_queue)
-				# HACK TESTING
-				#_, ex = dataset.reader().read(filename_queue)
-				#print type(ex)
-				#example_serialized = tf.Variable(ex, trainable=False)
 			else:
 				enqueue_ops = []
 				for _ in xrange(self.num_readers):
@@ -1051,11 +1062,8 @@ class ImagePreprocessor(object):
 				example_serialized = examples_queue.dequeue()
 			images_and_labels = []
 			for thread_id in xrange(self.num_preprocess_threads):
-				print '*'*100
-				#example_serialized_hack = tf.Variable(example_serialized, trainable=False) # HACK TESTING
 				# Parse a serialized Example proto to extract the image and metadata.
 				image_buffer, label_index, bbox, _ = parse_example_proto(example_serialized)
-				#image_buffer, label_index, bbox, _ = parse_example_proto(example_serialized_hack)
 				image = self.preprocess(image_buffer, bbox, thread_id)
 				images_and_labels.append([image, label_index])
 			images, label_index_batch = tf.train.batch_join(
@@ -1067,7 +1075,7 @@ class ImagePreprocessor(object):
 			images = tf.reshape(images, shape=[self.batch_size, self.height, self.width, depth])
 			label_index_batch = tf.reshape(label_index_batch, [self.batch_size])
 			# Display the training images in the visualizer.
-			#tf.image_summary('images', images)
+			tf.image_summary('images', images)
 			
 			#image_shape = (self.batch_size, self.height, self.width, depth)
 			#image_buf = tf.Variable(tf.zeros(input_shape, input_data_type, trainable=False))
@@ -1119,6 +1127,82 @@ class ImagenetData(Dataset):
 		elif subset == 'validation': return 50000
 		else: raise ValueError('Invalid data subset "%s"' % subset)
 
+class GPUPrefetcherOp(object):
+	def __init__(self, parent):
+		self.parent = parent
+		self.op     = parent._acquire()
+	def __enter__(self):
+		return self
+	def __exit__(self, type, value, tb):
+		return self.parent._release(self.op)
+
+class GPUPrefetcher(threading.Thread):
+	def __init__(self, sess, device, input_op, shape, dtype, nbuf=2):
+		super(GPUPrefetcher, self).__init__()
+		self.sess = sess
+		self.input_op = input_op
+		#with tf.device("/cpu:0"): # TODO: Doesn't work because can't override op-dependent device scopes! Is this a bug?
+		self.empty_queue = tf.FIFOQueue(capacity=nbuf, dtypes=[tf.int32], shapes=[])
+		self.full_queue  = tf.FIFOQueue(capacity=nbuf, dtypes=[tf.int32], shapes=[])
+		self.bufnum = tf.placeholder(tf.int32)
+		self.init_op = self.empty_queue.enqueue([self.bufnum])
+		with tf.device(device):
+			# TODO: This is just for a quick POC; it should be removed in favour
+			#         of using a dependency on the op(s) that use the prefetch
+			#         buffer directly.
+			self.output_tmp = tf.Variable(tf.zeros(shape, dtype), trainable=False)
+			self.nbuf = nbuf
+			self.bufs = [tf.Variable(tf.zeros(shape, dtype), trainable=False)
+			             for _ in xrange(nbuf)]
+			self.put_ops = [self._put_op(b) for b in xrange(nbuf)]
+			self.get_op = self._get_op()
+			with tf.control_dependencies([self.get_op]):
+				self.output = tf.identity(self.output_tmp)
+		self.shutdown = threading.Event()
+		
+	def _get_buf_op(self, bufnum):
+		cases = [(tf.equal(bufnum, b),
+		          lambda: self.bufs[b])
+		         for b in xrange(self.nbuf)]
+		return tf.case(cases,
+		               #exclusive=True,
+		               default=lambda: self.bufs[0]) # Note: Should never hit
+	def _put_op(self, bufnum):
+		with tf.device("/cpu:0"):
+			dequeue_op = self.empty_queue.dequeue()
+		buf = self.bufs[bufnum]
+		with tf.control_dependencies([dequeue_op]):
+			buf_assign = buf.assign(self.input_op)
+		with tf.control_dependencies([buf_assign]):
+			with tf.device("/cpu:0"):
+				buf_filled = self.full_queue.enqueue([bufnum])
+		return buf_filled
+	def _get_op(self):
+		with tf.device("/cpu:0"):
+			bufnum     = self.full_queue.dequeue()[0]
+		buf        = self._get_buf_op(bufnum)
+		# TODO: Remove use of this tmp (requires some refactoring)
+		buf_assign = self.output_tmp.assign(buf)
+		with tf.control_dependencies([buf_assign]):
+			with tf.device("/cpu:0"):
+				buf_cleared = self.empty_queue.enqueue([bufnum])
+		return buf_cleared
+		
+	def run(self):
+		for b in xrange(self.nbuf):
+			self.sess.run(self.init_op,
+			              feed_dict={self.bufnum: b})
+		b = 0
+		while not self.shutdown.is_set():
+			print "Empty size", self.sess.run(self.empty_queue.size())
+			print "Full size", self.sess.run(self.full_queue.size())
+			print "Putting", b, self.sess.run(self.put_ops[b])
+			b += 1
+			b %= self.nbuf
+		
+	def shutdown(self):
+		self.shutdown.set()
+	
 def test_cnn(model, batch_size, devices,
              dataset=None,
              param_server_device='/gpu:0',
@@ -1129,9 +1213,28 @@ def test_cnn(model, batch_size, devices,
              enable_mem_growth=False,
              perf_filename=None,
              trace_filename=None):
+	
+	config = tf.ConfigProto()
+	config.allow_soft_placement = False
+	#config.gpu_options.allocator_type = 'BFC'
+	# Allocate as needed rather than all at once
+	config.gpu_options.allow_growth = enable_mem_growth
+	#config.gpu_options.per_process_gpu_memory_fraction
+	config.gpu_options.per_process_gpu_memory_fraction = FLAGS.memory_fraction
+	config.intra_op_parallelism_threads = FLAGS.num_intra_threads
+	config.inter_op_parallelism_threads = FLAGS.num_inter_threads
+	# TODO: Is this OK to use? Seems to provide a small ~3% speedup on AlexNet
+	#config.graph_options.optimizer_options.do_function_inlining = True
+	sess = tf.Session(config=config)
+	# TODO: Look into these:
+	# config.session_inter_op_thread_pool
+	# config.use_per_session_threads
+	
+	
 	nstep_burnin = 10
 	perf_results = {}
 	perf_results['model']          = model
+	perf_results['mode']           = 'inference' if FLAGS.inference else 'training'
 	perf_results['batch_size']     = batch_size
 	perf_results['num_batches']    = num_batches
 	perf_results['devices']        = devices
@@ -1141,6 +1244,7 @@ def test_cnn(model, batch_size, devices,
 	perf_results['num_readers']    = FLAGS.num_readers
 	perf_results['num_preproc_threads'] = FLAGS.num_preprocess_threads
 	perf_results['num_intra_threads']   = FLAGS.num_intra_threads
+	perf_results['num_inter_threads']   = FLAGS.num_inter_threads
 	perf_results['memory_fraction']     = FLAGS.memory_fraction
 	perf_results['param_server']   = param_server_device
 	perf_results['data_format']    = data_format
@@ -1214,6 +1318,8 @@ def test_cnn(model, batch_size, devices,
 			#labels = tf.ones([batch_size], dtype=tf.int32, name="synthetic_labels")
 			labels = tf.random_uniform([batch_size], minval=1, maxval=nclass, dtype=tf.int32, name="synthetic_labels")
 			# Note: This results in a H2D copy, but no computation
+			# Note: This avoids recomputation of the random values, but still
+			#         results in a H2D copy.
 			images = tf.Variable(images, trainable=False)
 			labels = tf.Variable(labels, trainable=False)
 			#image_dtype = np.float16 if use_fp16 else np.float32
@@ -1227,78 +1333,30 @@ def test_cnn(model, batch_size, devices,
 	## Note: Label 0 is reserved for an (unused) background class
 	#nclass += 1
 	
-		# HACK TESTING
-		"""
-		image_queues = []
-		for d, device in enumerate(devices):
-			image_queues.append(tf.FIFOQueue(capacity=4,
-			                                 dtypes=[input_data_type],
-			                                 shapes=[images_splits[d].get_shape()]))
-			enqueue_op = image_queues[d].enqueue([images_splits[d]])
-			tf.train.queue_runner.add_queue_runner(
-				tf.train.queue_runner.QueueRunner(image_queues[d], [enqueue_op]))
-		"""
-	
 	print "Generating model"
 	device_grads = []
 	losses       = []
+	prefetchers  = []
+	all_predictions = []
 	for d, device in enumerate(devices):
+		
+		host_images = images_splits[d]
+		if FLAGS.gpu_prefetch:
+			print "Creating GPU prefetcher"
+			prefetcher = GPUPrefetcher(sess, device, host_images, input_shape, input_data_type, nbuf=2)
+			prefetchers.append(prefetcher)
+			images = prefetcher.output
+		else:
+			images = host_images
+		labels = labels_splits[d]
+		
 		# Note: We want variables on different devices to share the same
 		#         variable scope, so we just use a name_scope here.
-		#with tf.name_scope('tower_%i' % d) as scope:
 		with tf.device(device), tf.name_scope('tower_%i' % d) as scope:
-			#reuse = (d>0 and share_variables) or None
-			#reuse = d>0 or None
-			#*with tf.device(device):#, tf.variable_scope(tf.get_variable_scope(),
-			                       #                   reuse=reuse):
-				images = images_splits[d]
-				# HACK TESTING
-				"""
-			grads = []
-			nsubstep = 8
-			nbuf = nsubstep#4
-			image_bufs = []
-			for buf in xrange(nbuf):
-				image_bufs.append(tf.Variable(tf.zeros(input_shape, input_data_type), trainable=False))
-			for substep in xrange(nsubstep):
-				image_buf = image_bufs[substep % len(image_bufs)]
-				with tf.device('/cpu:0'):
-					# TODO: This works for synthetic data, but not for real
-					#         data, probably because it adds more CPU overhead.
-					host_images = image_queues[d].dequeue()
-					#host_images = images_splits[d] # Does not work as intended (i.e., reuses instead of re-dequeueing)
-				h2d = image_buf.assign(host_images)
-				with tf.control_dependencies(grads + [h2d]):
-					images = tf.identity(image_buf)
-				"""
-				
-				"""
-			h2d = image_buf[0].assign(image_queues[d].dequeue())
-			imagesets = []
-			for substep in xrange(1, nsubstep):
-				with tf.control_dependencies([h2d]):
-					images = tf.identity(image_buf)
-				h2d = image_buf[substep].assign(image_queues[d].dequeue())
-				
-				image_buf = image_bufs[substep]
-				#with tf.device('/cpu:0'):
-				#	host_images = image_queues[d].dequeue()
-				h2d = image_buf.assign(host_images)
-				with tf.control_dependencies([h2d]):
-					images = tf.identity(image_buf)
-				"""
-				"""
-				# Sadly this doesn't work, because queues are CPU-only
-				images_queue = tf.FIFOQueue(capacity=2,
-				                            dtypes=[input_data_type],
-				                            shapes=[input_shape],
-				                            name='images_queue')
-				with tf.device('/cpu:0'):
-					enqueue_op = images_queue.enqueue([images_splits[d]])
-				tf.train.queue_runner.add_queue_runner(
-					tf.train.queue_runner.QueueRunner(images_queue, [enqueue_op]))
-				images = images_queue.dequeue()
-				"""
+				if dataset is None and not FLAGS.include_h2d_in_synthetic:
+					# Minor hack to avoid H2D copy when using synthetic data
+					images = tf.truncated_normal(images.get_shape(), dtype=input_data_type, stddev=1e-1, name="synthetic_images")
+					images = tf.Variable(images, trainable=False, name='gpu_cached_images')
 				
 				if data_format == 'NCHW':
 					images = tf.transpose(images, [0,3,1,2])
@@ -1319,16 +1377,9 @@ def test_cnn(model, batch_size, devices,
 				else: raise KeyError("Invalid model name '%s'" % model)
 				# Add the final fully-connected class layer
 				logits = network.affine(nclass, activation='linear')
-				# Note: This loss function uses Ops that have no current GPU implem
-				#with tf.device("/cpu:0"):
-				#	loss = loss_function_old(network.top_layer, labels_splits[d])
-				loss = loss_function(logits, labels_splits[d])
-				## Ensure in-place update ops are executed too (e.g., batch norm)
-				#update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
-				#if update_ops:
-				#	updates = tf.group(*update_ops)
-				#	loss = control_flow_ops.with_dependencies([updates], loss)
-				
+				loss = loss_function(logits, labels)
+				predictions = tf.nn.softmax(logits, name='predictions')
+				all_predictions.append(predictions)
 				l2_loss = tf.add_n([tf.nn.l2_loss(v) for v in tf.trainable_variables()])
 				weight_decay = FLAGS.weight_decay
 				if weight_decay is not None and weight_decay != 0.:
@@ -1348,6 +1399,7 @@ def test_cnn(model, batch_size, devices,
 	#all_grads = all_average_gradients(device_grads, devices)
 	#all_grads = all_average_gradients2(device_grads, devices)
 	#all_grads = all_average_gradients3(device_grads, devices)
+	all_predictions = tf.concat(0, all_predictions)
 	
 	with tf.device(param_server_device):
 		total_loss = tf.reduce_mean(losses)
@@ -1368,42 +1420,28 @@ def test_cnn(model, batch_size, devices,
 		train_op = opt.apply_gradients(clipped_grads)
 		# Ensure in-place update ops are executed too (e.g., batch norm)
 		update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
-		#print "****", update_ops
 		if update_ops:
 			#updates = tf.group(*update_ops)
 			#train_op = control_flow_ops.with_dependencies([updates], train_op)
 			train_op = tf.group(train_op, *update_ops)
-	"""
-	#device_train_ops = []
-	for d, device in enumerate(devices):
-		with tf.device(device):
-			with tf.name_scope('tower_%i' % d) as scope:
-				#grads = all_grads[d]
-				grads = avg_grads
-				grad_clipping = 1.
-				for grad,var in grads:
-					print grad, var
-				clipped_grads = [(tf.clip_by_value(grad, -grad_clipping, +grad_clipping), var) for grad,var in grads]
-				
-				#device_train_ops.append( opt.apply_gradients(clipped_grads) )
-	#all_train_ops = tf.group(*device_train_ops)
-	"""
+	
+	with tf.device('/cpu:0'):
+		for grad, var in avg_grads:
+			if grad is not None:
+				tf.histogram_summary(var.op.name + '/gradients', grad)
+		for var in tf.trainable_variables():
+			tf.histogram_summary(var.op.name, var)
+	
+	with tf.device('/cpu:0'):
+		tf.scalar_summary('total loss', total_loss)
+	
+	if FLAGS.summaries_dir is not None:
+		all_summaries = tf.merge_all_summaries()
+		print "Creating SummaryWriter"
+		summary_writer = tf.train.SummaryWriter(FLAGS.summaries_dir, sess.graph)
+	
 	init = tf.initialize_all_variables()
 	
-	config = tf.ConfigProto()
-	#config.gpu_options.allocator_type = 'BFC'
-	# Allocate as needed rather than all at once
-	config.gpu_options.allow_growth = enable_mem_growth
-	#config.gpu_options.per_process_gpu_memory_fraction
-	config.gpu_options.per_process_gpu_memory_fraction = FLAGS.memory_fraction
-	config.intra_op_parallelism_threads = FLAGS.num_intra_threads
-	#config.inter_op_parallelism_threads = 1 # HACK TESTING
-	# TODO: Is this OK to use? Seems to provide a small ~3% speedup on AlexNet
-	#config.graph_options.optimizer_options.do_function_inlining = True
-	sess = tf.Session(config=config)
-	# TODO: Look into these:
-	# config.session_inter_op_thread_pool
-	# config.use_per_session_threads
 	if FLAGS.graph_file is not None:
 		path, filename = os.path.split(FLAGS.graph_file)
 		as_text = filename.endswith('txt')
@@ -1421,24 +1459,14 @@ def test_cnn(model, batch_size, devices,
 	coordinator = tf.train.Coordinator()
 	queue_threads = tf.train.start_queue_runners(sess=sess, coord=coordinator)
 	
+	for p in prefetchers:
+		p.daemon = True # TODO: Try to avoid needing this
+		p.start()
+	
 	if FLAGS.checkpoint_file is not None:
 		save_path = saver.save(sess, FLAGS.checkpoint_file, global_step=0)
 		print "Checkpoint saved to %s" % save_path
 	
-	#print sess.run(images, feed_dict={phase_train: True})
-	#print sess.run(network.top_layer, feed_dict={phase_train: True})
-	#print sess.run(labels, feed_dict={phase_train: True})
-	#print sess.run(cross_entropy, feed_dict={phase_train: True})
-	#print sess.run(loss, feed_dict={phase_train: True})
-	
-	#all_grads = [grad for gradvars in device_grads for grad,var in gradvars]
-	
-	#run_metadata = tf.RunMetadata()
-	#run_options  = None
-	#if trace_filename is not None:
-	#	run_options = tf.RunOptions(trace_level=tf.RunOptions.FULL_TRACE)
-	
-	#print "Step\tInfer\tTrain\texp(loss)"
 	print "Step\tImg/sec\texp(loss)"
 	perf_results['step_train_times'] = []
 	perf_results['step_losses'] = []
@@ -1453,29 +1481,26 @@ def test_cnn(model, batch_size, devices,
 		else:
 			run_options  = None
 			run_metadata = None
-		
-		start_time = time.time()
-		# HACK TODO: Decide on how to allow inference mode
-		## TODO: Should be something other than network.top_layer?
-		#sess.run(network.top_layer, feed_dict={phase_train: False})
-		infer_time = float('nan')#time.time() - start_time
 		start_time = time.time()
 		try:
-			#sess.run(all_train_ops, feed_dict={phase_train: True})
-			#sess.run(all_grads, feed_dict={phase_train: True})
-			#_, lossval = sess.run([all_train_ops, total_loss], feed_dict={phase_train: True})
-			_, lossval = sess.run([train_op, total_loss], feed_dict={phase_train: True},
-			                      options=run_options, run_metadata=run_metadata)
+			if not FLAGS.inference:
+				#sess.run(all_train_ops, feed_dict={phase_train: True})
+				#sess.run(all_grads, feed_dict={phase_train: True})
+				#_, lossval = sess.run([all_train_ops, total_loss], feed_dict={phase_train: True})
+				_, lossval = sess.run([train_op, total_loss], feed_dict={phase_train: True},
+				                      options=run_options, run_metadata=run_metadata)
+			else:
+				predictions = sess.run([all_predictions], feed_dict={phase_train: False},
+				                       options=run_options, run_metadata=run_metadata)
+				lossval = 0.
 			train_time = time.time() - start_time
 		except tf.python.framework.errors.ResourceExhaustedError:
 			train_time = -1.
-			lossval    = -1.
+			lossval    = 0.
 			oom = True
 		#print "Unlearned classes: %.7f" % np.exp(lossval)
 		#print "%i\t%.3f\t%.3f\t%.3f" % (step+1, infer_time, train_time, np.exp(lossval))
-		#print "%i\t%.1f\t%.1f\t%.3f" % (step+1,
 		print "%i\t%.1f\t%.3f" % (step+1,
-		                          #batch_size/infer_time,
 		                          batch_size/train_time,
 		                          np.exp(lossval))
 		if trace_filename is not None and step == 10:
@@ -1487,9 +1512,13 @@ def test_cnn(model, batch_size, devices,
 		perf_results['step_losses'].append(float(lossval))
 		#if step == nstep_burnin+10 or step % 100 == 0:
 		#	dump_perf_results()
-		if FLAGS.checkpoint_file is not None and step+1 % 250 == 0:
+		if FLAGS.checkpoint_file is not None and (step+1) % 250 == 0:
 			save_path = saver.save(sess, FLAGS.checkpoint_file, global_step=step+1)
 			print "Checkpoint saved to %s" % save_path
+		if FLAGS.summaries_dir is not None and ((step+1) % 100 == 0 or (step+1) == nstep):
+			summary = sess.run(all_summaries, feed_dict={phase_train: (not FLAGS.inference)})
+			summary_writer.add_summary(summary, step)
+			print "Summaries saved to %s" % FLAGS.summaries_dir
 		if step+1 == FLAGS.nvprof_stop:
 			cudaProfilerStop()
 		if oom:
@@ -1542,40 +1571,59 @@ def edits2(word):
 	return [e2 for e1 in edits1(word) for e2 in edits1(e1)]
 
 def main():
-	cmdline = argparse.ArgumentParser()
+	cmdline = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 	cmdline.add_argument('-m', '--model', default='googlenet',
 	                     help="""Name of model to run:
 	                     googlenet, vgg, overfeat, alexnet, inception[3,4],
 	                     resnet[50,101,152] or inception-resnet2.""")
+	add_bool_argument(cmdline, '--inference', default=False,
+	                  help="""Benchmark inference performance instead of
+	                  training.""")
 	cmdline.add_argument('-b', '--batch_size', default=64, type=int,
 	                     help="""Size of each minibatch""")
 	cmdline.add_argument('--num_batches', default=40, type=int,
 	                     help="""Number of batches to run.""")
 	cmdline.add_argument('-g', '--num_gpus', default=1, type=int,
 	                     help="""Number of GPUs to run on.""")
+	add_bool_argument(cmdline, '--weak_scaling',
+	                  help="""Interpret batch_size as *per GPU*
+	                  rather than total.""")
+	cmdline.add_argument('--shmoo', action='store_true',
+	                     help="""Run a big shmoo over many
+	                     parameter combinations.""")
+	cmdline.add_argument('--data_dir', default=None,
+	                     help="""Path to dataset in TFRecord format
+	                     (aka Example protobufs). If not specified,
+	                     synthetic data will be used.
+	                     See also: --include_h2d_in_synthetic.""")
+	cmdline.add_argument('--data_name', default=None,
+	                     help="""Name of dataset: imagenet or flowers.
+	                     If not specified, it is automatically guessed
+	                     based on --data_dir.""")
+	add_bool_argument(cmdline, '--distortions', default=True,
+	                     help="""Enable/disable distortions during
+	                     image preprocessing.""")
+	cmdline.add_argument('--parameter_server', default='gpu',
+	                     help="""Device to use as parameter server:
+	                     cpu or gpu.""")
+	add_bool_argument(cmdline, '--include_h2d_in_synthetic', default=False,
+	                  help="""Include host to device memcopy when using
+	                  synthetic data.""")
 	cmdline.add_argument('--data_format', default='NCHW',
 	                     help="""Data layout to use: NHWC (TF native)
 	                     or NCHW (cuDNN native).""")
 	add_bool_argument(cmdline, '--use_fp16',
 	                  help="""Use fp16 (half) instead of fp32 (float) for
 	                  storage (compute is always fp32).""")
-	cmdline.add_argument('--parameter_server', default='gpu',
-	                     help="""Device to use as parameter server:
-	                     cpu or gpu.""")
 	add_bool_argument(cmdline, '--memory_growth',
 	                  help="""Enable on-demand memory growth.""")
-	cmdline.add_argument('--data_dir', default=None,
-	                     help="""Path to dataset in TFRecord format
-	                     (aka Example protobufs). If not specified,
-	                     synthetic data will be used.""")
-	cmdline.add_argument('--data_name', default=None,
-	                     help="""Name of dataset: imagenet or flowers.
-	                     If not specified, it is automatically guessed
-	                     based on --data_dir.""")
+	cmdline.add_argument('--memory_fraction', default=0., type=float,
+	                     help="""Fraction of GPU memory to use.
+	                     Set to 0.0 to allocate max amount (default).""")
 	cmdline.add_argument('--num_preprocess_threads', default=4, type=int,
 	                     help="""Number of preprocessing threads *per GPU*.
-	                     Must be a multiple of 4.""")
-	cmdline.add_argument('--num_readers', default=4, type=int,
+	                     Must be a multiple of 4 when distortions are enabled.""")
+	cmdline.add_argument('--num_readers', default=1, type=int,
 	                     help="""Number of parallel readers during training.
 	                     Setting this to 0 is a special case that causes each
 	                     preprocessing thread to do its own reading.""")
@@ -1583,16 +1631,14 @@ def main():
 	                     help="""Number of threads to use for intra-op
 	                     parallelism. If set to 0, the system will pick
 	                     an appropriate number.""")
+	cmdline.add_argument('--num_inter_threads', default=0, type=int,
+	                     help="""Number of threads to use for inter-op
+	                     parallelism. If set to 0, the system will pick
+	                     an appropriate number.""")
 	cmdline.add_argument('--input_queue_memory_factor', default=16, type=int,
 	                     help="""Size of the queue of preprocessed images.
 	                     Default is ideal but try smaller values, e.g.
 	                     4, 2 or 1, if host memory is constrained.""")
-	add_bool_argument(cmdline, '--distortions', default=True,
-	                     help="""Enable/disable distortions during
-	                     image preprocessing.""")
-	add_bool_argument(cmdline, '--weak_scaling',
-	                  help="""Interpret batch_size as *per GPU*
-	                  rather than total.""")
 	cmdline.add_argument('--perf_file', default=None,
 	                     help="""Write perf log (metadata, training times and
 	                     loss values) to this file.""")
@@ -1607,6 +1653,9 @@ def main():
 	                     help="""Write training checkpoints with this file
 	                     name (note: also writes some other files to same
 	                     path).""")
+	cmdline.add_argument('--summaries_dir', default=None,
+	                     help="""Write TensorBoard summary to this
+	                     directory.""")
 	cmdline.add_argument('--learning_rate', default=0.002, type=float,
 	                     help="""Learning rate for training.""")
 	cmdline.add_argument('--momentum', default=0.9, type=float,
@@ -1616,18 +1665,15 @@ def main():
 	                     Disabled by default.""")
 	cmdline.add_argument('--weight_decay', default=1e-4, type=float,
 	                     help="""Weight decay factor for training.""")
-	cmdline.add_argument('--shmoo', action='store_true',
-	                     help="""Run a big shmoo over many
-	                     parameter combinations.""")
 	cmdline.add_argument('--nvprof_start', default=-1, type=int,
 	                     help="""Iteration at which to start CUDA profiling.
 	                     A value of -1 means program start.""")
 	cmdline.add_argument('--nvprof_stop', default=-1, type=int,
 	                     help="""Iteration at which to stop CUDA profiling.
 	                     A value of -1 means program end.""")
-	cmdline.add_argument('--memory_fraction', default=0., type=float,
-	                     help="""Fraction of GPU memory to use.
-	                     Set to 0.0 to allocate max amount (default).""")
+	add_bool_argument(cmdline, '--gpu_prefetch', default=False,
+	                  help="""*EXPERIMENTAL* Enable/disable prefetching over PCIe.""")
+	
 	global FLAGS
 	FLAGS, unknown_args = cmdline.parse_known_args()
 	# Check for invalid arguments and look for a correction to suggest
@@ -1676,6 +1722,7 @@ def main():
 	use_fp16    = FLAGS.use_fp16
 	if not FLAGS.shmoo:
 		print "Model:      ", model
+		print "Mode:       ", 'inference' if FLAGS.inference else 'training'
 		print "Batch size: ", batch_size, 'global'
 		print "            ", batch_size/len(devices), 'per device'
 		print "Devices:    ", devices
