@@ -1,29 +1,12 @@
 #!/usr/bin/env python
 
+# ***WARNING***
+# This code is based on several (public) third-party sources and has not been
+# cleared for public distribution.
+# ***WARNING***
+
 #  Copyright (c) 2016, NVIDIA Corporation
 #  All rights reserved.
-#
-#  Redistribution and use in source and binary forms, with or without
-#  modification, are permitted provided that the following conditions are met:
-#      * Redistributions of source code must retain the above copyright
-#        notice, this list of conditions and the following disclaimer.
-#      * Redistributions in binary form must reproduce the above copyright
-#        notice, this list of conditions and the following disclaimer in the
-#        documentation and/or other materials provided with the distribution.
-#      * Neither the name of the copyright holder nor the names of its
-#        contributors may be used to endorse or promote products derived from
-#        this software without specific prior written permission.
-#
-#  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
-#  ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-#  WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-#  DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDERS OR CONTRIBUTORS BE LIABLE
-#  FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
-#  DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
-#  SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-#  CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
-#  OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-#  OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 """
  This is a mashup and extension of Soumith's convnet benchmark scripts,
@@ -32,10 +15,35 @@
  It is intended for use as a benchmarking tool that provides complete
    control over how TF is used (as opposed to say relying on Keras or
    TFSlim, which may not be GPU-optimal).
+ Contact Ben Barsdell for further information.
+
+TODO: Fix queue error when using crop with non-resized images
+      Consider adding random shift before crop in --resize_method=crop mode
+      Add validation results (loss and top-1/5 classification error)
 
 ---------
 Changelog
 ---------
+v0.11
+Fixed incorrect batchnorm in NCHW mode (NOTE: With TF <= 0.11, NHWC is faster than NCHW for batchnorm models; for TF >= 0.12, NCHW is now fused and is much faster)
+Fixed slightly incorrect ResNet definition
+Fixed results mismatch when using NCHW vs. NHWC (issue was with random seeds and final data order)
+Fixed initialization factor for ReLU layers (2/Nin -> 1/Nin), which greatly improves initial training loss
+Fixed error on exit when num_batches <= 10
+Fixed all input modes to use uint8 data type
+Added cifar10, vgg13+16, resnet18+34 and xception models
+Added support for LRN and separable convolution layers
+Added graceful exit when Ctrl-C is pressed
+Added learning rate decay
+Added lr_decay_factor, lr_decay_steps, lr_decay_staircase and nesterov parameters
+Added summaries_interval parameter (seconds between summary dumps)
+Added checkpoint loading
+Added exponential averaging to reported loss (NOTE: With TF <= 0.11, the average starts out heavily biased to loss=0; this is fixed in TF 0.12)
+Added cast from fp16 to fp32 before softmax
+Changed training log output to include loss and effective accuracy instead of exp(loss)
+Changed default learning rate from 0.005 to 0.003
+Updated several deprecated API calls
+
 v0.10
 Added --resize_method=crop/bilinear/trilinear/area, with fast crop support (requires resized dataset)
 Added --device=cpu/gpu to specify computation device
@@ -84,7 +92,7 @@ def tensorflow_version_tuple():
 	return (int(major), int(minor), patch)
 def tensorflow_version():
 	vt = tensorflow_version_tuple()
-	return vt[0]*1000 + vt[1]
+	return vt[0]*100 + vt[1]
 
 from tensorflow.python.ops import array_ops
 from tensorflow.python.ops import control_flow_ops
@@ -116,6 +124,7 @@ class ConvNetBuilder(object):
 		self.counts      = defaultdict(lambda: 0)
 		self.use_batch_norm = False
 		self.batch_norm_config = {}#'decay': 0.997, 'scale': True}
+		self.top_layer = self.from_nhwc(self.top_layer)
 	def conv(self, nOut, kH, kW, dH=1, dW=1, mode='SAME', input_layer=None, nIn=None,
 	         batch_norm=None, activation='relu'):
 		if input_layer is None:
@@ -126,9 +135,11 @@ class ConvNetBuilder(object):
 		self.counts['conv'] += 1
 		#with tf.name_scope(name) as scope, tf.variable_scope(name) as varscope:
 		with tf.variable_scope(name) as scope:
-			init_factor = 2. if activation == 'relu' else 1.
+			seed = self.counts['conv']
+			init_factor = 1. if activation == 'relu' else 1.
 			kernel = tf.get_variable('weights', [kH, kW, nIn, nOut], self.data_type,
-			                         tf.random_normal_initializer(stddev=np.sqrt(init_factor/(nIn*kH*kW))))
+			                         tf.random_normal_initializer(stddev=np.sqrt(init_factor/(nIn*kH*kW)),
+			                                                      seed=seed))
 			strides = [1, dH, dW, 1]
 			if self.data_format == 'NCHW':
 				strides = [strides[0], strides[3], strides[1], strides[2]]
@@ -156,13 +167,67 @@ class ConvNetBuilder(object):
 			if not batch_norm:
 				biases = tf.get_variable('biases', [nOut], self.data_type,
 				                         tf.constant_initializer(0.0))
-				biased = tf.reshape(tf.nn.bias_add(conv, biases, data_format=self.data_format), conv.get_shape())
+				#biased = tf.reshape(tf.nn.bias_add(conv, biases, data_format=self.data_format), conv.get_shape())
+				biased = tf.nn.bias_add(conv, biases, data_format=self.data_format)
 			else:
 				self.top_layer = conv
 				self.top_size  = nOut
 				biased = self.batch_norm(**self.batch_norm_config)
 			if activation == 'relu':
 				conv1 = tf.nn.relu(biased)#, name=scope)
+			elif activation == 'linear' or activation is None:
+				conv1 = biased
+			else:
+				raise KeyError("Invalid activation type '%s'" % activation)
+			self.top_layer = conv1
+			self.top_size  = nOut
+			return conv1
+	def separable_conv(self, nOut, kH, kW, dH=1, dW=1, depth_mult=1,
+	                   mode='SAME',
+	                   input_layer=None, nIn=None,
+	                   batch_norm=None, activation='relu'):
+		if input_layer is None:
+			input_layer = self.top_layer
+		if nIn is None:
+			nIn = self.top_size
+		name = 'sepconv' + str(self.counts['sepconv'])
+		self.counts['sepconv'] += 1
+		with tf.variable_scope(name) as scope:
+			seed = self.counts['sepconv']
+			init_factor = 1. if activation == 'relu' else 1.
+			depth_filter = tf.get_variable('spatial_weights',
+			                               [kH, kW, nIn, depth_mult],
+			                               self.data_type,
+			                               tf.random_normal_initializer(stddev=np.sqrt(init_factor/(nIn*kH*kW)),
+			                                                            seed=seed))
+			point_filter = tf.get_variable('channel_weights',
+			                               [1, 1, nIn*depth_mult, nOut],
+			                               self.data_type,
+			                               tf.random_normal_initializer(stddev=np.sqrt(init_factor/(nIn*depth_mult)),
+			                                                            seed=seed))
+			strides = [1, dH, dW, 1]
+			# TODO: Need to add support for data_format='NCHW' to this function
+			input_layer = self.to_nhwc(input_layer)
+			conv = tf.nn.separable_conv2d(input_layer,
+			                              depth_filter,
+			                              point_filter,
+			                              strides,
+			                              padding=mode)
+			conv = self.from_nhwc(conv)
+			if batch_norm is None:
+				batch_norm = self.use_batch_norm
+			if not batch_norm:
+				biases = tf.get_variable('biases', [nOut], self.data_type,
+				                         tf.constant_initializer(0.0))
+				biased = tf.reshape(tf.nn.bias_add(conv, biases,
+				                                   data_format=self.data_format),
+				                    conv.get_shape())
+			else:
+				self.top_layer = conv
+				self.top_size  = nOut
+				biased = self.batch_norm(**self.batch_norm_config)
+			if activation == 'relu':
+				conv1 = tf.nn.relu(biased)
 			elif activation == 'linear' or activation is None:
 				conv1 = biased
 			else:
@@ -220,12 +285,36 @@ class ConvNetBuilder(object):
 			                      name=name)
 		self.top_layer = pool
 		return pool
+	def lrn(self, depth_radius=5, input_layer=None, **kwargs):
+		if input_layer is None:
+			input_layer = self.top_layer
+		else:
+			self.top_size = None # Reset because we no longer know what it is
+		name = 'lrn' + str(self.counts['lrn'])
+		self.counts['lrn'] += 1
+		# TODO: Need to implement native support for NCHW into tf.nn.local_response_normalization
+		# TODO: Also need to implement support for fp16 LRN on GPU!
+		input_layer = self.to_nhwc(input_layer)
+		input_layer = self.to_fp32(input_layer)
+		self.top_layer = tf.nn.local_response_normalization(input_layer,
+		                                                    depth_radius,
+		                                                    name=name,
+		                                                    **kwargs)
+		self.top_layer = self.from_fp32(self.top_layer)
+		self.top_layer = self.from_nhwc(self.top_layer)
+		return self.top_layer
 	def reshape(self, shape, input_layer=None):
 		if input_layer is None:
 			input_layer = self.top_layer
+		
+		# Note: This ensures that the results for NCHW match those for NHWC
+		input_layer = self.to_nhwc(input_layer)
+		
 		self.top_layer = tf.reshape(input_layer, shape)
-		self.top_size  = shape[-1] # HACK This may not always work
+		self.top_size  = int(self.top_layer.get_shape()[-1]) # HACK This may not always work
 		return self.top_layer
+	def flatten(self):
+		self.reshape([int(self.top_layer.get_shape()[0]), -1])
 	def affine(self, nOut, input_layer=None, nIn=None, activation='relu'):
 		if input_layer is None:
 			input_layer = self.top_layer
@@ -233,11 +322,12 @@ class ConvNetBuilder(object):
 			nIn = self.top_size
 		name = 'affine' + str(self.counts['affine'])
 		self.counts['affine'] += 1
-		#with tf.name_scope(name) as scope, tf.variable_scope(name) as varscope:
 		with tf.variable_scope(name) as scope:
-			init_factor = 2. if activation == 'relu' else 1.
+			seed = self.counts['affine']
+			init_factor = 1. if activation == 'relu' else 1.
 			kernel = tf.get_variable('weights', [nIn, nOut], self.data_type,
-			                         tf.random_normal_initializer(stddev=np.sqrt(init_factor/(nIn))))
+			                         tf.random_normal_initializer(stddev=np.sqrt(init_factor/(nIn)),
+			                                                      seed=seed))
 			biases = tf.get_variable('biases', [nOut], self.data_type,
 			                         tf.constant_initializer(0.0))
 			logits = tf.matmul(input_layer, kernel) + biases
@@ -251,14 +341,13 @@ class ConvNetBuilder(object):
 			self.top_layer = affine1
 			self.top_size  = nOut
 			return affine1
-	def resnet_bottleneck_v1(self, depth, depth_bottleneck, stride, input_layer=None, inSize=None):
+	def resnet_bottleneck_v1(self, depth, depth_bottleneck, stride, basic=False, input_layer=None, inSize=None):
 		if input_layer is None:
 			input_layer = self.top_layer
 		if inSize is None:
 			inSize = self.top_size
 		name = 'resnet_v1' + str(self.counts['resnet_v1'])
 		self.counts['resnet_v1'] += 1
-		#with tf.name_scope(name) as scope:
 		with tf.variable_scope(name) as scope:
 			if depth == inSize:
 				if stride == 1:
@@ -267,9 +356,13 @@ class ConvNetBuilder(object):
 					shortcut = self.mpool(1, 1, stride, stride, input_layer=input_layer, nIn=inSize)
 			else:
 				shortcut = self.conv(depth, 1, 1, stride, stride, activation=None, input_layer=input_layer, nIn=inSize)
-			res_ = self.conv(depth_bottleneck, 1, 1, 1, 1, input_layer=input_layer, nIn=inSize)
-			res_ = self.conv(depth_bottleneck, 3, 3, stride, stride, mode='SAME_RESNET')
-			res  = self.conv(depth,            1, 1, 1, 1, activation=None)
+			if basic:
+				res_ = self.conv(depth_bottleneck, 3, 3, stride, stride, mode='SAME_RESNET', input_layer=input_layer, nIn=inSize)
+				res  = self.conv(depth,            3, 3, 1, 1, activation=None)
+			else:
+				res_ = self.conv(depth_bottleneck, 1, 1, 1, 1, input_layer=input_layer, nIn=inSize)
+				res_ = self.conv(depth_bottleneck, 3, 3, stride, stride, mode='SAME_RESNET')
+				res  = self.conv(depth,            1, 1, 1, 1, activation=None)
 			output = tf.nn.relu(shortcut + res)
 			self.top_layer = output
 			self.top_size  = depth
@@ -281,7 +374,6 @@ class ConvNetBuilder(object):
 			inSize = self.top_size
 		name += str(self.counts[name])
 		self.counts[name] += 1
-		#with tf.name_scope(name) as scope:
 		with tf.variable_scope(name) as scope:
 			col_layers      = []
 			col_layer_sizes = []
@@ -304,11 +396,23 @@ class ConvNetBuilder(object):
 			self.top_layer = array_ops.concat(catdim, [layers[-1] for layers in col_layers])
 			self.top_size  = sum([sizes[-1] for sizes in col_layer_sizes])
 			return self.top_layer
-	def residual(self, nout, net, scale=1.0):
+	def residual(self, net, nout=None, dH=1, dW=1, scale=1.0, activation='relu'):
 		inlayer = self.top_layer
+		insize  = self.top_size
+		reslayer = inlayer
+		if nout is not None:
+			reslayer = self.conv(nout, 1, 1, dH, dW, activation=None)
+		self.top_layer = inlayer
+		self.top_size  = insize
 		net(self)
-		self.conv(nout, 1, 1, activation=None)
-		self.top_layer = tf.nn.relu(inlayer + scale*self.top_layer)
+		self.top_layer = reslayer + scale*self.top_layer
+		return self.activate(activation)
+	def activate(self, activation='relu'):
+		if activation == 'relu':
+			self.top_layer = tf.nn.relu(self.top_layer)
+		elif activation != 'linear' and activation is not None:
+			raise ValueError("Invalid activation '%s'" % activation)
+		return self.top_layer
 	def spatial_mean(self, keep_dims=False):
 		name = 'spatial_mean' + str(self.counts['spatial_mean'])
 		self.counts['spatial_mean'] += 1
@@ -323,14 +427,15 @@ class ConvNetBuilder(object):
 		else:
 			self.top_size = None
 		name = 'dropout' + str(self.counts['dropout'])
-		#with tf.name_scope(name) as scope:
+		self.counts['dropout'] += 1
 		with tf.variable_scope(name) as scope:
+			seed = self.counts['dropout']
 			keep_prob_tensor = tf.constant(keep_prob, dtype=self.data_type)
 			one_tensor       = tf.constant(1.0,       dtype=self.data_type)
 			keep_prob_op = control_flow_ops.cond(self.phase_train,
 			                                     lambda: keep_prob_tensor,
 			                                     lambda: one_tensor)
-			dropout = tf.nn.dropout(input_layer, keep_prob_op)
+			dropout = tf.nn.dropout(input_layer, keep_prob_op, seed=seed)
 			self.top_layer = dropout
 			return dropout
 	def batch_norm(self, input_layer=None, **kwargs):
@@ -340,14 +445,31 @@ class ConvNetBuilder(object):
 			self.top_size = None
 		name = 'batchnorm' + str(self.counts['batchnorm'])
 		self.counts['batchnorm'] += 1
-		#with tf.name_scope(name) as scope:
 		with tf.variable_scope(name) as scope:
-			bn = tf.contrib.layers.batch_norm(input_layer,
-			                                  is_training=self.phase_train,
-			                                  scope=scope,
-			                                  **kwargs)
+			if tensorflow_version() <= 11:
+				input_layer = self.to_nhwc(input_layer)
+				bn = tf.contrib.layers.batch_norm(input_layer,
+				                                  is_training=self.phase_train,
+				                                  scope=scope,
+				                                  **kwargs)
+				bn = self.from_nhwc(bn)
+			else:
+				bn = tf.contrib.layers.batch_norm(input_layer,
+				                                  is_training=self.phase_train,
+				                                  scope=scope,
+				                                  data_format=self.data_format,
+				                                  fused=(self.data_format=='NCHW'),
+				                                  **kwargs)
 		self.top_layer = bn
 		return bn
+	def to_nhwc(self, x):
+		return tf.transpose(x, [0,2,3,1]) if self.data_format == 'NCHW' else x
+	def from_nhwc(self, x):
+		return tf.transpose(x, [0,3,1,2]) if self.data_format == 'NCHW' else x
+	def to_fp32(self, x):
+		return tf.cast(x, tf.float32) if x.dtype != tf.float32 else x
+	def from_fp32(self, x):
+		return tf.cast(x, self.data_type) if x.dtype != self.data_type else x
 
 def inference_overfeat(cnn):
 	# Note: VALID requires padding the images by 3 in width and height
@@ -381,45 +503,49 @@ def inference_alexnet(cnn):
 	cnn.dropout()
 	return cnn
 
-def inference_vgg11(cnn):
-	cnn.conv (64, 3, 3)
+def inference_vgg_impl(cnn, layer_counts):
+	for _ in xrange(layer_counts[0]):
+		cnn.conv (64, 3, 3)
 	cnn.mpool(2, 2)
-	cnn.conv (128, 3, 3)
+	for _ in xrange(layer_counts[1]):
+		cnn.conv (128, 3, 3)
 	cnn.mpool(2, 2)
-	cnn.conv (256, 3, 3)
-	cnn.conv (256, 3, 3)
+	for _ in xrange(layer_counts[2]):
+		cnn.conv (256, 3, 3)
 	cnn.mpool(2, 2)
-	cnn.conv (512, 3, 3)
-	cnn.conv (512, 3, 3)
+	for _ in xrange(layer_counts[3]):
+		cnn.conv (512, 3, 3)
 	cnn.mpool(2, 2)
-	cnn.conv (512, 3, 3)
-	cnn.conv (512, 3, 3)
+	for _ in xrange(layer_counts[4]):
+		cnn.conv (512, 3, 3)
 	cnn.mpool(2, 2)
 	cnn.reshape([-1, 512 * 7 * 7])
 	cnn.affine(4096)
 	cnn.affine(4096)
 	return cnn
 
-def inference_vgg19(cnn):
-	for _ in xrange(2):
-		cnn.conv (64, 3, 3)
-	cnn.mpool(2, 2)
-	for _ in xrange(2):
-		cnn.conv (128, 3, 3)
-	cnn.mpool(2, 2)
-	for _ in xrange(4):
-		cnn.conv (256, 3, 3)
-	cnn.mpool(2, 2)
-	for _ in xrange(4):
-		cnn.conv (512, 3, 3)
-	cnn.mpool(2, 2)
-	for _ in xrange(4):
-		cnn.conv (512, 3, 3)
-	cnn.mpool(2, 2)
-	cnn.reshape([-1, 512 * 7 * 7])
-	cnn.affine(4096)
-	cnn.affine(4096)
-	return cnn
+#def inference_generic(cnn, nlayer, nstack, nfilter, filter_size,
+#                      naffine, affine_size):
+#	for _ in xrange(nlayer):
+#		for _ in xrange(nstack):
+#			cnn.conv(nfilter, filter_size, filter_size)
+#		cnn.mpool(2, 2)
+#	cnn.flatten()
+#	for _ in xrange(naffine):
+#		cnn.affine(affine_size)
+#	return cnn
+
+def inference_vgg11(cnn): # VGG model 'A'
+	return inference_vgg_impl(cnn, [1,1,2,2,2])
+
+def inference_vgg13(cnn): # VGG model 'B'
+	return inference_vgg_impl(cnn, [2,2,2,2,2])
+
+def inference_vgg16(cnn): # VGG model 'D'
+	return inference_vgg_impl(cnn, [2,2,3,3,3])
+
+def inference_vgg19(cnn): # VGG model 'E'
+	return inference_vgg_impl(cnn, [2,2,4,4,4])
 
 def inference_lenet5(cnn):
 	# Note: This matches TF's MNIST tutorial model
@@ -431,22 +557,32 @@ def inference_lenet5(cnn):
 	cnn.affine(512)
 	return cnn
 
-def inference_resnet_v1(cnn, layer_counts):
+def inference_cifar10(cnn):
+	# Note: This matches TF's CIFAR10 tutorial model
+	cnn.conv (64, 5, 5)
+	cnn.mpool(3, 3, mode='SAME')
+	cnn.lrn(4, bias=1.0, alpha=0.001/9.0, beta=0.75)
+	cnn.conv (64, 5, 5)
+	cnn.lrn(4, bias=1.0, alpha=0.001/9.0, beta=0.75)
+	cnn.mpool(3, 3, mode='SAME')
+	cnn.reshape([-1, 64 * 8 * 8])
+	cnn.affine(384)
+	cnn.affine(192)
+	return cnn
+
+def inference_resnet_v1(cnn, layer_counts, basic=False):
 	cnn.use_batch_norm = True
 	cnn.batch_norm_config = {'decay': 0.997, 'epsilon': 1e-5, 'scale': True}
 	cnn.conv (64, 7, 7, 2, 2, mode='SAME_RESNET')
-	cnn.mpool(3, 3, 2, 2)
-	for _ in xrange(layer_counts[0]):
-		cnn.resnet_bottleneck_v1(256, 64, 1)
-	cnn.resnet_bottleneck_v1(256, 64, 2)
-	for _ in xrange(layer_counts[1]):
-		cnn.resnet_bottleneck_v1(512, 128, 1)
-	cnn.resnet_bottleneck_v1(512, 128, 2)
-	for _ in xrange(layer_counts[2]):
-		cnn.resnet_bottleneck_v1(1024, 256, 1)
-	cnn.resnet_bottleneck_v1(1024, 256, 2)
-	for _ in xrange(layer_counts[3]):
-		cnn.resnet_bottleneck_v1(2048, 512, 1)
+	cnn.mpool(3, 3, 2, 2, mode='SAME')
+	for i in xrange(layer_counts[0]):
+		cnn.resnet_bottleneck_v1( 256,  64, 1, basic=basic)
+	for i in xrange(layer_counts[1]):
+		cnn.resnet_bottleneck_v1( 512, 128, 2 if i==0 else 1, basic=basic)
+	for i in xrange(layer_counts[2]):
+		cnn.resnet_bottleneck_v1(1024, 256, 2 if i==0 else 1, basic=basic)
+	for i in xrange(layer_counts[3]):
+		cnn.resnet_bottleneck_v1(2048, 512, 2 if i==0 else 1, basic=basic)
 	cnn.spatial_mean()
 	return cnn
 
@@ -617,15 +753,18 @@ def inference_inception_resnet_v2(cnn):
 		cols = [[('conv', 32, 1, 1)],
 		        [('conv', 32, 1, 1), ('conv', 32, 3, 3)],
 		        [('conv', 32, 1, 1), ('conv', 48, 3, 3), ('conv', 64, 3, 3)]]
-		return cnn.inception_module('incept_resnet_v2_a', cols)
+		cnn.inception_module('incept_resnet_v2_a', cols)
+		cnn.conv(384, 1, 1, activation=None)
 	def inception_resnet_v2_b(cnn):
 		cols = [[('conv', 192, 1, 1)],
 		        [('conv', 128, 1, 1), ('conv', 160, 1, 7), ('conv', 192, 7, 1)]]
-		return cnn.inception_module('incept_resnet_v2_b', cols)
+		cnn.inception_module('incept_resnet_v2_b', cols)
+		cnn.conv(1152, 1, 1, activation=None)
 	def inception_resnet_v2_c(cnn):
 		cols = [[('conv', 192, 1, 1)],
 		        [('conv', 192, 1, 1), ('conv', 224, 1, 3), ('conv', 256, 3, 1)]]
-		return cnn.inception_module('incept_resnet_v2_c', cols)
+		cnn.inception_module('incept_resnet_v2_c', cols)
+		cnn.conv(2048, 1, 1, activation=None)
 	
 	cnn.use_batch_norm = True
 	residual_scale = 0.2
@@ -636,22 +775,59 @@ def inference_inception_resnet_v2(cnn):
 	inception_v4_sb(cnn)
 	inception_v4_sc(cnn)
 	for _ in xrange(5):
-		cnn.residual( 384, inception_resnet_v2_a, scale=residual_scale)
+		cnn.residual(inception_resnet_v2_a, scale=residual_scale)
 	inception_v4_ra(cnn, 256, 256, 384, 384)
 	for _ in xrange(10):
 		# TODO: This was 1154 in the paper, but then the layers don't match up
 		#         One Caffe model online appears to use 1088
 		#         Facebook's Torch implem uses 1152
-		cnn.residual(1152, inception_resnet_v2_b, scale=residual_scale)
+		cnn.residual(inception_resnet_v2_b, scale=residual_scale)
 	inception_resnet_v2_rb(cnn)
 	for _ in xrange(5):
 		# TODO: This was 2048 in the paper, but then the layers don't match up
 		#         One Caffe model online appears to use 2080
 		#         Facebook's Torch implem uses 2048 but modifies the preceding reduction net so that it matches
-		#cnn.residual(2144, inception_resnet_v2_c, scale=residual_scale)
-		cnn.residual(2048, inception_resnet_v2_c, scale=residual_scale)
+		#cnn.residual(inception_resnet_v2_c, 2144, scale=residual_scale)
+		cnn.residual(inception_resnet_v2_c, scale=residual_scale)
 	cnn.spatial_mean()
 	cnn.dropout(0.8)
+	return cnn
+
+def inference_xception(cnn):
+	def make_xception_entry(nout, activate_first=True):
+		def xception_entry(cnn):
+			if activate_first:
+				cnn.activate('relu')
+			cnn.separable_conv(nout, 3, 3)
+			cnn.separable_conv(nout, 3, 3, activation=None)
+			cnn.mpool(3, 3, mode='SAME')
+		return xception_entry
+	def xception_middle(cnn):
+		cnn.activate('relu')
+		cnn.separable_conv(728, 3, 3)
+		cnn.separable_conv(728, 3, 3)
+		cnn.separable_conv(728, 3, 3, activation=None)
+	def xception_exit(cnn):
+		cnn.activate('relu')
+		cnn.separable_conv( 728, 3, 3)
+		cnn.separable_conv(1024, 3, 3, activation=None)
+		cnn.mpool(3, 3, mode='SAME')
+	
+	cnn.use_batch_norm = True
+	cnn.batch_norm_config = {'decay': 0.99, 'epsilon': 1e-5, 'scale': True}
+	cnn.conv(32, 3, 3, 2, 2, mode='VALID')
+	cnn.conv(64, 3, 3, 1, 1, mode='VALID')
+	cnn.residual(make_xception_entry(128, False), 128, 2, 2, activation=None)
+	cnn.residual(make_xception_entry(256),        256, 2, 2, activation=None)
+	cnn.residual(make_xception_entry(728),        728, 2, 2, activation=None)
+	for _ in xrange(8):
+		cnn.residual(xception_middle, activation=None)
+	cnn.residual(xception_exit, 1024, 2, 2, activation=None)
+	cnn.separable_conv(1536, 3, 3)
+	cnn.separable_conv(2048, 3, 3)
+	cnn.spatial_mean()
+	# Note: Optional FC layer not included
+	cnn.dropout(0.5)
 	return cnn
 
 def all_average_gradients(local_grads, devices):
@@ -764,9 +940,7 @@ def average_gradients_inception(tower_grads):
     average_grads.append(grad_and_var)
   return average_grads
 
-#cross_entropy = None
 def loss_function(logits, labels):
-	#global cross_entropy # HACK TESTING
 	cross_entropy = tf.nn.sparse_softmax_cross_entropy_with_logits(logits, labels,
 	                                                               name='xentropy')
 	loss = tf.reduce_mean(cross_entropy, name='xentropy_mean')
@@ -890,7 +1064,6 @@ def eval_image(image, height, width, bbox, thread_id, scope=None):
 		if not thread_id:
 			tf.image_summary('original_image',
 			                 tf.expand_dims(image, 0))
-			
 		if FLAGS.resize_method == 'crop':
 			# Note: This is much slower than crop_to_bounding_box
 			#         It seems that the redundant pad step has huge overhead
@@ -1021,7 +1194,7 @@ def distort_image(image, height, width, bbox, thread_id=0, scope=None):
     distorted_image = distort_color(distorted_image, thread_id)
 
     # Note: This ensures the scaling matches the output of eval_image
-    distorted_image *= 256
+    distorted_image *= 255
 
     if not thread_id:
       tf.image_summary('final_distorted_image',
@@ -1100,9 +1273,6 @@ class ImagePreprocessor(object):
 		else:
 			image = eval_image(image, self.height, self.width, bbox, thread_id)
 		# Note: image is now float32 [height,width,3] with range [0, 255]
-		
-		#image = tf.cast(image, tf.uint8) # HACK TESTING
-		
 		return image
 	
 	def minibatch(self, dataset, subset):
@@ -1113,7 +1283,8 @@ class ImagePreprocessor(object):
 			#print data_files
 			filename_queue = tf.train.string_input_producer(data_files,
 			                                                shuffle=shuffle,
-			                                                capacity=capacity)
+			                                                capacity=capacity,
+			                                                seed=1)
 			# Approximate number of examples per shard.
 			examples_per_shard = 1024
 			# Size the random shuffle queue to balance between good global
@@ -1126,7 +1297,8 @@ class ImagePreprocessor(object):
 				examples_queue = tf.RandomShuffleQueue(
 					capacity=min_queue_examples + 3 * self.batch_size,
 					min_after_dequeue=min_queue_examples,
-					dtypes=[tf.string])
+					dtypes=[tf.string],
+					seed=2)
 			else:
 				examples_queue = tf.FIFOQueue(
 					capacity=examples_per_shard + 3 * self.batch_size,
@@ -1139,7 +1311,9 @@ class ImagePreprocessor(object):
 					_2, value = dataset.reader().read(filename_queue)
 					enqueue_ops.append(examples_queue.enqueue([value]))
 				tf.train.queue_runner.add_queue_runner(
-				  tf.train.queue_runner.QueueRunner(examples_queue, enqueue_ops))
+				  tf.train.queue_runner.QueueRunner(examples_queue, enqueue_ops,
+				                                    queue_closed_exception_types=(tf.errors.OutOfRangeError,
+				                                                                  tf.errors.InvalidArgumentError)))
 				example_serialized = examples_queue.dequeue()
 			images_and_labels = []
 			for thread_id in xrange(self.num_preprocess_threads):
@@ -1172,7 +1346,7 @@ class Dataset(object):
 			data_dir = FLAGS.data_dir
 		self.data_dir = data_dir
 	def data_files(self, subset):
-		tf_record_pattern = os.path.join(FLAGS.data_dir, '%s-*' % subset)
+		tf_record_pattern = os.path.join(self.data_dir, '%s-*' % subset)
 		data_files = tf.gfile.Glob(tf_record_pattern)
 		if not data_files:
 			raise RuntimeError('No files found for %s dataset at %s' %
@@ -1298,6 +1472,9 @@ def test_cnn(model, batch_size, devices,
              perf_filename=None,
              trace_filename=None):
 	
+	tf.set_random_seed(1234)
+	np.random.seed(4321)
+	
 	config = tf.ConfigProto()
 	config.allow_soft_placement = False
 	#config.gpu_options.allocator_type = 'BFC'
@@ -1313,7 +1490,6 @@ def test_cnn(model, batch_size, devices,
 	# TODO: Look into these:
 	# config.session_inter_op_thread_pool
 	# config.use_per_session_threads
-	
 	
 	nstep_burnin = 10
 	perf_results = {}
@@ -1364,29 +1540,40 @@ def test_cnn(model, batch_size, devices,
 			                           separators=(',', ':'),
 			                           sort_keys=True) + '\n')
 		
-	if model.startswith('vgg') or model == 'googlenet' or model.startswith('resnet'):
+	if model.startswith('vgg') or model == 'googlenet' \
+	   or model.startswith('resnet') or model.startswith('test'):
 		image_size = 224
 	elif model == 'alexnet':
 		image_size = 224+3
 	elif model == 'overfeat':
 		image_size = 231
-	elif model.startswith('inception'):
+	elif model.startswith('inception') or model.startswith('xception'):
 		image_size = 299
 	elif model.startswith('lenet'):
 		image_size = 28
+	elif model.startswith('cifar10'):
+		image_size = 32
 	else:
 		raise KeyError("Invalid model name: "+model)
 	data_type = tf.float16 if use_fp16 else tf.float32
 	#input_data_type = data_type
-	input_data_type = tf.float32
+	#input_data_type = tf.float32
+	input_data_type = tf.uint8
 	input_nchan = 3
 	input_shape = [batch_size, image_size, image_size, input_nchan]
 	#if share_variables:
 	devices = [device_or_param_server(d, param_server_device) for d in devices]
 	
-	tf.set_random_seed(1234)
-	np.random.seed(4321)
 	phase_train = tf.placeholder(tf.bool, name='phase_train')
+	global_step = tf.get_variable('global_step', [],
+	                              initializer=tf.constant_initializer(0),
+	                              dtype=tf.int64,
+	                              trainable=False)
+	learning_rate = tf.train.exponential_decay(FLAGS.learning_rate,
+	                                           global_step,
+	                                           FLAGS.lr_decay_steps,
+	                                           FLAGS.lr_decay_factor,
+	                                           staircase=FLAGS.lr_decay_staircase)
 	
 	with tf.device("/cpu:0"):
 		if dataset is not None:
@@ -1401,8 +1588,10 @@ def test_cnn(model, batch_size, devices,
 			nclass = 1000
 		else:
 			nclass = 1000
-			images = tf.truncated_normal(input_shape, dtype=input_data_type, stddev=1e-1, name="synthetic_images")
-			#labels = tf.ones([batch_size], dtype=tf.int32, name="synthetic_labels")
+			images = tf.truncated_normal(input_shape, dtype=tf.float32,
+			                             mean=127, stddev=20,
+			                             name="synthetic_images")
+			images = tf.cast(images, input_data_type)
 			labels = tf.random_uniform([batch_size], minval=1, maxval=nclass, dtype=tf.int32, name="synthetic_labels")
 			# Note: This results in a H2D copy, but no computation
 			# Note: This avoids recomputation of the random values, but still
@@ -1423,62 +1612,69 @@ def test_cnn(model, batch_size, devices,
 	losses       = []
 	prefetchers  = []
 	all_predictions = []
-	for d, device in enumerate(devices):
-		
-		host_images = images_splits[d]
-		if FLAGS.gpu_prefetch:
-			print "Creating GPU prefetcher on GPU", d
-			prefetcher = GPUPrefetcher(sess, device, host_images, input_data_type, nbuf=2)
-			prefetchers.append(prefetcher)
-			images = prefetcher.output
-		else:
-			images = host_images
-		labels = labels_splits[d]
-		
-		# Note: We want variables on different devices to share the same
-		#         variable scope, so we just use a name_scope here.
-		with tf.device(device), tf.name_scope('tower_%i' % d) as scope:
+	with tf.variable_scope("model"):
+		for d, device in enumerate(devices):
+			
+			host_images = images_splits[d]
+			if FLAGS.gpu_prefetch:
+				print "Creating GPU prefetcher on GPU", d
+				prefetcher = GPUPrefetcher(sess, device, host_images, input_data_type, nbuf=2)
+				prefetchers.append(prefetcher)
+				images = prefetcher.output
+			else:
+				images = host_images
+				labels = labels_splits[d]
+			
+			# Note: We want variables on different devices to share the same
+			#         variable scope, so we just use a name_scope here.
+			with tf.device(device), tf.name_scope('tower_%i' % d) as scope:
 				if dataset is None and not FLAGS.include_h2d_in_synthetic:
 					# Minor hack to avoid H2D copy when using synthetic data
-					images = tf.truncated_normal(images.get_shape(), dtype=input_data_type, stddev=1e-1, name="synthetic_images")
+					images = tf.truncated_normal(images.get_shape(), dtype=tf.float32,
+					                             mean=127, stddev=20,
+					                             name="synthetic_images")
 					images = tf.Variable(images, trainable=False, name='gpu_cached_images')
 				
-				#images = tf.cast(images, tf.float32) # HACK TESTING
-				
-				# Rescale to [0, 1)
-				images *= 1./256
-				# Rescale to [-1,1] instead of [0, 1)
-				images = tf.sub(images, 0.5)
-				images = tf.mul(images, 2.0)
-				
-				if data_format == 'NCHW':
-					images = tf.transpose(images, [0,3,1,2])
 				if input_data_type != data_type:
 					images = tf.cast(images, data_type)
+				
+				# Rescale and shift to [-1,1]
+				images = images * (1./127) - 1
+				
 				network = ConvNetBuilder(images, input_nchan,
 				                         phase_train, data_format, data_type)
-				if   model == 'vgg11':      inference_vgg11(network)
-				elif model == 'vgg19':      inference_vgg19(network)
-				elif model == 'lenet':      inference_lenet5(network)
-				elif model == 'googlenet':  inference_googlenet(network)
-				elif model == 'overfeat':   inference_overfeat(network)
-				elif model == 'alexnet':    inference_alexnet(network)
-				elif model == 'inception3': inference_inception_v3(network)
-				elif model == 'inception4': inference_inception_v4(network)
-				elif model == 'resnet50':   inference_resnet_v1(network, (2,3,5,3))
-				elif model == 'resnet101':  inference_resnet_v1(network, (2,3,22,3))
-				elif model == 'resnet152':  inference_resnet_v1(network, (2,7,35,3))
+				if   model == 'vgg11':        inference_vgg11(network)
+				elif model == 'vgg13':        inference_vgg13(network)
+				elif model == 'vgg16':        inference_vgg16(network)
+				elif model == 'vgg19':        inference_vgg19(network)
+				elif model == 'lenet':        inference_lenet5(network)
+				elif model == 'cifar10':      inference_cifar10(network)
+				elif model == 'googlenet':    inference_googlenet(network)
+				elif model == 'overfeat':     inference_overfeat(network)
+				elif model == 'alexnet':      inference_alexnet(network)
+				elif model == 'inception3':   inference_inception_v3(network)
+				elif model == 'inception4':   inference_inception_v4(network)
+				elif model == 'resnet18':     inference_resnet_v1(network, (2,2,2,2), basic=True)
+				elif model == 'resnet34':     inference_resnet_v1(network, (3,4,6,3), basic=True)
+				elif model == 'resnet50':     inference_resnet_v1(network, (3,4,6,3))
+				elif model == 'resnet101':    inference_resnet_v1(network, (3,4,23,3))
+				elif model == 'resnet152':    inference_resnet_v1(network, (3,8,36,3))
 				elif model == 'inception-resnet2': inference_inception_resnet_v2(network)
+				elif model == 'xception':     inference_xception(network)
 				else: raise KeyError("Invalid model name '%s'" % model)
 				# Add the final fully-connected class layer
 				logits = network.affine(nclass, activation='linear')
+				logits = tf.cast(logits, tf.float32)
 				loss = loss_function(logits, labels)
 				predictions = tf.nn.softmax(logits, name='predictions')
 				all_predictions.append(predictions)
-				l2_loss = tf.add_n([tf.nn.l2_loss(v) for v in tf.trainable_variables()])
+				
 				weight_decay = FLAGS.weight_decay
 				if weight_decay is not None and weight_decay != 0.:
-					loss += weight_decay * l2_loss
+					l2_loss = tf.add_n([tf.nn.l2_loss(v)
+					                    for v in tf.trainable_variables()])
+					l2_loss = tf.cast(l2_loss, tf.float32)
+					loss += (weight_decay * l2_loss) * (1./len(devices))
 				
 				losses.append(loss)
 				params = tf.trainable_variables()
@@ -1498,21 +1694,33 @@ def test_cnn(model, batch_size, devices,
 	
 	with tf.device(param_server_device):
 		total_loss = tf.reduce_mean(losses)
+		# Note: This cannot be used inside a variable scope with reuse=True
+		#         Had to wrap the whole model above in a tf.variable_scope to
+		#           avoid this.
+		averager = tf.train.ExponentialMovingAverage(0.90, name='avg')
+		avg_op = averager.apply([total_loss])
+		total_loss_avg = averager.average(total_loss)
+		# Note: This must be done _after_ the averager.average() call
+		#         because it changes total_loss into a new object.
+		with tf.control_dependencies([avg_op]):
+			total_loss     = tf.identity(total_loss)
+			total_loss_avg = tf.identity(total_loss_avg)
+		
 		#all_grads = all_average_gradients4(device_grads)
 		#avg_grads = all_average_gradients4(device_grads)
 		#avg_grads = average_gradients(device_grads)
 		avg_grads = average_gradients_inception(device_grads)
 		gradient_clip = FLAGS.gradient_clip
-		learning_rate = FLAGS.learning_rate
+		#learning_rate = FLAGS.learning_rate
 		momentum      = FLAGS.momentum
 		if gradient_clip is not None:
 			clipped_grads = [(tf.clip_by_value(grad, -gradient_clip, +gradient_clip), var) for grad,var in avg_grads]
 		else:
 			clipped_grads = avg_grads
-		opt = tf.train.MomentumOptimizer(learning_rate, momentum, use_nesterov=True)
+		opt = tf.train.MomentumOptimizer(learning_rate, momentum, use_nesterov=FLAGS.nesterov)
 		#opt = tf.train.RMSPropOptimizer(learning_rate)
 		#opt = tf.train.AdamOptimizer()
-		train_op = opt.apply_gradients(clipped_grads)
+		train_op = opt.apply_gradients(clipped_grads, global_step=global_step)
 		# Ensure in-place update ops are executed too (e.g., batch norm)
 		update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
 		if update_ops:
@@ -1523,19 +1731,39 @@ def test_cnn(model, batch_size, devices,
 	with tf.device('/cpu:0'):
 		for grad, var in avg_grads:
 			if grad is not None:
-				tf.histogram_summary(var.op.name + '/gradients', grad)
+				if tensorflow_version() >= 12:
+					tf.summary.histogram(var.op.name + '/gradients', grad)
+				else:
+					tf.histogram_summary(var.op.name + '/gradients', grad)
 		for var in tf.trainable_variables():
-			tf.histogram_summary(var.op.name, var)
+			if tensorflow_version() >= 12:
+				tf.summary.histogram(var.op.name, var)
+			else:
+				tf.histogram_summary(var.op.name, var)
 	
 	with tf.device('/cpu:0'):
-		tf.scalar_summary('total loss', total_loss)
+		if tensorflow_version() >= 11:
+			tf.summary.scalar('total loss raw', total_loss)
+			tf.summary.scalar('total loss avg', total_loss_avg)
+			tf.summary.scalar('learning_rate', learning_rate)
+		else:
+			tf.scalar_summary('total loss raw', total_loss)
+			tf.scalar_summary('total loss avg', total_loss_avg)
+			tf.scalar_summary('learning_rate', learning_rate)
 	
 	if FLAGS.summaries_dir is not None:
 		all_summaries = tf.merge_all_summaries()
 		print "Creating SummaryWriter"
-		summary_writer = tf.train.SummaryWriter(FLAGS.summaries_dir, sess.graph)
+		#summaries_dir = os.path.join(FLAGS.summaries_dir,
+		#                             "%s-%s" % (FLAGS.model,
+		#                                        time.strftime("%Y%m%d-%H%M%S")))
+		summaries_dir = FLAGS.summaries_dir
+		summary_writer = tf.train.SummaryWriter(summaries_dir, sess.graph)
 	
-	init = tf.initialize_all_variables()
+	if tensorflow_version() >= 12:
+		init = tf.global_variables_initializer()
+	else:
+		init = tf.initialize_all_variables()
 	
 	if FLAGS.graph_file is not None:
 		path, filename = os.path.split(FLAGS.graph_file)
@@ -1552,22 +1780,37 @@ def test_cnn(model, batch_size, devices,
 	
 	print "Starting queue runners"
 	coordinator = tf.train.Coordinator()
+	#coordinator = tf.train.Coordinator((tf.errors.OutOfRangeError,
+	#                                    tf.errors.InvalidArgumentError))
 	queue_threads = tf.train.start_queue_runners(sess=sess, coord=coordinator)
 	
 	for p in prefetchers:
 		p.daemon = True # TODO: Try to avoid needing this
 		p.start()
 	
-	if FLAGS.checkpoint_file is not None:
-		save_path = saver.save(sess, FLAGS.checkpoint_file, global_step=0)
-		print "Checkpoint saved to %s" % save_path
+	if FLAGS.checkpoint_dir is not None:
+		ckpt = tf.train.get_checkpoint_state(FLAGS.checkpoint_dir)
+		checkpoint_file = os.path.join(FLAGS.checkpoint_dir, "checkpoint")
+		if ckpt and ckpt.model_checkpoint_path:
+			# Note: ckpt.model_checkpoint_path is the "most-recent model checkpoint"
+			saver.restore(sess, ckpt.model_checkpoint_path)
+			print "Checkpoint loaded from %s" % ckpt.model_checkpoint_path
+		else:
+			if not os.path.exists(FLAGS.checkpoint_dir):
+				os.mkdir(FLAGS.checkpoint_dir)
+			save_path = saver.save(sess, checkpoint_file, global_step=0)
+			print "Checkpoint saved to %s" % save_path
 	
-	print "Step\tImg/sec\texp(loss)"
+	last_summary_time = time.time()
+	
+	print "Step\tImg/sec\tLoss\tEff. accuracy"
 	perf_results['step_train_times'] = []
 	perf_results['step_losses'] = []
 	nstep = num_batches
 	oom = False
-	for step in xrange(nstep):
+	step0 = int(sess.run(global_step))
+	step = 0
+	for step in xrange(step0, nstep):
 		if step == FLAGS.nvprof_start:
 			cudaProfilerStart()
 		if trace_filename is not None and step == 10:
@@ -1579,10 +1822,7 @@ def test_cnn(model, batch_size, devices,
 		start_time = time.time()
 		try:
 			if not FLAGS.inference:
-				#sess.run(all_train_ops, feed_dict={phase_train: True})
-				#sess.run(all_grads, feed_dict={phase_train: True})
-				#_, lossval = sess.run([all_train_ops, total_loss], feed_dict={phase_train: True})
-				_, lossval = sess.run([train_op, total_loss], feed_dict={phase_train: True},
+				_, lossval = sess.run([train_op, total_loss_avg], feed_dict={phase_train: True},
 				                      options=run_options, run_metadata=run_metadata)
 			else:
 				predictions = sess.run([all_predictions], feed_dict={phase_train: False},
@@ -1594,10 +1834,18 @@ def test_cnn(model, batch_size, devices,
 			train_time = -1.
 			lossval    = 0.
 			oom = True
+		except KeyboardInterrupt:
+			print "Keyboard interrupt"
+			break
 		if step == 0 or (step+1) % FLAGS.display_every == 0:
-			print "%i\t%.1f\t%.3f" % (step+1,
-			                          batch_size/train_time,
-			                          np.exp(lossval))
+			#print "%i\t%.1f\t%.3f" % (step+1,
+			#                          batch_size/train_time,
+			#                          np.exp(lossval))
+			print "%i\t%.1f\t%.3f\t%.3f %%" % (step+1,
+			                                batch_size/train_time,
+			                                #np.exp(lossval),
+			                                lossval,
+			                                (1./np.exp(lossval))*100)
 		if trace_filename is not None and step == 10:
 			print "Dumping trace to", trace_filename
 			trace = timeline.Timeline(step_stats=run_metadata.step_stats)
@@ -1607,10 +1855,17 @@ def test_cnn(model, batch_size, devices,
 		perf_results['step_losses'].append(float(lossval))
 		#if step == nstep_burnin+10 or step % 100 == 0:
 		#	dump_perf_results()
-		if FLAGS.checkpoint_file is not None and (step+1) % 250 == 0:
-			save_path = saver.save(sess, FLAGS.checkpoint_file, global_step=step+1)
+		if (FLAGS.checkpoint_dir is not None and
+		    (step+1) % FLAGS.checkpoint_steps == 0):
+			save_path = saver.save(sess, checkpoint_file,
+			                       global_step=step+1)
 			print "Checkpoint saved to %s" % save_path
-		if FLAGS.summaries_dir is not None and ((step+1) % 100 == 0 or (step+1) == nstep):
+		#if FLAGS.summaries_dir is not None and ((step+1) % 100 == 0 or (step+1) == nstep):
+		if (FLAGS.summaries_dir is not None and
+		    (time.time() - last_summary_time >= FLAGS.summaries_interval or
+		     step == 0 or
+		     (step+1) == nstep)):
+			last_summary_time += FLAGS.summaries_interval
 			summary = sess.run(all_summaries, feed_dict={phase_train: (not FLAGS.inference)})
 			summary_writer.add_summary(summary, step)
 			print "Summaries saved to %s" % FLAGS.summaries_dir
@@ -1618,18 +1873,27 @@ def test_cnn(model, batch_size, devices,
 			cudaProfilerStop()
 		if oom:
 			break
-	times = np.array(perf_results['step_train_times'][nstep_burnin:])
-	speeds     = batch_size / times
-	speed_mean = np.mean(speeds)
-	speed_uncertainty = np.std(speeds, ddof=1) / np.sqrt(float(len(speeds)))
-	speed_madstd = 1.4826*np.median(np.abs(speeds - np.median(speeds)))
-	speed_jitter = speed_madstd
-	print '-'*64
-	print "Images/sec: %.1f +/- %.1f (jitter = %.1f)" % (speed_mean, speed_uncertainty, speed_jitter)
-	print '-'*64
+	nstep = step + 1
+	if nstep > nstep_burnin:
+		times = np.array(perf_results['step_train_times'][nstep_burnin:])
+		speeds     = batch_size / times
+		speed_mean = np.mean(speeds)
+		if nstep - nstep_burnin >= 2:
+			speed_uncertainty = np.std(speeds, ddof=1) / np.sqrt(float(len(speeds)))
+		else:
+			speed_uncertainty = float('nan')
+		speed_madstd = 1.4826*np.median(np.abs(speeds - np.median(speeds)))
+		speed_jitter = speed_madstd
+		print '-'*64
+		print "Images/sec: %.1f +/- %.1f (jitter = %.1f)" % (speed_mean, speed_uncertainty, speed_jitter)
+		print '-'*64
+	else:
+		print "No results, did not get past burn-in phase (%i steps)" % nstep_burnin
 	dump_perf_results()
 	coordinator.request_stop()
 	coordinator.join(queue_threads, stop_grace_period_secs=5.)
+	if FLAGS.summaries_dir is not None:
+		summary_writer.close()
 	sess.close()
 
 def device_or_param_server(device, ps):
@@ -1669,9 +1933,10 @@ def main():
 	cmdline = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 	cmdline.add_argument('-m', '--model', default='googlenet',
 	                     help="""Name of model to run:
-	                     lenet, alexnet, overfeat, googlenet, vgg[11,19],
-	                     inception[3,4], resnet[50,101,152] or
-	                     inception-resnet2.""")
+	                     lenet, cifar10, alexnet, overfeat, googlenet,
+	                     vgg[11,13,16,19], inception[3,4],
+	                     resnet[18,34,50,101,152], inception-resnet2 or
+	                     xception.""")
 	add_bool_argument(cmdline, '--inference', default=False,
 	                  help="""Benchmark inference performance instead of
 	                  training.""")
@@ -1764,17 +2029,31 @@ def main():
 	                     help="""Write the model's graph definition to this
 	                     file. Defaults to binary format unless filename ends
 	                     in 'txt'.""")
-	cmdline.add_argument('--checkpoint_file', default=None,
-	                     help="""Write training checkpoints with this file
-	                     name (note: also writes some other files to same
-	                     path).""")
+	cmdline.add_argument('--checkpoint_dir', default=None,
+	                     help="""Load/save training checkpoints in this
+	                     directory.""")
+	cmdline.add_argument('--checkpoint_steps', default=250, type=int,
+	                     help="""Interval at which to write checkpoints.""")
 	cmdline.add_argument('--summaries_dir', default=None,
 	                     help="""Write TensorBoard summary to this
 	                     directory.""")
-	cmdline.add_argument('--learning_rate', default=0.005, type=float,
+	cmdline.add_argument('--summaries_interval', default=120, type=float,
+	                     help="""Time interval (secs) at which to dump
+	                     summaries.""")
+	cmdline.add_argument('--learning_rate', default=0.003, type=float,
 	                     help="""Learning rate for training.""")
 	cmdline.add_argument('--momentum', default=0.9, type=float,
 	                     help="""Momentum for training.""")
+	add_bool_argument(cmdline, '--nesterov', default=True,
+	                  help="""Use Nesterov momentum instead of regular.""")
+	cmdline.add_argument('--lr_decay_factor', default=0.1, type=float,
+	                     help="""Learning rate decay factor""")
+	cmdline.add_argument('--lr_decay_steps', default=10000, type=int,
+	                     help="""No. steps after which to decay
+	                     learning rate.""")
+	add_bool_argument(cmdline, '--lr_decay_staircase', default=True,
+	                  help="""Whether to decay learning rate in a staircase
+	                  fashion.""")
 	cmdline.add_argument('--gradient_clip', default=None, type=float,
 	                     help="""Gradient clipping magnitude.
 	                     Disabled by default.""")
@@ -1841,7 +2120,7 @@ def main():
 		print "*** WARNING: GPU prefetching is highly experimental! ***"
 	
 	tfversion = tensorflow_version_tuple()
-	print "TensorFlow:  %i.%i" % (tfversion[0], tfversion[1])
+	print "TensorFlow:  %i.%i.%s" % tfversion
 	
 	data_format = FLAGS.data_format
 	num_batches = FLAGS.num_batches
@@ -1855,7 +2134,6 @@ def main():
 		print "Data format:", data_format
 		print "Data type:  ", 'fp16' if use_fp16 else 'fp32'
 		
-		#test_cnn(model, batch_size/len(devices), devices, ps_device,
 		with tf.Graph().as_default(): # Ensure graph is freed
 			test_cnn(model, batch_size, devices, dataset, ps_device,
 			         data_format, num_batches,# share_variables=share_vars,
