@@ -1,1 +1,1 @@
-benchmark_tf_cnn_v0.11.py
+benchmark_tf_cnn_v0.12.py
