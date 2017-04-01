@@ -111,8 +111,7 @@ echo "Running nvidia-smi -a" | tee -a $LOG_DIR/nvidia_smi.log
 nvidia-smi -a                | tee -a $LOG_DIR/nvidia_smi.log
 
 # Synthetic data is not currently supported
-#DATA="--data_dir=/imagenet"
-DATA="--data_dir=/media/bbarsdel/bendisk/data/bbarsdel/imagenet_tensorflow_short480_quality85"
+DATA="--data_dir=/imagenet"
 
 CONFIG="
     --display_every=200
