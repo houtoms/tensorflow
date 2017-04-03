@@ -224,6 +224,11 @@ L2_models_cifar10:
     variables:
       TEST_WORK_DIR: "/opt/tensorflow/qa/cnn_benchmarks"
       TEST_SCRIPT: "./${CI_BUILD_NAME}.sh"
+.L2_nvcnn_benchmark: &L2_NVCNN_BENCHMARK
+    <<: *L2_TEST
+    variables:
+      TEST_WORK_DIR: "/opt/tensorflow/qa/nvcnn_benchmarks"
+      TEST_SCRIPT: "./${CI_BUILD_NAME}.sh"
 ############################################################
 
 L2_cnn_alexnet_batch128_real:
@@ -255,6 +260,15 @@ L2_cnn_resnet50_batch64_real:
 
 L2_cnn_resnet50_batch64_synth:
     <<: *L2_CNN_BENCHMARK
+
+L2_nvcnn_alexnet_batch128_real:
+    <<: *L2_NVCNN_BENCHMARK
+
+L2_nvcnn_resnet50_batch64_real:
+    <<: *L2_NVCNN_BENCHMARK
+
+L2_nvcnn_inception3_batch64_real:
+    <<: *L2_NVCNN_BENCHMARK
 
 L3_cnn_resnet50_batch64_real_long:
     <<: *L3_CNN_BENCHMARK
