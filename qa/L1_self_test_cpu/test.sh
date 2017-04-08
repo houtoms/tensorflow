@@ -20,12 +20,19 @@ tensorflow/tools/ci_build/install/install_pip_packages.sh
 tensorflow/tools/ci_build/install/install_proto3.sh
 tensorflow/tools/ci_build/install/install_auditwheel.sh
 
-pip -y uninstall virtualenv && pip install virtualenv
+pip uninstall -y virtualenv && pip install virtualenv
+
+export TF_NEED_CUDA=0
+export TF_NEED_GCP=0
+export TF_NEED_HDFS=0
+export TF_ENABLE_XLA=0
+yes "" | ./configure
 
 bazel test  -c opt --verbose_failures \
             --test_tag_filters=local,-benchmark-test \
             -- \
             //tensorflow/... \
             -//tensorflow/compiler/... \
+            -//tensorflow/python/kernel_tests:benchmark_test \
   | tee testresult.tmp && grep test.log testresult.tmp \
   | /opt/tensorflow/qa/show_testlogs
