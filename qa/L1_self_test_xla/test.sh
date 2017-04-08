@@ -20,16 +20,13 @@ tensorflow/tools/ci_build/install/install_pip_packages.sh
 tensorflow/tools/ci_build/install/install_proto3.sh
 tensorflow/tools/ci_build/install/install_auditwheel.sh
 
-pip uninstall -y virtualenv && pip install virtualenv
+export LD_LIBRARY_PATH=/usr/local/cuda/extras/CUPTI/lib64:$LD_LIBRARY_PATH
 
-export CUDA_VISIBLE_DEVICES=""
-
-bazel test  -c opt --verbose_failures \
-            --test_tag_filters=local,-benchmark-test \
-            --test_env=CUDA_VISIBLE_DEVICES \
-            -- \
-            //tensorflow/... \
-            -//tensorflow/compiler/... \
-            -//tensorflow/python/kernel_tests:benchmark_test \
+NUM_GPUS=`nvidia-smi -L | wc -l` && \
+  bazel test  --config=cuda -c opt --verbose_failures --local_test_jobs=$NUM_GPUS \
+              --run_under=//tensorflow/tools/ci_build/gpu_build:parallel_gpu_execute \
+              --test_tag_filters=local,-benchmark-test \
+              -- \
+              //tensorflow/compiler/... \
   | tee testresult.tmp && grep test.log testresult.tmp \
   | /opt/tensorflow/qa/show_testlogs
