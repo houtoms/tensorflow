@@ -32,6 +32,7 @@ def tf_proto_library_cc(name, srcs = [], has_services = None,
                         cc_libs = [],
                         cc_stubby_versions = None,
                         cc_grpc_version = None,
+                        j2objc_api_version = 1,
                         cc_api_version = 2, go_api_version = 2,
                         java_api_version = 2, py_api_version = 2,
                         js_api_version = 2, js_codegen = "jspb"):
@@ -79,6 +80,7 @@ def tf_proto_library(name, srcs = [], has_services = None,
                      protodeps = [], visibility = [], testonly = 0,
                      cc_libs = [],
                      cc_api_version = 2, go_api_version = 2,
+                     j2objc_api_version = 1,
                      java_api_version = 2, py_api_version = 2,
                      js_api_version = 2, js_codegen = "jspb"):
   """Make a proto library, possibly depending on other proto libraries."""
@@ -145,6 +147,23 @@ def tf_additional_proto_srcs():
       "platform/default/protobuf.cc",
   ]
 
+def tf_env_time_hdrs():
+  return [
+      "platform/env_time.h",
+  ]
+
+def tf_env_time_srcs():
+  return select({
+    "//tensorflow:windows" : native.glob([
+        "platform/windows/env_time.cc",
+        "platform/env_time.cc",
+      ], exclude = []),
+    "//conditions:default" : native.glob([
+        "platform/posix/env_time.cc",
+        "platform/env_time.cc",
+      ], exclude = []),
+  })
+
 def tf_additional_stream_executor_srcs():
   return ["platform/default/stream_executor.h"]
 
@@ -178,62 +197,57 @@ def tf_additional_test_srcs():
 def tf_kernel_tests_linkstatic():
   return 0
 
-# jemalloc only enabled on Linux for now.
-# TODO(jhseu): Enable on other platforms.
 def tf_additional_lib_defines():
-  defines = []
-  if WITH_JEMALLOC:
-    defines += select({
-        "//tensorflow:linux_x86_64": [
-            "TENSORFLOW_USE_JEMALLOC"
-        ],
-        "//conditions:default": [],
-    })
-  return defines
+  return select({
+      "//tensorflow:with_jemalloc": ["TENSORFLOW_USE_JEMALLOC"],
+      "//conditions:default": [],
+  })
 
 def tf_additional_lib_deps():
-  deps = []
-  if WITH_JEMALLOC:
-    deps += select({
-        "//tensorflow:linux_x86_64": ["@jemalloc"],
-        "//conditions:default": [],
-    })
-  return deps
+  return select({
+      "//tensorflow:with_jemalloc": ["@jemalloc"],
+      "//conditions:default": [],
+  })
 
 def tf_additional_core_deps():
-  deps = []
-  if WITH_GCP_SUPPORT:
-    deps.append("//tensorflow/core/platform/cloud:gcs_file_system")
-  if WITH_HDFS_SUPPORT:
-    deps.append("//tensorflow/core/platform/hadoop:hadoop_file_system")
-  return deps
+  return select({
+      "//tensorflow:with_gcp_support": [
+          "//tensorflow/core/platform/cloud:gcs_file_system",
+      ],
+      "//conditions:default": [],
+  }) + select({
+      "//tensorflow:with_hdfs_support": [
+          "//tensorflow/core/platform/hadoop:hadoop_file_system",
+      ],
+      "//conditions:default": [],
+  })
 
 # TODO(jart, jhseu): Delete when GCP is default on.
 def tf_additional_cloud_op_deps():
-  deps = []
-  # TODO(hormati): Remove the comments below to enable BigQuery op. The op is
-  # not linked for now because it is under perf testing.
-  #if WITH_GCP_SUPPORT:
-  #  deps = if_not_mobile(["//tensorflow/core/kernels/cloud:bigquery_reader_ops"])
-  return deps
+  return select({
+      "//tensorflow:windows": [],
+      "//tensorflow:android": [],
+      "//tensorflow:ios": [],
+      "//tensorflow:with_gcp_support": [
+        "//tensorflow/contrib/cloud:bigquery_reader_ops_op_lib",
+      ],
+      "//conditions:default": [],
+  })
 
 # TODO(jart, jhseu): Delete when GCP is default on.
 def tf_additional_cloud_kernel_deps():
-  deps = []
-  # TODO(hormati): Remove the comments below to enable BigQuery op. The op is
-  # not linked for now because it is under perf testing.
-  #if WITH_GCP_SUPPORT:
-  #  deps = if_not_mobile(["//tensorflow/core:cloud_ops_op_lib"])
-  return deps
+  return select({
+      "//tensorflow:windows": [],
+      "//tensorflow:android": [],
+      "//tensorflow:ios": [],
+      "//tensorflow:with_gcp_support": [
+        "//tensorflow/contrib/cloud/kernels:bigquery_reader_ops",
+      ],
+      "//conditions:default": [],
+  })
 
-def tf_additional_plugin_deps():
-  deps = []
-  if WITH_XLA_SUPPORT:
-    deps.append("//tensorflow/compiler/jit")
-  return deps
-
-def tf_additional_license_deps():
-  licenses = []
-  if WITH_XLA_SUPPORT:
-    licenses.append("@llvm//:LICENSE.TXT")
-  return licenses
+def tf_lib_proto_parsing_deps():
+  return [
+      ":protos_all_cc",
+      "//tensorflow/core/platform/default/build_config:proto_parsing",
+  ]
