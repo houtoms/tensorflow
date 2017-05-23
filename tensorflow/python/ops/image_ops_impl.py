@@ -1204,7 +1204,7 @@ def adjust_hue(image, delta, name=None):
       # floating point number since delta is [-0.5, 0.5].
       hue = math_ops.mod(hue + (delta + 1.), 1.)
 
-      hsv_altered = array_ops.concat(2, [hue, saturation, value])
+      hsv_altered = array_ops.concat([hue, saturation, value], 2)
       rgb_altered = gen_image_ops.hsv_to_rgb(hsv_altered)
     else:
       rgb_altered = gen_image_ops.adjust_hue(flt_image, delta)
