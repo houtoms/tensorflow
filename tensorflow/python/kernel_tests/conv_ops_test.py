@@ -243,6 +243,7 @@ class Conv2DTest(test.TestCase):
       conv_strides: [row_stride, col_stride] for the convolution;
       padding: Padding type.
     """
+    np.random.seed(1234)  # Make it reproducible.
     x1 = np.random.rand(*tensor_in_sizes).astype(np.float32)
     x2 = np.random.rand(*filter_in_sizes).astype(np.float32)
 
@@ -448,6 +449,7 @@ class Conv2DTest(test.TestCase):
 
   def _CompareBackpropInput(self, input_sizes, filter_sizes, output_sizes,
                             conv_strides, padding):
+    np.random.seed(1234)  # Make it reproducible.
     x1 = np.random.rand(*filter_sizes).astype(np.float32)
     x2 = np.random.rand(*output_sizes).astype(np.float32)
 
@@ -604,6 +606,7 @@ class Conv2DTest(test.TestCase):
 
   def _CompareBackFilter(self, input_sizes, filter_sizes, output_sizes,
                          conv_strides, padding):
+    np.random.seed(1234)  # Make it reproducible.
     x0 = np.random.rand(*input_sizes).astype(np.float32)
     x2 = np.random.rand(*output_sizes).astype(np.float32)
 
@@ -1373,6 +1376,7 @@ class DeepConv2DTest(test.TestCase):
       conv_strides: [row_stride, col_stride] for the convolution;
       padding: Padding type.
     """
+    np.random.seed(1234)  # Make it reproducible.
     x1 = np.random.rand(*tensor_in_sizes).astype(np.float32)
     x2 = np.random.rand(*filter_in_sizes).astype(np.float32)
 
