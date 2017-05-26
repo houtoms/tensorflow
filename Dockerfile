@@ -1,8 +1,8 @@
-FROM nvdl.githost.io:4678/dgx/cuda:8.0-cudnn6-devel-ubuntu16.04--17.05
+FROM nvdl.githost.io:4678/dgx/cuda:8.0-cudnn6-devel-ubuntu16.04--17.06
 
-ENV TENSORFLOW_VERSION 1.0.1
+ENV TENSORFLOW_VERSION 1.1.0
 LABEL com.nvidia.tensorflow.version="${TENSORFLOW_VERSION}"
-ENV NVIDIA_TENSORFLOW_VERSION 17.05
+ENV NVIDIA_TENSORFLOW_VERSION 17.06
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
         pkg-config \
