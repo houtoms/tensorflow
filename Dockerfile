@@ -61,6 +61,14 @@ COPY . .
 RUN mkdir -p /workspace/nvidia-examples && \
      ln -s /opt/tensorflow/nvidia-examples/* /workspace/nvidia-examples/
 
+# HACK to enable use of system nccl.h when building TF
+RUN mkdir -p nccl/src && \
+    cp /usr/include/nccl.h nccl/src/ && \
+    cp `ls /usr/share/doc/libnccl?/copyright | tail -1` nccl/LICENSE.txt && \
+    tar -cf third_party/nccl.tar nccl/ && \
+    gzip    third_party/nccl.tar && \
+    rm -r nccl/
+
 ENV CUDA_TOOLKIT_PATH /usr/local/cuda
 ENV CUDNN_INSTALL_PATH /usr/lib/x86_64-linux-gnu
 ENV TF_NEED_CUDA 1
