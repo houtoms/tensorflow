@@ -103,6 +103,7 @@ stage:
       TEST_WORK_DIR: "/opt/${CI_PROJECT_NAME}/qa/${CI_BUILD_NAME}/"
       TEST_SCRIPT: "./test.sh"
     script:
+    - export TEST_WORK_DIR="${TEST_WORK_DIR%%--*}"
     - docker run --rm $(eval ${NV_DOCKER_ARGS})
              -v $DATADIR:/data
              $(eval echo ${EXTRA_DOCKER_RUN_ARGS})
@@ -132,6 +133,47 @@ stage:
     <<: *TEST_TEMPLATE
     when: manual
 
+.1080Ti_R384_1GPU: &1080Ti_R384_1GPU
+    tags:
+    - 1080Ti
+    - R384
+    - 1GPU
+    allow_failure: true
+
+.TitanXP_R384_2GPU: &TitanXP_R384_2GPU
+    tags:
+    - TitanXP
+    - R384
+    - 2GPU
+    allow_failure: true
+    
+.M60_R384_2GPU: &M60_R384_2GPU
+    tags:
+    - M60
+    - R384
+    - 2GPU
+    allow_failure: true
+    
+.K80_R384_2GPU: &K80_R384_2GPU
+    tags:
+    - K80
+    - R384
+    - 2GPU
+    allow_failure: true
+    
+.P40_R384_1GPU: &P40_R384_1GPU
+    tags:
+    - P40
+    - R384
+    - 1GPU
+    allow_failure: true
+
+.M40_R384_1GPU: &M40_R384_1GPU
+    tags:
+    - M40
+    - R384
+    - 1GPU
+    allow_failure: true
 
 ######################################################
 ##
@@ -163,14 +205,128 @@ stage:
 L0_models_alexnet:
     <<: *L0_TEST
 
+L0_models_alexnet--1080Ti_R384_1GPU:
+    <<: *L0_TEST
+    <<: *1080Ti_R384_1GPU
+
+L0_models_alexnet--TitanXP_R384_2GPU:
+    <<: *L0_TEST
+    <<: *TitanXP_R384_2GPU
+    
+L0_models_alexnet--M60_R384_2GPU:
+    <<: *L0_TEST
+    <<: *M60_R384_2GPU
+    
+L0_models_alexnet--K80_R384_2GPU:
+    <<: *L0_TEST
+    <<: *K80_R384_2GPU
+    
+L0_models_alexnet--P40_R384_1GPU:
+    <<: *L0_TEST
+    <<: *P40_R384_1GPU
+    
+L0_models_alexnet--M40_R384_1GPU:
+    <<: *L0_TEST
+    <<: *M40_R384_1GPU
+
 L0_models_imagenet:
     <<: *L0_TEST
+
+L0_models_imagenet--1080Ti_R384_1GPU:
+    <<: *L0_TEST
+    <<: *1080Ti_R384_1GPU
+
+L0_models_imagenet--TitanXP_R384_2GPU:
+    <<: *L0_TEST
+    <<: *TitanXP_R384_2GPU
+    
+L0_models_imagenet--M60_R384_2GPU:
+    <<: *L0_TEST
+    <<: *M60_R384_2GPU
+    
+L0_models_imagenet--K80_R384_2GPU:
+    <<: *L0_TEST
+    <<: *K80_R384_2GPU
+    
+L0_models_imagenet--P40_R384_1GPU:
+    <<: *L0_TEST
+    <<: *P40_R384_1GPU
+    
+L0_models_imagenet--M40_R384_1GPU:
+    <<: *L0_TEST
+    <<: *M40_R384_1GPU
 
 L0_models_mnist:
     <<: *L0_TEST
 
+L0_models_mnist--1080Ti_R384_1GPU:
+    <<: *L0_TEST
+    <<: *1080Ti_R384_1GPU
+
+L0_models_mnist--TitanXP_R384_2GPU:
+    <<: *L0_TEST
+    <<: *TitanXP_R384_2GPU
+    
+L0_models_mnist--M60_R384_2GPU:
+    <<: *L0_TEST
+    <<: *M60_R384_2GPU
+    
+L0_models_mnist--K80_R384_2GPU:
+    <<: *L0_TEST
+    <<: *K80_R384_2GPU
+    
+L0_models_mnist--P40_R384_1GPU:
+    <<: *L0_TEST
+    <<: *P40_R384_1GPU
+    
+L0_models_mnist--M40_R384_1GPU:
+    <<: *L0_TEST
+    <<: *M40_R384_1GPU
+
 L0_convnet_benchmarks_alexnet:
     <<: *L0_TEST
+    variables:
+      TEST_WORK_DIR: "/opt/tensorflow/qa/L0_convnet_benchmarks"
+      TEST_SCRIPT: "./test-alexnet.sh"
+
+L0_convnet_benchmarks_alexnet--1080Ti_R384_1GPU:
+    <<: *L0_TEST
+    <<: *1080Ti_R384_1GPU
+    variables:
+      TEST_WORK_DIR: "/opt/tensorflow/qa/L0_convnet_benchmarks"
+      TEST_SCRIPT: "./test-alexnet.sh"
+
+L0_convnet_benchmarks_alexnet--TitanXP_R384_2GPU:
+    <<: *L0_TEST
+    <<: *TitanXP_R384_2GPU
+    variables:
+      TEST_WORK_DIR: "/opt/tensorflow/qa/L0_convnet_benchmarks"
+      TEST_SCRIPT: "./test-alexnet.sh"
+    
+L0_convnet_benchmarks_alexnet--M60_R384_2GPU:
+    <<: *L0_TEST
+    <<: *M60_R384_2GPU
+    variables:
+      TEST_WORK_DIR: "/opt/tensorflow/qa/L0_convnet_benchmarks"
+      TEST_SCRIPT: "./test-alexnet.sh"
+    
+L0_convnet_benchmarks_alexnet--K80_R384_2GPU:
+    <<: *L0_TEST
+    <<: *K80_R384_2GPU
+    variables:
+      TEST_WORK_DIR: "/opt/tensorflow/qa/L0_convnet_benchmarks"
+      TEST_SCRIPT: "./test-alexnet.sh"
+    
+L0_convnet_benchmarks_alexnet--P40_R384_1GPU:
+    <<: *L0_TEST
+    <<: *P40_R384_1GPU
+    variables:
+      TEST_WORK_DIR: "/opt/tensorflow/qa/L0_convnet_benchmarks"
+      TEST_SCRIPT: "./test-alexnet.sh"
+    
+L0_convnet_benchmarks_alexnet--M40_R384_1GPU:
+    <<: *L0_TEST
+    <<: *M40_R384_1GPU
     variables:
       TEST_WORK_DIR: "/opt/tensorflow/qa/L0_convnet_benchmarks"
       TEST_SCRIPT: "./test-alexnet.sh"
@@ -181,14 +337,140 @@ L0_convnet_benchmarks_googlenet:
       TEST_WORK_DIR: "/opt/tensorflow/qa/L0_convnet_benchmarks"
       TEST_SCRIPT: "./test-googlenet.sh"
 
+L0_convnet_benchmarks_googlenet--1080Ti_R384_1GPU:
+    <<: *L0_TEST
+    <<: *1080Ti_R384_1GPU
+    variables:
+      TEST_WORK_DIR: "/opt/tensorflow/qa/L0_convnet_benchmarks"
+      TEST_SCRIPT: "./test-googlenet.sh"
+
+L0_convnet_benchmarks_googlenet--TitanXP_R384_2GPU:
+    <<: *L0_TEST
+    <<: *TitanXP_R384_2GPU
+    variables:
+      TEST_WORK_DIR: "/opt/tensorflow/qa/L0_convnet_benchmarks"
+      TEST_SCRIPT: "./test-googlenet.sh"
+    
+L0_convnet_benchmarks_googlenet--M60_R384_2GPU:
+    <<: *L0_TEST
+    <<: *M60_R384_2GPU
+    variables:
+      TEST_WORK_DIR: "/opt/tensorflow/qa/L0_convnet_benchmarks"
+      TEST_SCRIPT: "./test-googlenet.sh"
+    
+L0_convnet_benchmarks_googlenet--K80_R384_2GPU:
+    <<: *L0_TEST
+    <<: *K80_R384_2GPU
+    variables:
+      TEST_WORK_DIR: "/opt/tensorflow/qa/L0_convnet_benchmarks"
+      TEST_SCRIPT: "./test-googlenet.sh"
+    
+L0_convnet_benchmarks_googlenet--P40_R384_1GPU:
+    <<: *L0_TEST
+    <<: *P40_R384_1GPU
+    variables:
+      TEST_WORK_DIR: "/opt/tensorflow/qa/L0_convnet_benchmarks"
+      TEST_SCRIPT: "./test-googlenet.sh"
+    
+L0_convnet_benchmarks_googlenet--M40_R384_1GPU:
+    <<: *L0_TEST
+    <<: *M40_R384_1GPU
+    variables:
+      TEST_WORK_DIR: "/opt/tensorflow/qa/L0_convnet_benchmarks"
+      TEST_SCRIPT: "./test-googlenet.sh"
+
 L0_convnet_benchmarks_overfeat:
     <<: *L0_TEST
     variables:
       TEST_WORK_DIR: "/opt/tensorflow/qa/L0_convnet_benchmarks"
       TEST_SCRIPT: "./test-overfeat.sh"
 
+L0_convnet_benchmarks_overfeat--1080Ti_R384_1GPU:
+    <<: *L0_TEST
+    <<: *1080Ti_R384_1GPU
+    variables:
+      TEST_WORK_DIR: "/opt/tensorflow/qa/L0_convnet_benchmarks"
+      TEST_SCRIPT: "./test-overfeat.sh"
+
+L0_convnet_benchmarks_overfeat--TitanXP_R384_2GPU:
+    <<: *L0_TEST
+    <<: *TitanXP_R384_2GPU
+    variables:
+      TEST_WORK_DIR: "/opt/tensorflow/qa/L0_convnet_benchmarks"
+      TEST_SCRIPT: "./test-overfeat.sh"
+    
+L0_convnet_benchmarks_overfeat--M60_R384_2GPU:
+    <<: *L0_TEST
+    <<: *M60_R384_2GPU
+    variables:
+      TEST_WORK_DIR: "/opt/tensorflow/qa/L0_convnet_benchmarks"
+      TEST_SCRIPT: "./test-overfeat.sh"
+    
+L0_convnet_benchmarks_overfeat--K80_R384_2GPU:
+    <<: *L0_TEST
+    <<: *K80_R384_2GPU
+    variables:
+      TEST_WORK_DIR: "/opt/tensorflow/qa/L0_convnet_benchmarks"
+      TEST_SCRIPT: "./test-overfeat.sh"
+    
+L0_convnet_benchmarks_overfeat--P40_R384_1GPU:
+    <<: *L0_TEST
+    <<: *P40_R384_1GPU
+    variables:
+      TEST_WORK_DIR: "/opt/tensorflow/qa/L0_convnet_benchmarks"
+      TEST_SCRIPT: "./test-overfeat.sh"
+    
+L0_convnet_benchmarks_overfeat--M40_R384_1GPU:
+    <<: *L0_TEST
+    <<: *M40_R384_1GPU
+    variables:
+      TEST_WORK_DIR: "/opt/tensorflow/qa/L0_convnet_benchmarks"
+      TEST_SCRIPT: "./test-overfeat.sh"
+
 L0_convnet_benchmarks_vgga:
     <<: *L0_TEST
+    variables:
+      TEST_WORK_DIR: "/opt/tensorflow/qa/L0_convnet_benchmarks"
+      TEST_SCRIPT: "./test-vgga.sh"
+
+L0_convnet_benchmarks_vgga--1080Ti_R384_1GPU:
+    <<: *L0_TEST
+    <<: *1080Ti_R384_1GPU
+    variables:
+      TEST_WORK_DIR: "/opt/tensorflow/qa/L0_convnet_benchmarks"
+      TEST_SCRIPT: "./test-vgga.sh"
+
+L0_convnet_benchmarks_vgga--TitanXP_R384_2GPU:
+    <<: *L0_TEST
+    <<: *TitanXP_R384_2GPU
+    variables:
+      TEST_WORK_DIR: "/opt/tensorflow/qa/L0_convnet_benchmarks"
+      TEST_SCRIPT: "./test-vgga.sh"
+    
+L0_convnet_benchmarks_vgga--M60_R384_2GPU:
+    <<: *L0_TEST
+    <<: *M60_R384_2GPU
+    variables:
+      TEST_WORK_DIR: "/opt/tensorflow/qa/L0_convnet_benchmarks"
+      TEST_SCRIPT: "./test-vgga.sh"
+    
+L0_convnet_benchmarks_vgga--K80_R384_2GPU:
+    <<: *L0_TEST
+    <<: *K80_R384_2GPU
+    variables:
+      TEST_WORK_DIR: "/opt/tensorflow/qa/L0_convnet_benchmarks"
+      TEST_SCRIPT: "./test-vgga.sh"
+    
+L0_convnet_benchmarks_vgga--P40_R384_1GPU:
+    <<: *L0_TEST
+    <<: *P40_R384_1GPU
+    variables:
+      TEST_WORK_DIR: "/opt/tensorflow/qa/L0_convnet_benchmarks"
+      TEST_SCRIPT: "./test-vgga.sh"
+    
+L0_convnet_benchmarks_vgga--M40_R384_1GPU:
+    <<: *L0_TEST
+    <<: *M40_R384_1GPU
     variables:
       TEST_WORK_DIR: "/opt/tensorflow/qa/L0_convnet_benchmarks"
       TEST_SCRIPT: "./test-vgga.sh"
