@@ -76,7 +76,8 @@ __global__ void MaxPoolForwardNCHW(const int nthreads, const dtype* bottom_data,
     for (int h = hstart; h < hend; ++h) {
       for (int w = wstart; w < wend; ++w) {
         int idx = c * height * width + h * width + w;
-        if (bottom_data_n[idx] > maxval) {
+        // Note: Comparing this way ensures NaNs are propagated
+        if (!(bottom_data_n[idx] <= maxval)) {
           maxidx = idx;
           maxval = bottom_data_n[idx];
         }
@@ -116,7 +117,8 @@ __global__ void MaxPoolForwardNHWC(const int nthreads, const dtype* bottom_data,
     for (int h = hstart; h < hend; ++h) {
       for (int w = wstart; w < wend; ++w) {
         int idx = (h * width + w) * channels + c;
-        if (bottom_data_n[idx] > maxval) {
+        // Note: Comparing this way ensures NaNs are propagated
+        if (!(bottom_data_n[idx] <= maxval)) {
           maxidx = idx;
           maxval = bottom_data_n[idx];
         }
