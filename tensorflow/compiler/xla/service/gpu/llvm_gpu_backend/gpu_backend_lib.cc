@@ -62,6 +62,8 @@ limitations under the License.
 #include "tensorflow/core/platform/env.h"
 #include "tensorflow/core/platform/logging.h"
 
+#include "cuda/include/cuda_runtime_api.h"
+
 namespace xla {
 namespace gpu {
 namespace {
@@ -73,6 +75,7 @@ const int kDefaultInlineThreshold = 1100;
 // presented with a GPU we don't recognize, we just return the libdevice from
 // compute_20.
 static string GetLibdeviceFilename(std::pair<int, int> compute_capability) {
+#if CUDART_VERSION < 9000
   // There are only four libdevice files: compute_{20,30,35,50}.  Each GPU
   // version gets mapped to one of these.  Note in particular that sm_60 and
   // sm_61 map to libdevice.compute_30.
@@ -99,6 +102,10 @@ static string GetLibdeviceFilename(std::pair<int, int> compute_capability) {
   }
   return tensorflow::strings::StrCat("libdevice.compute_", libdevice_version,
                                      ".10.bc");
+#else
+  // From CUDA 9.0, all GPU versions are included in a single file
+  return "libdevice.10.bc";
+#endif
 }
 
 // Gets the GPU name as it's known to LLVM for a given compute capability.  If
