@@ -23,6 +23,10 @@ limitations under the License.
 #include "third_party/eigen3/unsupported/Eigen/CXX11/Tensor"
 #include "tensorflow/core/platform/types.h"
 
+#if CUDART_VERSION < 9000
+__device__ inline void __syncwarp(unsigned mask=0xFFFFFFFF) {}
+#endif
+
 #define CUDA_1D_KERNEL_LOOP(i, n)                            \
   for (int i = blockIdx.x * blockDim.x + threadIdx.x; i < n; \
        i += blockDim.x * gridDim.x)
