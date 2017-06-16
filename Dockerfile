@@ -1,10 +1,10 @@
-FROM nvdl.githost.io:4678/dgx/cuda:8.0-cudnn6-devel-ubuntu16.04--17.07
+FROM nvdl.githost.io:4678/dgx/cuda:9.0-cudnn7-devel-ubuntu16.04--17.07
 
 ENV LD_LIBRARY_PATH /usr/local/cuda/extras/CUPTI/lib64:${LD_LIBRARY_PATH}
 
 ENV TENSORFLOW_VERSION 1.2.1
 LABEL com.nvidia.tensorflow.version="${TENSORFLOW_VERSION}"
-ENV NVIDIA_TENSORFLOW_VERSION 17.07
+ENV NVIDIA_TENSORFLOW_VERSION 17.07-cuda9
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
         pkg-config \
@@ -72,7 +72,7 @@ RUN mkdir -p nccl/src && \
 ENV CUDA_TOOLKIT_PATH /usr/local/cuda
 ENV CUDNN_INSTALL_PATH /usr/lib/x86_64-linux-gnu
 ENV TF_NEED_CUDA 1
-ENV TF_CUDA_COMPUTE_CAPABILITIES "3.5,5.2,6.0,6.1"
+ENV TF_CUDA_COMPUTE_CAPABILITIES "3.5,5.2,6.0,6.1,7.0"
 ENV TF_NEED_GCP 0
 ENV TF_NEED_HDFS 0
 ENV TF_ENABLE_XLA 1
