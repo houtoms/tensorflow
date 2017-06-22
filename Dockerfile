@@ -76,8 +76,11 @@ ENV TF_CUDA_COMPUTE_CAPABILITIES "3.5,5.2,6.0,6.1"
 ENV TF_NEED_GCP 0
 ENV TF_NEED_HDFS 0
 ENV TF_ENABLE_XLA 1
-RUN yes "" | ./configure && \
-    bazel build -c opt --config=cuda tensorflow/tools/pip_package:build_pip_package && \
+RUN yes "" | ./configure
+# Patch Eigen source files for CUDA 9 __half changes
+RUN cp third_party/Half_cuda9.h /root/.cache/bazel/_bazel_root/*/external/eigen_archive/Eigen/src/Core/arch/CUDA/Half.h && \
+    cp third_party/PacketMathHalf_cuda9.h /root/.cache/bazel/_bazel_root/*/external/eigen_archive/Eigen/src/Core/arch/CUDA/PacketMathHalf.h
+RUN bazel build -c opt --config=cuda tensorflow/tools/pip_package:build_pip_package && \
     bazel-bin/tensorflow/tools/pip_package/build_pip_package /tmp/pip && \
     pip install --upgrade /tmp/pip/tensorflow-*.whl && \
     rm -rf /tmp/pip/tensorflow-*.whl && \
