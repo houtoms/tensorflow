@@ -23,7 +23,7 @@ limitations under the License.
 #include "third_party/eigen3/unsupported/Eigen/CXX11/Tensor"
 #include "tensorflow/core/platform/types.h"
 
-#if CUDART_VERSION < 9000
+#if defined(__CUDACC_VER__) && __CUDACC_VER__ < 90000
 __device__ inline void __syncwarp(unsigned mask=0xFFFFFFFF) {}
 #endif
 

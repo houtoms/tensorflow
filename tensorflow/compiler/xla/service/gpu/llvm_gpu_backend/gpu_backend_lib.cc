@@ -62,8 +62,6 @@ limitations under the License.
 #include "tensorflow/core/platform/env.h"
 #include "tensorflow/core/platform/logging.h"
 
-#include "cuda/include/cuda_runtime_api.h"
-
 namespace xla {
 namespace gpu {
 namespace {
@@ -74,8 +72,17 @@ const int kDefaultInlineThreshold = 1100;
 // Gets the libdevice filename for a particular compute capability.  When
 // presented with a GPU we don't recognize, we just return the libdevice from
 // compute_20.
-static string GetLibdeviceFilename(std::pair<int, int> compute_capability) {
-#if CUDART_VERSION < 9000
+static string GetLibdeviceFilename(const string& libdevice_dir_path,
+                                   std::pair<int, int> compute_capability) {
+  // Since CUDA 9.0, all GPU versions are included in a single file
+  const char* unified_libdevice_filename = "libdevice.10.bc";
+  std::vector<string> unified_libdevice_files;
+  tensorflow::Env::Default()->GetMatchingPaths(
+      tensorflow::io::JoinPath(libdevice_dir_path, unified_libdevice_filename),
+      &unified_libdevice_files);
+  if( unified_libdevice_files.size() == 1 ) {
+    return unified_libdevice_filename;
+  }
   // There are only four libdevice files: compute_{20,30,35,50}.  Each GPU
   // version gets mapped to one of these.  Note in particular that sm_60 and
   // sm_61 map to libdevice.compute_30.
@@ -102,10 +109,6 @@ static string GetLibdeviceFilename(std::pair<int, int> compute_capability) {
   }
   return tensorflow::strings::StrCat("libdevice.compute_", libdevice_version,
                                      ".10.bc");
-#else
-  // From CUDA 9.0, all GPU versions are included in a single file
-  return "libdevice.10.bc";
-#endif
 }
 
 // Gets the GPU name as it's known to LLVM for a given compute capability.  If
@@ -322,7 +325,8 @@ tensorflow::Status LinkLibdeviceIfNecessary(
 
   llvm::Linker linker(*module);
   string libdevice_path = tensorflow::io::JoinPath(
-      libdevice_dir_path, GetLibdeviceFilename(compute_capability));
+      libdevice_dir_path, GetLibdeviceFilename(libdevice_dir_path,
+                                               compute_capability));
   TF_RETURN_IF_ERROR(tensorflow::Env::Default()->FileExists(libdevice_path));
   VLOG(1) << "Linking with libdevice from: " << libdevice_path;
   std::unique_ptr<llvm::Module> libdevice_module =
