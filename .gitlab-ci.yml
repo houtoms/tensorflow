@@ -123,7 +123,9 @@ stage:
       TEST_WORK_DIR: "/opt/${CI_PROJECT_NAME}/qa/${CI_BUILD_NAME}/"
       TEST_SCRIPT: "./test.sh"
     script:
-    - export TEST_WORK_DIR="${TEST_WORK_DIR%%--*}"
+    - export RUNNER="${CI_BUILD_NAME##*--}"
+    - export TEST_WORK_DIR="${TEST_WORK_DIR%%--$RUNNER}"
+    - export TEST_SCRIPT="${TEST_SCRIPT/--$RUNNER.sh/.sh}"
     - cat /proc/driver/nvidia/version
     - docker run --rm $(eval ${NV_DOCKER_ARGS})
              -v $DATADIR:/data
