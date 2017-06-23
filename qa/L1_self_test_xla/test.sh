@@ -23,6 +23,10 @@ tensorflow/tools/ci_build/install/install_auditwheel.sh
 
 export LD_LIBRARY_PATH=/usr/local/cuda/extras/CUPTI/lib64:$LD_LIBRARY_PATH
 
+# Fetch external dependencies (including Eigen)
+bazel fetch "//tensorflow/... -//tensorflow/contrib/nccl/... -//tensorflow/examples/android/..."
+bash third_party/patch_eigen_for_cuda9.sh
+
 NUM_GPUS=`nvidia-smi -L | wc -l` && \
   bazel test  --config=cuda -c opt --verbose_failures --local_test_jobs=$NUM_GPUS \
               --run_under=//tensorflow/tools/ci_build/gpu_build:parallel_gpu_execute \

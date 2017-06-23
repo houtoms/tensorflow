@@ -25,6 +25,10 @@ pip uninstall -y virtualenv && pip install virtualenv
 
 export CUDA_VISIBLE_DEVICES=""
 
+# Fetch external dependencies (including Eigen)
+bazel fetch "//tensorflow/... -//tensorflow/contrib/nccl/... -//tensorflow/examples/android/..."
+bash third_party/patch_eigen_for_cuda9.sh
+
 bazel test  -c opt --verbose_failures \
             --test_tag_filters=local,-benchmark-test \
             --test_env=CUDA_VISIBLE_DEVICES \
