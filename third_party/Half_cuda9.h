@@ -85,7 +85,7 @@ struct half_base : public __half_raw {
 
 // Class definition.
 struct half : public half_impl::half_base {
-  #if !defined(EIGEN_HAS_CUDA_FP16)
+  #if !defined(EIGEN_HAS_CUDA_FP16) || (defined(__CUDACC_VER__) && __CUDACC_VER__ < 90000)
     typedef half_impl::__half_raw __half_raw;
   #endif
 
