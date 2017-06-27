@@ -42,6 +42,10 @@
 #define EIGEN_EXPLICIT_CAST(tgt_type) operator tgt_type()
 #endif
 
+#if defined(__CUDACC_VER__) && __CUDACC_VER__ < 90000
+#define __shfl_xor_sync __shfl_xor
+#endif
+
 #if defined(EIGEN_HAS_CUDA_FP16)
 #define CUDA_NO_HALF
 #include <cuda_fp16.h>
@@ -577,8 +581,8 @@ struct hash<Eigen::half> {
 
 // Add the missing shfl_xor intrinsic
 #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 300
-__device__ EIGEN_STRONG_INLINE Eigen::half __shfl_xor(Eigen::half var, int laneMask, int width=warpSize) {
-  return static_cast<Eigen::half>(__shfl_xor(static_cast<float>(var), laneMask, width));
+__device__ EIGEN_STRONG_INLINE Eigen::half __shfl_xor_sync(Eigen::half var, int laneMask, int width=warpSize) {
+  return static_cast<Eigen::half>(__shfl_xor_sync(static_cast<float>(var), laneMask, width));
 }
 #endif
 
@@ -615,6 +619,10 @@ bool (isfinite)(const Eigen::half& h) {
 
 } // namespace Eigen
 }  // namespace numext
+#endif
+
+#if defined(__CUDACC_VER__) && __CUDACC_VER__ < 90000
+#undef __shfl_xor_sync
 #endif
 
 #endif // EIGEN_HALF_CUDA_H
