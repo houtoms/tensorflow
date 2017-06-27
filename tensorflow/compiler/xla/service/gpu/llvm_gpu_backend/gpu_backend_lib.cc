@@ -125,8 +125,9 @@ static string GetSmName(std::pair<int, int> compute_capability) {
                                                            {{5, 3}, 53},
                                                            {{6, 0}, 60},
                                                            {{6, 1}, 61},
-                                                           {{6, 2}, 62}});
-  int sm_version = 20;
+                                                           {{6, 2}, 62},
+                                                           {{7, 0}, 70}});
+  int sm_version = 30;
   auto it = m->find(compute_capability);
   if (it != m->end()) {
     sm_version = it->second;
