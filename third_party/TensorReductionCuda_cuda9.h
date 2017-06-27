@@ -10,7 +10,7 @@
 #ifndef EIGEN_CXX11_TENSOR_TENSOR_REDUCTION_CUDA_H
 #define EIGEN_CXX11_TENSOR_TENSOR_REDUCTION_CUDA_H
 
-#if defined(__CUDACC_VER__) && __CUDACC_VER__ < 90000
+#if defined(__CUDACC_VER_MAJOR__) && __CUDACC_VER_MAJOR__ < 9
 #define __shfl_down_sync __shfl_down
 #endif
 
@@ -750,7 +750,7 @@ struct OuterReducer<Self, Op, GpuDevice> {
 } // end namespace internal
 } // end namespace Eigen
 
-#if defined(__CUDACC_VER__) && __CUDACC_VER__ < 90000
+#if defined(__CUDACC_VER_MAJOR__) && __CUDACC_VER_MAJOR__ < 9
 #undef __shfl_down_sync
 #endif
 

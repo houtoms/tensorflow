@@ -42,7 +42,7 @@
 #define EIGEN_EXPLICIT_CAST(tgt_type) operator tgt_type()
 #endif
 
-#if defined(__CUDACC_VER__) && __CUDACC_VER__ < 90000
+#if defined(__CUDACC_VER_MAJOR__) && __CUDACC_VER_MAJOR__ < 9
 #define __shfl_xor_sync __shfl_xor
 #endif
 
@@ -67,7 +67,7 @@ struct __half_raw {
   unsigned short x;
 };
 
-#elif defined(__CUDACC_VER__) && __CUDACC_VER__ < 90000
+#elif defined(__CUDACC_VER_MAJOR__) && __CUDACC_VER_MAJOR__ < 9
 // In CUDA < 9.0, __half is the equivalent of CUDA 9's __half_raw
 typedef __half __half_raw;
 #endif
@@ -80,7 +80,7 @@ struct half_base : public __half_raw {
   EIGEN_DEVICE_FUNC half_base() {}
   EIGEN_DEVICE_FUNC half_base(const half_base& h) : __half_raw(h) {}
   EIGEN_DEVICE_FUNC half_base(const __half_raw& h) : __half_raw(h) {}
-#if defined(EIGEN_HAS_CUDA_FP16) && defined(__CUDACC_VER__) && __CUDACC_VER__ >= 90000
+#if defined(EIGEN_HAS_CUDA_FP16) && defined(__CUDACC_VER_MAJOR__) && __CUDACC_VER_MAJOR__ >= 9
   EIGEN_DEVICE_FUNC half_base(const __half& h) : __half_raw(*(__half_raw*)&h) {}
 #endif
 };
@@ -89,7 +89,7 @@ struct half_base : public __half_raw {
 
 // Class definition.
 struct half : public half_impl::half_base {
-  #if !defined(EIGEN_HAS_CUDA_FP16) || (defined(__CUDACC_VER__) && __CUDACC_VER__ < 90000)
+  #if !defined(EIGEN_HAS_CUDA_FP16) || (defined(__CUDACC_VER_MAJOR__) && __CUDACC_VER_MAJOR__ < 9)
     typedef half_impl::__half_raw __half_raw;
   #endif
 
@@ -97,7 +97,7 @@ struct half : public half_impl::half_base {
 
   EIGEN_DEVICE_FUNC half(const __half_raw& h) : half_impl::half_base(h) {}
   EIGEN_DEVICE_FUNC half(const half& h) : half_impl::half_base(h) {}
-#if defined(EIGEN_HAS_CUDA_FP16) && defined(__CUDACC_VER__) && __CUDACC_VER__ >= 90000
+#if defined(EIGEN_HAS_CUDA_FP16) && defined(__CUDACC_VER_MAJOR__) && __CUDACC_VER_MAJOR__ >= 9
   EIGEN_DEVICE_FUNC half(const __half& h) : half_impl::half_base(h) {}
 #endif
 
@@ -406,7 +406,7 @@ EIGEN_STRONG_INLINE EIGEN_DEVICE_FUNC half abs(const half& a) {
   return result;
 }
 EIGEN_STRONG_INLINE EIGEN_DEVICE_FUNC half exp(const half& a) {
-#if defined __CUDACC_VER__ && __CUDACC_VER__ >= 80000 && defined __CUDA_ARCH__ && __CUDA_ARCH__ >= 530
+#if defined __CUDACC_VER_MAJOR__ && __CUDACC_VER_MAJOR__ >= 8 && defined __CUDA_ARCH__ && __CUDA_ARCH__ >= 530
   return half(hexp(a));
 #else
    return half(::expf(float(a)));
@@ -416,7 +416,7 @@ EIGEN_STRONG_INLINE EIGEN_DEVICE_FUNC half expm1(const half& a) {
   return half(numext::expm1(float(a)));
 }
 EIGEN_STRONG_INLINE EIGEN_DEVICE_FUNC half log(const half& a) {
-#if defined(EIGEN_HAS_CUDA_FP16) && defined __CUDACC_VER__ && __CUDACC_VER__ >= 80000 && defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 530
+#if defined(EIGEN_HAS_CUDA_FP16) && defined __CUDACC_VER_MAJOR__ && __CUDACC_VER_MAJOR__ >= 8 && defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 530
   return half(::hlog(a));
 #else
   return half(::logf(float(a)));
@@ -429,7 +429,7 @@ EIGEN_STRONG_INLINE EIGEN_DEVICE_FUNC half log10(const half& a) {
   return half(::log10f(float(a)));
 }
 EIGEN_STRONG_INLINE EIGEN_DEVICE_FUNC half sqrt(const half& a) {
-#if defined __CUDACC_VER__ && __CUDACC_VER__ >= 80000 && defined __CUDA_ARCH__ && __CUDA_ARCH__ >= 530
+#if defined __CUDACC_VER_MAJOR__ && __CUDACC_VER_MAJOR__ >= 8 && defined __CUDA_ARCH__ && __CUDA_ARCH__ >= 530
   return half(hsqrt(a));
 #else
     return half(::sqrtf(float(a)));
@@ -451,14 +451,14 @@ EIGEN_STRONG_INLINE EIGEN_DEVICE_FUNC half tanh(const half& a) {
   return half(::tanhf(float(a)));
 }
 EIGEN_STRONG_INLINE EIGEN_DEVICE_FUNC half floor(const half& a) {
-#if defined __CUDACC_VER__ && __CUDACC_VER__ >= 80000 && defined __CUDA_ARCH__ && __CUDA_ARCH__ >= 300
+#if defined __CUDACC_VER_MAJOR__ && __CUDACC_VER_MAJOR__ >= 8 && defined __CUDA_ARCH__ && __CUDA_ARCH__ >= 300
   return half(hfloor(a));
 #else
   return half(::floorf(float(a)));
 #endif
 }
 EIGEN_STRONG_INLINE EIGEN_DEVICE_FUNC half ceil(const half& a) {
-#if defined __CUDACC_VER__ && __CUDACC_VER__ >= 80000 && defined __CUDA_ARCH__ && __CUDA_ARCH__ >= 300
+#if defined __CUDACC_VER_MAJOR__ && __CUDACC_VER_MAJOR__ >= 8 && defined __CUDA_ARCH__ && __CUDA_ARCH__ >= 300
   return half(hceil(a));
 #else
   return half(::ceilf(float(a)));
@@ -546,7 +546,7 @@ EIGEN_STRONG_INLINE EIGEN_DEVICE_FUNC Eigen::half exph(const Eigen::half& a) {
   return Eigen::half(::expf(float(a)));
 }
 EIGEN_STRONG_INLINE EIGEN_DEVICE_FUNC Eigen::half logh(const Eigen::half& a) {
-#if defined __CUDACC_VER__ && __CUDACC_VER__ >= 80000 && defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 530
+#if defined __CUDACC_VER_MAJOR__ && __CUDACC_VER_MAJOR__ >= 8 && defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 530
   return Eigen::half(::hlog(a));
 #else
   return Eigen::half(::logf(float(a)));
@@ -621,7 +621,7 @@ bool (isfinite)(const Eigen::half& h) {
 }  // namespace numext
 #endif
 
-#if defined(__CUDACC_VER__) && __CUDACC_VER__ < 90000
+#if defined(__CUDACC_VER_MAJOR__) && __CUDACC_VER_MAJOR__ < 9
 #undef __shfl_xor_sync
 #endif
 

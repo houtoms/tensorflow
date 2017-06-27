@@ -14,7 +14,7 @@
 
 #if defined(EIGEN_USE_GPU) && defined(__CUDACC__)
 
-#if defined(__CUDACC_VER__) && __CUDACC_VER__ < 90000
+#if defined(__CUDACC_VER_MAJOR__) && __CUDACC_VER_MAJOR__ < 9
 #define __shfl_xor_sync __shfl_xor
 #endif
 
@@ -1386,7 +1386,7 @@ struct TensorEvaluator<const TensorContractionOp<Indices, LeftArgType, RightArgT
 
 } // end namespace Eigen
 
-#if defined(__CUDACC_VER__) && __CUDACC_VER__ < 90000
+#if defined(__CUDACC_VER_MAJOR__) && __CUDACC_VER_MAJOR__ < 9
 #undef __shfl_xor_sync
 #endif
 
