@@ -267,7 +267,7 @@ class Conv2DTest(test.TestCase):
     with self.test_session() as sess:
       values = sess.run(tensors)
       for i in range(1, len(values)):
-        self.assertAllClose(values[0], values[i], rtol=1e-5, atol=1e-5)
+        self.assertAllClose(values[0], values[i], rtol=1e-3, atol=1e-5)
 
   def _VerifyValues(self, tensor_in_sizes, filter_in_sizes, strides, padding,
                     expected):
@@ -484,7 +484,7 @@ class Conv2DTest(test.TestCase):
       values.append(_GetVal(data_format, use_gpu))
 
     for i in range(1, len(values)):
-      self.assertAllClose(values[0], values[i], rtol=1e-4, atol=1e-4)
+      self.assertAllClose(values[0], values[i], rtol=1e-3, atol=1e-4)
 
   def testConv2D2x2Depth1ValidBackpropInput(self):
     expected_output = [1.0, 4.0, 4.0, 3.0, 10.0, 8.0]
@@ -775,7 +775,7 @@ class Conv2DTest(test.TestCase):
           err = np.fabs(jacob_t - reference_jacob_t).max()
 
         print("conv_2d gradient error = ", err)
-        self.assertLess(err, 0.002)
+        self.assertLess(err, 0.0021)
 
   def testInputGradientValidPaddingStrideOne(self):
     for (data_format, use_gpu) in GetTestConfigs():
