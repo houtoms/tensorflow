@@ -231,6 +231,7 @@ CUDNN_DNN_ROUTINE_EACH_R3(PERFTOOLS_GPUTOOLS_CUDNN_WRAP)
   __macro(cudnnRNNBackwardData)                               \
   __macro(cudnnRNNBackwardWeights)                            \
   __macro(cudnnSetRNNDescriptor)                              \
+  __macro(cudnnSetRNNDescriptor_v6)                           \
   __macro(cudnnGetFilterNdDescriptor)
 
 // clang-format on
@@ -977,11 +978,21 @@ class CudnnRnnDescriptor : public CudnnDescriptorCommon<dnn::RnnDescriptor> {
     // Create the RNN handle
     cudnnStatus_t status = wrap::cudnnCreateRNNDescriptor(parent_, &rnn_desc_);
     CUDNN_RETURN_IF_FAIL(status, "Unable to create RNN descriptor");
+    #if CUDNN_VERSION >= 6000
+    cudnnRNNAlgo_t rnn_algo = CUDNN_RNN_ALGO_STANDARD;
+    status = wrap::cudnnSetRNNDescriptor_v6(
+        parent, cudnn_handle,
+        rnn_desc_ /*rnnDesc*/, hidden_size /*hiddenSize*/,
+        num_layers /*numLayers*/, dropout_handle() /*dropoutDesc*/,
+        input_mode /*inputMode*/, direction_mode /*direction*/,
+        rnn_mode /*mode*/, rnn_algo /*algo*/, data_type /*dataType*/);
+    #else
     status = wrap::cudnnSetRNNDescriptor(
         parent, rnn_desc_ /*rnnDesc*/, hidden_size /*hiddenSize*/,
         num_layers /*numLayers*/, dropout_handle() /*dropoutDesc*/,
         input_mode /*inputMode*/, direction_mode /*direction*/,
         rnn_mode /*mode*/, data_type /*dataType*/);
+    #endif
     CUDNN_RETURN_IF_FAIL(status, "Unable to update RNN descriptor");
 
     // Create the params handle.
