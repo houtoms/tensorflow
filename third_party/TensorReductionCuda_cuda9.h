@@ -10,10 +10,6 @@
 #ifndef EIGEN_CXX11_TENSOR_TENSOR_REDUCTION_CUDA_H
 #define EIGEN_CXX11_TENSOR_TENSOR_REDUCTION_CUDA_H
 
-#if defined(__CUDACC_VER_MAJOR__) && __CUDACC_VER_MAJOR__ < 9
-#define __shfl_down_sync __shfl_down
-#endif
-
 namespace Eigen {
 namespace internal {
 
@@ -172,7 +168,11 @@ __global__ void FullReductionKernel(Reducer reducer, const Self input, Index num
 
 #pragma unroll
   for (int offset = warpSize/2; offset > 0; offset /= 2) {
-    reducer.reduce(__shfl_down_sync(accum, offset, warpSize), &accum);
+  #if defined(__CUDACC_VER_MAJOR__) && __CUDACC_VER_MAJOR__ < 9
+    reducer.reduce(__shfl_down(accum, offset, warpSize), &accum);
+  #else
+    reducer.reduce(__shfl_down_sync(0xFFFFFFFF, accum, offset, warpSize), &accum);
+  #endif
   }
 
   if ((threadIdx.x & (warpSize - 1)) == 0) {
@@ -248,7 +248,11 @@ __global__ void FullReductionKernelHalfFloat(Reducer reducer, const Self input, 
 
 #pragma unroll
   for (int offset = warpSize/2; offset > 0; offset /= 2) {
-    reducer.reducePacket(__shfl_down_sync(accum, offset, warpSize), &accum);
+    #if defined(__CUDACC_VER_MAJOR__) && __CUDACC_VER_MAJOR__ < 9
+    reducer.reducePacket(__shfl_down(accum, offset, warpSize), &accum);
+    #else
+    reducer.reducePacket(__shfl_down_sync(0xFFFFFFFF, accum, offset, warpSize), &accum);
+    #endif
   }
 
   if ((threadIdx.x & (warpSize - 1)) == 0) {
@@ -429,7 +433,11 @@ __global__ void InnerReductionKernel(Reducer reducer, const Self input, Index nu
 
 #pragma unroll
       for (int offset = warpSize/2; offset > 0; offset /= 2) {
-        reducer.reduce(__shfl_down_sync(reduced_val, offset), &reduced_val);
+        #if defined(__CUDACC_VER_MAJOR__) && __CUDACC_VER_MAJOR__ < 9
+        reducer.reduce(__shfl_down(reduced_val, offset), &reduced_val);
+        #else
+        reducer.reduce(__shfl_down_sync(0xFFFFFFFF, reduced_val, offset), &reduced_val);
+        #endif
       }
 
       if ((threadIdx.x & (warpSize - 1)) == 0) {
@@ -519,8 +527,13 @@ __global__ void InnerReductionKernelHalfFloat(Reducer reducer, const Self input,
 
 #pragma unroll
       for (int offset = warpSize/2; offset > 0; offset /= 2) {
-        reducer.reducePacket(__shfl_down_sync(reduced_val1, offset, warpSize), &reduced_val1);
-        reducer.reducePacket(__shfl_down_sync(reduced_val2, offset, warpSize), &reduced_val2);
+        #if defined(__CUDACC_VER_MAJOR__) && __CUDACC_VER_MAJOR__ < 9
+        reducer.reducePacket(__shfl_down(reduced_val1, offset, warpSize), &reduced_val1);
+        reducer.reducePacket(__shfl_down(reduced_val2, offset, warpSize), &reduced_val2);
+        #else
+        reducer.reducePacket(__shfl_down_sync(0xFFFFFFFF, reduced_val1, offset, warpSize), &reduced_val1);
+        reducer.reducePacket(__shfl_down_sync(0xFFFFFFFF, reduced_val2, offset, warpSize), &reduced_val2);
+        #endif
       }
 
       half val1 =  __low2half(reduced_val1);
@@ -749,9 +762,5 @@ struct OuterReducer<Self, Op, GpuDevice> {
 
 } // end namespace internal
 } // end namespace Eigen
-
-#if defined(__CUDACC_VER_MAJOR__) && __CUDACC_VER_MAJOR__ < 9
-#undef __shfl_down_sync
-#endif
 
 #endif // EIGEN_CXX11_TENSOR_TENSOR_REDUCTION_CUDA_H

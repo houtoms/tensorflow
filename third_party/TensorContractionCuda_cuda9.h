@@ -14,10 +14,6 @@
 
 #if defined(EIGEN_USE_GPU) && defined(__CUDACC__)
 
-#if defined(__CUDACC_VER_MAJOR__) && __CUDACC_VER_MAJOR__ < 9
-#define __shfl_xor_sync __shfl_xor
-#endif
-
 namespace Eigen {
 
 template<typename Scalar, typename Index, typename LhsMapper,
@@ -392,7 +388,11 @@ EigenContractionKernelInternal(const LhsMapper lhs, const RhsMapper rhs,
   // the sum across all big k blocks of the product of little k block of index (x, y)
   // with block of index (y, z). To compute the final output, we need to reduce
   // the 8 threads over y by summation.
-#define shuffleInc(i, j, mask) res(i, j) += __shfl_xor_sync(res(i, j), mask)
+#if defined(__CUDACC_VER_MAJOR__) && __CUDACC_VER_MAJOR__ < 9
+#define shuffleInc(i, j, mask) res(i, j) += __shfl_xor(res(i, j), mask)
+#else
+#define shuffleInc(i, j, mask) res(i, j) += __shfl_xor_sync(0xFFFFFFFF, res(i, j), mask)
+#endif
 
 #define reduceRow(i, mask)                      \
   shuffleInc(i, 0, mask);                       \
@@ -618,8 +618,13 @@ EigenFloatContractionKernelInternal16x16(const LhsMapper lhs, const RhsMapper rh
       x1 = rhs_pf0.x;
       x2 = rhs_pf0.z;
     }
-    x1 = __shfl_xor_sync(x1, 4);
-    x2 = __shfl_xor_sync(x2, 4);
+    #if defined(__CUDACC_VER_MAJOR__) && __CUDACC_VER_MAJOR__ < 9
+    x1 = __shfl_xor(x1, 4);
+    x2 = __shfl_xor(x2, 4);
+    #else
+    x1 = __shfl_xor_sync(0xFFFFFFFF, x1, 4);
+    x2 = __shfl_xor_sync(0xFFFFFFFF, x2, 4);
+    #endif
     if((threadIdx.x%8) < 4) {
       rhs_pf0.y = x1;
       rhs_pf0.w = x2;
@@ -1385,10 +1390,6 @@ struct TensorEvaluator<const TensorContractionOp<Indices, LeftArgType, RightArgT
 };
 
 } // end namespace Eigen
-
-#if defined(__CUDACC_VER_MAJOR__) && __CUDACC_VER_MAJOR__ < 9
-#undef __shfl_xor_sync
-#endif
 
 #endif // EIGEN_USE_GPU and __CUDACC__
 #endif // EIGEN_CXX11_TENSOR_TENSOR_CONTRACTION_CUDA_H
