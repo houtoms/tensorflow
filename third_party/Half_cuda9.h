@@ -42,12 +42,6 @@
 #define EIGEN_EXPLICIT_CAST(tgt_type) operator tgt_type()
 #endif
 
-#if defined(EIGEN_HAS_CUDA_FP16)
-#define CUDA_NO_HALF
-#include <cuda_fp16.h>
-#undef CUDA_NO_HALF
-#endif
-
 namespace Eigen {
 
 struct half;

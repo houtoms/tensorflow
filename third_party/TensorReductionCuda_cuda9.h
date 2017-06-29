@@ -251,7 +251,9 @@ __global__ void FullReductionKernelHalfFloat(Reducer reducer, const Self input, 
     #if defined(__CUDACC_VER_MAJOR__) && __CUDACC_VER_MAJOR__ < 9
     reducer.reducePacket(__shfl_down(accum, offset, warpSize), &accum);
     #else
-    reducer.reducePacket(__shfl_down_sync(0xFFFFFFFF, accum, offset, warpSize), &accum);
+    // TODO: Fix this
+    //*reducer.reducePacket(__shfl_down_sync(0xFFFFFFFF, accum, (unsigned)offset, warpSize), &accum);
+    reducer.reducePacket(__shfl_down(accum, offset, warpSize), &accum);
     #endif
   }
 
@@ -531,8 +533,11 @@ __global__ void InnerReductionKernelHalfFloat(Reducer reducer, const Self input,
         reducer.reducePacket(__shfl_down(reduced_val1, offset, warpSize), &reduced_val1);
         reducer.reducePacket(__shfl_down(reduced_val2, offset, warpSize), &reduced_val2);
         #else
-        reducer.reducePacket(__shfl_down_sync(0xFFFFFFFF, reduced_val1, offset, warpSize), &reduced_val1);
-        reducer.reducePacket(__shfl_down_sync(0xFFFFFFFF, reduced_val2, offset, warpSize), &reduced_val2);
+        // TODO: Fix this
+        //reducer.reducePacket(__shfl_down_sync(0xFFFFFFFF, reduced_val1, (unsigned)offset, warpSize), &reduced_val1);
+        //reducer.reducePacket(__shfl_down_sync(0xFFFFFFFF, reduced_val2, (unsigned)offset, warpSize), &reduced_val2);
+        reducer.reducePacket(__shfl_down(reduced_val1, offset, warpSize), &reduced_val1);
+        reducer.reducePacket(__shfl_down(reduced_val2, offset, warpSize), &reduced_val2);
         #endif
       }
 
