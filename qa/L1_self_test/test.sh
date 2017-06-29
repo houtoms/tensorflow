@@ -35,7 +35,6 @@ NUM_GPUS=`nvidia-smi -L | wc -l` && \
               --test_tag_filters=local,-benchmark-test \
               -- \
               //tensorflow/... \
-              //tensorflow/contrib/nccl:nccl_ops_test \
               -//tensorflow/python/kernel_tests:atrous_conv2d_test \
               -//tensorflow/python/kernel_tests:benchmark_test \
               -//tensorflow/compiler/... \
