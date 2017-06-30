@@ -572,7 +572,11 @@ struct hash<Eigen::half> {
 // Add the missing shfl_xor intrinsic
 #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 300
 __device__ EIGEN_STRONG_INLINE Eigen::half __shfl_xor(Eigen::half var, int laneMask, int width=warpSize) {
+  #if defined(__CUDACC_VER_MAJOR__) && __CUDACC_VER_MAJOR__ < 9
   return static_cast<Eigen::half>(__shfl_xor(static_cast<float>(var), laneMask, width));
+  #else
+  return static_cast<Eigen::half>(__shfl_xor_sync(0xFFFFFFFF, static_cast<float>(var), laneMask, width));
+  #endif
 }
 #endif
 
