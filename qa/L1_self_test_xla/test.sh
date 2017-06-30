@@ -33,5 +33,5 @@ NUM_GPUS=`nvidia-smi -L | wc -l` && \
               --test_tag_filters=local,-benchmark-test \
               -- \
               //tensorflow/compiler/... \
-  | tee testresult.tmp && grep test.log testresult.tmp \
+  | tee testresult.tmp && grep "test\.log" testresult.tmp \
   | /opt/tensorflow/qa/show_testlogs

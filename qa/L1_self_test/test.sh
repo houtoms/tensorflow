@@ -38,5 +38,5 @@ NUM_GPUS=`nvidia-smi -L | wc -l` && \
               -//tensorflow/python/kernel_tests:atrous_conv2d_test \
               -//tensorflow/python/kernel_tests:benchmark_test \
               -//tensorflow/compiler/... \
-  | tee testresult.tmp && grep test.log testresult.tmp \
+  | tee testresult.tmp && grep "test\.log" testresult.tmp \
   | /opt/tensorflow/qa/show_testlogs

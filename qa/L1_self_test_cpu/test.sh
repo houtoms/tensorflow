@@ -36,5 +36,5 @@ bazel test  -c opt --verbose_failures \
             //tensorflow/... \
             -//tensorflow/compiler/... \
             -//tensorflow/python/kernel_tests:benchmark_test \
-  | tee testresult.tmp && grep test.log testresult.tmp \
+  | tee testresult.tmp && grep "test\.log" testresult.tmp \
   | /opt/tensorflow/qa/show_testlogs
