@@ -14,7 +14,16 @@
 # limitations under the License.
 # ==============================================================================
 
-__version__ = "1.0"
+"""
+Changelog:
+1.1
+  - Disable all image distortions when in evaluation mode
+  - Apply FLAGS.display_every in evaluation mode too
+  - Changed keep_checkpoint_every_n_hours from 1 to 3
+  - Remove reference to tf.python module
+"""
+
+__version__ = "1.1"
 
 import numpy as np
 import tensorflow as tf
@@ -304,16 +313,17 @@ def decode_jpeg(imgdata, channels=3):
 
 def random_crop_and_resize_image(image, bbox, height, width):
 	with tf.name_scope('random_crop_and_resize'):
-		bbox_begin, bbox_size, distorted_bbox = tf.image.sample_distorted_bounding_box(
-			tf.shape(image),
-			bounding_boxes=bbox,
-			min_object_covered=0.1,
-			aspect_ratio_range=[0.75, 1.33],
-			area_range=[0.05, 1.0],
-			max_attempts=100,
-			use_image_if_no_bounding_boxes=True)
-		# Crop the image to the distorted bounding box
-		image = tf.slice(image, bbox_begin, bbox_size)
+		if not FLAGS.eval:
+			bbox_begin, bbox_size, distorted_bbox = tf.image.sample_distorted_bounding_box(
+				tf.shape(image),
+				bounding_boxes=bbox,
+				min_object_covered=0.1,
+				aspect_ratio_range=[0.75, 1.33],
+				area_range=[0.05, 1.0],
+				max_attempts=100,
+				use_image_if_no_bounding_boxes=True)
+			# Crop the image to the distorted bounding box
+			image = tf.slice(image, bbox_begin, bbox_size)
 		# Resize to the desired output size
 		image = tf.image.resize_images(
 			image,
@@ -360,11 +370,12 @@ class ImagePreprocessor(object):
 			if thread_id < self.nsummary:
 				tf.summary.image('cropped_resized_image',
 				                 tf.expand_dims(image, 0))
-			image = tf.image.random_flip_left_right(image)
+			if not FLAGS.eval:
+				image = tf.image.random_flip_left_right(image)
 			if thread_id < self.nsummary:
 				tf.summary.image('flipped_image',
 				                 tf.expand_dims(image, 0))
-			if FLAGS.distort_color:
+			if FLAGS.distort_color and not FLAGS.eval:
 				image = distort_image_color(image, order=thread_id%2)
 				if thread_id < self.nsummary:
 					tf.summary.image('distorted_color_image',
@@ -969,7 +980,8 @@ def run_evaluation(nstep, sess, top1_op, top5_op, enqueue_ops):
 		try:
 			top1, top5 = sess.run([top1_op, top5_op, enqueue_ops],
 			                      feed_dict={'is_training:0': False})[:2]
-			print "% 6i %5.1f%% %5.1f%%" % (step+1, top1*100, top5*100)
+			if step == 0 or (step+1) % FLAGS.display_every == 0:
+				print "% 6i %5.1f%% %5.1f%%" % (step+1, top1*100, top5*100)
 			top1s.append(top1)
 			top5s.append(top5)
 		except KeyboardInterrupt:
@@ -1038,7 +1050,7 @@ def main():
 	                     (aka Example protobufs). Files should be
 	                     named 'train-*' and 'validation-*'.""")
 	cmdline.add_argument('-b', '--batch_size', default=64, type=int,
-	                     help="""Size of each minibatch""")
+	                     help="""Size of each minibatch.""")
 	cmdline.add_argument('--num_batches', default=50, type=int,
 	                     help="""Number of batches to run.""")
 	cmdline.add_argument('--num_epochs', default=None, type=int,
@@ -1048,13 +1060,13 @@ def main():
 	                     help="""Number of GPUs to run on.""")
 	cmdline.add_argument('--log_dir', default="",
 	                     help="""Directory in which to write training
-	                     summaries""")
+	                     summaries and checkpoints.""")
 	cmdline.add_argument('--display_every', default=1, type=int,
 	                     help="""How often (in iterations) to print out
 	                     running information.""")
 	add_bool_argument(cmdline, '--eval',
 	                  help="""Evaluate the top-1 and top-5 accuracy of
-	                  a checkpointed model""")
+	                  a checkpointed model.""")
 	global FLAGS
 	FLAGS, unknown_args = cmdline.parse_known_args()
 	if len(unknown_args) > 0:
@@ -1210,7 +1222,7 @@ def main():
 		train_writer = tf.summary.FileWriter(log_dir, sess.graph)
 		summary_ops = tf.summary.merge_all()
 		last_summary_time = time.time()
-		saver = tf.train.Saver(keep_checkpoint_every_n_hours=1)
+		saver = tf.train.Saver(keep_checkpoint_every_n_hours=3)
 		last_save_time = time.time()
 	
 	restored = False
@@ -1270,7 +1282,7 @@ def main():
 		except KeyboardInterrupt:
 			print "Keyboard interrupt"
 			break
-		except tf.python.errors.ResourceExhaustedError:
+		except tf.errors.ResourceExhaustedError:
 			elapsed = -1.
 			loss    = 0.
 			lr      = -1
@@ -1289,11 +1301,8 @@ def main():
 		effective_accuracy = 100. / math.exp(min(loss,20.))
 		if step == 0 or (step+1) % FLAGS.display_every == 0:
 			epoch = step*total_batch_size // nrecord
-			print "%6i %5i %7.1f %7.3f %7.5f" % (step+1,
-			                                          epoch+1,
-			                                          img_per_sec,
-			                                          loss,
-			                                          lr)
+			print "%6i %5i %7.1f %7.3f %7.5f" % (
+				step+1, epoch+1, img_per_sec, loss, lr)
 		if oom:
 			break
 	nstep = len(batch_times)
@@ -1314,13 +1323,13 @@ def main():
 	else:
 		print("No results, did not get past burn-in phase (%i steps)" %
 		      FLAGS.nstep_burnin)
-		
+	
 	if train_writer is not None:
 		train_writer.close()
 	
 	if oom:
 		print "Out of memory error detected, exiting"
 		sys.exit(-2)
-	
+
 if __name__ == '__main__':
 	main()
