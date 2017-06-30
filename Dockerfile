@@ -2,7 +2,7 @@ FROM nvdl.githost.io:4678/dgx/cuda:8.0-cudnn6-devel-ubuntu16.04--17.07
 
 ENV LD_LIBRARY_PATH /usr/local/cuda/extras/CUPTI/lib64:${LD_LIBRARY_PATH}
 
-ENV TENSORFLOW_VERSION 1.1.0
+ENV TENSORFLOW_VERSION 1.2.1
 LABEL com.nvidia.tensorflow.version="${TENSORFLOW_VERSION}"
 ENV NVIDIA_TENSORFLOW_VERSION 17.07
 
@@ -40,7 +40,7 @@ ENV BAZELRC /root/.bazelrc
 RUN echo "startup --batch" >> $BAZELRC && \
     echo "build --spawn_strategy=standalone --genrule_strategy=standalone" >> $BAZELRC
 
-RUN BAZEL_VERSION=0.4.5 && \
+RUN BAZEL_VERSION=0.5.0 && \
     mkdir /bazel && cd /bazel && \
     curl -fSsL -O https://github.com/bazelbuild/bazel/releases/download/$BAZEL_VERSION/bazel-$BAZEL_VERSION-installer-linux-x86_64.sh && \
     curl -fSsL -o /bazel/LICENSE.txt https://raw.githubusercontent.com/bazelbuild/bazel/master/LICENSE && \
@@ -76,8 +76,10 @@ ENV TF_CUDA_COMPUTE_CAPABILITIES "3.5,5.2,6.0,6.1"
 ENV TF_NEED_GCP 0
 ENV TF_NEED_HDFS 0
 ENV TF_ENABLE_XLA 1
+ENV PYTHON_BIN_PATH /usr/bin/python
 RUN yes "" | ./configure
-RUN bash third_party/patch_eigen_for_cuda9.sh
+RUN bazel fetch "//tensorflow/... -//tensorflow/contrib/nccl/... -//tensorflow/examples/android/..." && \
+    bash third_party/patch_eigen_for_cuda9.sh
 RUN bazel build -c opt --config=cuda tensorflow/tools/pip_package:build_pip_package && \
     bazel-bin/tensorflow/tools/pip_package/build_pip_package /tmp/pip && \
     pip install --upgrade /tmp/pip/tensorflow-*.whl && \
