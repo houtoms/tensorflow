@@ -422,7 +422,7 @@ def stage(tensors):
         shapes=[tensor.get_shape() for tensor in tensors])
     put_op      = stage_area.put(tensors)
     get_tensors = stage_area.get()
-    
+
     get_tensors = [tf.reshape(gt, t.get_shape())
                    for (gt,t) in zip(get_tensors, tensors)]
     return put_op, get_tensors
@@ -548,7 +548,7 @@ class FeedForwardTrainer(object):
             total_loss = tf.reduce_mean(tower_losses)
             total_top1 = tf.reduce_mean(tower_top1s)
             total_top5 = tf.reduce_mean(tower_top5s)
-            
+
             averager = tf.train.ExponentialMovingAverage(0.90, name='loss_avg',
                                                          zero_debias=True)
             avg_op = averager.apply([total_loss])
@@ -564,12 +564,12 @@ class FeedForwardTrainer(object):
             tf.summary.scalar('train accuracy top-5 %', 100.*total_top5)
             tf.summary.scalar('learning rate', self.learning_rate)
         tower_gradvars = all_avg_gradients(tower_gradvars, devices)
-        
+
         for grad, var in tower_gradvars[0]:
             tf.summary.histogram(var.op.name + '/values', var)
             if grad is not None:
                 tf.summary.histogram(var.op.name + '/gradients', grad)
-        
+
         # Apply the gradients to optimize the loss function
         train_ops = []
         for device_num, device in enumerate(devices):
@@ -773,7 +773,7 @@ def inference_inception_v3(net, input_layer):
                 [('share',),          ('share',),            ('conv', 384, (3,1))],
                 [('pool', pooltype, (3,3), (1,1), 'SAME'),   ('conv', 192, (1,1))]]
         return net.inception_module(x, 'incept_v3_e', cols)
-    
+
     # TODO: This does not include the extra 'arm' that forks off
     #         from before the 3rd-last module (the arm is designed
     #         to speed up training in the early stages).
@@ -906,7 +906,7 @@ def inference_inception_v4(net, input_layer):
                 [('conv', 384, (1,1)), ('conv', 448, (1,3)), ('conv', 512, (3,1)), ('conv', 256, (3,1))],
                 [('share',),           ('share',),           ('share',),           ('conv', 256, (1,3))]]
         return net.inception_module(x, 'incept_v4_c', cols)
-    
+
     net.use_batch_norm = True
     x = net.input_layer(input_layer)
     x = net.conv(x, 32, (3,3), (2,2), padding='VALID')
@@ -950,7 +950,7 @@ def inference_inception_resnet_v2(net, input_layer):
         x = net.inception_module(x, 'incept_resnet_v2_c', cols)
         x = net.conv(x, 2048, (1,1), activation='LINEAR')
         return x
-    
+
     net.use_batch_norm = True
     residual_scale = 0.2
     x = net.input_layer(input_layer)
@@ -1074,24 +1074,24 @@ def main():
         for bad_arg in unknown_args:
             print "ERROR: Unknown command line arg: %s" % bad_arg
         raise ValueError("Invalid command line arg(s)")
-    
+
     FLAGS.strong_scaling = False
     FLAGS.nccl           = True
     FLAGS.xla            = True
-    
+
     nclass = 1000
     total_batch_size = FLAGS.batch_size
     if not FLAGS.strong_scaling:
         total_batch_size *= FLAGS.num_gpus
     devices = ['/gpu:%i' % i for i in xrange(FLAGS.num_gpus)]
     subset = 'validation' if FLAGS.eval else 'train'
-    
+
     tfversion = tensorflow_version_tuple()
     print "TensorFlow:  %i.%i.%s" % tfversion
     print "This script: v%s" % __version__
     print "Cmd line args:"
     print '\n'.join(['  '+arg for arg in sys.argv[1:]])
-    
+
     print "Model:      ", FLAGS.model
     print "Batch size: ", total_batch_size, 'global'
     print "            ", total_batch_size/len(devices), 'per device'
@@ -1101,10 +1101,10 @@ def main():
     print "Have NCCL:  ", have_nccl
     print "Using NCCL: ", FLAGS.nccl
     print "Using XLA:  ", FLAGS.xla
-    
+
     nrecord = get_num_records(os.path.join(FLAGS.data_dir, '%s-*' % subset))
     print "Num images: ", nrecord
-    
+
     # Training hyperparameters
     FLAGS.learning_rate         = 0.001 # Model-specific values are set below
     FLAGS.momentum              = 0.9
@@ -1118,16 +1118,16 @@ def main():
     FLAGS.nstep_burnin          = 20
     FLAGS.summary_interval_secs = 600
     FLAGS.save_interval_secs    = 600
-    
+
     if FLAGS.num_epochs is not None:
         nstep = nrecord * FLAGS.num_epochs // total_batch_size
     else:
         nstep = FLAGS.num_batches
         FLAGS.num_epochs = max(nstep * total_batch_size // nrecord, 1)
-    
+
     tf.set_random_seed(1234)
     is_training = tf.placeholder(tf.bool, name='is_training')
-    
+
     model_name = FLAGS.model
     if   model_name == 'trivial':
         height, width = 224, 224
@@ -1167,9 +1167,9 @@ def main():
         FLAGS.learning_rate = 0.045
     else:
         raise ValueError("Invalid model type: %s" % model)
-    
+
     preprocessor = ImagePreprocessor(height, width, subset)
-    
+
     def loss_func(images, labels, var_scope):
         net = GPUNetworkBuilder(is_training, use_xla=FLAGS.xla)
         output = model_func(net, images)
@@ -1196,7 +1196,7 @@ def main():
             top5 = tf.reduce_mean(
                 tf.cast(tf.nn.in_top_k(logits, labels, 5), tf.float32))
         return top1, top5
-    
+
     if FLAGS.eval:
         evaluator = FeedForwardEvaluator(preprocessor, eval_func)
         print "Building evaluation graph"
@@ -1208,13 +1208,13 @@ def main():
         print "Building training graph"
         total_loss, learning_rate, train_ops = trainer.training_step(
             total_batch_size, devices)
-    
+
     print "Creating session"
     config = tf.ConfigProto()
     config.intra_op_parallelism_threads = 1
-    
+
     sess = tf.Session(config=config)
-    
+
     train_writer = None
     saver = None
     summary_ops = None
@@ -1225,7 +1225,7 @@ def main():
         last_summary_time = time.time()
         saver = tf.train.Saver(keep_checkpoint_every_n_hours=3)
         last_save_time = time.time()
-    
+
     restored = False
     if saver is not None:
         ckpt = tf.train.get_checkpoint_state(log_dir)
@@ -1237,7 +1237,7 @@ def main():
         else:
             if not os.path.exists(log_dir):
                 os.mkdir(log_dir)
-    
+
     if FLAGS.eval:
         if not restored:
             raise ValueError("No checkpoint found for evaluation")
@@ -1247,17 +1247,17 @@ def main():
             nstep = nrecord // total_batch_size
             run_evaluation(nstep, sess, top1_op, top5_op, enqueue_ops)
             return
-    
+
     if not restored:
         print "Initializing variables"
         trainer.init(sess, devices)
         if saver is not None:
             save_path = saver.save(sess, checkpoint_file, global_step=0)
             print "Checkpoint written to", save_path
-    
+
     print "Pre-filling input pipeline"
     trainer.prefill_pipeline(sess)
-    
+
     print "Training"
     print "  Step Epoch Img/sec   Loss   LR"
     batch_times = []
@@ -1288,14 +1288,14 @@ def main():
             loss    = 0.
             lr      = -1
             oom = True
-        
+
         if (saver is not None and
             time.time() - last_save_time > FLAGS.save_interval_secs):
             last_save_time += FLAGS.save_interval_secs
             save_path = saver.save(sess, checkpoint_file,
                                    global_step=trainer.global_step)
             print "Checkpoint written to", save_path
-        
+
         if step >= FLAGS.nstep_burnin:
             batch_times.append(elapsed)
         img_per_sec = total_batch_size / elapsed
@@ -1324,10 +1324,10 @@ def main():
     else:
         print("No results, did not get past burn-in phase (%i steps)" %
               FLAGS.nstep_burnin)
-    
+
     if train_writer is not None:
         train_writer.close()
-    
+
     if oom:
         print "Out of memory error detected, exiting"
         sys.exit(-2)
