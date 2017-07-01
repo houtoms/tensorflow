@@ -112,7 +112,7 @@ static string GetLibdeviceFilename(const string& libdevice_dir_path,
 }
 
 // Gets the GPU name as it's known to LLVM for a given compute capability.  If
-// we see an unrecognized compute capability, we return "sm_20".
+// we see an unrecognized compute capability, we return "sm_30".
 static string GetSmName(std::pair<int, int> compute_capability) {
   static auto* m = new std::map<std::pair<int, int>, int>({{{2, 0}, 20},
                                                            {{2, 1}, 21},
@@ -126,7 +126,8 @@ static string GetSmName(std::pair<int, int> compute_capability) {
                                                            {{6, 0}, 60},
                                                            {{6, 1}, 61},
                                                            {{6, 2}, 62},
-                                                           {{7, 0}, 70}});
+                                                           // TODO: Change this to 70 once LLVM NVPTX supports it
+                                                           {{7, 0}, 60}});
   int sm_version = 30;
   auto it = m->find(compute_capability);
   if (it != m->end()) {
