@@ -18,6 +18,7 @@
 Changelog:
 1.1
   - Disable all image distortions when in evaluation mode
+  - Fixed bug in final FC layer of evaluation mode
   - Apply FLAGS.display_every in evaluation mode too
   - Changed keep_checkpoint_every_n_hours from 1 to 3
   - Remove reference to tf.python module
@@ -1188,7 +1189,7 @@ def main():
     def eval_func(images, labels, var_scope):
         net = GPUNetworkBuilder(is_training, use_xla=FLAGS.xla)
         output = model_func(net, images)
-        logits = net.fully_connected(output, nclass)
+        logits = net.fully_connected(output, nclass, activation='LINEAR')
         logits = tf.cast(logits, tf.float32)
         with tf.device('/cpu:0'):
             top1 = tf.reduce_mean(
