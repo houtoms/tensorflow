@@ -227,12 +227,14 @@ __global__ void FullReductionKernelHalfFloat(Reducer reducer, const Self input, 
   const Index first_index = blockIdx.x * BlockSize * NumPerThread + 2*threadIdx.x;
 
   // Initialize the output value if it wasn't initialized by the ReductionInitKernel
-  if (gridDim.x == 1 && first_index == 0) {
-    if (num_coeffs % 2 != 0) {
-      half last = input.m_impl.coeff(num_coeffs-1);
-      *scratch = __halves2half2(last, reducer.initialize());
-    } else {
-      *scratch = reducer.template initializePacket<half2>();
+  if (gridDim.x == 1) {
+    if (first_index == 0) {
+      if (num_coeffs % 2 != 0) {
+        half last = input.m_impl.coeff(num_coeffs-1);
+        *scratch = __halves2half2(last, reducer.initialize());
+      } else {
+        *scratch = reducer.template initializePacket<half2>();
+      }
     }
     __syncthreads();
   }
@@ -260,12 +262,13 @@ __global__ void FullReductionKernelHalfFloat(Reducer reducer, const Self input, 
     atomicReduce(scratch, accum, reducer);
   }
 
-  __syncthreads();
-
-  if (gridDim.x == 1 && first_index == 0) {
-    half tmp = __low2half(*scratch);
-    reducer.reduce(__high2half(*scratch), &tmp);
-    *output = tmp;
+  if (gridDim.x == 1) {
+    __syncthreads();
+    if (first_index == 0) {
+      half tmp = __low2half(*scratch);
+      reducer.reduce(__high2half(*scratch), &tmp);
+      *output = tmp;
+    }
   }
 }
 
