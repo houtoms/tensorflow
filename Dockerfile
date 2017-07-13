@@ -47,12 +47,6 @@ RUN BAZEL_VERSION=0.5.0 && \
     bash ./bazel-$BAZEL_VERSION-installer-linux-x86_64.sh && \
     rm -rf /bazel
 
-ARG NVIDIA_BUILD_ID
-ENV NVIDIA_BUILD_ID ${NVIDIA_BUILD_ID:-<unknown>}
-LABEL com.nvidia.build.id="${NVIDIA_BUILD_ID}"
-ARG NVIDIA_BUILD_REF
-LABEL com.nvidia.build.ref="${NVIDIA_BUILD_REF}"
-
 # Download and build TensorFlow.
 WORKDIR /opt/tensorflow
 COPY . .
@@ -100,3 +94,9 @@ RUN chmod -R a+w /workspace
 
 COPY nvidia_entrypoint.sh /usr/local/bin
 ENTRYPOINT ["/usr/local/bin/nvidia_entrypoint.sh"]
+
+ARG NVIDIA_BUILD_ID
+ENV NVIDIA_BUILD_ID ${NVIDIA_BUILD_ID:-<unknown>}
+LABEL com.nvidia.build.id="${NVIDIA_BUILD_ID}"
+ARG NVIDIA_BUILD_REF
+LABEL com.nvidia.build.ref="${NVIDIA_BUILD_REF}"
