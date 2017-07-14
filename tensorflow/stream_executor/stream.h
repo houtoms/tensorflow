@@ -231,12 +231,33 @@ class Stream {
       std::function<const DeviceMemory<float> &()> var_to_inv_var,
       std::function<void()> inv_var_to_var);
 
+  Stream &ThenBatchNormalizationForward(
+      const DeviceMemory<Eigen::half> &x, const DeviceMemory<float> &scale,
+      const DeviceMemory<float> &offset,
+      const DeviceMemory<float> &estimated_mean,
+      const DeviceMemory<float> &estimated_variance,
+      const dnn::BatchDescriptor &x_desc,
+      const dnn::BatchDescriptor &scale_offset_desc, const double epsilon,
+      DeviceMemory<Eigen::half> *y, DeviceMemory<float> *batch_mean,
+      DeviceMemory<float> *batch_var, DeviceMemory<float> *saved_mean,
+      DeviceMemory<float> *saved_inv_var, bool is_training,
+      std::function<const DeviceMemory<float> &()> var_to_inv_var,
+      std::function<void()> inv_var_to_var);
+
   Stream &ThenBatchNormalizationBackward(
       const DeviceMemory<float> &y_backprop, const DeviceMemory<float> &x,
       const DeviceMemory<float> &scale, const DeviceMemory<float> &mean,
       const DeviceMemory<float> &variance, const dnn::BatchDescriptor &x_desc,
       const dnn::BatchDescriptor &scale_offset_desc, const double epsilon,
       DeviceMemory<float> *x_backprop, DeviceMemory<float> *scale_backprop,
+      DeviceMemory<float> *offset_backprop);
+
+  Stream &ThenBatchNormalizationBackward(
+      const DeviceMemory<Eigen::half> &y_backprop, const DeviceMemory<Eigen::half> &x,
+      const DeviceMemory<float> &scale, const DeviceMemory<float> &mean,
+      const DeviceMemory<float> &variance, const dnn::BatchDescriptor &x_desc,
+      const dnn::BatchDescriptor &scale_offset_desc, const double epsilon,
+      DeviceMemory<Eigen::half> *x_backprop, DeviceMemory<float> *scale_backprop,
       DeviceMemory<float> *offset_backprop);
 
   // TODO(leary) add double-precision version of this interface.
