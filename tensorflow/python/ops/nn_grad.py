@@ -661,7 +661,11 @@ def _FusedBatchNormGrad(op, *grad):
 
     grad_offset: gradient for offset, which is sum(grad_y)
   """
-  return gen_nn_ops.fused_batch_norm_grad(
+  if op.inputs[0].dtype == dtypes.float32:
+    fused_batch_norm_grad = gen_nn_ops.fused_batch_norm_grad
+  else:
+    fused_batch_norm_grad = gen_nn_ops.fused_batch_norm_grad_v2
+  return fused_batch_norm_grad(
       grad[0],
       op.inputs[0],
       op.inputs[1],
