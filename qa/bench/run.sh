@@ -82,7 +82,12 @@ function set_model_args {
         NET_NAME=resnet152
        ;;
     inception-resnet_v2)
-        BATCHES_PER_GPU=(32 64 )
+        # GP100 could handle BS=64,
+        # So could GV100 with 384.47
+        # Max batch for GV100 on 384.53 is 63
+        # Set limit to 62 to provide some margin.
+        # See [B] 200325822
+        BATCHES_PER_GPU=(32 62 )
         PS=cpu
         NET_NAME=inception-resnet2
        ;;

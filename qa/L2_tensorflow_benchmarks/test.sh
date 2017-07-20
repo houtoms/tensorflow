@@ -53,7 +53,7 @@ function set_model_args {
         NET_NAME=inception3
        ;;
     inception_v4)
-        BATCHES_PER_GPU=(32 64 )
+        BATCHES_PER_GPU=(32 62 )
         PS=cpu
         NET_NAME=inception4
        ;;
@@ -68,12 +68,12 @@ function set_model_args {
         NET_NAME=resnet101
        ;;
     resnet_152)
-        BATCHES_PER_GPU=(32 64 )
+        BATCHES_PER_GPU=(32 54 )
         PS=cpu
         NET_NAME=resnet152
        ;;
     inception-resnet_v2)
-        BATCHES_PER_GPU=(32 64 )
+        BATCHES_PER_GPU=(32 62 )
         PS=cpu
         NET_NAME=inception-resnet2
        ;;
