@@ -116,8 +116,8 @@ class TrainingOpsTest(TensorFlowTestCase):
         self.assertAllClose(linear_update, linear.eval(), rtol=2e-2, atol=2e-2)
         self.assertAllClose(expected_out, out, rtol=2e-2, atol=2e-2)
       else:
-        self.assertAllClose(linear_update, linear.eval())
-        self.assertAllClose(expected_out, out)
+        self.assertAllClose(linear_update, linear.eval(), rtol=1e-5, atol=1e-5)
+        self.assertAllClose(expected_out, out, rtol=1e-5, atol=1e-5)
 
   def testApplyAdagrad(self):
     for (dtype, use_gpu) in itertools.product(
