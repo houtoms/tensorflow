@@ -83,6 +83,7 @@ RUN bazel build -c opt --config=cuda tensorflow/tools/pip_package:build_pip_pack
 ENV TF_ADJUST_HUE_FUSED         1
 ENV TF_ADJUST_SATURATION_FUSED  1
 ENV TF_ENABLE_WINOGRAD_NONFUSED 1
+ENV TF_AUTOTUNE_THRESHOLD       2
 ENV CUDA_DEVICE_MAX_CONNECTIONS 12 # WAR for perf bug on K80 + NCCL
 
 # TensorBoard
