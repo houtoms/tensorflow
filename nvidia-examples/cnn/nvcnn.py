@@ -16,6 +16,13 @@
 
 """
 Changelog:
+1.2
+  - Added support for half-precision training, enabled via the --fp16 flag
+  - Forced trainable weights to always be stored as float32
+  - Added loss-scaling to improve numerical stability
+  - Fixed trivial and lenet models by disabling batchnorm
+  - Tweaked ranges of aspect ratio and area distortions
+
 1.1
   - Disable all image distortions when in evaluation mode
   - Fixed bug in final FC layer of evaluation mode
@@ -25,7 +32,7 @@ Changelog:
   - Tabs --> spaces
 """
 
-__version__ = "1.1"
+__version__ = "1.2"
 
 import numpy as np
 import tensorflow as tf
@@ -59,6 +66,19 @@ class DummyScope(object):
     def __exit__(self, exc_type, exc_val, exc_tb):
         pass
 
+def float32_variable_storage_getter(getter, name, shape=None, dtype=None,
+                                    initializer=None, regularizer=None,
+                                    trainable=True,
+                                    *args, **kwargs):
+    storage_dtype = tf.float32 if trainable else dtype
+    variable = getter(name, shape, dtype=storage_dtype,
+                      initializer=initializer, regularizer=regularizer,
+                      trainable=trainable,
+                      *args, **kwargs)
+    if trainable and dtype != tf.float32:
+        variable = tf.cast(variable, dtype)
+    return variable
+
 class GPUNetworkBuilder(object):
     """This class provides convenient methods for constructing feed-forward
     networks with internal data layout of 'NCHW'.
@@ -88,20 +108,24 @@ class GPUNetworkBuilder(object):
         name = layer_type + str(idx)
         self._layer_counts[layer_type] += 1
         return name
-    def _get_variable(self, name, shape, initializer=None, seed=None):
+    def _get_variable(self, name, shape, dtype=None,
+                      initializer=None, seed=None):
+        if dtype is None:
+            dtype = self.dtype
         if initializer is None:
             initializer = init_ops.glorot_uniform_initializer(seed=seed)
         elif (isinstance(initializer, float) or
               isinstance(initializer, int)):
             initializer = tf.constant_initializer(float(initializer))
-        return tf.get_variable(name, shape, self.dtype, initializer)
+        return tf.get_variable(name, shape, dtype, initializer)
     def _to_nhwc(self, x):
         return tf.transpose(x, [0,2,3,1])
     def _from_nhwc(self, x):
         return tf.transpose(x, [0,3,1,2])
     def _bias(self, input_layer):
         num_outputs = input_layer.get_shape().as_list()[1]
-        biases = self._get_variable('biases', [num_outputs], initializer=0)
+        biases = self._get_variable('biases', [num_outputs], input_layer.dtype,
+                                    initializer=0)
         if len(input_layer.get_shape()) == 4:
             return tf.nn.bias_add(input_layer, biases,
                                   data_format='NCHW')
@@ -140,7 +164,8 @@ class GPUNetworkBuilder(object):
                         num_inputs, num_filters]
         strides = [1, 1, filter_strides[0], filter_strides[1]]
         with tf.variable_scope(self._count_layer('conv')) as scope:
-            kernel = self._get_variable('weights', kernel_shape)
+            kernel = self._get_variable('weights', kernel_shape,
+                                        input_layer.dtype)
             if padding == 'SAME_RESNET': # ResNet models require custom padding
                 kh, kw = filter_size
                 rate = 1
@@ -171,7 +196,8 @@ class GPUNetworkBuilder(object):
                         num_filters, num_inputs]
         strides = [1, 1, filter_strides[0], filter_strides[1]]
         with tf.variable_scope(self._count_layer('deconv')) as scope:
-            kernel = self._get_variable('weights', kernel_shape)
+            kernel = self._get_variable('weights', kernel_shape,
+                                        input_layer.dtype)
             x = tf.nn.conv2d_transpose(input_layer, kernel, output_shape,
                                        strides, padding=padding,
                                        data_format='NCHW')
@@ -232,7 +258,8 @@ class GPUNetworkBuilder(object):
         num_inputs = input_layer.get_shape().as_list()[1]
         kernel_size = [num_inputs, num_outputs]
         with tf.variable_scope(self._count_layer('fully_connected')):
-            kernel = self._get_variable('weights', kernel_size)
+            kernel = self._get_variable('weights', kernel_size,
+                                        input_layer.dtype)
             x = tf.matmul(input_layer, kernel)
             x = self._bias(x)
             x = self.activate(x, activation)
@@ -280,9 +307,10 @@ class GPUNetworkBuilder(object):
             return x
     def dropout(self, input_layer, keep_prob=0.5):
         """Applies a dropout layer"""
+        dtype = input_layer.dtype
         with tf.variable_scope(self._count_layer('dropout')):
-            keep_prob_tensor = tf.constant(keep_prob, dtype=tf.float32)
-            one_tensor       = tf.constant(1.0,       dtype=tf.float32)
+            keep_prob_tensor = tf.constant(keep_prob, dtype=dtype)
+            one_tensor       = tf.constant(1.0,       dtype=dtype)
             keep_prob_op = tf.cond(self.is_training,
                                    lambda: keep_prob_tensor,
                                    lambda: one_tensor)
@@ -320,8 +348,8 @@ def random_crop_and_resize_image(image, bbox, height, width):
                 tf.shape(image),
                 bounding_boxes=bbox,
                 min_object_covered=0.1,
-                aspect_ratio_range=[0.75, 1.33],
-                area_range=[0.05, 1.0],
+                aspect_ratio_range=[0.8, 1.25],
+                area_range=[0.1, 1.0],
                 max_attempts=100,
                 use_image_if_no_bounding_boxes=True)
             # Crop the image to the distorted bounding box
@@ -527,14 +555,24 @@ class FeedForwardTrainer(object):
                 gpucopy_op, (images, labels) = stage([images, labels])
                 gpucopy_ops.append(gpucopy_op)
                 # Evaluate the loss and compute the gradients
-                with tf.variable_scope('GPU_%i' % device_num) as var_scope, \
+                with tf.variable_scope(
+                        'GPU_%i' % device_num,
+                        # Force all variables to be stored as float32
+                        custom_getter=float32_variable_storage_getter) \
+                        as var_scope, \
                      tf.name_scope('tower_%i' % device_num):
                     loss, logits = self.loss_func(images, labels, var_scope)
                     tower_losses.append(loss)
                     params = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES,
                                                scope=var_scope.name)
                     self.tower_params.append(params)
-                    grads  = tf.gradients(loss, params)
+                    # Apply loss scaling to improve numerical stability
+                    if FLAGS.loss_scale != 1:
+                        scale = FLAGS.loss_scale
+                        grads  = [grad*(1./scale)
+                                  for grad in tf.gradients(loss*scale, params)]
+                    else:
+                        grads = tf.gradients(loss, params)
                     gradvars = zip(grads, params)
                     tower_gradvars.append(gradvars)
                     with tf.device('/cpu:0'): # No in_top_k implem on GPU
@@ -643,6 +681,7 @@ class FeedForwardEvaluator(object):
 
 def inference_trivial(net, input_layer):
     """A trivial model for benchmarking input pipeline performance"""
+    net.use_batch_norm = False
     x = net.input_layer(input_layer)
     x = net.flatten(x)
     x = net.fully_connected(x, 1)
@@ -650,6 +689,7 @@ def inference_trivial(net, input_layer):
 
 def inference_lenet5(net, input_layer):
     """Tiny network matching TF's MNIST tutorial model"""
+    net.use_batch_norm = False
     x = net.input_layer(input_layer)
     x = net.conv(x, 32,    (5,5))
     x = net.pool(x, 'MAX', (2,2))
@@ -1069,6 +1109,9 @@ def main():
     add_bool_argument(cmdline, '--eval',
                       help="""Evaluate the top-1 and top-5 accuracy of
                       a checkpointed model.""")
+    add_bool_argument(cmdline, '--fp16',
+                      help="""Train using float16 (half) precision instead
+                      of float32.""")
     global FLAGS
     FLAGS, unknown_args = cmdline.parse_known_args()
     if len(unknown_args) > 0:
@@ -1089,22 +1132,11 @@ def main():
 
     tfversion = tensorflow_version_tuple()
     print "TensorFlow:  %i.%i.%s" % tfversion
-    print "This script: v%s" % __version__
+    print "This script:", __file__, "v%s" % __version__
     print "Cmd line args:"
     print '\n'.join(['  '+arg for arg in sys.argv[1:]])
 
-    print "Model:      ", FLAGS.model
-    print "Batch size: ", total_batch_size, 'global'
-    print "            ", total_batch_size/len(devices), 'per device'
-    print "Devices:    ", devices
-    print "Data format:", 'NCHW'
-    print "Data type:  ", 'fp32'
-    print "Have NCCL:  ", have_nccl
-    print "Using NCCL: ", FLAGS.nccl
-    print "Using XLA:  ", FLAGS.xla
-
     nrecord = get_num_records(os.path.join(FLAGS.data_dir, '%s-*' % subset))
-    print "Num images: ", nrecord
 
     # Training hyperparameters
     FLAGS.learning_rate         = 0.001 # Model-specific values are set below
@@ -1119,6 +1151,22 @@ def main():
     FLAGS.nstep_burnin          = 20
     FLAGS.summary_interval_secs = 600
     FLAGS.save_interval_secs    = 600
+    # Scaling to avoid fp16 underflow
+    #*FLAGS.loss_scale            = (1 << 7) if FLAGS.fp16 else 1
+    FLAGS.loss_scale            = 1 # TODO: May need to decide this based on model
+
+    model_dtype = tf.float16 if FLAGS.fp16 else tf.float32
+
+    print "Num images: ", nrecord
+    print "Model:      ", FLAGS.model
+    print "Batch size: ", total_batch_size, 'global'
+    print "            ", total_batch_size/len(devices), 'per device'
+    print "Devices:    ", devices
+    print "Data format:", 'NCHW'
+    print "Data type:  ", 'fp16' if model_dtype == tf.float16 else 'fp32'
+    print "Have NCCL:  ", have_nccl
+    print "Using NCCL: ", FLAGS.nccl
+    print "Using XLA:  ", FLAGS.xla
 
     if FLAGS.num_epochs is not None:
         nstep = nrecord * FLAGS.num_epochs // total_batch_size
@@ -1126,7 +1174,6 @@ def main():
         nstep = FLAGS.num_batches
         FLAGS.num_epochs = max(nstep * total_batch_size // nrecord, 1)
 
-    tf.set_random_seed(1234)
     is_training = tf.placeholder(tf.bool, name='is_training')
 
     model_name = FLAGS.model
@@ -1172,25 +1219,33 @@ def main():
     preprocessor = ImagePreprocessor(height, width, subset)
 
     def loss_func(images, labels, var_scope):
-        net = GPUNetworkBuilder(is_training, use_xla=FLAGS.xla)
+        # Build the forward model
+        net = GPUNetworkBuilder(
+            is_training, dtype=model_dtype, use_xla=FLAGS.xla)
         output = model_func(net, images)
+        # Add final FC layer to produce nclass outputs
         logits = net.fully_connected(output, nclass, activation='LINEAR')
-        logits = tf.cast(logits, tf.float32)
-        loss = tf.losses.sparse_softmax_cross_entropy(logits=logits,
-                                                      labels=labels)
+        if logits.dtype != tf.float32:
+            logits = tf.cast(logits, tf.float32)
+        loss = tf.losses.sparse_softmax_cross_entropy(
+            logits=logits, labels=labels)
+        # Add weight decay
         if FLAGS.weight_decay is not None and FLAGS.weight_decay != 0.:
             params = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES,
                                        scope=var_scope.name)
             with net.jit_scope():
                 l2_loss = tf.add_n([tf.nn.l2_loss(w) for w in params])
-                l2_loss = tf.cast(l2_loss, tf.float32)
+                if l2_loss.dtype != tf.float32:
+                    l2_loss = tf.cast(l2_loss, tf.float32)
                 loss += FLAGS.weight_decay * l2_loss
         return loss, logits
     def eval_func(images, labels, var_scope):
-        net = GPUNetworkBuilder(is_training, use_xla=FLAGS.xla)
+        net = GPUNetworkBuilder(
+            is_training, dtype=model_dtype, use_xla=FLAGS.xla)
         output = model_func(net, images)
         logits = net.fully_connected(output, nclass, activation='LINEAR')
-        logits = tf.cast(logits, tf.float32)
+        if logits.dtype != tf.float32:
+            logits = tf.cast(logits, tf.float32)
         with tf.device('/cpu:0'):
             top1 = tf.reduce_mean(
                 tf.cast(tf.nn.in_top_k(logits, labels, 1), tf.float32))
