@@ -779,30 +779,35 @@ class Conv2DSlowBackpropFilterOp : public OpKernel {
       CHECK(stream->parent()->GetConvolveBackwardFilterAlgorithms(&algorithms));
       ProfileResult best_result;
       ProfileResult best_result_no_scratch;
-      for (auto profile_algorithm : algorithms) {
-        // TODO(zhengxq): profile each algorithm multiple times to better
-        // accuracy.
-        CudnnScratchAllocator scratch_allocator(
-            ConvolveBackwardFilterScratchSize, context);
-        ProfileResult profile_result;
-        bool cudnn_launch_status =
-            stream
-                ->ThenConvolveBackwardFilterWithAlgorithm(
-                    input_desc, input_ptr, output_desc, out_backprop_ptr,
-                    conv_desc, filter_desc, &filter_backprop_ptr,
-                    &scratch_allocator, AlgorithmConfig(profile_algorithm),
-                    &profile_result)
-                .ok();
-        if (cudnn_launch_status) {
-          if (profile_result.is_valid()) {
-            if (profile_result.elapsed_time_in_ms() <
-                best_result.elapsed_time_in_ms()) {
-              best_result = profile_result;
-            }
-            if (scratch_allocator.TotalByteSize() == 0 &&
-                profile_result.elapsed_time_in_ms() <
-                    best_result_no_scratch.elapsed_time_in_ms()) {
-              best_result_no_scratch = profile_result;
+      // TODO(benbarsdell): Ideally this should not attempt using tensor op math
+      //                      if it's not enabled.
+      for (int use_tensor_op_math = 0; use_tensor_op_math < 2; ++use_tensor_op_math ) {
+        for (auto profile_algorithm : algorithms) {
+          // TODO(zhengxq): profile each algorithm multiple times to better
+          // accuracy.
+          CudnnScratchAllocator scratch_allocator(
+              ConvolveBackwardFilterScratchSize, context);
+          ProfileResult profile_result;
+          bool cudnn_launch_status =
+              stream
+                  ->ThenConvolveBackwardFilterWithAlgorithm(
+                      input_desc, input_ptr, output_desc, out_backprop_ptr,
+                      conv_desc, filter_desc, &filter_backprop_ptr,
+                      &scratch_allocator,
+                      AlgorithmConfig(profile_algorithm, bool(use_tensor_op_math)),
+                      &profile_result)
+                  .ok();
+          if (cudnn_launch_status) {
+            if (profile_result.is_valid()) {
+              if (profile_result.elapsed_time_in_ms() <
+                  best_result.elapsed_time_in_ms()) {
+                best_result = profile_result;
+              }
+              if (scratch_allocator.TotalByteSize() == 0 &&
+                  profile_result.elapsed_time_in_ms() <
+                      best_result_no_scratch.elapsed_time_in_ms()) {
+                best_result_no_scratch = profile_result;
+              }
             }
           }
         }
@@ -816,8 +821,11 @@ class Conv2DSlowBackpropFilterOp : public OpKernel {
                       best_result_no_scratch.algorithm() != kDefaultAlgorithm,
                   errors::NotFound("No algorithm without scratch worked!"));
       algorithm_config.set_algorithm(best_result.algorithm());
+      algorithm_config.set_use_tensor_op_math(best_result.use_tensor_op_math());
       algorithm_config.set_algorithm_no_scratch(
           best_result_no_scratch.algorithm());
+      algorithm_config.set_use_tensor_op_math_no_scratch(
+          best_result_no_scratch.use_tensor_op_math());
       AutoTuneConvBwdFilter::GetInstance()->Insert(conv_parameters,
                                                    algorithm_config);
     }

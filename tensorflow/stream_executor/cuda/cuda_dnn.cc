@@ -240,6 +240,18 @@ CUDNN_DNN_ROUTINE_EACH_R5(PERFTOOLS_GPUTOOLS_CUDNN_WRAP)
 #undef CUDNN_DNN_ROUTINE_EACH_R5
 #endif
 
+// APIs in R7
+// clang-format off
+#if CUDNN_VERSION >= 7000
+#define CUDNN_DNN_ROUTINE_EACH_R7(__macro)                    \
+  __macro(cudnnSetConvolutionMathType)
+
+// clang-format on
+
+CUDNN_DNN_ROUTINE_EACH_R7(PERFTOOLS_GPUTOOLS_CUDNN_WRAP)
+#undef CUDNN_DNN_ROUTINE_EACH_R7
+#endif
+
 #undef CUDNN_DNN_ROUTINE_EACH
 
 }  // namespace wrap
@@ -513,6 +525,29 @@ class ScopedFilterDescriptor {
   SE_DISALLOW_COPY_AND_ASSIGN(ScopedFilterDescriptor);
 };
 
+// A helper class to decide whether to enable the TENSOR_OP_MATH math type
+template <bool DefaultFlag>
+class TensorOpMath {
+ public:
+  static bool IsEnabled() {
+    static bool is_enabled = IsEnabledImpl();
+    return is_enabled;
+  }
+
+ private:
+  static bool IsEnabledImpl() {
+    const char* tf_env_var_val = getenv("TF_ENABLE_TENSOR_OP_MATH");
+    if (tf_env_var_val != nullptr) {
+      port::StringPiece tf_env_var_val_str(tf_env_var_val);
+      if (tf_env_var_val_str == "0") {
+        return false;
+      }
+      return true;
+    }
+    return DefaultFlag;
+  }
+};
+
 // Turns a ConvolutionDescriptor structure into a cudnn convolution handle
 // within a scope.
 class ScopedConvolutionDescriptor {
@@ -555,6 +590,27 @@ class ScopedConvolutionDescriptor {
       LOG(FATAL) << "could not set cudnn convolution descriptor: "
                  << ToString(status);
     }
+    // NOTE(benbarsdell): This only applies if tensor op math is enabled
+    //                      and algo selection is set to kDefaultAlgorithm.
+    this->set_use_tensor_op_math(true);
+  }
+
+  void set_use_tensor_op_math(bool use_tensor_op_math) {
+#if CUDNN_VERSION >= 7000
+    cudnnMathType_t math_type =
+        (use_tensor_op_math ?
+         CUDNN_TENSOR_OP_MATH :
+         CUDNN_DEFAULT_MATH);
+    if (TensorOpMath<true>::IsEnabled()) {
+      cudnnStatus_t status =
+          wrap::cudnnSetConvolutionMathType(
+              parent_, handle_, math_type);
+      if (status != CUDNN_STATUS_SUCCESS) {
+        LOG(FATAL) << "could not set cudnn convolution math type: "
+                   << ToString(status);
+      }
+    }
+#endif
   }
 
   ~ScopedConvolutionDescriptor() {
@@ -1890,6 +1946,7 @@ bool CudnnSupport::DoConvolveImpl(
   } else {
     // An algorithm has been specified.
     algo = ToConvForwardAlgo(algorithm_config.algorithm());
+    conv.set_use_tensor_op_math(algorithm_config.use_tensor_op_math());
 
     size_t size_in_bytes;
     status = wrap::cudnnGetConvolutionForwardWorkspaceSize(
@@ -1924,6 +1981,8 @@ bool CudnnSupport::DoConvolveImpl(
             << "The primary convolution algorithm failed memory allocation, "
                "while a secondary algorithm is not provided.";
         algo = ToConvForwardAlgo(algorithm_config.algorithm_no_scratch());
+        conv.set_use_tensor_op_math(
+            algorithm_config.use_tensor_op_math_no_scratch());
       }
     }
   }
@@ -1958,6 +2017,8 @@ bool CudnnSupport::DoConvolveImpl(
     if (status == CUDNN_STATUS_SUCCESS) {
       output_profile_result->set_is_valid(true);
       output_profile_result->set_algorithm(algo);
+      output_profile_result->set_use_tensor_op_math(
+          algorithm_config.use_tensor_op_math());
       output_profile_result->set_elapsed_time_in_ms(
           timer->GetElapsedMilliseconds());
     }
@@ -2455,6 +2516,7 @@ bool CudnnSupport::DoConvolveBackwardDataImpl(
   } else {
     // An algorithm has been specified.
     algo = ToConvBackwardDataAlgo(algorithm_config.algorithm());
+    conv.set_use_tensor_op_math(algorithm_config.use_tensor_op_math());
     size_t size_in_bytes;
     status = wrap::cudnnGetConvolutionBackwardDataWorkspaceSize(
         parent_, ToHandle(dnn_handle_),
@@ -2491,6 +2553,8 @@ bool CudnnSupport::DoConvolveBackwardDataImpl(
             << "The primary convolution algorithm failed memory allocation, "
                "while a secondary algorithm is not provided.";
         algo = ToConvBackwardDataAlgo(algorithm_config.algorithm_no_scratch());
+        conv.set_use_tensor_op_math(
+            algorithm_config.use_tensor_op_math_no_scratch());
       }
     }
   }
@@ -2528,6 +2592,8 @@ bool CudnnSupport::DoConvolveBackwardDataImpl(
     if (status == CUDNN_STATUS_SUCCESS) {
       output_profile_result->set_is_valid(true);
       output_profile_result->set_algorithm(algo);
+      output_profile_result->set_use_tensor_op_math(
+          algorithm_config.use_tensor_op_math());
       output_profile_result->set_elapsed_time_in_ms(
           timer->GetElapsedMilliseconds());
     }
@@ -2692,6 +2758,7 @@ bool CudnnSupport::DoConvolveBackwardFilterImpl(
   } else {
     // An algorithm has been specified.
     algo = ToConvBackwardFilterAlgo(algorithm_config.algorithm());
+    conv.set_use_tensor_op_math(algorithm_config.use_tensor_op_math());
 
     size_t size_in_bytes;
     status = wrap::cudnnGetConvolutionBackwardFilterWorkspaceSize(
@@ -2727,6 +2794,8 @@ bool CudnnSupport::DoConvolveBackwardFilterImpl(
                "while a secondary algorithm is not provided.";
         algo =
             ToConvBackwardFilterAlgo(algorithm_config.algorithm_no_scratch());
+        conv.set_use_tensor_op_math(
+            algorithm_config.use_tensor_op_math_no_scratch());
       }
     }
   }
@@ -2763,6 +2832,8 @@ bool CudnnSupport::DoConvolveBackwardFilterImpl(
     if (status == CUDNN_STATUS_SUCCESS) {
       output_profile_result->set_is_valid(true);
       output_profile_result->set_algorithm(algo);
+      output_profile_result->set_use_tensor_op_math(
+          algorithm_config.use_tensor_op_math());
       output_profile_result->set_elapsed_time_in_ms(
           timer->GetElapsedMilliseconds());
     }

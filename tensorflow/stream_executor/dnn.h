@@ -672,12 +672,15 @@ class ProfileResult {
   void set_is_valid(bool val) { is_valid_ = val; }
   AlgorithmType algorithm() const { return algorithm_; }
   void set_algorithm(AlgorithmType val) { algorithm_ = val; }
+  bool use_tensor_op_math() const { return use_tensor_op_math_; }
+  void set_use_tensor_op_math(bool val) { use_tensor_op_math_ = val; }
   float elapsed_time_in_ms() const { return elapsed_time_in_ms_; }
   void set_elapsed_time_in_ms(float val) { elapsed_time_in_ms_ = val; }
 
  private:
   bool is_valid_ = false;
   AlgorithmType algorithm_ = kDefaultAlgorithm;
+  bool use_tensor_op_math_ = false;
   float elapsed_time_in_ms_ = std::numeric_limits<float>::max();
 };
 
@@ -691,20 +694,35 @@ class AlgorithmConfig {
  public:
   AlgorithmConfig()
       : algorithm_(kDefaultAlgorithm),
-        algorithm_no_scratch_(kDefaultAlgorithm) {}
-  explicit AlgorithmConfig(AlgorithmType algorithm)
-      : algorithm_(algorithm), algorithm_no_scratch_(kDefaultAlgorithm) {}
-  AlgorithmConfig(AlgorithmType algorithm, AlgorithmType algorithm_no_scratch)
-      : algorithm_(algorithm), algorithm_no_scratch_(algorithm_no_scratch) {}
+        use_tensor_op_math_(false),
+        algorithm_no_scratch_(kDefaultAlgorithm),
+        use_tensor_op_math_no_scratch_(false) {}
+  explicit AlgorithmConfig(AlgorithmType algorithm, bool use_tensor_op_math=false)
+      : algorithm_(algorithm), use_tensor_op_math_(use_tensor_op_math),
+        algorithm_no_scratch_(kDefaultAlgorithm), use_tensor_op_math_no_scratch_(false) {}
+  AlgorithmConfig(AlgorithmType algorithm, AlgorithmType algorithm_no_scratch,
+                 bool use_tensor_op_math=false, bool use_tensor_op_math_no_scratch=false)
+      : algorithm_(algorithm), use_tensor_op_math_(use_tensor_op_math),
+        algorithm_no_scratch_(algorithm_no_scratch),
+        use_tensor_op_math_no_scratch_(use_tensor_op_math_no_scratch) {}
   AlgorithmType algorithm() const { return algorithm_; }
   void set_algorithm(AlgorithmType val) { algorithm_ = val; }
   AlgorithmType algorithm_no_scratch() const { return algorithm_no_scratch_; }
   void set_algorithm_no_scratch(AlgorithmType val) {
     algorithm_no_scratch_ = val;
   }
+  bool use_tensor_op_math() const { return use_tensor_op_math_; }
+  void set_use_tensor_op_math(bool val) { use_tensor_op_math_ = val; }
+  bool use_tensor_op_math_no_scratch() const { return use_tensor_op_math_no_scratch_; }
+  void set_use_tensor_op_math_no_scratch(bool val) {
+    use_tensor_op_math_no_scratch_ = val;
+  }
   bool operator==(const AlgorithmConfig& other) const {
     return this->algorithm_ == other.algorithm_ &&
-           this->algorithm_no_scratch_ == other.algorithm_no_scratch_;
+           this->algorithm_no_scratch_ == other.algorithm_no_scratch_ &&
+           this->use_tensor_op_math_ == other.use_tensor_op_math_ &&
+           this->use_tensor_op_math_no_scratch_ ==
+             other.use_tensor_op_math_no_scratch_;
   }
   bool operator!=(const AlgorithmConfig& other) const {
     return !(*this == other);
@@ -713,7 +731,9 @@ class AlgorithmConfig {
 
  private:
   AlgorithmType algorithm_;
+  bool          use_tensor_op_math_;
   AlgorithmType algorithm_no_scratch_;
+  bool          use_tensor_op_math_no_scratch_;
 };
 
 // Describes a local response normalization (LRN). LRN is used e.g. in
