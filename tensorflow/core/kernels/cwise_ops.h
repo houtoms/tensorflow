@@ -103,7 +103,7 @@ struct scalar_left : private Binary {
   typedef Tout result_type;
   const Tin* left;
 
-  EIGEN_DEVICE_FUNC inline scalar_left(const scalar_left& other) = default;
+  inline scalar_left(const scalar_left& other) = default;
 
   template <typename... Args>
   EIGEN_DEVICE_FUNC inline explicit scalar_left(const Tin* c, Args... args)
@@ -133,7 +133,7 @@ struct scalar_right : private Binary {
   typedef Tout result_type;
   const Tin* right;
 
-  EIGEN_DEVICE_FUNC inline scalar_right(const scalar_right& other) = default;
+  inline scalar_right(const scalar_right& other) = default;
 
   template <typename... Args>
   EIGEN_DEVICE_FUNC inline explicit scalar_right(const Tin* c, Args... args)
