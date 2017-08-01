@@ -27,6 +27,8 @@ RUN patch -p1 < /tmp/my-tensorflow-modifications.patch
 
 # Rebuild TensorFlow
 RUN yes "" | ./configure && \
+    bazel fetch "//tensorflow/... -//tensorflow/contrib/nccl/... -//tensorflow/examples/android/..." && \
+    bash third_party/patch_eigen_for_cuda9.sh && \
     bazel build -c opt --config=cuda tensorflow/tools/pip_package:build_pip_package && \
     bazel-bin/tensorflow/tools/pip_package/build_pip_package /tmp/pip && \
     pip install --upgrade /tmp/pip/tensorflow-*.whl && \
