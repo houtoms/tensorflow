@@ -485,23 +485,39 @@ def all_sync_params(tower_params, devices):
 def all_avg_gradients(tower_gradvars, devices, param_server_device='/gpu:0'):
     if len(devices) == 1:
         return tower_gradvars
-    num_devices = len(tower_gradvars)
-    avg_gradvars = []
-    for layer in zip(*tower_gradvars):
-        grads_on_devices, vars_on_devices = zip(*layer)
-        if have_nccl and FLAGS.nccl:
-            # Note: These nccl ops _must_ be run on all devices, else deadlock
-            avg_grads_on_devices = nccl.all_sum(grads_on_devices)
-            for d, device in enumerate(devices):
-                with tf.device(device):
-                    avg_grads_on_devices[d] *= 1. / num_devices
-        else:
+
+    if have_nccl and FLAGS.nccl:
+        new_tower_grads = []
+        contig_list = []
+        for d, grad_list in zip(devices, tower_gradvars):
+            with tf.device(d):
+                flat_grads = [tf.reshape(g, [-1]) for (g, _) in grad_list]
+                contig_grads = tf.concat(flat_grads, 0)
+                contig_list.append(contig_grads)
+  
+        summed_grads = nccl.all_sum(contig_list)
+        for d, s, grad_list in zip(devices, summed_grads, tower_gradvars):
+            with tf.device(d):
+                new_grad_list = [];
+                sizes = [tf.size(g) for (g, _) in grad_list]
+                flat_grads = tf.split(s, sizes)
+                for newg, (oldg, v) in zip(flat_grads, grad_list):
+                    newg = tf.reshape(newg, tf.shape(oldg))
+                    newg *= 1. / len(devices)
+                    new_grad_list.append((newg, v))
+                new_tower_grads.append(new_grad_list)
+        return new_tower_grads
+    else:
+        num_devices = len(tower_gradvars)
+        avg_gradvars = []
+        for layer in zip(*tower_gradvars):
+            grads_on_devices, vars_on_devices = zip(*layer)
             with tf.device(param_server_device):
                 avg_grad = tf.reduce_mean(tf.stack(grads_on_devices), 0)
             avg_grads_on_devices = [avg_grad]*num_devices
-        avg_gradvars_on_devices = zip(*(avg_grads_on_devices, vars_on_devices))
-        avg_gradvars.append(avg_gradvars_on_devices)
-    return list(zip(*avg_gradvars))
+            avg_gradvars_on_devices = zip(*(avg_grads_on_devices, vars_on_devices))
+            avg_gradvars.append(avg_gradvars_on_devices)
+        return list(zip(*avg_gradvars))
 
 class FeedForwardTrainer(object):
     def __init__(self, preprocessor, loss_func, nstep_per_epoch=None):
