@@ -84,18 +84,18 @@ class GPUNetworkBuilder(object):
     networks with internal data layout of 'NCHW'.
     """
     def __init__(self,
-                 is_training_placeholder,
+                 is_training,
                  dtype=tf.float32,
                  activation='RELU',
                  use_batch_norm=True,
                  batch_norm_config = {'decay':   0.9,
                                       'epsilon': 1e-4,
                                       'scale':   True,
-                                      'zero_debias_moving_mean': True},
+                                      'zero_debias_moving_mean': False},
                  use_xla=False):
         self.dtype             = dtype
         self.activation_func   = activation
-        self.is_training       = is_training_placeholder
+        self.is_training       = is_training
         self.use_batch_norm    = use_batch_norm
         self.batch_norm_config = batch_norm_config
         self._layer_counts     = defaultdict(lambda: 0)
@@ -1020,8 +1020,7 @@ def run_evaluation(nstep, sess, top1_op, top5_op, enqueue_ops):
     print "  Step  Top-1  Top-5"
     for step in xrange(nstep):
         try:
-            top1, top5 = sess.run([top1_op, top5_op, enqueue_ops],
-                                  feed_dict={'is_training:0': False})[:2]
+            top1, top5 = sess.run([top1_op, top5_op, enqueue_ops])[:2]
             if step == 0 or (step+1) % FLAGS.display_every == 0:
                 print "% 6i %5.1f%% %5.1f%%" % (step+1, top1*100, top5*100)
             top1s.append(top1)
@@ -1121,7 +1120,7 @@ def main():
 
     FLAGS.strong_scaling = False
     FLAGS.nccl           = True
-    FLAGS.xla            = True
+    FLAGS.xla            = False
 
     nclass = 1000
     total_batch_size = FLAGS.batch_size
@@ -1174,8 +1173,6 @@ def main():
         nstep = FLAGS.num_batches
         FLAGS.num_epochs = max(nstep * total_batch_size // nrecord, 1)
 
-    is_training = tf.placeholder(tf.bool, name='is_training')
-
     model_name = FLAGS.model
     if   model_name == 'trivial':
         height, width = 224, 224
@@ -1221,7 +1218,7 @@ def main():
     def loss_func(images, labels, var_scope):
         # Build the forward model
         net = GPUNetworkBuilder(
-            is_training, dtype=model_dtype, use_xla=FLAGS.xla)
+            True, dtype=model_dtype, use_xla=FLAGS.xla)
         output = model_func(net, images)
         # Add final FC layer to produce nclass outputs
         logits = net.fully_connected(output, nclass, activation='LINEAR')
@@ -1241,7 +1238,7 @@ def main():
         return loss, logits
     def eval_func(images, labels, var_scope):
         net = GPUNetworkBuilder(
-            is_training, dtype=model_dtype, use_xla=FLAGS.xla)
+            False, dtype=model_dtype, use_xla=FLAGS.xla)
         output = model_func(net, images)
         logits = net.fully_connected(output, nclass, activation='LINEAR')
         if logits.dtype != tf.float32:
@@ -1329,12 +1326,10 @@ def main():
                 if step != 0:
                     last_summary_time += FLAGS.summary_interval_secs
                 print "Writing summaries to ", log_dir
-                summary, loss, lr = sess.run([summary_ops] + ops_to_run,
-                                             feed_dict={is_training: True})[:3]
+                summary, loss, lr = sess.run([summary_ops] + ops_to_run)[:3]
                 train_writer.add_summary(summary, step)
             else:
-                loss, lr = sess.run(ops_to_run,
-                                    feed_dict={is_training: True})[:2]
+                loss, lr = sess.run(ops_to_run)[:2]
             elapsed = time.time() - start_time
         except KeyboardInterrupt:
             print "Keyboard interrupt"
