@@ -380,6 +380,13 @@ def distort_image_color(image, order):
         image *= 255
         return image
 
+class DummyPreprocessor(object):
+    def __init__(self, height, width, batch, nclass):
+        self.height = height
+        self.width  = width
+        self.batch = batch
+        self.nclass = nclass
+
 class ImagePreprocessor(object):
     def __init__(self, height, width, subset='train', dtype=tf.uint8):
         self.height = height
@@ -556,20 +563,39 @@ class FeedForwardTrainer(object):
         tower_gradvars = []
         tower_top1s    = []
         tower_top5s    = []
-        with tf.device('/cpu:0'):
-            dev_images, dev_labels = self.image_preprocessor.device_minibatches(
-                total_batch_size)
+        if type(self.image_preprocessor) is not DummyPreprocessor:
+            with tf.device('/cpu:0'):
+                dev_images, dev_labels = self.image_preprocessor.device_minibatches(
+                    total_batch_size)
         # Each device has its own copy of the model, referred to as a tower
         for device_num, device in enumerate(devices):
-            images, labels = dev_images[device_num], dev_labels[device_num]
-            with tf.device('/cpu:0'):
-                # Stage images on the host
-                preload_op, (images, labels) = stage([images, labels])
-                preload_ops.append(preload_op)
+            if type(self.image_preprocessor) is not DummyPreprocessor:
+                images, labels = dev_images[device_num], dev_labels[device_num]
+                with tf.device('/cpu:0'):
+                    # Stage images on the host
+                    preload_op, (images, labels) = stage([images, labels])
+                    preload_ops.append(preload_op)
             with tf.device(device):
-                # Copy images from host to device
-                gpucopy_op, (images, labels) = stage([images, labels])
-                gpucopy_ops.append(gpucopy_op)
+                if type(self.image_preprocessor) is not DummyPreprocessor:
+                    # Copy images from host to device
+                    gpucopy_op, (images, labels) = stage([images, labels])
+                    gpucopy_ops.append(gpucopy_op)
+                else:
+                    input_shape = [self.image_preprocessor.batch, 
+                                   self.image_preprocessor.height,
+                                   self.image_preprocessor.width,
+                                   3]
+                    images = tf.truncated_normal(
+                        input_shape,
+                        dtype=tf.float32,
+                        stddev=1.e-1,
+                        name='synthetic_images')
+                    labels = tf.random_uniform(
+                        [self.image_preprocessor.batch],
+                        minval=0,
+                        maxval=self.image_preprocessor.nclass-1,
+                        dtype=tf.int32,
+                        name='synthetic_labels')
                 # Evaluate the loss and compute the gradients
                 with tf.variable_scope(
                         'GPU_%i' % device_num,
@@ -1102,7 +1128,7 @@ def main():
                          alexnet, googlenet, vgg[11,13,16,19],
                          inception[3,4], resnet[18,34,50,101,152],
                          inception-resnet2.""")
-    cmdline.add_argument('--data_dir', required=True,
+    cmdline.add_argument('--data_dir', default=None,
                          help="""Path to dataset in TFRecord format
                          (aka Example protobufs). Files should be
                          named 'train-*' and 'validation-*'.""")
@@ -1151,7 +1177,10 @@ def main():
     print "Cmd line args:"
     print '\n'.join(['  '+arg for arg in sys.argv[1:]])
 
-    nrecord = get_num_records(os.path.join(FLAGS.data_dir, '%s-*' % subset))
+    if FLAGS.data_dir is not None:
+        nrecord = get_num_records(os.path.join(FLAGS.data_dir, '%s-*' % subset))
+    else:
+        nrecord = FLAGS.num_batches * total_batch_size
 
     # Training hyperparameters
     FLAGS.learning_rate         = 0.001 # Model-specific values are set below
@@ -1172,7 +1201,7 @@ def main():
 
     model_dtype = tf.float16 if FLAGS.fp16 else tf.float32
 
-    print "Num images: ", nrecord
+    print "Num images: ", nrecord if FLAGS.data_dir is not None else 'Synthetic'
     print "Model:      ", FLAGS.model
     print "Batch size: ", total_batch_size, 'global'
     print "            ", total_batch_size/len(devices), 'per device'
@@ -1184,6 +1213,8 @@ def main():
     print "Using XLA:  ", FLAGS.xla
 
     if FLAGS.num_epochs is not None:
+        if FLAGS.data_dir is None:
+            raise ValueError("num_epochs requires data_dir to be specified")
         nstep = nrecord * FLAGS.num_epochs // total_batch_size
     else:
         nstep = FLAGS.num_batches
@@ -1229,7 +1260,10 @@ def main():
     else:
         raise ValueError("Invalid model type: %s" % model)
 
-    preprocessor = ImagePreprocessor(height, width, subset)
+    if FLAGS.data_dir is None:
+        preprocessor = DummyPreprocessor(height, width, total_batch_size//len(devices), nclass)
+    else:
+        preprocessor = ImagePreprocessor(height, width, subset)
 
     def loss_func(images, labels, var_scope):
         # Build the forward model
@@ -1267,6 +1301,10 @@ def main():
         return top1, top5
 
     if FLAGS.eval:
+        if FLAGS.data_dir is None:
+            raise ValueError("eval requires data_dir to be specified")
+        if FLAGS.fp16:
+            raise ValueError("eval cannot be run with in fp16")
         evaluator = FeedForwardEvaluator(preprocessor, eval_func)
         print "Building evaluation graph"
         top1_op, top5_op, enqueue_ops = evaluator.evaluation_step(
