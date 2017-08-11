@@ -447,6 +447,29 @@ class TensorOpMath {
     return DefaultFlag;
   }
 };
+// A helper class to decide whether to enable the TENSOR_OP_MATH math type for
+// fp32 input/output.
+template <bool DefaultFlag>
+class TensorOpMathFp32 {
+ public:
+  static bool IsEnabled() {
+    static bool is_enabled = IsEnabledImpl();
+    return is_enabled;
+  }
+
+ private:
+  static bool IsEnabledImpl() {
+    const char* tf_env_var_val = getenv("TF_ENABLE_TENSOR_OP_MATH_FP32");
+    if (tf_env_var_val != nullptr) {
+      port::StringPiece tf_env_var_val_str(tf_env_var_val);
+      if (tf_env_var_val_str == "0") {
+        return false;
+      }
+      return true;
+    }
+    return DefaultFlag;
+  }
+};
 #endif // CUDA_VERSION >= 9000
 
 bool CUDABlas::Init() {
@@ -1926,10 +1949,33 @@ bool CUDABlas::DoBlasGemm(Stream *stream, blas::Transpose transa,
                       "precondition violation";
     }
   }
+#if CUDA_VERSION >= 9000
+  int cc_major, cc_minor;
+  // GPUs < sm_50 don't support cublasGemmEx.
+  if (stream->parent()->GetDeviceDescription().cuda_compute_capability(
+          &cc_major, &cc_minor) &&
+      cc_major >= 5 &&
+      TensorOpMathFp32<false>::IsEnabled()) {
+
+    cublasGemmAlgo_t algo = (TensorOpMath<true>::IsEnabled() ?
+                             CUBLAS_GEMM_DFALT_TENSOR_OP :
+                             CUBLAS_GEMM_DFALT);
+    return DoBlasInternalTensorOpMath(
+        wrap::cublasGemmEx, stream, true /* = pointer_mode_host */,
+        CUDABlasTranspose(transa), CUDABlasTranspose(transb), m, n, k, &alpha,
+        CUDAMemory(a), CUDA_R_32F, lda, CUDAMemory(b), CUDA_R_32F,
+        ldb, &beta, CUDAMemoryMutable(c), CUDA_R_32F, ldc,
+        CUDA_R_32F /* = computeType*/, algo);
+
+  } else {
+#endif
   return DoBlasInternal(
       wrap::cublasSgemm, stream, true /* = pointer_mode_host */,
       CUDABlasTranspose(transa), CUDABlasTranspose(transb), m, n, k, &alpha,
       CUDAMemory(a), lda, CUDAMemory(b), ldb, &beta, CUDAMemoryMutable(c), ldc);
+#if CUDA_VERSION >= 9000
+  }
+#endif
 }
 
 bool CUDABlas::DoBlasGemm(Stream *stream, blas::Transpose transa,
