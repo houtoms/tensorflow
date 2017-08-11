@@ -614,6 +614,7 @@ cudaDataType_t CUDAComputationType(blas::ComputationType ty) {
 template <typename FuncT, typename... Args>
 bool CUDABlas::DoBlasInternalImpl(FuncT cublas_func, Stream *stream,
                                   bool pointer_mode_host, bool err_on_failure,
+                                  bool use_tensor_op_math,
                                   Args... args) {
   mutex_lock lock{mu_};
 
@@ -627,7 +628,14 @@ bool CUDABlas::DoBlasInternalImpl(FuncT cublas_func, Stream *stream,
                                            : CUBLAS_POINTER_MODE_DEVICE)) {
     return false;
   }
-
+#if CUDA_VERSION >= 9000
+  ScopedCublasMathMode math_mode{parent_, blas_};
+  use_tensor_op_math = use_tensor_op_math && TensorOpMath<true>::IsEnabled();
+  if (!math_mode.Init(use_tensor_op_math ? CUBLAS_TENSOR_OP_MATH
+                                         : CUBLAS_DEFAULT_MATH)) {
+    return false;
+  }
+#endif
   cublasStatus_t ret = cublas_func(parent_, blas_, args...);
   if (err_on_failure && ret != CUBLAS_STATUS_SUCCESS) {
     LOG(ERROR) << "failed to run cuBLAS routine " << cublas_func.kName << ": "
@@ -1852,15 +1860,10 @@ bool CUDABlas::DoBlasGemm(
           &cc_major, &cc_minor) &&
       cc_major >= 5) {
 
-    ScopedCublasMathMode math_mode{parent_, blas_};
-    if (TensorOpMath<true>::IsEnabled() &&
-        !math_mode.Init(CUBLAS_TENSOR_OP_MATH)) {
-      return false;
-    }
     cublasGemmAlgo_t algo = (TensorOpMath<true>::IsEnabled() ?
                              CUBLAS_GEMM_DFALT_TENSOR_OP :
                              CUBLAS_GEMM_DFALT);
-    return DoBlasInternal(
+    return DoBlasInternalTensorOpMath(
         wrap::cublasGemmEx, stream, true /* = pointer_mode_host */,
         CUDABlasTranspose(transa), CUDABlasTranspose(transb), m, n, k, &alpha,
         CUDAMemory(a), SE_CUDA_DATA_HALF, lda, CUDAMemory(b), SE_CUDA_DATA_HALF,

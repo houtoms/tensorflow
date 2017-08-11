@@ -32,7 +32,7 @@ from setuptools.dist import Distribution
 _VERSION = '1.2.1'
 
 REQUIRED_PACKAGES = [
-    'numpy >= 1.11.0',
+    'numpy == 1.11.0',
     'six >= 1.10.0',
     'protobuf >= 3.2.0',
     'werkzeug >= 0.11.10',
