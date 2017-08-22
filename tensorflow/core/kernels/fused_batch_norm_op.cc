@@ -149,7 +149,7 @@ struct FusedBatchNormGrad<CPUDevice, T, U> {
     typename TTypes<U>::Vec scale_backprop(scale_backprop_output->vec<U>());
     typename TTypes<U>::Vec offset_backprop(offset_backprop_output->vec<U>());
 
-    // Note: the following formulas are used to to compute the gradients for
+    // Note: the following formulas are used to compute the gradients for
     // back propagation.
     // x_backprop = scale * rsqrt(variance + epsilon) *
     //              [y_backprop - mean(y_backprop) - (x - mean(x)) *
