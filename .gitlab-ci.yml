@@ -325,10 +325,6 @@ L1_self_test--P100_R384_4GPU:
     <<: *L1_TEST
     <<: *P100_R384_4GPU
 
-L1_self_test_cpu--P100_R384_4GPU:
-    <<: *L1_TEST
-    <<: *P100_R384_4GPU
-
 L1_self_test_xla--P100_R384_4GPU:
     <<: *L1_TEST
     <<: *P100_R384_4GPU
