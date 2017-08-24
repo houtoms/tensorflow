@@ -306,15 +306,14 @@ class GPUNetworkBuilder(object):
                 x = self.activate(input_layer + output_layer, activation)
             return x
     def dropout(self, input_layer, keep_prob=0.5):
-        """Applies a dropout layer"""
-        dtype = input_layer.dtype
-        with tf.variable_scope(self._count_layer('dropout')):
-            keep_prob_tensor = tf.constant(keep_prob, dtype=dtype)
-            one_tensor       = tf.constant(1.0,       dtype=dtype)
-            keep_prob_op = tf.cond(self.is_training,
-                                   lambda: keep_prob_tensor,
-                                   lambda: one_tensor)
-            return tf.nn.dropout(input_layer, keep_prob_op)
+        """Applies a dropout layer if is_training"""
+        if self.is_training:
+            dtype = input_layer.dtype
+            with tf.variable_scope(self._count_layer('dropout')):
+                keep_prob_tensor = tf.constant(keep_prob, dtype=dtype)
+                return tf.nn.dropout(input_layer, keep_prob_tensor)
+        else:
+            return input_layer
 
 def deserialize_image_record(record):
     feature_map = {
@@ -739,6 +738,22 @@ def inference_lenet5(net, input_layer):
     x = net.pool(x, 'MAX', (2,2))
     x = net.flatten(x)
     x = net.fully_connected(x, 512)
+    return x
+
+def inference_overfeat(net, input_layer):
+    net.use_batch_norm = False
+    x = net.input_layer(input_layer)
+    x = net.conv(x, 96,   (11,11), (4,4), 'VALID')
+    x = net.pool(x, 'MAX', (2,2))
+    x = net.conv(x, 256,   (5,5), (1,1), 'VALID')
+    x = net.pool(x, 'MAX', (2,2))
+    x = net.conv(x, 512,   (3,3))
+    x = net.conv(x, 1024,  (3,3))
+    x = net.conv(x, 1024,  (3,3))
+    x = net.pool(x, 'MAX', (2,2))
+    x = net.flatten(x)
+    x = net.fully_connected(x, 3072)
+    x = net.fully_connected(x, 4096)
     return x
 
 def inference_alexnet_owt(net, input_layer):
@@ -1231,6 +1246,9 @@ def main():
         height, width = 227, 227
         model_func = inference_alexnet_owt
         FLAGS.learning_rate = 0.03
+    elif model_name == 'overfeat':
+        height, width = 231, 231
+        model_func = inference_overfeat
     elif model_name.startswith('vgg'):
         height, width = 224, 224
         nlayer = int(model_name[len('vgg'):])

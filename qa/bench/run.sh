@@ -5,13 +5,10 @@ function bench {
     BATCH=$2
     NGPU=$3
     ITER=$4
-    PS=$5
-    CONFIG=$6
-    NET_NAME=$7
+    CONFIG=$5
+    NET_NAME=$6
     NUM_PROC_PER_GPU=$(expr 40 / $NGPU)
-    echo Running $NET, batchsize $BATCH, $NGPU GPUs, $ITER iterations, parameter server on $PS
-    #python -u models/benchmark_tf_cnn.py --model $NET_NAME --batch_size $BATCH --num_preprocess_threads $NUM_PROC_PER_GPU \
-    #                            --num_gpus $NGPU --num_batches $ITER --parameter_server $PS $CONFIG
+    echo Running $NET, batchsize $BATCH, $NGPU GPUs, $ITER iterations
     python -u ../../nvidia-examples/cnn/nvcnn.py \
       --model=$NET_NAME \
       --batch_size=$BATCH \
@@ -28,67 +25,50 @@ function set_model_args {
 
     googlenet)
         BATCHES_PER_GPU=(32 64 )
-        PS=cpu
         NET_NAME=googlenet
         ;;
     vgg_11)
         BATCHES_PER_GPU=(32 64 )
-        PS=gpu
         NET_NAME=vgg11
         ;;
     vgg_16)
         BATCHES_PER_GPU=(32 64 )
-        PS=cpu
         NET_NAME=vgg16
         ;;
     vgg_19)
         BATCHES_PER_GPU=(32 64 )
-        PS=cpu
         NET_NAME=vgg19
         ;;
     overfeat)
         BATCHES_PER_GPU=(32 64 )
-        PS=gpu
         NET_NAME=overfeat
         ;;
     alexnet_owt)
         BATCHES_PER_GPU=(128)
-        PS=gpu
         NET_NAME=alexnet
        ;;
     inception_v3)
         BATCHES_PER_GPU=(32 64 )
-        PS=cpu
         NET_NAME=inception3
        ;;
     inception_v4)
-        BATCHES_PER_GPU=(32 62 )
-        PS=cpu
+        BATCHES_PER_GPU=(32 64 )
         NET_NAME=inception4
        ;;
     resnet_50)
         BATCHES_PER_GPU=(32 64 )
-        PS=cpu
         NET_NAME=resnet50
        ;;
     resnet_101)
         BATCHES_PER_GPU=(32 64 )
-        PS=cpu
         NET_NAME=resnet101
        ;;
     resnet_152)
-        BATCHES_PER_GPU=(32 54 )
-        PS=cpu
+        BATCHES_PER_GPU=(32 64 )
         NET_NAME=resnet152
        ;;
     inception-resnet_v2)
-        # GP100 could handle BS=64,
-        # So could GV100 with 384.47
-        # Max batch for GV100 on 384.53 is 63
-        # Set limit to 62 to provide some margin.
-        # See [B] 200325822
-        BATCHES_PER_GPU=(32 62 )
-        PS=cpu
+        BATCHES_PER_GPU=(32 64 )
         NET_NAME=inception-resnet2
        ;;
     esac
@@ -129,9 +109,8 @@ set_model_args $MODEL
 BATCH=128
 NGPU=1
 ITER=10000
-PS=gpu
 echo Dryrun $MODEL, batchsize $BATCH, $NGPU GPUs, $ITER iterations
-bench "$MODEL" "$BATCH" "$NGPU" "$ITER" "$PS" "$CONFIG" "$NET_NAME" 2>&1 | tee ${LOG_DIR}/dryrun_${MODEL}_b${BATCH}_${NGPU}gpu.log
+bench "$MODEL" "$BATCH" "$NGPU" "$ITER" "$CONFIG" "$NET_NAME" 2>&1 | tee ${LOG_DIR}/dryrun_${MODEL}_b${BATCH}_${NGPU}gpu.log
 echo 'Done with dryrun.'
 
 CONFIG="
@@ -148,11 +127,8 @@ for MODEL in ${MODELS[@]}; do
     for BATCH_PER_GPU in ${BATCHES_PER_GPU[@]}; do
         for NGPU in ${GPUS[@]}; do
             set_model_args $MODEL
-            if [[ $NGPU = 1 ]]; then
-                PS=gpu
-            fi
             BATCH=$(expr $BATCH_PER_GPU \* $NGPU)
-            bench "$MODEL" "$BATCH_PER_GPU" "$NGPU" "$ITER" "$PS" "$CONFIG" "$NET_NAME" 2>&1 | tee ${LOG_DIR}/output_${MODEL}_b${BATCH}_${NGPU}gpu.log
+            bench "$MODEL" "$BATCH_PER_GPU" "$NGPU" "$ITER" "$CONFIG" "$NET_NAME" 2>&1 | tee ${LOG_DIR}/output_${MODEL}_b${BATCH}_${NGPU}gpu.log
         done
     done
 done
