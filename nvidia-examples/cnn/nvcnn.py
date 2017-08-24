@@ -306,15 +306,14 @@ class GPUNetworkBuilder(object):
                 x = self.activate(input_layer + output_layer, activation)
             return x
     def dropout(self, input_layer, keep_prob=0.5):
-        """Applies a dropout layer"""
-        dtype = input_layer.dtype
-        with tf.variable_scope(self._count_layer('dropout')):
-            keep_prob_tensor = tf.constant(keep_prob, dtype=dtype)
-            one_tensor       = tf.constant(1.0,       dtype=dtype)
-            keep_prob_op = tf.cond(self.is_training,
-                                   lambda: keep_prob_tensor,
-                                   lambda: one_tensor)
-            return tf.nn.dropout(input_layer, keep_prob_op)
+        """Applies a dropout layer if is_training"""
+        if self.is_training:
+            dtype = input_layer.dtype
+            with tf.variable_scope(self._count_layer('dropout')):
+                keep_prob_tensor = tf.constant(keep_prob, dtype=dtype)
+                return tf.nn.dropout(input_layer, keep_prob_tensor)
+        else:
+            return input_layer
 
 def deserialize_image_record(record):
     feature_map = {
