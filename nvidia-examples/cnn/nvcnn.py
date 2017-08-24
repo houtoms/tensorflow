@@ -740,6 +740,22 @@ def inference_lenet5(net, input_layer):
     x = net.fully_connected(x, 512)
     return x
 
+def inference_overfeat(net, input_layer):
+    net.use_batch_norm = False
+    x = net.input_layer(input_layer)
+    x = net.conv(x, 96,   (11,11), (4,4), 'VALID')
+    x = net.pool(x, 'MAX', (2,2))
+    x = net.conv(x, 256,   (5,5), (1,1), 'VALID')
+    x = net.pool(x, 'MAX', (2,2))
+    x = net.conv(x, 512,   (3,3))
+    x = net.conv(x, 1024,  (3,3))
+    x = net.conv(x, 1024,  (3,3))
+    x = net.pool(x, 'MAX', (2,2))
+    x = net.flatten(x)
+    x = net.fully_connected(x, 3072)
+    x = net.fully_connected(x, 4096)
+    return x
+
 def inference_alexnet_owt(net, input_layer):
     """Alexnet One Weird Trick model
     https://arxiv.org/abs/1404.5997
@@ -1230,6 +1246,9 @@ def main():
         height, width = 227, 227
         model_func = inference_alexnet_owt
         FLAGS.learning_rate = 0.03
+    elif model_name == 'overfeat':
+        height, width = 231, 231
+        model_func = inference_overfeat
     elif model_name.startswith('vgg'):
         height, width = 224, 224
         nlayer = int(model_name[len('vgg'):])

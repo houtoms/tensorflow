@@ -123,7 +123,7 @@ MODELS=(googlenet vgg_11 vgg_16 vgg_19 overfeat alexnet_owt inception_v3 incepti
 
 echo 'Running Benchmark...'
 for MODEL in ${MODELS[@]}; do
-    GPUS=(1 2 4 8)
+    GPUS=(1 2 4)
     ITER=300
     set_model_args $MODEL
     for BATCH_PER_GPU in ${BATCHES_PER_GPU[@]}; do
