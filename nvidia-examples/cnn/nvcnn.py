@@ -16,6 +16,16 @@
 
 """
 Changelog:
+1.3
+  - Added support for synthetic data when no --data_dir is specified
+  - Added support for overfeat model
+  - Disabled color distortions by default
+  - Disabled XLA by default
+  - Disabled zero_debias_moving_mean in batch norm
+  - Converted is_training from placeholder to constant
+  - Simplified dropout by avoiding in-graph is_training conditional
+  - Merge all gradients into a contiguous buffer and use a single nccl.all_sum
+
 1.2
   - Added support for half-precision training, enabled via the --fp16 flag
   - Forced trainable weights to always be stored as float32
@@ -32,7 +42,7 @@ Changelog:
   - Tabs --> spaces
 """
 
-__version__ = "1.2"
+__version__ = "1.3"
 
 import numpy as np
 import tensorflow as tf
@@ -500,7 +510,7 @@ def all_avg_gradients(tower_gradvars, devices, param_server_device='/gpu:0'):
                 flat_grads = [tf.reshape(g, [-1]) for (g, _) in grad_list]
                 contig_grads = tf.concat(flat_grads, 0)
                 contig_list.append(contig_grads)
-  
+
         summed_grads = nccl.all_sum(contig_list)
         for d, s, grad_list in zip(devices, summed_grads, tower_gradvars):
             with tf.device(d):
@@ -1192,7 +1202,7 @@ def main():
     print "Cmd line args:"
     print '\n'.join(['  '+arg for arg in sys.argv[1:]])
 
-    if FLAGS.data_dir is not None:
+    if FLAGS.data_dir is not None and FLAGS.data_dir != '':
         nrecord = get_num_records(os.path.join(FLAGS.data_dir, '%s-*' % subset))
     else:
         nrecord = FLAGS.num_batches * total_batch_size
@@ -1206,7 +1216,7 @@ def main():
     FLAGS.lr_poly_power         = 2.
     FLAGS.weight_decay          = 1e-4
     FLAGS.input_buffer_size     = min(10000, nrecord)
-    FLAGS.distort_color         = True
+    FLAGS.distort_color         = False
     FLAGS.nstep_burnin          = 20
     FLAGS.summary_interval_secs = 600
     FLAGS.save_interval_secs    = 600
