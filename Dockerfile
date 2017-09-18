@@ -74,8 +74,7 @@ ENV TF_NEED_HDFS 0
 ENV TF_ENABLE_XLA 1
 ENV PYTHON_BIN_PATH /usr/bin/python
 RUN yes "" | ./configure
-RUN bazel fetch "//tensorflow/... -//tensorflow/contrib/nccl/... -//tensorflow/examples/android/..." && \
-    bash third_party/patch_eigen_for_cuda9.sh
+RUN bazel fetch "//tensorflow/... -//tensorflow/contrib/nccl/... -//tensorflow/examples/android/..."
 RUN bazel build -c opt --config=cuda tensorflow/tools/pip_package:build_pip_package && \
     bazel-bin/tensorflow/tools/pip_package/build_pip_package /tmp/pip && \
     pip install --upgrade /tmp/pip/tensorflow-*.whl && \
