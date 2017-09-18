@@ -72,6 +72,7 @@ ENV TF_CUDA_COMPUTE_CAPABILITIES "3.5,5.2,6.0,6.1,7.0"
 ENV TF_NEED_GCP 0
 ENV TF_NEED_HDFS 0
 ENV TF_ENABLE_XLA 1
+ENV CC_OPT_FLAGS "-march=sandybridge -mtune=broadwell"
 ENV PYTHON_BIN_PATH /usr/bin/python
 RUN yes "" | ./configure
 RUN bazel fetch "//tensorflow/... -//tensorflow/contrib/nccl/... -//tensorflow/examples/android/..."

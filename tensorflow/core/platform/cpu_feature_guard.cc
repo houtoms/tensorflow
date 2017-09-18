@@ -122,15 +122,17 @@ void WarnAboutUnusedCPUFeatures() {
 #ifndef __AVX__
     WarnIfFeatureUnused(CPUFeature::AVX, "AVX");
 #endif  // __AVX__
-#ifndef __AVX2__
-    WarnIfFeatureUnused(CPUFeature::AVX2, "AVX2");
-#endif  // __AVX2__
-#ifndef __AVX512F__
-    WarnIfFeatureUnused(CPUFeature::AVX512F, "AVX512F");
-#endif  // __AVX512F__
-#ifndef __FMA__
-    WarnIfFeatureUnused(CPUFeature::FMA, "FMA");
-#endif  // __FMA__
+// Disable warnings for features intentionally disabled for backward
+// compatibility.
+//#ifndef __AVX2__
+//    WarnIfFeatureUnused(CPUFeature::AVX2, "AVX2");
+//#endif  // __AVX2__
+//#ifndef __AVX512F__
+//    WarnIfFeatureUnused(CPUFeature::AVX512F, "AVX512F");
+//#endif  // __AVX512F__
+//#ifndef __FMA__
+//    WarnIfFeatureUnused(CPUFeature::FMA, "FMA");
+//#endif  // __FMA__
 #endif  // else of ifdef platform windows
   });
 }
