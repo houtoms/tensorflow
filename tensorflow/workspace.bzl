@@ -161,7 +161,6 @@ def tf_workspace(path_prefix="", tf_repo_name=""):
           "http://mirror.bazel.build/github.com/hfp/libxsmm/archive/1.8.1.tar.gz",
           "https://github.com/hfp/libxsmm/archive/1.8.1.tar.gz",
       ],
-      sha256 = "2ade869c3f42f23b5263c7d594aa3c7e5e61ac6a3afcaf5d6e42899d2a7986ce",
       strip_prefix = "libxsmm-1.8.1",
       build_file = str(Label("//third_party:libxsmm.BUILD")),
   )
@@ -177,7 +176,6 @@ def tf_workspace(path_prefix="", tf_repo_name=""):
           "http://mirror.bazel.build/github.com/google/or-tools/archive/253f7955c6a1fd805408fba2e42ac6d45b312d15.tar.gz",
           "https://github.com/google/or-tools/archive/253f7955c6a1fd805408fba2e42ac6d45b312d15.tar.gz",
       ],
-      sha256 = "932075525642b04ac6f1b50589f1df5cd72ec2f448b721fd32234cf183f0e755",
       strip_prefix = "or-tools-253f7955c6a1fd805408fba2e42ac6d45b312d15/src",
       build_file = str(Label("//third_party:ortools.BUILD")),
   )
@@ -188,7 +186,6 @@ def tf_workspace(path_prefix="", tf_repo_name=""):
           "http://mirror.bazel.build/github.com/google/re2/archive/b94b7cd42e9f02673cd748c1ac1d16db4052514c.tar.gz",
           "https://github.com/google/re2/archive/b94b7cd42e9f02673cd748c1ac1d16db4052514c.tar.gz",
       ],
-      sha256 = "bd63550101e056427c9e7ff12a408c1c8b74e9803f393ca916b2926fc2c4906f",
       strip_prefix = "re2-b94b7cd42e9f02673cd748c1ac1d16db4052514c",
   )
 
@@ -198,7 +195,6 @@ def tf_workspace(path_prefix="", tf_repo_name=""):
           "http://mirror.bazel.build/github.com/google/gemmlowp/archive/a6f29d8ac48d63293f845f2253eccbf86bc28321.tar.gz",
           "https://github.com/google/gemmlowp/archive/a6f29d8ac48d63293f845f2253eccbf86bc28321.tar.gz",
       ],
-      sha256 = "75d40ea8e68b0d1644f052fffe8f14a410b2a73d40ccb859a95c0578d194ec26",
       strip_prefix = "gemmlowp-a6f29d8ac48d63293f845f2253eccbf86bc28321",
   )
 
@@ -208,7 +204,6 @@ def tf_workspace(path_prefix="", tf_repo_name=""):
           "http://mirror.bazel.build/github.com/google/farmhash/archive/92e897b282426729f4724d91a637596c7e2fe28f.zip",
           "https://github.com/google/farmhash/archive/92e897b282426729f4724d91a637596c7e2fe28f.zip",
       ],
-      sha256 = "4c626d1f306bda2c6804ab955892f803f5245f4dcaecb4979dc08b091256da54",
       strip_prefix = "farmhash-92e897b282426729f4724d91a637596c7e2fe28f",
       build_file = str(Label("//third_party:farmhash.BUILD")),
   )
@@ -224,7 +219,6 @@ def tf_workspace(path_prefix="", tf_repo_name=""):
           "http://mirror.bazel.build/github.com/google/highwayhash/archive/dfcb97ca4fe9277bf9dc1802dd979b071896453b.tar.gz",
           "https://github.com/google/highwayhash/archive/dfcb97ca4fe9277bf9dc1802dd979b071896453b.tar.gz",
       ],
-      sha256 = "0f30a15b1566d93f146c8d149878a06e91d9bb7ec2cfd76906df62a82be4aac9",
       strip_prefix = "highwayhash-dfcb97ca4fe9277bf9dc1802dd979b071896453b",
       build_file = str(Label("//third_party:highwayhash.BUILD")),
   )
@@ -246,7 +240,6 @@ def tf_workspace(path_prefix="", tf_repo_name=""):
           "http://mirror.bazel.build/github.com/libjpeg-turbo/libjpeg-turbo/archive/1.5.1.tar.gz",
           "https://github.com/libjpeg-turbo/libjpeg-turbo/archive/1.5.1.tar.gz",
       ],
-      sha256 = "c15a9607892113946379ccea3ca8b85018301b200754f209453ab21674268e77",
       strip_prefix = "libjpeg-turbo-1.5.1",
       build_file = str(Label("//third_party/jpeg:jpeg.BUILD")),
       repository = tf_repo_name,
@@ -258,7 +251,6 @@ def tf_workspace(path_prefix="", tf_repo_name=""):
           "http://mirror.bazel.build/github.com/glennrp/libpng/archive/v1.2.53.zip",
           "https://github.com/glennrp/libpng/archive/v1.2.53.zip",
       ],
-      sha256 = "c35bcc6387495ee6e757507a68ba036d38ad05b415c2553b3debe2a57647a692",
       strip_prefix = "libpng-1.2.53",
       build_file = str(Label("//third_party:png.BUILD")),
   )
@@ -303,7 +295,6 @@ def tf_workspace(path_prefix="", tf_repo_name=""):
           "http://mirror.bazel.build/github.com/andreif/codegen/archive/1.0.tar.gz",
           "https://github.com/andreif/codegen/archive/1.0.tar.gz",
       ],
-      sha256 = "2dadd04a2802de27e0fe5a19b76538f6da9d39ff244036afa00c1bba754de5ee",
       strip_prefix = "codegen-1.0",
       build_file = str(Label("//third_party:codegen.BUILD")),
   )
@@ -347,7 +338,6 @@ def tf_workspace(path_prefix="", tf_repo_name=""):
           "https://github.com/google/protobuf/archive/0b059a3d8a8f8aa40dde7bea55edca4ec5dfea66.tar.gz",
           "http://mirror.bazel.build/github.com/google/protobuf/archive/0b059a3d8a8f8aa40dde7bea55edca4ec5dfea66.tar.gz",
       ],
-      sha256 = "6d43b9d223ce09e5d4ce8b0060cb8a7513577a35a64c7e3dad10f0703bf3ad93",
       strip_prefix = "protobuf-0b059a3d8a8f8aa40dde7bea55edca4ec5dfea66",
   )
 
@@ -357,7 +347,6 @@ def tf_workspace(path_prefix="", tf_repo_name=""):
           "https://github.com/google/protobuf/archive/0b059a3d8a8f8aa40dde7bea55edca4ec5dfea66.tar.gz",
           "http://mirror.bazel.build/github.com/google/protobuf/archive/0b059a3d8a8f8aa40dde7bea55edca4ec5dfea66.tar.gz",
       ],
-      sha256 = "6d43b9d223ce09e5d4ce8b0060cb8a7513577a35a64c7e3dad10f0703bf3ad93",
       strip_prefix = "protobuf-0b059a3d8a8f8aa40dde7bea55edca4ec5dfea66",
   )
 
@@ -367,7 +356,6 @@ def tf_workspace(path_prefix="", tf_repo_name=""):
           "http://mirror.bazel.build/github.com/google/googletest/archive/release-1.8.0.zip",
           "https://github.com/google/googletest/archive/release-1.8.0.zip",
       ],
-      sha256 = "f3ed3b58511efd272eb074a3a6d6fb79d7c2e6a0e374323d1e6bcbcc1ef141bf",
       strip_prefix = "googletest-release-1.8.0",
       build_file = str(Label("//third_party:gmock.BUILD")),
   )
@@ -388,7 +376,6 @@ def tf_workspace(path_prefix="", tf_repo_name=""):
           "http://mirror.bazel.build/github.com/gflags/gflags/archive/f8a0efe03aa69b3336d8e228b37d4ccb17324b88.tar.gz",
           "https://github.com/gflags/gflags/archive/f8a0efe03aa69b3336d8e228b37d4ccb17324b88.tar.gz",
       ],
-      sha256 = "4d222fab8f1ede4709cdff417d15a1336f862d7334a81abf76d09c15ecf9acd1",
       strip_prefix = "gflags-f8a0efe03aa69b3336d8e228b37d4ccb17324b88",
   )
 
@@ -450,7 +437,6 @@ def tf_workspace(path_prefix="", tf_repo_name=""):
           "http://mirror.bazel.build/github.com/grpc/grpc/archive/d7ff4ff40071d2b486a052183e3e9f9382afb745.tar.gz",
           "https://github.com/grpc/grpc/archive/d7ff4ff40071d2b486a052183e3e9f9382afb745.tar.gz",
       ],
-      sha256 = "a15f352436ab92c521b1ac11e729e155ace38d0856380cf25048c5d1d9ba8e31",
       strip_prefix = "grpc-d7ff4ff40071d2b486a052183e3e9f9382afb745",
       build_file = str(Label("//third_party:grpc.BUILD")),
   )
@@ -469,7 +455,6 @@ def tf_workspace(path_prefix="", tf_repo_name=""):
 
   native.new_http_archive(
       name = "linenoise",
-      sha256 = "7f51f45887a3d31b4ce4fa5965210a5e64637ceac12720cfce7954d6a2e812f7",
       urls = [
           "http://mirror.bazel.build/github.com/antirez/linenoise/archive/c894b9e59f02203dbe4e2be657572cf88c4230c3.tar.gz",
           "https://github.com/antirez/linenoise/archive/c894b9e59f02203dbe4e2be657572cf88c4230c3.tar.gz",
@@ -497,7 +482,6 @@ def tf_workspace(path_prefix="", tf_repo_name=""):
       "http://mirror.bazel.build/github.com/LMDB/lmdb/archive/LMDB_0.9.19.tar.gz",
       "https://github.com/LMDB/lmdb/archive/LMDB_0.9.19.tar.gz",
     ],
-    sha256 = "108532fb94c6f227558d45be3f3347b52539f0f58290a7bb31ec06c462d05326",
     strip_prefix = "lmdb-LMDB_0.9.19/libraries/liblmdb",
     build_file = str(Label("//third_party:lmdb.BUILD")),
   )
@@ -508,7 +492,6 @@ def tf_workspace(path_prefix="", tf_repo_name=""):
           "http://mirror.bazel.build/github.com/open-source-parsers/jsoncpp/archive/11086dd6a7eba04289944367ca82cea71299ed70.tar.gz",
           "https://github.com/open-source-parsers/jsoncpp/archive/11086dd6a7eba04289944367ca82cea71299ed70.tar.gz",
       ],
-      sha256 = "07d34db40593d257324ec5fb9debc4dc33f29f8fb44e33a2eeb35503e61d0fe2",
       strip_prefix = "jsoncpp-11086dd6a7eba04289944367ca82cea71299ed70",
       build_file = str(Label("//third_party:jsoncpp.BUILD")),
   )
@@ -524,7 +507,6 @@ def tf_workspace(path_prefix="", tf_repo_name=""):
           "http://mirror.bazel.build/github.com/google/boringssl/archive/bbcaa15b0647816b9a1a9b9e0d209cd6712f0105.tar.gz",
           "https://github.com/google/boringssl/archive/bbcaa15b0647816b9a1a9b9e0d209cd6712f0105.tar.gz",  # 2016-07-11
       ],
-      sha256 = "025264d6e9a7ad371f2f66d17a28b6627de0c9592dc2eb54afd062f68f1f9aa3",
       strip_prefix = "boringssl-bbcaa15b0647816b9a1a9b9e0d209cd6712f0105",
 
       # Add patch to boringssl code to support s390x
@@ -537,7 +519,6 @@ def tf_workspace(path_prefix="", tf_repo_name=""):
           "http://mirror.bazel.build/github.com/nanopb/nanopb/archive/1251fa1065afc0d62f635e0f63fec8276e14e13c.tar.gz",
           "https://github.com/nanopb/nanopb/archive/1251fa1065afc0d62f635e0f63fec8276e14e13c.tar.gz",
       ],
-      sha256 = "ab1455c8edff855f4f55b68480991559e51c11e7dab060bbab7cffb12dd3af33",
       strip_prefix = "nanopb-1251fa1065afc0d62f635e0f63fec8276e14e13c",
       build_file = str(Label("//third_party:nanopb.BUILD")),
   )
@@ -579,7 +560,6 @@ def tf_workspace(path_prefix="", tf_repo_name=""):
           "http://mirror.bazel.build/github.com/google/snappy/archive/1.1.4.zip",
           "https://github.com/google/snappy/archive/1.1.4.zip",
       ],
-      sha256 = "6c74d2b663170d68184da353cdd71b5b7d57bc8888ef1e99b4929b5d680dba54",
       strip_prefix = "snappy-1.1.4",
       build_file = str(Label("//third_party:snappy.BUILD")),
       repository = tf_repo_name,
@@ -625,7 +605,6 @@ def tf_workspace(path_prefix="", tf_repo_name=""):
           "http://mirror.bazel.build/github.com/jemalloc/jemalloc/archive/4.4.0.tar.gz",
           "https://github.com/jemalloc/jemalloc/archive/4.4.0.tar.gz",
       ],
-      sha256 = "3c8f25c02e806c3ce0ab5fb7da1817f89fc9732709024e2a81b6b82f7cc792a8",
       strip_prefix = "jemalloc-4.4.0",
       build_file = str(Label("//third_party:jemalloc.BUILD")),
       repository = tf_repo_name,
@@ -637,7 +616,6 @@ def tf_workspace(path_prefix="", tf_repo_name=""):
           "http://mirror.bazel.build/github.com/google/pprof/archive/c0fb62ec88c411cc91194465e54db2632845b650.tar.gz",
           "https://github.com/google/pprof/archive/c0fb62ec88c411cc91194465e54db2632845b650.tar.gz",
       ],
-      sha256 = "e0928ca4aa10ea1e0551e2d7ce4d1d7ea2d84b2abbdef082b0da84268791d0c4",
       strip_prefix = "pprof-c0fb62ec88c411cc91194465e54db2632845b650",
       build_file = str(Label("//third_party:pprof.BUILD")),
   )
@@ -647,7 +625,6 @@ def tf_workspace(path_prefix="", tf_repo_name=""):
       urls = [
           "http://mirror.bazel.build/github.com/NVlabs/cub/archive/1.6.4.zip",
       ],
-      sha256 = "966d0c4f41e2bdc81aebf9ccfbf0baffaac5a74f00b826b06f4dee79b2bb8cee",
       strip_prefix = "cub-1.6.4",
       build_file = str(Label("//third_party:cub.BUILD")),
   )
@@ -663,6 +640,5 @@ def tf_workspace(path_prefix="", tf_repo_name=""):
           "http://mirror.bazel.build/github.com/bazelbuild/bazel-toolchains/archive/bccee4855c049d34bac481083b4c68e2fab8cc50.tar.gz",
           "https://github.com/bazelbuild/bazel-toolchains/archive/bccee4855c049d34bac481083b4c68e2fab8cc50.tar.gz",
       ],
-      sha256 = "3903fd93b96b42067e00b7973a2c16c34e761ad7a0b55e1557d408f352849e41",
       strip_prefix = "bazel-toolchains-bccee4855c049d34bac481083b4c68e2fab8cc50",
   )
