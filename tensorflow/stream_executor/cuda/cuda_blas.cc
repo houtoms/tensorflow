@@ -437,10 +437,10 @@ class TensorOpMath {
 
  private:
   static bool IsEnabledImpl() {
-    const char* tf_env_var_val = getenv("TF_ENABLE_TENSOR_OP_MATH");
+    const char* tf_env_var_val = getenv("TF_DISABLE_TENSOR_OP_MATH");
     if (tf_env_var_val != nullptr) {
       port::StringPiece tf_env_var_val_str(tf_env_var_val);
-      if (tf_env_var_val_str == "0") {
+      if (tf_env_var_val_str == "1") {
         return false;
       }
       return true;
@@ -463,10 +463,10 @@ class TensorOpMathFp32 {
     const char* tf_env_var_val = getenv("TF_ENABLE_TENSOR_OP_MATH_FP32");
     if (tf_env_var_val != nullptr) {
       port::StringPiece tf_env_var_val_str(tf_env_var_val);
-      if (tf_env_var_val_str == "0") {
-        return false;
+      if (tf_env_var_val_str == "1") {
+        return true;
       }
-      return true;
+      return false;
     }
     return DefaultFlag;
   }
