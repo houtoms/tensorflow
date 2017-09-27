@@ -351,7 +351,8 @@ class CudnnRNNTest(TensorFlowTestCase):
       sess.run(reset_params)
       saver.restore(sess, save_path)
       total_sum_v_restored = sess.run(total_sum)
-      self.assertAllEqual(total_sum_v, total_sum_v_restored)
+      self.assertAllClose(
+          total_sum_v, total_sum_v_restored, atol=1e-6, rtol=1e-6)
 
   @unittest.skipUnless(test.is_built_with_cuda(),
                        "Test only applicable when running on GPUs")
