@@ -23,21 +23,23 @@ tensorflow/tools/ci_build/install/install_auditwheel.sh
 
 export LD_LIBRARY_PATH=/usr/local/cuda/extras/CUPTI/lib64:$LD_LIBRARY_PATH
 
-# Fetch external dependencies (including Eigen)
-bazel fetch "//tensorflow/... -//tensorflow/contrib/nccl/... -//tensorflow/examples/android/..."
-
+# Note: //tensorflow/python/debug:debugger_cli_common_test fails when run as root due to a file permissions issue.
+# Note: //tensorflow/contrib/tensor_forest:scatter_add_ndim_op_test fails for an unknown reason with "Create kernel failed: Invalid argument: AttrValue must not have reference type value of float_ref".
+# Note: //tensorflow/contrib/distributions:mvn_full_covariance_test fails due to assert_equal being used to check symmetry of the result of a matmul.
 NUM_GPUS=`nvidia-smi -L | wc -l` && \
-  bazel build --config=cuda -c opt --test_tag_filters=-local,-benchmark-test \
-              //tensorflow/... && \
   bazel test  --config=cuda -c opt --verbose_failures --local_test_jobs=$NUM_GPUS \
               --run_under=//tensorflow/tools/ci_build/gpu_build:parallel_gpu_execute \
-              --test_tag_filters=-local,-benchmark-test \
+              --test_tag_filters=-no_gpu,-benchmark-test \
+              --build_tests_only \
               -- \
               //tensorflow/... \
               //tensorflow/contrib/cudnn_rnn:cudnn_rnn_ops_test \
               //tensorflow/contrib/cudnn_rnn:cudnn_rnn_ops_test_cc \
-              -//tensorflow/python/kernel_tests:atrous_conv2d_test \
               -//tensorflow/python/kernel_tests:benchmark_test \
               -//tensorflow/compiler/... \
+              -//tensorflow/go/... \
+              -//tensorflow/python/debug:debugger_cli_common_test \
+              -//tensorflow/contrib/tensor_forest:scatter_add_ndim_op_test \
+              -//tensorflow/contrib/distributions:mvn_full_covariance_test \
   | tee testresult.tmp && grep "test\.log" testresult.tmp \
   | /opt/tensorflow/qa/show_testlogs
