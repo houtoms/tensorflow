@@ -16,6 +16,10 @@
 
 """
 Changelog:
+1.4
+  - Fixed minor bug in model name exception
+  - Added fallback to support PNG images in input dataset
+
 1.3
   - Added support for synthetic data when no --data_dir is specified
   - Added support for overfeat model
@@ -42,7 +46,7 @@ Changelog:
   - Tabs --> spaces
 """
 
-__version__ = "1.3"
+__version__ = "1.4"
 
 import numpy as np
 import tensorflow as tf
@@ -350,6 +354,9 @@ def decode_jpeg(imgdata, channels=3):
                                 fancy_upscaling=False,
                                 dct_method='INTEGER_FAST')
 
+def decode_png(imgdata, channels=3):
+    return tf.image.decode_png(imgdata, channels=channels)
+
 def random_crop_and_resize_image(image, bbox, height, width):
     with tf.name_scope('random_crop_and_resize'):
         if not FLAGS.eval:
@@ -406,7 +413,10 @@ class ImagePreprocessor(object):
         self.nsummary = 10 # Max no. images to generate summaries for
     def preprocess(self, imgdata, bbox, thread_id):
         with tf.name_scope('preprocess_image'):
-            image = decode_jpeg(imgdata)
+            try:
+                image = decode_jpeg(imgdata)
+            except:
+                image = decode_png(imgdata)
             if thread_id < self.nsummary:
                 image_with_bbox = tf.image.draw_bounding_boxes(
                     tf.expand_dims(tf.to_float(image), 0), bbox)
@@ -1286,7 +1296,7 @@ def main():
         model_func = inference_inception_resnet_v2
         FLAGS.learning_rate = 0.045
     else:
-        raise ValueError("Invalid model type: %s" % model)
+        raise ValueError("Invalid model type: %s" % model_name)
 
     if FLAGS.data_dir is None:
         preprocessor = DummyPreprocessor(height, width, total_batch_size//len(devices), nclass)
