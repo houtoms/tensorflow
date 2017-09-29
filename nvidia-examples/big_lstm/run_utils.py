@@ -47,7 +47,7 @@ def run_train(dataset, hps, logdir, ps_device, task=0, master=""):
         #    else:
         #        print("Current step is %d. Waiting until: %d" % (step, waiting_until_step))
         #    time.sleep(20.0)
-	
+
 
         local_step = 0
         prev_global_step = sess.run(model.global_step)
@@ -136,12 +136,15 @@ def run_eval(dataset, hps, logdir, mode, num_eval_steps):
                     break
 
                 #loss = sess.run(model.loss, {model.x: x, model.y: y, model.w: w})
+                start_time = time.time()
                 loss = sess.run(model.loss, {model.x: x, model.y: y})
+                dt = time.time() - start_time
+                wps = hps.batch_size * hps.num_steps / dt
                 loss_nom += loss
                 loss_den += 1 # ???
                 #loss_den += w.mean()
                 loss = loss_nom / loss_den
-                sys.stdout.write("%d: %.3f (%.3f) ... " % (i, loss, np.exp(loss)))
+                sys.stdout.write("%d: %.3f (%.3f), wps: %.3f ... \n" % (i, loss, np.exp(loss), wps))
                 sys.stdout.flush()
             sys.stdout.write("\n")
 
