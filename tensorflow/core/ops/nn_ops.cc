@@ -263,17 +263,16 @@ dg: 1D backprop tensor for gamma.
 
 REGISTER_OP("FusedBatchNorm")
     .Input("x: T")
-    .Input("scale: U")
-    .Input("offset: U")
-    .Input("mean: U")
-    .Input("variance: U")
+    .Input("scale: T")
+    .Input("offset: T")
+    .Input("mean: T")
+    .Input("variance: T")
     .Output("y: T")
-    .Output("batch_mean: U")
-    .Output("batch_variance: U")
-    .Output("reserve_space_1: U")
-    .Output("reserve_space_2: U")
-    .Attr("T: {half, float}")
-    .Attr("U: {float}")
+    .Output("batch_mean: T")
+    .Output("batch_variance: T")
+    .Output("reserve_space_1: T")
+    .Output("reserve_space_2: T")
+    .Attr("T: {float}")
     .Attr("epsilon: float = 0.0001")
     .Attr("data_format: string = 'NHWC'")
     .Attr("is_training: bool = true")
@@ -332,7 +331,6 @@ reserve_space_1: A 1D Tensor for the computed batch mean, to be reused
 reserve_space_2: A 1D Tensor for the computed batch variance (inverted variance
                  in the cuDNN case), to be used in the gradient computation.
 T: The data type for the elements of input and output Tensors.
-U: The data type for the elements of scale, offset, mean and variance Tensors.
 epsilon: A small float number added to the variance of x.
 data_format: The data format for x and y. Either "NHWC" (default) or "NCHW".
 is_training: A bool value to indicate the operation is for training (default)
@@ -342,16 +340,15 @@ is_training: A bool value to indicate the operation is for training (default)
 REGISTER_OP("FusedBatchNormGrad")
     .Input("y_backprop: T")
     .Input("x: T")
-    .Input("scale: U")
-    .Input("reserve_space_1: U")
-    .Input("reserve_space_2: U")
+    .Input("scale: T")
+    .Input("reserve_space_1: T")
+    .Input("reserve_space_2: T")
     .Output("x_backprop: T")
-    .Output("scale_backprop: U")
-    .Output("offset_backprop: U")
-    .Output("reserve_space_3: U")
-    .Output("reserve_space_4: U")
-    .Attr("T: {half, float}")
-    .Attr("U: {float}")
+    .Output("scale_backprop: T")
+    .Output("offset_backprop: T")
+    .Output("reserve_space_3: T")
+    .Output("reserve_space_4: T")
+    .Attr("T: {float}")
     .Attr("epsilon: float = 0.0001")
     .Attr("data_format: string = 'NHWC'")
     .Attr("is_training: bool = true")
@@ -423,7 +420,6 @@ reserve_space_3: Unused placeholder to match the mean input in FusedBatchNorm.
 reserve_space_4: Unused placeholder to match the variance input
                  in FusedBatchNorm.
 T: The data type for the elements of input and output Tensors.
-U: The data type for the elements of scale and offset Tensors.
 epsilon: A small float number added to the variance of x.
 data_format: The data format for y_backprop, x, x_backprop.
              Either "NHWC" (default) or "NCHW".
