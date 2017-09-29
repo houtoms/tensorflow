@@ -1,5 +1,7 @@
 #!/bin/bash
 
+set -e
+
 nvidia-smi
 cd /opt/tensorflow
 curl -O https://bootstrap.pypa.io/get-pip.py && \
@@ -41,5 +43,19 @@ NUM_GPUS=`nvidia-smi -L | wc -l` && \
               -//tensorflow/python/debug:debugger_cli_common_test \
               -//tensorflow/contrib/tensor_forest:scatter_add_ndim_op_test \
               -//tensorflow/contrib/distributions:mvn_full_covariance_test \
-  | tee testresult.tmp && grep "test\.log" testresult.tmp \
-  | /opt/tensorflow/qa/show_testlogs
+              -//tensorflow/python:localhost_cluster_performance_test \
+              -//tensorflow/core/debug:grpc_session_debug_test \
+  | tee testresult.tmp
+
+# Note: These two tests were observed to fail intermittently with error
+#       "address already in use" when run as part of the above command
+#       on a DGX-1.
+bazel test    --config=cuda -c opt --verbose_failures --local_test_jobs=1 \
+              --test_tag_filters=-no_gpu,-benchmark-test \
+              --build_tests_only \
+              -- \
+              //tensorflow/python:localhost_cluster_performance_test \
+              //tensorflow/core/debug:grpc_session_debug_test \
+  | tee -a testresult.tmp
+
+grep "test\.log" testresult.tmp | /opt/tensorflow/qa/show_testlogs
