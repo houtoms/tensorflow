@@ -671,6 +671,35 @@ def _FusedBatchNormGrad(op, *grad):
       data_format=op.get_attr("data_format"),
       is_training=op.get_attr("is_training"))
 
+@ops.RegisterGradient("FusedBatchNormV2")
+def _FusedBatchNormGradV2(op, *grad):
+  """Return the gradients for the 3 inputs of BatchNorm.
+
+  Args:
+    op: The BatchNormOpV2 for which we need to compute gradients.
+    *grad: An argument list for tensors of gradients wrt the outputs
+          with grad[0] as grad_y.
+
+  Returns:
+    grad_x: gradient for x, which is scale * rsqrt(variance + epsilon) *
+            [grad_y - mean(grad_y) - (x - mean(x)) *
+            mean(grad_y * (x - mean(x))) / (variance + epsilon)]
+
+    grad_scale: gradient for scale, which is sum(grad_y * (x - mean(x)) *
+                rsqrt(variance + epsilon))
+
+    grad_offset: gradient for offset, which is sum(grad_y)
+  """
+  return gen_nn_ops.fused_batch_norm_grad_v2(
+    grad[0],
+    op.inputs[0],
+    op.inputs[1],
+    op.outputs[3],
+    op.outputs[4],
+    epsilon=op.get_attr("epsilon"),
+    data_format=op.get_attr("data_format"),
+    is_training=op.get_attr("is_training"))
+
 
 @ops.RegisterGradient("L2Loss")
 def _L2LossGrad(op, grad):

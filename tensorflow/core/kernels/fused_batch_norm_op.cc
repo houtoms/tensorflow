@@ -619,33 +619,46 @@ class FusedBatchNormGradOp : public OpKernel {
   TensorFormat tensor_format_;
 };
 
-REGISTER_KERNEL_BUILDER(Name("FusedBatchNorm").Device(DEVICE_CPU)
-                        .TypeConstraint<Eigen::half>("T"),
+REGISTER_KERNEL_BUILDER(Name("FusedBatchNormV2")
+                            .Device(DEVICE_CPU)
+                            .TypeConstraint<Eigen::half>("T"),
                         FusedBatchNormOp<CPUDevice, Eigen::half, float>);
-REGISTER_KERNEL_BUILDER(Name("FusedBatchNorm").Device(DEVICE_CPU)
-                        .TypeConstraint<float>("T"),
+REGISTER_KERNEL_BUILDER(
+    Name("FusedBatchNormV2").Device(DEVICE_CPU).TypeConstraint<float>("T"),
+    FusedBatchNormOp<CPUDevice, float, float>);
+REGISTER_KERNEL_BUILDER(Name("FusedBatchNorm").Device(DEVICE_CPU),
                         FusedBatchNormOp<CPUDevice, float, float>);
 
-REGISTER_KERNEL_BUILDER(Name("FusedBatchNormGrad").Device(DEVICE_CPU)
-                        .TypeConstraint<Eigen::half>("T"),
+REGISTER_KERNEL_BUILDER(Name("FusedBatchNormGradV2")
+                            .Device(DEVICE_CPU)
+                            .TypeConstraint<Eigen::half>("T"),
                         FusedBatchNormGradOp<CPUDevice, Eigen::half, float>);
-REGISTER_KERNEL_BUILDER(Name("FusedBatchNormGrad").Device(DEVICE_CPU)
-                        .TypeConstraint<float>("T"),
+REGISTER_KERNEL_BUILDER(
+    Name("FusedBatchNormGradV2").Device(DEVICE_CPU).TypeConstraint<float>("T"),
+    FusedBatchNormGradOp<CPUDevice, float, float>);
+REGISTER_KERNEL_BUILDER(Name("FusedBatchNormGrad").Device(DEVICE_CPU),
                         FusedBatchNormGradOp<CPUDevice, float, float>);
 
 #if GOOGLE_CUDA
-REGISTER_KERNEL_BUILDER(Name("FusedBatchNorm").Device(DEVICE_GPU)
-                        .TypeConstraint<Eigen::half>("T"),
+REGISTER_KERNEL_BUILDER(Name("FusedBatchNormV2")
+                            .Device(DEVICE_GPU)
+                            .TypeConstraint<Eigen::half>("T"),
                         FusedBatchNormOp<GPUDevice, Eigen::half, float>);
-REGISTER_KERNEL_BUILDER(Name("FusedBatchNorm").Device(DEVICE_GPU)
-                        .TypeConstraint<float>("T"),
-                        FusedBatchNormOp<GPUDevice, float, float>);
+REGISTER_KERNEL_BUILDER(
+    Name("FusedBatchNormV2").Device(DEVICE_GPU).TypeConstraint<float>("T"),
+    FusedBatchNormOp<GPUDevice, float, float>);
+REGISTER_KERNEL_BUILDER(
+    Name("FusedBatchNorm").Device(DEVICE_GPU).TypeConstraint<float>("T"),
+    FusedBatchNormOp<GPUDevice, float, float>);
 
-REGISTER_KERNEL_BUILDER(Name("FusedBatchNormGrad").Device(DEVICE_GPU)
-                        .TypeConstraint<Eigen::half>("T"),
+REGISTER_KERNEL_BUILDER(Name("FusedBatchNormGradV2")
+                            .Device(DEVICE_GPU)
+                            .TypeConstraint<Eigen::half>("T"),
                         FusedBatchNormGradOp<GPUDevice, Eigen::half, float>);
-REGISTER_KERNEL_BUILDER(Name("FusedBatchNormGrad").Device(DEVICE_GPU)
-                        .TypeConstraint<float>("T"),
+REGISTER_KERNEL_BUILDER(
+    Name("FusedBatchNormGradV2").Device(DEVICE_GPU).TypeConstraint<float>("T"),
+    FusedBatchNormGradOp<GPUDevice, float, float>);
+REGISTER_KERNEL_BUILDER(Name("FusedBatchNormGrad").Device(DEVICE_GPU),
                         FusedBatchNormGradOp<GPUDevice, float, float>);
 #endif
 

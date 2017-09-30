@@ -390,9 +390,10 @@ Stream &Stream::ThenBatchNormalizationBackward(
 }
 
 Stream &Stream::ThenBatchNormalizationBackward(
-    const DeviceMemory<Eigen::half> &y_backprop, const DeviceMemory<Eigen::half> &x,
-    const DeviceMemory<float> &scale, const DeviceMemory<float> &mean,
-    const DeviceMemory<float> &variance, const dnn::BatchDescriptor &x_desc,
+    const DeviceMemory<Eigen::half> &y_backprop,
+    const DeviceMemory<Eigen::half> &x, const DeviceMemory<float> &scale,
+    const DeviceMemory<float> &mean, const DeviceMemory<float> &variance,
+    const dnn::BatchDescriptor &x_desc,
     const dnn::BatchDescriptor &scale_offset_desc, const double epsilon,
     DeviceMemory<Eigen::half> *x_backprop, DeviceMemory<float> *scale_backprop,
     DeviceMemory<float> *offset_backprop) {

@@ -809,7 +809,11 @@ def fused_batch_norm(
   # Add 1e-12 to epsilon when epsilon <= 1e-5 to prevent CUDNN exception.
   epsilon = epsilon if epsilon > 1e-5 else epsilon + 1e-12
   # pylint: disable=protected-access
-  y, batch_mean, batch_var, _, _ = gen_nn_ops._fused_batch_norm(
+  if x.dtype == dtypes.float32:
+    batch_norm_variant = gen_nn_ops._fused_batch_norm
+  else:
+    batch_norm_variant = gen_nn_ops.fused_batch_norm_v2
+  y, batch_mean, batch_var, _, _ = batch_norm_variant(
       x,
       scale,
       offset,

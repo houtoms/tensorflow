@@ -2294,7 +2294,7 @@ bool CudnnSupport::DoBatchNormalizationForwardImpl(
   // NOTE(benbarsdell): For fp16 input, CUDNN batchnorm uses mixed precision
   // where the scale, offset, mean and variance are all stored in fp32.
   cudnnDataType_t scale_offset_cudnn_type =
-    (cudnn_type == CUDNN_DATA_HALF) ? CUDNN_DATA_FLOAT : cudnn_type;
+      (cudnn_type == CUDNN_DATA_HALF) ? CUDNN_DATA_FLOAT : cudnn_type;
   ScopedTensorDescriptor scale_offset_descriptor{parent_, scale_offset_desc,
                                                  scale_offset_cudnn_type};
   cudnnBatchNormMode_t mode = CUDNN_BATCHNORM_SPATIAL;
@@ -2383,11 +2383,11 @@ bool CudnnSupport::DoBatchNormalizationBackwardImpl(
   // NOTE(benbarsdell): For fp16 input, CUDNN batchnorm uses mixed precision
   // where the scale, offset, mean and variance are all stored in fp32.
   cudnnDataType_t scale_offset_cudnn_type =
-    (cudnn_type == CUDNN_DATA_HALF) ?
-    CUDNN_DATA_FLOAT :
-    static_cast<cudnnDataType_t>(cudnn_type);
-  ScopedTensorDescriptor scale_offset_descriptor{
-    parent_, scale_offset_desc, scale_offset_cudnn_type};
+      (cudnn_type == CUDNN_DATA_HALF)
+          ? CUDNN_DATA_FLOAT
+          : static_cast<cudnnDataType_t>(cudnn_type);
+  ScopedTensorDescriptor scale_offset_descriptor{parent_, scale_offset_desc,
+                                                 scale_offset_cudnn_type};
   cudnnBatchNormMode_t mode = CUDNN_BATCHNORM_SPATIAL;
   float one = 1.0;
   float zero = 0.0;

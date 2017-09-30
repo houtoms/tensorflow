@@ -310,11 +310,10 @@ def _fused_batch_norm(
     # Allocate parameters for the beta and gamma of the normalization.
     beta_collections = utils.get_variable_collections(variables_collections,
                                                       'beta')
-    if not param_initializers:
-      param_initializers = {}
-
     # Float32 required to avoid precision-loss when using fp16 input/output
     variable_dtype = dtypes.float32
+    if not param_initializers:
+      param_initializers = {}
 
     if center:
       beta_initializer = param_initializers.get('beta',
@@ -327,7 +326,7 @@ def _fused_batch_norm(
           collections=beta_collections,
           trainable=trainable)
     else:
-      beta = array_ops.constant(0.0, shape=params_shape)
+      beta = array_ops.constant(0.0, dtype=variable_dtype, shape=params_shape)
 
     if scale:
       gamma_collections = utils.get_variable_collections(
@@ -342,7 +341,7 @@ def _fused_batch_norm(
           collections=gamma_collections,
           trainable=trainable)
     else:
-      gamma = array_ops.constant(1.0, shape=params_shape)
+      gamma = array_ops.constant(1.0, dtype=variable_dtype, shape=params_shape)
 
     # Create moving_mean and moving_variance variables and add them to the
     # appropriate collections.
