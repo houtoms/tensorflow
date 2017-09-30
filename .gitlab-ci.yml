@@ -268,6 +268,11 @@ stage:
     variables:
       TEST_WORK_DIR: "/opt/tensorflow/qa/cnn_benchmarks"
       TEST_SCRIPT: "./${CI_BUILD_NAME}.sh"
+.L0_nvcnn_benchmark: &L0_NVCNN_BENCHMARK
+    <<: *L0_TEST
+    variables:
+      TEST_WORK_DIR: "/opt/tensorflow/qa/nvcnn_benchmarks"
+      TEST_SCRIPT: "./${CI_BUILD_NAME}.sh"
 .L2_nvcnn_benchmark: &L2_NVCNN_BENCHMARK
     <<: *L2_TEST
     variables:
@@ -316,6 +321,14 @@ L0_convnet_benchmarks_vgga--P100_R384_4GPU:
     variables:
       TEST_WORK_DIR: "/opt/tensorflow/qa/L0_convnet_benchmarks"
       TEST_SCRIPT: "./test-vgga.sh"
+
+L0_nvcnn_resnet50_batch64_real--P100_R384_4GPU:
+    <<: *L0_NVCNN_BENCHMARK
+    <<: *P100_R384_4GPU
+
+L0_nvcnn_resnet50_batch64_real--V100_R384_4GPU:
+    <<: *L0_NVCNN_BENCHMARK
+    <<: *V100_R384_4GPU
 
 L1_word2vec--P100_R384_4GPU:
     <<: *L1_TEST
