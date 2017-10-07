@@ -138,6 +138,8 @@ stage:
     - export SCOPE1=${CI_JOB_NAME%% tests}; export SCOPE=${SCOPE1##Run all }
     - docker pull ${CI_REGISTRY}/devops/scripts:nvdl_nightly_test_scheduler
     - docker run --rm ${CI_REGISTRY}/devops/scripts:nvdl_nightly_test_scheduler ${CI_PIPELINE_ID} ${CI_PROJECT_PATH} ${SCOPE}
+    except:
+    - tags
     when: manual
 
 .L0_test: &L0_TEST
@@ -279,6 +281,11 @@ stage:
       TEST_WORK_DIR: "/opt/tensorflow/qa/nvcnn_benchmarks"
       TEST_SCRIPT: "./${CI_BUILD_NAME}.sh"
 ############################################################
+
+L0_verify_sig:
+    <<: *L0_TEST
+    tags:
+    - 1GPU
 
 #### P100_R384_4GPU ####
 
