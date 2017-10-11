@@ -2,11 +2,7 @@
 
 nvidia-smi
 cd /opt/tensorflow
-curl -O https://bootstrap.pypa.io/get-pip.py && \
-  python get-pip.py && \
-  python3 get-pip.py && \
-  pip2 install --upgrade --force-reinstall pip && \
-  rm get-pip.py
+./nvbuild.sh --configonly --python2
 
 tensorflow/tools/ci_build/install/install_bootstrap_deb_packages.sh
 add-apt-repository -y ppa:openjdk-r/ppa && \

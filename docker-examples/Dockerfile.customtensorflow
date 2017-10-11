@@ -25,14 +25,9 @@ WORKDIR /opt/tensorflow
 # Apply modifications
 RUN patch -p1 < /tmp/my-tensorflow-modifications.patch
 
-# Rebuild TensorFlow
-RUN yes "" | ./configure && \
-    bazel fetch "//tensorflow/... -//tensorflow/contrib/nccl/... -//tensorflow/examples/android/..." && \
-    bazel build -c opt --config=cuda tensorflow/tools/pip_package:build_pip_package && \
-    bazel-bin/tensorflow/tools/pip_package/build_pip_package /tmp/pip && \
-    pip install --upgrade /tmp/pip/tensorflow-*.whl && \
-    rm -rf /tmp/pip/tensorflow-*.whl && \
-    bazel clean --expunge
+# Rebuild TensorFlow for python 2 and 3
+RUN ./nvbuild.sh --python2
+RUN ./nvbuild.sh --python3
 
 # Reset default working directory
 WORKDIR /workspace
