@@ -135,7 +135,7 @@ class MemoryOptimizerRecomputeTest(test.TestCase):
     original_loss = self._RunGraphWithConfig(config_pb2.ConfigProto())
     memory_optimized_loss = self._RunGraphWithConfig(
         config=self._GetMemoryOptimizerConfig())
-    self.assertAllClose(original_loss, memory_optimized_loss, rtol=1e-4)
+    self.assertAllClose(original_loss, memory_optimized_loss, rtol=1e-4, atol=2e-6)
 
 
 if __name__ == '__main__':
