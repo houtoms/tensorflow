@@ -14,6 +14,12 @@
 # limitations under the License.
 # ==============================================================================
 
+"""
+Changelog:
+1.0
+  - Initial version based on nvcnn.py 1.4
+"""
+
 from __future__ import print_function
 from builtins import range
 
@@ -34,6 +40,13 @@ try:
 except:
     print("Failed to import horovod module. Please run hvd_install.sh");
     raise
+
+__version__ = "1.0"
+
+def tensorflow_version_tuple():
+    v = tf.__version__
+    major, minor, patch = v.split('.')
+    return (int(major), int(minor), patch)
 
 hvd.init()
 
@@ -1027,6 +1040,9 @@ def main():
     batch_size = FLAGS.batch_size
     subset = 'validation' if FLAGS.eval else 'train'
 
+    tfversion = tensorflow_version_tuple()
+    print_r0("TensorFlow:  %i.%i.%s" % tfversion)
+    print_r0("This script:", __file__, "v%s" % __version__)
     print_r0("Cmd line args:")
     print_r0('\n'.join(['  '+arg for arg in sys.argv[1:]]))
 
