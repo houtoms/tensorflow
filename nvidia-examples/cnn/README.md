@@ -1,21 +1,33 @@
 
-# Convolutional neural network training script
+# Convolutional neural network training scripts
 
-This script implements a number of popular CNN models and demonstrates
+These scripts implement a number of popular CNN models and demonstrate
 efficient training on multi-GPU systems. It can be used for benchmarking,
 training and evaluation of models.
 
-## Script usage
+Two methods of parallelization are demonstrated.
+ * Tensorflow native distributed graphs in nvcnn.py.
+ * Uber's Horovod data-parallel framework in nvcnn_hvd.py
 
-Benchmarking example (assuming TFRecord dataset in /data/imagenet_tfrecord):
+## Benchmarking Example
 
+Assumes TFRecord dataset in /data/imagenet_tfrecord.
+
+### nvcnn.py
     $ python nvcnn.py --model=resnet50 \
                       --data_dir=/data/imagenet_tfrecord \
                       --batch_size=64 \
                       --num_gpus=8
 
-Training example:
+### nvcnn_hvd.py
+    $ mpiexec -np 8 python nvcnn_hvd.py \
+                      --model=resnet50 \
+                      --data_dir=/data/imagenet_tfrecord \
+                      --batch_size=64
 
+## Training Example
+
+## nvcnn.py
     $ python nvcnn.py --model=resnet50 \
                       --data_dir=/data/imagenet_tfrecord \
                       --batch_size=64 \
@@ -24,8 +36,27 @@ Training example:
                       --display_every=50 \
                       --log_dir=/home/train/resnet50-1
 
+## nvcnn_hvd.py
+    $ mpiexec -np 8 python nvcnn_hvd.py
+                      --model=resnet50 \
+                      --data_dir=/data/imagenet_tfrecord \
+                      --batch_size=64 \
+                      --num_epochs=120 \
+                      --display_every=50 \
+                      --log_dir=/home/train/resnet50-1
+
+## Use notes
+
+Run with `--help` to see additional arguments.
+
 Add `--eval` to the arguments to evaluate a trained model on the validation
-dataset. Run with `--help` to see additional arguments.
+dataset. For nvcnn_hvd.py, only single GPU evaluation is supported.
+
+nvcnn_hvd.py requires Horovod to be installed in the container prior to use.
+To install Horovod, run hvd_install.sh as root.
+
+In order to execute `mpiexec` as root, the --allow-run-as-root flag must be
+included before `python` on the command line.
 
 TensorBoard can be used to monitor training:
 
