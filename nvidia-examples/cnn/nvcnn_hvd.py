@@ -483,6 +483,7 @@ class FeedForwardTrainer(object):
                     dtype=tf.int32,
                     name='synthetic_labels')
                 preload_op, (images, labels) = stage([images, labels])
+                gpucopy_op = None
 
         with tf.device('/gpu:0'):
             # Evaluate the loss and compute the gradients
@@ -519,7 +520,8 @@ class FeedForwardTrainer(object):
             opt = tf.train.MomentumOptimizer(self.learning_rate, FLAGS.momentum,
                                              use_nesterov=True)
             opt = hvd.DistributedOptimizer(opt)
-            train_op = opt.minimize(loss)
+            train_op = opt.minimize(loss,
+                                    gate_gradients=tf.train.Optimizer.GATE_NONE)
 
         update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS) or []
         with tf.device('/cpu:0'):
