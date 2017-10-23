@@ -46,6 +46,9 @@ Changelog:
   - Tabs --> spaces
 """
 
+from __future__ import print_function
+from builtins import range
+
 __version__ = "1.4"
 
 import numpy as np
@@ -57,7 +60,7 @@ try:
     have_nccl = True
 except ImportError:
     have_nccl = False
-    print "WARNING: NCCL support not available"
+    print("WARNING: NCCL support not available")
 
 import sys
 import os
@@ -460,7 +463,7 @@ class ImagePreprocessor(object):
                 images[device_num].append(image)
                 labels[device_num].append(label)
             # Stack images back into a sub-batch for each device
-            for device_num in xrange(self.num_devices):
+            for device_num in range(self.num_devices):
                 images[device_num] = tf.parallel_stack(images[device_num])
                 labels[device_num] = tf.concat(labels[device_num], 0)
                 images[device_num] = tf.reshape(images[device_num],
@@ -634,7 +637,7 @@ class FeedForwardTrainer(object):
                                   for grad in tf.gradients(loss*scale, params)]
                     else:
                         grads = tf.gradients(loss, params)
-                    gradvars = zip(grads, params)
+                    gradvars = list(zip(grads, params))
                     tower_gradvars.append(gradvars)
                     with tf.device('/cpu:0'): # No in_top_k implem on GPU
                         top1 = tf.reduce_mean(
@@ -696,7 +699,7 @@ class FeedForwardTrainer(object):
         sess.run(sync_op)
     def prefill_pipeline(self, sess):
         # Pre-fill the input pipeline with data
-        for i in xrange(len(self.enqueue_ops)):
+        for i in range(len(self.enqueue_ops)):
             sess.run(self.enqueue_ops[:i+1])
 
 class FeedForwardEvaluator(object):
@@ -737,7 +740,7 @@ class FeedForwardEvaluator(object):
         return total_top1, total_top5, self.enqueue_ops
     def prefill_pipeline(self, sess):
         # Pre-fill the input pipeline with data
-        for i in xrange(len(self.enqueue_ops)):
+        for i in range(len(self.enqueue_ops)):
             sess.run(self.enqueue_ops[:i+1])
 
 def inference_trivial(net, input_layer):
@@ -801,15 +804,15 @@ def inference_alexnet_owt(net, input_layer):
 def inference_vgg_impl(net, input_layer, layer_counts):
     net.use_batch_norm = False
     x = net.input_layer(input_layer)
-    for _ in xrange(layer_counts[0]): x = net.conv(x,  64, (3,3))
+    for _ in range(layer_counts[0]): x = net.conv(x,  64, (3,3))
     x = net.pool(x, 'MAX', (2,2))
-    for _ in xrange(layer_counts[1]): x = net.conv(x, 128, (3,3))
+    for _ in range(layer_counts[1]): x = net.conv(x, 128, (3,3))
     x = net.pool(x, 'MAX', (2,2))
-    for _ in xrange(layer_counts[2]): x = net.conv(x, 256, (3,3))
+    for _ in range(layer_counts[2]): x = net.conv(x, 256, (3,3))
     x = net.pool(x, 'MAX', (2,2))
-    for _ in xrange(layer_counts[3]): x = net.conv(x, 512, (3,3))
+    for _ in range(layer_counts[3]): x = net.conv(x, 512, (3,3))
     x = net.pool(x, 'MAX', (2,2))
-    for _ in xrange(layer_counts[4]): x = net.conv(x, 512, (3,3))
+    for _ in range(layer_counts[4]): x = net.conv(x, 512, (3,3))
     x = net.pool(x, 'MAX', (2,2))
     x = net.flatten(x)
     x = net.fully_connected(x, 4096)
@@ -946,13 +949,13 @@ def inference_resnet_v1_impl(net, input_layer, layer_counts, basic=False):
     x = net.input_layer(input_layer)
     x = net.conv(x, 64,    (7,7), (2,2), padding='SAME_RESNET')
     x = net.pool(x, 'MAX', (3,3), (2,2), padding='SAME')
-    for i in xrange(layer_counts[0]):
+    for i in range(layer_counts[0]):
         x = resnet_bottleneck_v1(net, x,  256,  64, 1, basic)
-    for i in xrange(layer_counts[1]):
+    for i in range(layer_counts[1]):
         x = resnet_bottleneck_v1(net, x,  512, 128, 2 if i==0 else 1, basic)
-    for i in xrange(layer_counts[2]):
+    for i in range(layer_counts[2]):
         x = resnet_bottleneck_v1(net, x, 1024, 256, 2 if i==0 else 1, basic)
-    for i in xrange(layer_counts[3]):
+    for i in range(layer_counts[3]):
         x = resnet_bottleneck_v1(net, x, 2048, 512, 2 if i==0 else 1, basic)
     x = net.spatial_avg(x)
     return x
@@ -1033,13 +1036,13 @@ def inference_inception_v4(net, input_layer):
     x = inception_v4_sa(net, x)
     x = inception_v4_sb(net, x)
     x = inception_v4_sc(net, x)
-    for _ in xrange(4):
+    for _ in range(4):
         x = inception_v4_a(net, x)
     x = inception_v4_ra(net, x, 192, 224, 256, 384)
-    for _ in xrange(7):
+    for _ in range(7):
         x = inception_v4_b(net, x)
     x = inception_v4_rb(net, x)
-    for _ in xrange(3):
+    for _ in range(3):
         x = inception_v4_c(net, x)
     x = net.spatial_avg(x)
     x = net.dropout(x, 0.8)
@@ -1078,32 +1081,32 @@ def inference_inception_resnet_v2(net, input_layer):
     x = inception_v4_sa(net, x)
     x = inception_v4_sb(net, x)
     x = inception_v4_sc(net, x)
-    for _ in xrange(5):
+    for _ in range(5):
         x = net.residual(x, inception_resnet_v2_a, scale=residual_scale)
     x = inception_v4_ra(net, x, 256, 256, 384, 384)
-    for _ in xrange(10):
+    for _ in range(10):
         x = net.residual(x, inception_resnet_v2_b, scale=residual_scale)
     x = inception_resnet_v2_rb(net, x)
-    for _ in xrange(5):
+    for _ in range(5):
         x = net.residual(x, inception_resnet_v2_c, scale=residual_scale)
     x = net.spatial_avg(x)
     x = net.dropout(x, 0.8)
     return x
 
 def run_evaluation(nstep, sess, top1_op, top5_op, enqueue_ops):
-    print "Evaluating"
+    print("Evaluating")
     top1s = []
     top5s = []
-    print "  Step  Top-1  Top-5"
-    for step in xrange(nstep):
+    print("  Step  Top-1  Top-5")
+    for step in range(nstep):
         try:
             top1, top5 = sess.run([top1_op, top5_op, enqueue_ops])[:2]
             if step == 0 or (step+1) % FLAGS.display_every == 0:
-                print "% 6i %5.1f%% %5.1f%%" % (step+1, top1*100, top5*100)
+                print("% 6i %5.1f%% %5.1f%%" % (step+1, top1*100, top5*100))
             top1s.append(top1)
             top5s.append(top5)
         except KeyboardInterrupt:
-            print "Keyboard interrupt"
+            print("Keyboard interrupt")
             break
     nstep = len(top1s)
     if nstep == 0:
@@ -1192,7 +1195,7 @@ def main():
     FLAGS, unknown_args = cmdline.parse_known_args()
     if len(unknown_args) > 0:
         for bad_arg in unknown_args:
-            print "ERROR: Unknown command line arg: %s" % bad_arg
+            print("ERROR: Unknown command line arg: %s" % bad_arg)
         raise ValueError("Invalid command line arg(s)")
 
     FLAGS.strong_scaling = False
@@ -1203,14 +1206,14 @@ def main():
     total_batch_size = FLAGS.batch_size
     if not FLAGS.strong_scaling:
         total_batch_size *= FLAGS.num_gpus
-    devices = ['/gpu:%i' % i for i in xrange(FLAGS.num_gpus)]
+    devices = ['/gpu:%i' % i for i in range(FLAGS.num_gpus)]
     subset = 'validation' if FLAGS.eval else 'train'
 
     tfversion = tensorflow_version_tuple()
-    print "TensorFlow:  %i.%i.%s" % tfversion
-    print "This script:", __file__, "v%s" % __version__
-    print "Cmd line args:"
-    print '\n'.join(['  '+arg for arg in sys.argv[1:]])
+    print("TensorFlow:  %i.%i.%s" % tfversion)
+    print("This script:", __file__, "v%s" % __version__)
+    print("Cmd line args:")
+    print('\n'.join(['  '+arg for arg in sys.argv[1:]]))
 
     if FLAGS.data_dir is not None and FLAGS.data_dir != '':
         nrecord = get_num_records(os.path.join(FLAGS.data_dir, '%s-*' % subset))
@@ -1236,16 +1239,16 @@ def main():
 
     model_dtype = tf.float16 if FLAGS.fp16 else tf.float32
 
-    print "Num images: ", nrecord if FLAGS.data_dir is not None else 'Synthetic'
-    print "Model:      ", FLAGS.model
-    print "Batch size: ", total_batch_size, 'global'
-    print "            ", total_batch_size/len(devices), 'per device'
-    print "Devices:    ", devices
-    print "Data format:", 'NCHW'
-    print "Data type:  ", 'fp16' if model_dtype == tf.float16 else 'fp32'
-    print "Have NCCL:  ", have_nccl
-    print "Using NCCL: ", FLAGS.nccl
-    print "Using XLA:  ", FLAGS.xla
+    print("Num images: ", nrecord if FLAGS.data_dir is not None else 'Synthetic')
+    print("Model:      ", FLAGS.model)
+    print("Batch size: ", total_batch_size, 'global')
+    print("            ", total_batch_size/len(devices), 'per device')
+    print("Devices:    ", devices)
+    print("Data format:", 'NCHW')
+    print("Data type:  ", 'fp16' if model_dtype == tf.float16 else 'fp32')
+    print("Have NCCL:  ", have_nccl)
+    print("Using NCCL: ", FLAGS.nccl)
+    print("Using XLA:  ", FLAGS.xla)
 
     if FLAGS.num_epochs is not None:
         if FLAGS.data_dir is None:
@@ -1344,17 +1347,17 @@ def main():
         if FLAGS.fp16:
             raise ValueError("eval cannot be run with in fp16")
         evaluator = FeedForwardEvaluator(preprocessor, eval_func)
-        print "Building evaluation graph"
+        print("Building evaluation graph")
         top1_op, top5_op, enqueue_ops = evaluator.evaluation_step(
             total_batch_size, devices)
     else:
         nstep_per_epoch = nrecord // total_batch_size
         trainer = FeedForwardTrainer(preprocessor, loss_func, nstep_per_epoch)
-        print "Building training graph"
+        print("Building training graph")
         total_loss, learning_rate, train_ops = trainer.training_step(
             total_batch_size, devices)
 
-    print "Creating session"
+    print("Creating session")
     config = tf.ConfigProto()
     config.intra_op_parallelism_threads = 1
 
@@ -1378,7 +1381,7 @@ def main():
         if ckpt and ckpt.model_checkpoint_path:
             saver.restore(sess, ckpt.model_checkpoint_path)
             restored = True
-            print "Restored session from checkpoint " + ckpt.model_checkpoint_path
+            print("Restored session from checkpoint " + ckpt.model_checkpoint_path)
         else:
             if not os.path.exists(log_dir):
                 os.mkdir(log_dir)
@@ -1387,28 +1390,28 @@ def main():
         if not restored:
             raise ValueError("No checkpoint found for evaluation")
         else:
-            print "Pre-filling input pipeline"
+            print("Pre-filling input pipeline")
             evaluator.prefill_pipeline(sess)
             nstep = nrecord // total_batch_size
             run_evaluation(nstep, sess, top1_op, top5_op, enqueue_ops)
             return
 
     if not restored:
-        print "Initializing variables"
+        print("Initializing variables")
         trainer.init(sess, devices)
         if saver is not None:
             save_path = saver.save(sess, checkpoint_file, global_step=0)
-            print "Checkpoint written to", save_path
+            print("Checkpoint written to", save_path)
 
-    print "Pre-filling input pipeline"
+    print("Pre-filling input pipeline")
     trainer.prefill_pipeline(sess)
 
-    print "Training"
-    print "  Step Epoch Img/sec   Loss   LR"
+    print("Training")
+    print("  Step Epoch Img/sec   Loss   LR")
     batch_times = []
     oom = False
     step0 = int(sess.run(trainer.global_step))
-    for step in xrange(step0, nstep):
+    for step in range(step0, nstep):
         ops_to_run = [total_loss, learning_rate] + train_ops
         try:
             start_time = time.time()
@@ -1417,14 +1420,14 @@ def main():
                  time.time() - last_summary_time > FLAGS.summary_interval_secs)):
                 if step != 0:
                     last_summary_time += FLAGS.summary_interval_secs
-                print "Writing summaries to ", log_dir
+                print("Writing summaries to ", log_dir)
                 summary, loss, lr = sess.run([summary_ops] + ops_to_run)[:3]
                 train_writer.add_summary(summary, step)
             else:
                 loss, lr = sess.run(ops_to_run)[:2]
             elapsed = time.time() - start_time
         except KeyboardInterrupt:
-            print "Keyboard interrupt"
+            print("Keyboard interrupt")
             break
         except tf.errors.ResourceExhaustedError:
             elapsed = -1.
@@ -1437,7 +1440,7 @@ def main():
             last_save_time += FLAGS.save_interval_secs
             save_path = saver.save(sess, checkpoint_file,
                                    global_step=trainer.global_step)
-            print "Checkpoint written to", save_path
+            print("Checkpoint written to", save_path)
 
         if step >= FLAGS.nstep_burnin:
             batch_times.append(elapsed)
@@ -1445,8 +1448,8 @@ def main():
         effective_accuracy = 100. / math.exp(min(loss,20.))
         if step == 0 or (step+1) % FLAGS.display_every == 0:
             epoch = step*total_batch_size // nrecord
-            print "%6i %5i %7.1f %7.3f %7.5f" % (
-                step+1, epoch+1, img_per_sec, loss, lr)
+            print("%6i %5i %7.1f %7.3f %7.5f" % (
+                step+1, epoch+1, img_per_sec, loss, lr))
         if oom:
             break
     nstep = len(batch_times)
@@ -1472,7 +1475,7 @@ def main():
         train_writer.close()
 
     if oom:
-        print "Out of memory error detected, exiting"
+        print("Out of memory error detected, exiting")
         sys.exit(-2)
 
 if __name__ == '__main__':

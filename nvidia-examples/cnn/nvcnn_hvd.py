@@ -14,13 +14,9 @@
 # limitations under the License.
 # ==============================================================================
 
-"""
-Changelog:
-1.0
-  - Initial version based on nvcnn.py 1.4
-"""
-
 from __future__ import print_function
+from builtins import range
+
 import numpy as np
 import tensorflow as tf
 from tensorflow.python.ops import data_flow_ops
@@ -36,15 +32,8 @@ import argparse
 try:
     import horovod.tensorflow as hvd
 except:
-    print_r0("Failed to import horovod module. Please run hvd_install.sh");
+    print("Failed to import horovod module. Please run hvd_install.sh");
     raise
-
-__version__ = "1.0"
-
-def tensorflow_version_tuple():
-    v = tf.__version__
-    major, minor, patch = v.split('.')
-    return (int(major), int(minor), patch)
 
 hvd.init()
 
@@ -555,7 +544,7 @@ class FeedForwardTrainer(object):
         sess.run(sync_op)
     def prefill_pipeline(self, sess):
         # Pre-fill the input pipeline with data
-        for i in xrange(len(self.enqueue_ops)):
+        for i in range(len(self.enqueue_ops)):
             sess.run(self.enqueue_ops[:i+1])
 
 class FeedForwardEvaluator(object):
@@ -577,7 +566,7 @@ class FeedForwardEvaluator(object):
         return top1, top5, self.enqueue_ops
     def prefill_pipeline(self, sess):
         # Pre-fill the input pipeline with data
-        for i in xrange(len(self.enqueue_ops)):
+        for i in range(len(self.enqueue_ops)):
             sess.run(self.enqueue_ops[:i+1])
 
 def inference_trivial(net, input_layer):
@@ -641,15 +630,15 @@ def inference_alexnet_owt(net, input_layer):
 def inference_vgg_impl(net, input_layer, layer_counts):
     net.use_batch_norm = False
     x = net.input_layer(input_layer)
-    for _ in xrange(layer_counts[0]): x = net.conv(x,  64, (3,3))
+    for _ in range(layer_counts[0]): x = net.conv(x,  64, (3,3))
     x = net.pool(x, 'MAX', (2,2))
-    for _ in xrange(layer_counts[1]): x = net.conv(x, 128, (3,3))
+    for _ in range(layer_counts[1]): x = net.conv(x, 128, (3,3))
     x = net.pool(x, 'MAX', (2,2))
-    for _ in xrange(layer_counts[2]): x = net.conv(x, 256, (3,3))
+    for _ in range(layer_counts[2]): x = net.conv(x, 256, (3,3))
     x = net.pool(x, 'MAX', (2,2))
-    for _ in xrange(layer_counts[3]): x = net.conv(x, 512, (3,3))
+    for _ in range(layer_counts[3]): x = net.conv(x, 512, (3,3))
     x = net.pool(x, 'MAX', (2,2))
-    for _ in xrange(layer_counts[4]): x = net.conv(x, 512, (3,3))
+    for _ in range(layer_counts[4]): x = net.conv(x, 512, (3,3))
     x = net.pool(x, 'MAX', (2,2))
     x = net.flatten(x)
     x = net.fully_connected(x, 4096)
@@ -785,13 +774,13 @@ def inference_resnet_v1_impl(net, input_layer, layer_counts, basic=False):
     x = net.input_layer(input_layer)
     x = net.conv(x, 64,    (7,7), (2,2), padding='SAME_RESNET')
     x = net.pool(x, 'MAX', (3,3), (2,2), padding='SAME')
-    for i in xrange(layer_counts[0]):
+    for i in range(layer_counts[0]):
         x = resnet_bottleneck_v1(net, x,  256,  64, 1, basic)
-    for i in xrange(layer_counts[1]):
+    for i in range(layer_counts[1]):
         x = resnet_bottleneck_v1(net, x,  512, 128, 2 if i==0 else 1, basic)
-    for i in xrange(layer_counts[2]):
+    for i in range(layer_counts[2]):
         x = resnet_bottleneck_v1(net, x, 1024, 256, 2 if i==0 else 1, basic)
-    for i in xrange(layer_counts[3]):
+    for i in range(layer_counts[3]):
         x = resnet_bottleneck_v1(net, x, 2048, 512, 2 if i==0 else 1, basic)
     x = net.spatial_avg(x)
     return x
@@ -872,13 +861,13 @@ def inference_inception_v4(net, input_layer):
     x = inception_v4_sa(net, x)
     x = inception_v4_sb(net, x)
     x = inception_v4_sc(net, x)
-    for _ in xrange(4):
+    for _ in range(4):
         x = inception_v4_a(net, x)
     x = inception_v4_ra(net, x, 192, 224, 256, 384)
-    for _ in xrange(7):
+    for _ in range(7):
         x = inception_v4_b(net, x)
     x = inception_v4_rb(net, x)
-    for _ in xrange(3):
+    for _ in range(3):
         x = inception_v4_c(net, x)
     x = net.spatial_avg(x)
     x = net.dropout(x, 0.8)
@@ -917,13 +906,13 @@ def inference_inception_resnet_v2(net, input_layer):
     x = inception_v4_sa(net, x)
     x = inception_v4_sb(net, x)
     x = inception_v4_sc(net, x)
-    for _ in xrange(5):
+    for _ in range(5):
         x = net.residual(x, inception_resnet_v2_a, scale=residual_scale)
     x = inception_v4_ra(net, x, 256, 256, 384, 384)
-    for _ in xrange(10):
+    for _ in range(10):
         x = net.residual(x, inception_resnet_v2_b, scale=residual_scale)
     x = inception_resnet_v2_rb(net, x)
-    for _ in xrange(5):
+    for _ in range(5):
         x = net.residual(x, inception_resnet_v2_c, scale=residual_scale)
     x = net.spatial_avg(x)
     x = net.dropout(x, 0.8)
@@ -934,7 +923,7 @@ def run_evaluation(nstep, sess, top1_op, top5_op, enqueue_ops):
     top1s = []
     top5s = []
     print("  Step  Top-1  Top-5")
-    for step in xrange(nstep):
+    for step in range(nstep):
         try:
             top1, top5 = sess.run([top1_op, top5_op, enqueue_ops])[:2]
             if step == 0 or (step+1) % FLAGS.display_every == 0:
@@ -1038,9 +1027,6 @@ def main():
     batch_size = FLAGS.batch_size
     subset = 'validation' if FLAGS.eval else 'train'
 
-    tfversion = tensorflow_version_tuple()
-    print_r0("TensorFlow:  %i.%i.%s" % tfversion)
-    print_r0("This script:", __file__, "v%s" % __version__)
     print_r0("Cmd line args:")
     print_r0('\n'.join(['  '+arg for arg in sys.argv[1:]]))
 
@@ -1237,7 +1223,7 @@ def main():
     batch_times = []
     oom = False
     step0 = int(sess.run(trainer.global_step))
-    for step in xrange(step0, nstep):
+    for step in range(step0, nstep):
         ops_to_run = [total_loss, learning_rate] + train_ops
         try:
             start_time = time.time()

@@ -30,7 +30,7 @@ RUN curl -O https://bootstrap.pypa.io/get-pip.py && \
     python2 get-pip.py && \
     rm get-pip.py
 
-RUN pip2 install --no-cache-dir --upgrade --no-cache-dir numpy==1.11.0 pexpect psutil && \
+RUN pip2 install --no-cache-dir --upgrade --no-cache-dir numpy==1.11.0 pexpect psutil future && \
     pip3 install --no-cache-dir --upgrade --no-cache-dir numpy==1.11.0 pexpect psutil
 
 # Set up Bazel.
