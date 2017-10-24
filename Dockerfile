@@ -27,7 +27,7 @@ RUN curl -O https://bootstrap.pypa.io/get-pip.py && \
     python get-pip.py && \
     rm get-pip.py
 
-RUN pip install --no-cache-dir --upgrade --no-cache-dir numpy==1.11.0 pexpect psutil future && \
+RUN pip install --no-cache-dir --upgrade --no-cache-dir numpy==1.11.0 pexpect psutil future
 
 # Set up Bazel.
 RUN add-apt-repository -y ppa:openjdk-r/ppa && apt-get update && \
