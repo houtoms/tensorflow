@@ -10,8 +10,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         pkg-config \
         python \
         python-dev \
-        python3 \
-        python3-dev \
         rsync \
         software-properties-common \
         swig \
@@ -26,12 +24,10 @@ RUN mkdir -p /usr/lib/x86_64-linux-gnu/include/ && \
 
 # Install pip3 first so that pip == pip2 when done.
 RUN curl -O https://bootstrap.pypa.io/get-pip.py && \
-    python3 get-pip.py && \
-    python2 get-pip.py && \
+    python get-pip.py && \
     rm get-pip.py
 
-RUN pip2 install --no-cache-dir --upgrade --no-cache-dir numpy==1.11.0 pexpect psutil future && \
-    pip3 install --no-cache-dir --upgrade --no-cache-dir numpy==1.11.0 pexpect psutil
+RUN pip install --no-cache-dir --upgrade --no-cache-dir numpy==1.11.0 pexpect psutil future && \
 
 # Set up Bazel.
 RUN add-apt-repository -y ppa:openjdk-r/ppa && apt-get update && \
@@ -79,9 +75,8 @@ ENV TF_NEED_HDFS 0
 ENV TF_ENABLE_XLA 1
 ENV CC_OPT_FLAGS "-march=sandybridge -mtune=broadwell"
 
-# Build TF for Python 2 and 3
+# Build and install TF
 RUN ./nvbuild.sh --python2
-RUN ./nvbuild.sh --python3
 
 ENV TF_ADJUST_HUE_FUSED         1
 ENV TF_ADJUST_SATURATION_FUSED  1
