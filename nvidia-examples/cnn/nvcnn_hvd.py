@@ -38,7 +38,10 @@ import argparse
 try:
     import horovod.tensorflow as hvd
 except:
-    print("Failed to import horovod module. Please run hvd_install.sh");
+    print("Failed to import horovod module. "
+          "%s is intended for use with Uber's Horovod distributed training "
+          "framework. To create a Docker image with Horovod support see "
+          "docker-examples/Dockerfile.horovod." % __file__)
     raise
 
 __version__ = "1.0"
