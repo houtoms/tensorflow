@@ -39,6 +39,7 @@ NUM_GPUS=`nvidia-smi -L | wc -l` && \
               -//tensorflow/contrib/distributions:mvn_full_covariance_test \
               -//tensorflow/python:localhost_cluster_performance_test \
               -//tensorflow/core/debug:grpc_session_debug_test \
+              -//tensorflow/python/kernel_tests:atrous_conv2d_test \
   | tee testresult.tmp
 
 # Note: These two tests were observed to fail intermittently with error
