@@ -3,9 +3,6 @@
 set -e
 python /opt/tensorflow/nvidia-examples/OpenSeq2Seq/test/create_reversed_examples.py
 
-# Unit tests
-python -m unittest /opt/tensorflow/nvidia-examples/OpenSeq2Seq/test/data_layer_tests.py
-python -m unittest /opt/tensorflow/nvidia-examples/OpenSeq2Seq/test/model_tests.py
 
 # 1GPU Test
 python /opt/tensorflow/nvidia-examples/OpenSeq2Seq/run.py --config=/opt/tensorflow/nvidia-examples/OpenSeq2Seq/example_configs/toy_data_config.json --mode=train --logdir=ModelAndLogFolder_1GPU
@@ -27,6 +24,7 @@ else:
   exit(1)
 EOF
 
+
 # 2GPU Test
 python /opt/tensorflow/nvidia-examples/OpenSeq2Seq/run.py --config=/opt/tensorflow/nvidia-examples/OpenSeq2Seq/example_configs/toy_data_config_2GPUs.json --mode=train --logdir=ModelAndLogFolder_2GPU
 
@@ -46,5 +44,6 @@ else:
   print("FAIL, BLEU must be greater than ", min_score)
   exit(1)
 EOF
+
 
 echo "ALL TESTS PASS"

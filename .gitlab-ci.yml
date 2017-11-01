@@ -363,9 +363,9 @@ L0_nvcnn_resnet50_batch64_real--P100_R384_4GPU:
     <<: *L0_NVCNN_BENCHMARK
     <<: *P100_R384_4GPU
 
-L0_nvcnn_resnet50_batch64_real--V100_R384_4GPU:
-    <<: *L0_NVCNN_BENCHMARK
-    <<: *V100_R384_4GPU
+L0_seq2seq--P100_R384_1GPU:
+    <<: *L0_TEST
+    <<: *P100_R384_1GPU
 
 L1_word2vec--P100_R384_4GPU:
     <<: *L1_TEST
@@ -380,6 +380,10 @@ L1_self_test_xla--P100_R384_4GPU:
     <<: *P100_R384_4GPU
 
 L1_nccl_test--P100_R384_4GPU:
+    <<: *L1_TEST
+    <<: *P100_R384_4GPU
+
+L1_seq2seq--P100_R384_4GPU:
     <<: *L1_TEST
     <<: *P100_R384_4GPU
 
@@ -489,6 +493,14 @@ L0_convnet_benchmarks_vgga--V100_R384_4GPU:
       TEST_WORK_DIR: "/opt/tensorflow/qa/L0_convnet_benchmarks"
       TEST_SCRIPT: "./test-vgga.sh"
 
+L0_nvcnn_resnet50_batch64_real--V100_R384_4GPU:
+    <<: *L0_NVCNN_BENCHMARK
+    <<: *V100_R384_4GPU
+
+L0_seq2seq--P100_R384_1GPU:
+    <<: *L0_TEST
+    <<: *V100_R384_1GPU
+
 L1_word2vec--V100_R384_4GPU:
     <<: *L1_TEST
     <<: *V100_R384_4GPU
@@ -502,6 +514,10 @@ L1_self_test_xla--V100_R384_4GPU:
     <<: *V100_R384_4GPU
 
 L1_nccl_test--V100_R384_4GPU:
+    <<: *L1_TEST
+    <<: *V100_R384_4GPU
+
+L1_seq2seq--V100_R384_4GPU:
     <<: *L1_TEST
     <<: *V100_R384_4GPU
 
@@ -1099,6 +1115,10 @@ L0_convnet_benchmarks_vgga--P40_R384_1GPU:
       TEST_WORK_DIR: "/opt/tensorflow/qa/L0_convnet_benchmarks"
       TEST_SCRIPT: "./test-vgga.sh"
 
+L0_seq2seq--P40_R384_1GPU:
+    <<: *L0_TEST
+    <<: *P100_R384_1GPU
+
 L1_word2vec--P40_R384_1GPU:
     <<: *L1_TEST
     <<: *P40_R384_1GPU
@@ -1114,6 +1134,10 @@ L1_self_test_xla--P40_R384_1GPU:
 L1_nccl_test--P40_R384_1GPU:
     <<: *L1_TEST
     <<: *P40_R384_1GPU
+
+L1_seq2seq--P40_R384_4GPU:
+    <<: *L1_TEST
+    <<: *P100_R384_4GPU
 
 L2_tensorflow_benchmarks--P40_R384_1GPU:
     <<: *L2_TEST
