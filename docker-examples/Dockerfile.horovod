@@ -6,7 +6,7 @@
 # See https://docs.docker.com/engine/reference/builder/
 # for more information.
 #
-FROM nvdl.githost.io:4678/dgx/tensorflow:17.11-devel
+FROM nvcr.io/nvidia/tensorflow:17.11
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
         libibverbs1 \
