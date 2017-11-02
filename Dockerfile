@@ -18,16 +18,18 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         zlib1g-dev && \
     rm -rf /var/lib/apt/lists/*
 
+ENV PYTHONIOENCODING utf-8
+
 # TF 1.0 upstream needs this symlink
 RUN mkdir -p /usr/lib/x86_64-linux-gnu/include/ && \
      ln -s /usr/include/cudnn.h /usr/lib/x86_64-linux-gnu/include/cudnn.h
 
-# Install pip3 first so that pip == pip2 when done.
+# If installing multiple pips, install pip2 last so that pip == pip2 when done.
 RUN curl -O https://bootstrap.pypa.io/get-pip.py && \
     python get-pip.py && \
     rm get-pip.py
 
-RUN pip install --no-cache-dir --upgrade --no-cache-dir numpy==1.11.0 pexpect psutil future
+RUN pip install --no-cache-dir --upgrade --no-cache-dir numpy==1.11.0 pexpect psutil future nltk
 
 # Set up Bazel.
 RUN add-apt-repository -y ppa:openjdk-r/ppa && apt-get update && \
@@ -51,6 +53,10 @@ RUN BAZEL_VERSION=0.5.4 && \
 # Download and build TensorFlow.
 WORKDIR /opt/tensorflow
 COPY . .
+
+# Patch OpenSeq2Seq with latest changes
+RUN cd /opt/tensorflow/nvidia-examples/OpenSeq2Seq && \
+    patch -p0 < ../../OpenSeq2Seq.patch
 
 # Link examples to workspace
 RUN mkdir -p /workspace/nvidia-examples && \
