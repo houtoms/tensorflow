@@ -1,10 +1,10 @@
-FROM nvdl.githost.io:4678/dgx/cuda:9.0-cudnn7-devel-ubuntu16.04--17.11
+FROM nvdl.githost.io:4678/dgx/cuda:9.0-cudnn7-devel-ubuntu16.04--18.01
 
 ENV LD_LIBRARY_PATH /usr/local/cuda/extras/CUPTI/lib64:${LD_LIBRARY_PATH}
 
 ENV TENSORFLOW_VERSION 1.3.0+
 LABEL com.nvidia.tensorflow.version="${TENSORFLOW_VERSION}"
-ENV NVIDIA_TENSORFLOW_VERSION 17.11
+ENV NVIDIA_TENSORFLOW_VERSION 18.01
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
         pkg-config \
