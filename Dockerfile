@@ -54,10 +54,6 @@ RUN BAZEL_VERSION=0.5.4 && \
 WORKDIR /opt/tensorflow
 COPY . .
 
-# Patch OpenSeq2Seq with latest changes
-RUN cd /opt/tensorflow/nvidia-examples/OpenSeq2Seq && \
-    patch -p0 < ../../OpenSeq2Seq.patch
-
 # Link examples to workspace
 RUN mkdir -p /workspace/nvidia-examples && \
      ln -s /opt/tensorflow/nvidia-examples/* /workspace/nvidia-examples/
