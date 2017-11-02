@@ -15,7 +15,7 @@ echo $Result_1GPU
 BLEU_1GPU=$(echo $Result_1GPU | awk '{print $3}' | sed 's/,$//')
 
 python <<EOF
-min_score = 98.0
+min_score = 95.0
 if $BLEU_1GPU > min_score:
   print("PASS")
   exit(0)
@@ -36,7 +36,7 @@ echo $Result_2GPU
 BLEU_2GPU=$(echo $Result_2GPU | awk '{print $3}' | sed 's/,$//')
 
 python <<EOF
-min_score = 98.0
+min_score = 95.0
 if $BLEU_2GPU > min_score:
   print("PASS")
   exit(0)
