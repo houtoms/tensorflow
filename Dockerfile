@@ -6,12 +6,19 @@ ENV TENSORFLOW_VERSION 1.3.0+
 LABEL com.nvidia.tensorflow.version="${TENSORFLOW_VERSION}"
 ENV NVIDIA_TENSORFLOW_VERSION 18.01
 
+ARG PYVER=2.7
+
+# CHECK SUPPORTED PYTHON VERSIONS
+# We also assume that python3 = python3.5 at various points.
+# This is valid for Ubuntu 16.04, but needs to be revisited for 18.04.
+RUN [ "$PYVER" = "2.7" -o "$PYVER" = "3.5" ] && \
+    [ `cat /etc/os-release | grep VERSION_ID | sed 's/^VERSION_ID="\([^"]*\)"/\1/'` = "16.04" ]
+
 RUN apt-get update && apt-get install -y --no-install-recommends \
         pkg-config \
-        python \
-        python-dev \
+        python`[ "$PYVER" = "3.5" ] && echo $PYVER | cut -c1-1` \
+        python`[ "$PYVER" = "3.5" ] && echo $PYVER | cut -c1-1`-dev \
         rsync \
-        software-properties-common \
         swig \
         unzip \
         zip \
@@ -20,22 +27,21 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 ENV PYTHONIOENCODING utf-8
 
+RUN [ "$PYVER" = "2.7" ] || ln -s /usr/bin/python`echo $PYVER | cut -c1-1` /usr/bin/python
+
 # TF 1.0 upstream needs this symlink
 RUN mkdir -p /usr/lib/x86_64-linux-gnu/include/ && \
      ln -s /usr/include/cudnn.h /usr/lib/x86_64-linux-gnu/include/cudnn.h
 
 # If installing multiple pips, install pip2 last so that pip == pip2 when done.
 RUN curl -O https://bootstrap.pypa.io/get-pip.py && \
-    python get-pip.py && \
+    python$PYVER get-pip.py && \
     rm get-pip.py
 
-RUN pip install --no-cache-dir --upgrade --no-cache-dir numpy==1.11.0 pexpect psutil future nltk
+RUN pip install --no-cache-dir --upgrade numpy==1.11.0 pexpect psutil nltk
+RUN [ `echo $PYVER | cut -c1-1` = "2" ] && pip install --no-cache-dir future || true
 
 # Set up Bazel.
-RUN add-apt-repository -y ppa:openjdk-r/ppa && apt-get update && \
-    apt-get install -y --no-install-recommends openjdk-8-jdk openjdk-8-jre-headless && \
-    rm -rf /var/lib/apt/lists/*
-
 # Running bazel inside a `docker build` command causes trouble, cf:
 #   https://github.com/bazelbuild/bazel/issues/134
 #   https://github.com/bazelbuild/bazel/issues/418
@@ -78,7 +84,7 @@ ENV TF_ENABLE_XLA 1
 ENV CC_OPT_FLAGS "-march=sandybridge -mtune=broadwell"
 
 # Build and install TF
-RUN ./nvbuild.sh --python2
+RUN ./nvbuild.sh --python`echo $PYVER | cut -c1-1`
 
 ENV TF_ADJUST_HUE_FUSED         1
 ENV TF_ADJUST_SATURATION_FUSED  1
