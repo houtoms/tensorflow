@@ -26,9 +26,11 @@ limitations under the License.
 #endif
 
 #if CUDA_VERSION >= 8000
-#define SE_CUDA_DATA_HALF CUDA_R_16F
+#define SE_CUDA_DATA_HALF  CUDA_R_16F
+#define SE_CUDA_DATA_FLOAT CUDA_R_32F
 #else
-#define SE_CUDA_DATA_HALF CUBLAS_DATA_HALF
+#define SE_CUDA_DATA_HALF  CUBLAS_DATA_HALF
+#define SE_CUDA_DATA_FLOAT CUBLAS_DATA_FLOAT
 #endif
 
 #include "tensorflow/stream_executor/cuda/cuda_blas.h"
@@ -316,6 +318,17 @@ static bool TensorOpMathEnabled() {
   return is_enabled;
 }
 
+static bool TensorOpFp32MathEnabled() {
+  static bool is_enabled = [] {
+    bool ret;
+    TF_CHECK_OK(tensorflow::ReadBoolFromEnvVar("TF_ENABLE_TENSOR_OP_MATH_FP32",
+                                               /*default=*/false, &ret));
+    return ret;
+  }();
+  return is_enabled;
+}
+
+
 // cuBLAS has interfaces that permit pointers to be passed from either the host
 // memory space or the device memory space; however, you must instruct it as to
 // which address space those pointers are in with cublasSetPointerMode.
@@ -435,7 +448,7 @@ class ScopedCublasMathMode {
   cublasMath_t old_mode_;  // Prior cuBLAS math mode, to be restored.
   bool ok_;                // Whether the change was successful.
 };
-#endif  // CUDA_VERSION >= 9000
+#endif // CUDA_VERSION >= 9000
 
 bool CUDABlas::Init() {
   cublasStatus_t ret = wrap::cublasCreate(parent_, &blas_);
@@ -1981,11 +1994,25 @@ bool CUDABlas::DoBlasGemm(Stream *stream, blas::Transpose transa,
                       "precondition violation";
     }
   }
-  return DoBlasInternal(
-      wrap::cublasSgemm, stream, true /* = pointer_mode_host */,
-      false /* = use_tensor_ops */, CUDABlasTranspose(transa),
-      CUDABlasTranspose(transb), m, n, k, &alpha, CUDAMemory(a), lda,
-      CUDAMemory(b), ldb, &beta, CUDAMemoryMutable(c), ldc);
+
+  bool use_tensor_ops = false;
+#if CUDA_VERSION >= 9000
+  int cc_major, cc_minor;
+  stream->parent()->GetDeviceDescription().cuda_compute_capability(&cc_major,
+                                                                   &cc_minor);
+
+  // GPUs < sm_70 don't support tensor cores.
+  if(cc_major >= 7 && TensorOpMathEnabled() && TensorOpFp32MathEnabled()) {
+    use_tensor_ops = true;
+  }
+#endif
+
+  return DoBlasInternal(wrap::cublasSgemmEx, stream,
+                        true /* = pointer_mode_host */, use_tensor_ops,
+                        CUDABlasTranspose(transa), CUDABlasTranspose(transb), m,
+                        n, k, &alpha, CUDAMemory(a), SE_CUDA_DATA_FLOAT, lda,
+                        CUDAMemory(b), SE_CUDA_DATA_FLOAT, ldb, &beta,
+                        CUDAMemoryMutable(c), SE_CUDA_DATA_FLOAT, ldc);
 }
 
 bool CUDABlas::DoBlasGemm(Stream *stream, blas::Transpose transa,
