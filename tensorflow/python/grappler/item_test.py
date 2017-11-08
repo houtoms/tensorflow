@@ -52,7 +52,10 @@ class ItemTest(test.TestCase):
       mg = meta_graph.create_meta_graph_def(graph=g)
       grappler_item = item.Item(mg)
       op_list = grappler_item.IdentifyImportantOps()
-      self.assertEqual([b'Const', b'Const_1', b'add'], op_list)
+      #self.assertEqual([b'Const', b'Const_1', b'add'], op_list)
+      self.assertEqual(3, len(op_list))
+      for op in op_list:
+        self.assertTrue(op in [b'Const', b'Const_1', b'add'])
 
   def testOpProperties(self):
     with ops.Graph().as_default() as g:
