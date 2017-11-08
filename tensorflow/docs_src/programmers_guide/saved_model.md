@@ -150,7 +150,7 @@ Notes:
    @{tf.variables_initializer} for more information.
 
 *  To inspect the variables in a checkpoint, you can use the
-   [`inspect_checkpoint`](https://cs.corp.google.com/#piper///depot/google3/third_party/tensorflow/python/tools/inspect_checkpoint.py)
+   [`inspect_checkpoint`](https://www.tensorflow.org/code/tensorflow/python/tools/inspect_checkpoint.py)
    library, particularly the `print_tensors_in_checkpoint_file` function.
 
 *  By default, `Saver` uses the value of the @{tf.Variable.name} property
@@ -432,7 +432,7 @@ the same keys.  These `SignatureDef`s differ only in their outputs, as
 provided by the corresponding `ExportOutput` entry.  The inputs are always
 those provided by the `serving_input_receiver_fn`.
 An inference request may specify the head by name.  One head must be named
-using [`signature_constants.DEFAULT_SERVING_SIGNATURE_DEF_KEY`](https://cs.corp.google.com/#piper///depot/google3/third_party/tensorflow/python/saved_model/signature_constants.py)
+using [`signature_constants.DEFAULT_SERVING_SIGNATURE_DEF_KEY`](https://www.tensorflow.org/code/tensorflow/python/saved_model/signature_constants.py)
 indicating which `SignatureDef` will be served when an inference request
 does not specify one.
 
@@ -565,7 +565,7 @@ If you built TensorFlow from source code, you must run the following
 additional command to build `saved_model_cli`:
 
 ```
-$ blaze build third_party/tensorflow/python/tools:saved_model_cli
+$ bazel build tensorflow/python/tools:saved_model_cli
 ```
 
 ### Overview of commands
@@ -879,5 +879,6 @@ of checkpoints and assets:
 
 Each graph is associated with a specific set of tags, which enables
 identification during a load or restore operation.
+
 
 
