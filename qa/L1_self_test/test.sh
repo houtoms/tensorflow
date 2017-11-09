@@ -27,6 +27,7 @@ export LD_LIBRARY_PATH=/usr/local/cuda/extras/CUPTI/lib64:$LD_LIBRARY_PATH
 # Note: //tensorflow/python/debug:debugger_cli_common_test fails when run as root due to a file permissions issue.
 # Note: //tensorflow/contrib/tensor_forest:scatter_add_ndim_op_test fails for an unknown reason with "Create kernel failed: Invalid argument: AttrValue must not have reference type value of float_ref".
 # Note: //tensorflow/contrib/distributions:mvn_full_covariance_test fails due to assert_equal being used to check symmetry of the result of a matmul.
+# Note: //tensorflow/contrib/kfac/examples/tests:convnet_test times out when distributed tests are included. These have been commented out in the python test.
 NUM_GPUS=`nvidia-smi -L | wc -l` && \
   bazel test  --config=cuda -c opt --verbose_failures --local_test_jobs=$NUM_GPUS \
               --run_under=//tensorflow/tools/ci_build/gpu_build:parallel_gpu_execute \

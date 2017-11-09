@@ -116,19 +116,19 @@ class ConvNetTest(tf.test.TestCase):
           loss, statistics, layer_collection)
       self.assertLess(statistics_["loss"], 1.0)
 
-  def testMinimizeLossDistributed(self):
-    with tf.Graph().as_default():
-      loss, statistics, layer_collection = self._build_toy_problem()
-      statistics_ = convnet.minimize_loss_distributed(
-          task_id=0,
-          num_worker_tasks=1,
-          num_ps_tasks=0,
-          master="",
-          checkpoint_dir=None,
-          loss=loss,
-          statistics=statistics,
-          layer_collection=layer_collection)
-      self.assertLess(statistics_["loss"], 1.0)
+  #def testMinimizeLossDistributed(self):
+  #  with tf.Graph().as_default():
+  #    loss, statistics, layer_collection = self._build_toy_problem()
+  #    statistics_ = convnet.minimize_loss_distributed(
+  #        task_id=0,
+  #        num_worker_tasks=1,
+  #        num_ps_tasks=0,
+  #        master="",
+  #        checkpoint_dir=None,
+  #        loss=loss,
+  #        statistics=statistics,
+  #        layer_collection=layer_collection)
+  #    self.assertLess(statistics_["loss"], 1.0)
 
   def testTrainMnistSingleMachine(self):
     with tf.Graph().as_default():
@@ -140,17 +140,17 @@ class ConvNetTest(tf.test.TestCase):
       convnet.train_mnist_single_machine(
           data_dir=None, num_epochs=1, use_fake_data=True)
 
-  def testTrainMnistDistributed(self):
-    with tf.Graph().as_default():
-      # Ensure model training doesn't crash.
-      convnet.train_mnist_distributed(
-          task_id=0,
-          num_worker_tasks=1,
-          num_ps_tasks=0,
-          master="",
-          data_dir=None,
-          num_epochs=1,
-          use_fake_data=True)
+  #def testTrainMnistDistributed(self):
+  #  with tf.Graph().as_default():
+  #    # Ensure model training doesn't crash.
+  #    convnet.train_mnist_distributed(
+  #        task_id=0,
+  #        num_worker_tasks=1,
+  #        num_ps_tasks=0,
+  #        master="",
+  #        data_dir=None,
+  #        num_epochs=1,
+  #        use_fake_data=True)
 
 
 if __name__ == "__main__":

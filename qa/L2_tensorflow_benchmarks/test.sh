@@ -1,5 +1,7 @@
 #!/bin/bash
 
+set -e
+
 cd ..
 
 function bench {
@@ -128,6 +130,9 @@ for MODEL in ${MODELS[@]}; do
     set_model_args $MODEL
     for BATCH_PER_GPU in ${BATCHES_PER_GPU[@]}; do
         for NGPU in ${GPUS[@]}; do
+            if [[ $NGPU -gt $MAXGPUS ]]; then
+                continue
+            fi
             set_model_args $MODEL
             BATCH=$(expr $BATCH_PER_GPU \* $NGPU)
             bench "$MODEL" "$BATCH_PER_GPU" "$NGPU" "$ITER" "$CONFIG" "$NET_NAME" 2>&1 | tee ${LOG_DIR}/output_${MODEL}_b${BATCH}_${NGPU}gpu.log

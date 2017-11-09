@@ -1131,9 +1131,10 @@ L1_self_test_xla--P40_R384_1GPU:
     <<: *L1_TEST
     <<: *P40_R384_1GPU
 
-L1_nccl_test--P40_R384_1GPU:
-    <<: *L1_TEST
-    <<: *P40_R384_1GPU
+# NCCL test with 1 GPU does not make much sense
+# L1_nccl_test--P40_R384_1GPU:
+#     <<: *L1_TEST
+#     <<: *P40_R384_1GPU
 
 L2_tensorflow_benchmarks--P40_R384_1GPU:
     <<: *L2_TEST
@@ -1199,126 +1200,127 @@ L3_cnn_resnet50_batch64_real_long--P40_R384_1GPU:
     <<: *L3_CNN_BENCHMARK
     <<: *P40_R384_1GPU
 
-# #### M40_R384_1GPU ####
-# 
-# L0_models_alexnet--M40_R384_1GPU:
-#     <<: *L0_TEST
-#     <<: *M40_R384_1GPU
-# 
-# L0_models_imagenet--M40_R384_1GPU:
-#     <<: *L0_TEST
-#     <<: *M40_R384_1GPU
-# 
-# L0_models_mnist--M40_R384_1GPU:
-#     <<: *L0_TEST
-#     <<: *M40_R384_1GPU
-# 
-# L0_convnet_benchmarks_alexnet--M40_R384_1GPU:
-#     <<: *L0_TEST
-#     <<: *M40_R384_1GPU
-#     variables:
-#       TEST_WORK_DIR: "/opt/tensorflow/qa/L0_convnet_benchmarks"
-#       TEST_SCRIPT: "./test-alexnet.sh"
-# 
-# L0_convnet_benchmarks_googlenet--M40_R384_1GPU:
-#     <<: *L0_TEST
-#     <<: *M40_R384_1GPU
-#     variables:
-#       TEST_WORK_DIR: "/opt/tensorflow/qa/L0_convnet_benchmarks"
-#       TEST_SCRIPT: "./test-googlenet.sh"
-# 
-# L0_convnet_benchmarks_overfeat--M40_R384_1GPU:
-#     <<: *L0_TEST
-#     <<: *M40_R384_1GPU
-#     variables:
-#       TEST_WORK_DIR: "/opt/tensorflow/qa/L0_convnet_benchmarks"
-#       TEST_SCRIPT: "./test-overfeat.sh"
-# 
-# L0_convnet_benchmarks_vgga--M40_R384_1GPU:
-#     <<: *L0_TEST
-#     <<: *M40_R384_1GPU
-#     variables:
-#       TEST_WORK_DIR: "/opt/tensorflow/qa/L0_convnet_benchmarks"
-#       TEST_SCRIPT: "./test-vgga.sh"
-# 
-# L1_word2vec--M40_R384_1GPU:
-#     <<: *L1_TEST
-#     <<: *M40_R384_1GPU
-# 
-# L1_self_test--M40_R384_1GPU:
-#     <<: *L1_TEST
-#     <<: *M40_R384_1GPU
-# 
-# L1_self_test_xla--M40_R384_1GPU:
-#     <<: *L1_TEST
-#     <<: *M40_R384_1GPU
-# 
+#### M40_R384_1GPU ####
+
+L0_models_alexnet--M40_R384_1GPU:
+    <<: *L0_TEST
+    <<: *M40_R384_1GPU
+
+L0_models_imagenet--M40_R384_1GPU:
+    <<: *L0_TEST
+    <<: *M40_R384_1GPU
+
+L0_models_mnist--M40_R384_1GPU:
+    <<: *L0_TEST
+    <<: *M40_R384_1GPU
+
+L0_convnet_benchmarks_alexnet--M40_R384_1GPU:
+    <<: *L0_TEST
+    <<: *M40_R384_1GPU
+    variables:
+      TEST_WORK_DIR: "/opt/tensorflow/qa/L0_convnet_benchmarks"
+      TEST_SCRIPT: "./test-alexnet.sh"
+
+L0_convnet_benchmarks_googlenet--M40_R384_1GPU:
+    <<: *L0_TEST
+    <<: *M40_R384_1GPU
+    variables:
+      TEST_WORK_DIR: "/opt/tensorflow/qa/L0_convnet_benchmarks"
+      TEST_SCRIPT: "./test-googlenet.sh"
+
+L0_convnet_benchmarks_overfeat--M40_R384_1GPU:
+    <<: *L0_TEST
+    <<: *M40_R384_1GPU
+    variables:
+      TEST_WORK_DIR: "/opt/tensorflow/qa/L0_convnet_benchmarks"
+      TEST_SCRIPT: "./test-overfeat.sh"
+
+L0_convnet_benchmarks_vgga--M40_R384_1GPU:
+    <<: *L0_TEST
+    <<: *M40_R384_1GPU
+    variables:
+      TEST_WORK_DIR: "/opt/tensorflow/qa/L0_convnet_benchmarks"
+      TEST_SCRIPT: "./test-vgga.sh"
+
+L1_word2vec--M40_R384_1GPU:
+    <<: *L1_TEST
+    <<: *M40_R384_1GPU
+
+L1_self_test--M40_R384_1GPU:
+    <<: *L1_TEST
+    <<: *M40_R384_1GPU
+
+L1_self_test_xla--M40_R384_1GPU:
+    <<: *L1_TEST
+    <<: *M40_R384_1GPU
+
+# NCCL test with 1 GPU does not make much sense
 # L1_nccl_test--M40_R384_1GPU:
 #     <<: *L1_TEST
 #     <<: *M40_R384_1GPU
-# 
-# L2_tensorflow_benchmarks--M40_R384_1GPU:
-#     <<: *L2_TEST
-#     <<: *M40_R384_1GPU
-# 
-# L2_models_cifar10--M40_R384_1GPU:
-#     <<: *L2_TEST
-#     <<: *M40_R384_1GPU
-# 
-# L2_cnn_alexnet_batch128_real--M40_R384_1GPU:
-#     <<: *L2_CNN_BENCHMARK
-#     <<: *M40_R384_1GPU
-# 
-# L2_cnn_alexnet_batch128_synth--M40_R384_1GPU:
-#     <<: *L2_CNN_BENCHMARK
-#     <<: *M40_R384_1GPU
-# 
-# L2_cnn_inception3_batch32_real--M40_R384_1GPU:
-#     <<: *L2_CNN_BENCHMARK
-#     <<: *M40_R384_1GPU
-# 
-# L2_cnn_inception3_batch32_synth--M40_R384_1GPU:
-#     <<: *L2_CNN_BENCHMARK
-#     <<: *M40_R384_1GPU
-# 
-# L2_cnn_inception3_batch64_real--M40_R384_1GPU:
-#     <<: *L2_CNN_BENCHMARK
-#     <<: *M40_R384_1GPU
-# 
-# L2_cnn_inception3_batch64_synth--M40_R384_1GPU:
-#     <<: *L2_CNN_BENCHMARK
-#     <<: *M40_R384_1GPU
-# 
-# L2_cnn_resnet50_batch32_real--M40_R384_1GPU:
-#     <<: *L2_CNN_BENCHMARK
-#     <<: *M40_R384_1GPU
-# 
-# L2_cnn_resnet50_batch32_synth--M40_R384_1GPU:
-#     <<: *L2_CNN_BENCHMARK
-#     <<: *M40_R384_1GPU
-# 
-# L2_cnn_resnet50_batch64_real--M40_R384_1GPU:
-#     <<: *L2_CNN_BENCHMARK
-#     <<: *M40_R384_1GPU
-# 
-# L2_cnn_resnet50_batch64_synth--M40_R384_1GPU:
-#     <<: *L2_CNN_BENCHMARK
-#     <<: *M40_R384_1GPU
-# 
-# L2_nvcnn_alexnet_batch128_real--M40_R384_1GPU:
-#     <<: *L2_NVCNN_BENCHMARK
-#     <<: *M40_R384_1GPU
-# 
-# L2_nvcnn_resnet50_batch64_real--M40_R384_1GPU:
-#     <<: *L2_NVCNN_BENCHMARK
-#     <<: *M40_R384_1GPU
-# 
-# L2_nvcnn_inception3_batch64_real--M40_R384_1GPU:
-#     <<: *L2_NVCNN_BENCHMARK
-#     <<: *M40_R384_1GPU
-# 
-# L3_cnn_resnet50_batch64_real_long--M40_R384_1GPU:
-#     <<: *L3_CNN_BENCHMARK
-#     <<: *M40_R384_1GPU
+
+L2_tensorflow_benchmarks--M40_R384_1GPU:
+    <<: *L2_TEST
+    <<: *M40_R384_1GPU
+
+L2_models_cifar10--M40_R384_1GPU:
+    <<: *L2_TEST
+    <<: *M40_R384_1GPU
+
+L2_cnn_alexnet_batch128_real--M40_R384_1GPU:
+    <<: *L2_CNN_BENCHMARK
+    <<: *M40_R384_1GPU
+
+L2_cnn_alexnet_batch128_synth--M40_R384_1GPU:
+    <<: *L2_CNN_BENCHMARK
+    <<: *M40_R384_1GPU
+
+L2_cnn_inception3_batch32_real--M40_R384_1GPU:
+    <<: *L2_CNN_BENCHMARK
+    <<: *M40_R384_1GPU
+
+L2_cnn_inception3_batch32_synth--M40_R384_1GPU:
+    <<: *L2_CNN_BENCHMARK
+    <<: *M40_R384_1GPU
+
+L2_cnn_inception3_batch64_real--M40_R384_1GPU:
+    <<: *L2_CNN_BENCHMARK
+    <<: *M40_R384_1GPU
+
+L2_cnn_inception3_batch64_synth--M40_R384_1GPU:
+    <<: *L2_CNN_BENCHMARK
+    <<: *M40_R384_1GPU
+
+L2_cnn_resnet50_batch32_real--M40_R384_1GPU:
+    <<: *L2_CNN_BENCHMARK
+    <<: *M40_R384_1GPU
+
+L2_cnn_resnet50_batch32_synth--M40_R384_1GPU:
+    <<: *L2_CNN_BENCHMARK
+    <<: *M40_R384_1GPU
+
+L2_cnn_resnet50_batch64_real--M40_R384_1GPU:
+    <<: *L2_CNN_BENCHMARK
+    <<: *M40_R384_1GPU
+
+L2_cnn_resnet50_batch64_synth--M40_R384_1GPU:
+    <<: *L2_CNN_BENCHMARK
+    <<: *M40_R384_1GPU
+
+L2_nvcnn_alexnet_batch128_real--M40_R384_1GPU:
+    <<: *L2_NVCNN_BENCHMARK
+    <<: *M40_R384_1GPU
+
+L2_nvcnn_resnet50_batch64_real--M40_R384_1GPU:
+    <<: *L2_NVCNN_BENCHMARK
+    <<: *M40_R384_1GPU
+
+L2_nvcnn_inception3_batch64_real--M40_R384_1GPU:
+    <<: *L2_NVCNN_BENCHMARK
+    <<: *M40_R384_1GPU
+
+L3_cnn_resnet50_batch64_real_long--M40_R384_1GPU:
+    <<: *L3_CNN_BENCHMARK
+    <<: *M40_R384_1GPU
 
 
