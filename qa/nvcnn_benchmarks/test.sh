@@ -11,7 +11,7 @@ cd ..
 MAX_GPUS=`nvidia-smi -L | wc -l`
 for cnn_fp16_flag in "" "--fp16"; do
 for n in ${CNN_NUM_GPUS_LIST//;/ }; do
-    if [[ $n -lt $MAX_GPUS ]]; then
+    if [[ $n -gt $MAX_GPUS ]]; then
         continue
     fi
     python ../nvidia-examples/cnn/nvcnn.py \

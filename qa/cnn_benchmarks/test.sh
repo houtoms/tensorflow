@@ -9,7 +9,7 @@ CNN_NUM_GPUS_LIST=${CNN_NUM_GPUS_LIST:-"1 2 4"}
 cd ..
 MAX_GPUS=`nvidia-smi -L | wc -l`
 for n in ${CNN_NUM_GPUS_LIST//;/ }; do
-    if [[ $n -lt $MAX_GPUS ]]; then
+    if [[ $n -gt $MAX_GPUS ]]; then
         continue
     fi
     python -u /opt/tensorflow/nvidia-examples/cnn/nvcnn.py \
