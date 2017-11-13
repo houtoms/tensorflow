@@ -1,12 +1,12 @@
 #!/bin/bash
 
 read line
-if [[ $line =~ ^[0-9]+"-"[0-9]+"-"[0-9]+" "[0-9]+":"[0-9]+":"[0-9]+"."[0-9]*": precision @ 1 = 0.8"(3[6-9][0-9]*|4[0-4][0-9]*)$ ]]
+if [[ $line =~ ^[0-9]+"-"[0-9]+"-"[0-9]+" "[0-9]+":"[0-9]+":"[0-9]+"."[0-9]*": precision @ 1 = 0.8"[0-9]*$ ]]
 then
-	echo $line
+	echo "Pass: $line"
 else
+	echo "Fail: $line"
 	exit 1
-    echo "Failed: $line"
 fi
 
 exit 0
