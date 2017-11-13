@@ -1,5 +1,28 @@
 #!/bin/bash
 
+mapfile -t MEMLIST < <(nvidia-smi -q -d MEMORY | grep -A3 "FB Memory Usage" | grep Total | awk '{printf("%s %s\n", $3, $4)}')
+MIN_GPU_MEM=-1
+for MEM in "${MEMLIST[@]}"; do
+    UNIT=${MEM#* }
+    VALUE=${MEM% *}
+    if [[ $UNIT == 'MiB' ]]; then
+        VALUE=$((VALUE * 1024*1024))
+    elif [[ $UNIT == 'GiB' ]]; then
+        VALUE=$((VALUE * 1024*1024*1024))
+    else
+        echo "Invalid memory capacity: $MEM"
+        exit 1
+    fi
+    if [[ $MIN_GPU_MEM -lt 0 || $VALUE -lt $MIN_GPU_MEM ]]; then
+        MIN_GPU_MEM=$VALUE
+    fi
+done
+
+if [[ $MIN_GPU_MEM -lt 0 ]]; then
+    echo Failed to detect GPU memory.
+    exit 1
+fi
+
 function bench {
     NET=$1
     BATCH=$2
@@ -20,6 +43,8 @@ function bench {
 # Sets model-specific args
 function set_model_args {
     MODEL=$1
+    unset MIN_MiB
+    declare -gA MIN_MiB
 
     case "$MODEL" in
 
@@ -53,6 +78,7 @@ function set_model_args {
        ;;
     inception_v4)
         BATCHES_PER_GPU=(32 64 )
+        MIN_MiB["64"]=16000
         NET_NAME=inception4
        ;;
     resnet_50)
@@ -65,10 +91,12 @@ function set_model_args {
        ;;
     resnet_152)
         BATCHES_PER_GPU=(32 64 )
+        MIN_MiB["64"]=16000
         NET_NAME=resnet152
        ;;
     inception-resnet_v2)
         BATCHES_PER_GPU=(32 64 )
+        MIN_MiB["64"]=16000
         NET_NAME=inception-resnet2
        ;;
     esac
@@ -125,11 +153,15 @@ for MODEL in ${MODELS[@]}; do
     ITER=300
     set_model_args $MODEL
     for BATCH_PER_GPU in ${BATCHES_PER_GPU[@]}; do
+        REQ_MiB=${MIN_MiB["$BATCH_PER_GPU"]}
+        if [[ -n "$REQ_MiB" && $((REQ_MiB * 1024*1024)) -gt $MIN_GPU_MEM ]]; then
+            continue
+        fi
         for NGPU in ${GPUS[@]}; do
             if [[ $NGPU -gt $MAXGPUS ]]; then
                 continue
             fi
-            set_model_args $MODEL
+            #set_model_args $MODEL
             BATCH=$(expr $BATCH_PER_GPU \* $NGPU)
             bench "$MODEL" "$BATCH_PER_GPU" "$NGPU" "$ITER" "$CONFIG" "$NET_NAME" 2>&1 | tee ${LOG_DIR}/output_${MODEL}_b${BATCH}_${NGPU}gpu.log
         done
