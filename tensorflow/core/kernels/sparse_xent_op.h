@@ -22,6 +22,7 @@ limitations under the License.
 #include "tensorflow/core/kernels/bounds_check.h"
 #include "tensorflow/core/platform/macros.h"
 #include "tensorflow/core/platform/types.h"
+#include <type_traits>
 
 namespace tensorflow {
 
@@ -196,7 +197,14 @@ struct SparseXentEigenImpl {
         To32Bit(scratch).reshape(batch_by_one).broadcast(one_by_class);
 
     // scratch = sum(exp(logits - max_logits)) along classes.
-    To32Bit(scratch).device(d) = To32Bit(backprop).exp().sum(along_class);
+    // TODO: Fix underlying issue with eigen sum of half values
+    // and remove this workaround.
+    if (std::is_same<T, Eigen::half>::value) {
+      To32Bit(scratch).device(d) = To32Bit(backprop).exp()
+          .template cast<float>().sum(along_class).template cast<T>();
+    } else {
+      To32Bit(scratch).device(d) = To32Bit(backprop).exp().sum(along_class);
+    }
 
     //  sum(-labels *
     //     ((logits - max_logits) - log(sum(exp(logits - max_logits)))))
@@ -205,8 +213,16 @@ struct SparseXentEigenImpl {
         sparse_xent_helpers::To32BitConst<T>(backprop),
         sparse_xent_helpers::To32BitConst<T>(scratch), To32Bit(labels),
         backprop.dimension(1) /* max_depth */);
-    To32Bit(loss).device(d) =
-        To32Bit(backprop).generate(sparse_xent_loss_gen).sum(along_class);
+    // TODO: Fix underlying issue with eigen sum of half values
+    // and remove this workaround.
+    if (std::is_same<T, Eigen::half>::value) {
+      To32Bit(loss).device(d) =
+          To32Bit(backprop).generate(sparse_xent_loss_gen)
+          .template cast<float>().sum(along_class).template cast<T>();
+    } else {
+      To32Bit(loss).device(d) =
+          To32Bit(backprop).generate(sparse_xent_loss_gen).sum(along_class);
+    }
 
     // backprop: prob - labels, where
     //   prob = exp(logits - max_logits) / sum(exp(logits - max_logits))
