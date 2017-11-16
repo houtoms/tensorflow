@@ -71,3 +71,8 @@ For more information about TensorFlow, including tutorials, documentation, and
 examples, see the [TensorFlow tutorials]( https://www.tensorflow.org/tutorials)
 and [TensorFlow API] ( https://www.tensorflow.org/api_docs/python).
 
+For information about optimizing TensorFlow models for TensorCore instructions
+available on NVIDIA Volta GPUs, see [Training with Mixed Precision](
+http://docs.nvidia.com/deeplearning/sdk/mixed-precision-training/index.html)
+
+

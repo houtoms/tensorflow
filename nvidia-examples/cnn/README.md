@@ -17,13 +17,15 @@ Assumes TFRecord dataset in /data/imagenet_tfrecord.
     $ python nvcnn.py --model=resnet50 \
                       --data_dir=/data/imagenet_tfrecord \
                       --batch_size=64 \
-                      --num_gpus=8
+                      --num_gpus=8 \
+                      --fp16
 
 ### nvcnn_hvd.py
-    $ mpiexec -np 8 python nvcnn_hvd.py \
+    $ mpiexec --allow-run-as-root -np 8 python nvcnn_hvd.py \
                       --model=resnet50 \
                       --data_dir=/data/imagenet_tfrecord \
-                      --batch_size=64
+                      --batch_size=64 \
+                      --fp16
 
 ## Training Example
 
@@ -34,16 +36,18 @@ Assumes TFRecord dataset in /data/imagenet_tfrecord.
                       --num_gpus=8 \
                       --num_epochs=120 \
                       --display_every=50 \
-                      --log_dir=/home/train/resnet50-1
+                      --log_dir=/home/train/resnet50-1 \
+                      --fp16
 
 ## nvcnn_hvd.py
-    $ mpiexec -np 8 python nvcnn_hvd.py
+    $ mpiexec --allow-run-as-root -np 8 python nvcnn_hvd.py
                       --model=resnet50 \
                       --data_dir=/data/imagenet_tfrecord \
                       --batch_size=64 \
                       --num_epochs=120 \
                       --display_every=50 \
-                      --log_dir=/home/train/resnet50-1
+                      --log_dir=/home/train/resnet50-1 \
+                      --fp16
 
 ## Use notes
 
@@ -52,11 +56,16 @@ Run with `--help` to see additional arguments.
 Add `--eval` to the arguments to evaluate a trained model on the validation
 dataset. For nvcnn_hvd.py, only single GPU evaluation is supported.
 
-nvcnn_hvd.py requires Horovod to be installed in the container prior to use.
-To install Horovod, run hvd_install.sh as root.
+Add `--fp16` to base the TF model on 16-bit floating-point operations. This
+provides optimized performance on Volta's TensorCores. For more information
+on training with fp16 arithmetic see [Training with Mixed Precision](
+http://docs.nvidia.com/deeplearning/sdk/mixed-precision-training/index.html).
 
-In order to execute `mpiexec` as root, the --allow-run-as-root flag must be
-included before `python` on the command line.
+nvcnn_hvd.py requires Horovod to be installed in the container prior to use.
+To install Horovod, see /workspace/docker-examples/Dockerfile.horovod.
+
+If not executing the container as root, the --allow-run-as-root flag may be
+omitted from the commands above.
 
 TensorBoard can be used to monitor training:
 
