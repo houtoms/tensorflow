@@ -19,6 +19,7 @@ limitations under the License.
 
 #include "third_party/eigen3/unsupported/Eigen/CXX11/Tensor"
 #include "tensorflow/core/framework/tensor_types.h"
+#include <type_traits>
 
 namespace tensorflow {
 namespace functor {
@@ -90,7 +91,14 @@ struct XentEigenImpl {
     backprop.device(d) = logits - scratch.broadcast(one_by_class);
 
     // sum(exp(logits - max_logits)) along classes.
-    scratch.reshape(batch_only).device(d) = backprop.exp().sum(along_class);
+    // TODO: Fix underlying issue with eigen sum of half values
+    // and remove this workaround.
+    if (std::is_same<T, Eigen::half>::value) {
+      scratch.reshape(batch_only).device(d) = backprop.exp()
+          .template cast<float>().sum(along_class).template cast<T>();
+    } else {
+      scratch.reshape(batch_only).device(d) = backprop.exp().sum(along_class);
+    }
 
     // NOTE(keveman): Eigen on GPU dispatches to an optimized implementation
     // for an expression of the form lhs = rhs.sum().
@@ -99,10 +107,19 @@ struct XentEigenImpl {
     //  sum(-labels *
     //     ((logits - max_logits) - log(sum(exp(logits - max_logits)))))
     //  along classes
-    loss.device(d) =
-        (labels * (scratch.log().eval().broadcast(one_by_class) - backprop))
-            .eval()
-            .sum(along_class);
+    // TODO: Fix underlying issue with eigen sum of half values
+    // and remove this workaround.
+    if (std::is_same<T, Eigen::half>::value) {
+      loss.device(d) =
+          (labels * (scratch.log().eval().broadcast(one_by_class) - backprop))
+              .eval().template cast<float>()
+              .sum(along_class).template cast<T>();
+    } else {
+      loss.device(d) =
+          (labels * (scratch.log().eval().broadcast(one_by_class) - backprop))
+              .eval()
+              .sum(along_class);
+    }
 
     // backprop: prob - labels, where
     //   prob = exp(logits - max_logits) / sum(exp(logits - max_logits))
