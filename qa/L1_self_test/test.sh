@@ -28,6 +28,9 @@ export LD_LIBRARY_PATH=/usr/local/cuda/extras/CUPTI/lib64:$LD_LIBRARY_PATH
 # Note: //tensorflow/contrib/tensor_forest:scatter_add_ndim_op_test fails for an unknown reason with "Create kernel failed: Invalid argument: AttrValue must not have reference type value of float_ref".
 # Note: //tensorflow/contrib/distributions:mvn_full_covariance_test fails due to assert_equal being used to check symmetry of the result of a matmul.
 # Note: //tensorflow/contrib/kfac/examples/tests:convnet_test times out when distributed tests are included. These have been commented out in the python test.
+# Note: cluster_function_library_runtime_test fails intermitently when run in
+#       with 'status: Unavailable: Endpoint read failed'
+#       or 'UnknownError: Could not start gRPC server
 NUM_GPUS=`nvidia-smi -L | wc -l` && \
   bazel test  --config=cuda -c opt --verbose_failures --local_test_jobs=$NUM_GPUS \
               --run_under=//tensorflow/tools/ci_build/gpu_build:parallel_gpu_execute \
@@ -61,9 +64,7 @@ NUM_GPUS=`nvidia-smi -L | wc -l` && \
 # Note: The first two tests were observed to fail intermittently with error
 #       "address already in use" when run as part of the above command
 #       on a DGX-1. The others timed out in some runs. memory_stats_ops_test
-#       returned incorrect results in 3 out of 200 runs when run in parallel,
-#       cluster_function_library_runtime_test fails intermitently when run in
-#       parallel with other tests with 'status: Unavailable: Endpoint read failed'.
+#       returned incorrect results in 3 out of 200 runs when run in parallel.
 bazel test    --config=cuda -c opt --verbose_failures --local_test_jobs=1 \
               --test_tag_filters=-no_gpu,-benchmark-test --cache_test_results=no \
               --build_tests_only \
@@ -73,7 +74,6 @@ bazel test    --config=cuda -c opt --verbose_failures --local_test_jobs=1 \
               //tensorflow/contrib/kfac/examples/tests:convnet_test \
               //tensorflow/python/kernel_tests:depthtospace_op_test \
               //tensorflow/contrib/memory_stats:memory_stats_ops_test \
-              //tensorflow/core/distributed_runtime:cluster_function_library_runtime_test \
   | tee -a testresult.tmp
 
 grep "test\.log" testresult.tmp | /opt/tensorflow/qa/show_testlogs
