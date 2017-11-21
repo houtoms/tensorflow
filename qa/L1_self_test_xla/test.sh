@@ -3,7 +3,7 @@
 nvidia-smi
 cd /opt/tensorflow
 PYVER=$(python -c 'import sys; print("{}.{}".format(sys.version_info[0], sys.version_info[1]))')
-./nvbuild.sh --configonly --python${PYVER%.*}
+./nvbuild.sh --configonly --python$PYVER
 
 tensorflow/tools/ci_build/install/install_bootstrap_deb_packages.sh
 tensorflow/tools/ci_build/install/install_deb_packages.sh

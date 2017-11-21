@@ -8,16 +8,10 @@ ENV NVIDIA_TENSORFLOW_VERSION 18.01
 
 ARG PYVER=2.7
 
-# CHECK SUPPORTED PYTHON VERSIONS
-# We also assume that python3 = python3.5 at various points.
-# This is valid for Ubuntu 16.04, but needs to be revisited for 18.04.
-RUN [ "$PYVER" = "2.7" -o "$PYVER" = "3.5" ] && \
-    [ `cat /etc/os-release | grep VERSION_ID | sed 's/^VERSION_ID="\([^"]*\)"/\1/'` = "16.04" ]
-
 RUN apt-get update && apt-get install -y --no-install-recommends \
         pkg-config \
-        python`[ "$PYVER" = "3.5" ] && echo $PYVER | cut -c1-1` \
-        python`[ "$PYVER" = "3.5" ] && echo $PYVER | cut -c1-1`-dev \
+        python$PYVER \
+        python$PYVER-dev \
         rsync \
         swig \
         unzip \
@@ -26,8 +20,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     rm -rf /var/lib/apt/lists/*
 
 ENV PYTHONIOENCODING utf-8
-
-RUN [ "$PYVER" = "2.7" ] || ln -s /usr/bin/python`echo $PYVER | cut -c1-1` /usr/bin/python
+RUN ln -s /usr/bin/python$PYVER /usr/bin/python && \
+    ln -s /usr/bin/python$PYVER /usr/bin/python`echo $PYVER | cut -c1-1`
 
 # TF 1.0 upstream needs this symlink
 RUN mkdir -p /usr/lib/x86_64-linux-gnu/include/ && \
@@ -35,11 +29,10 @@ RUN mkdir -p /usr/lib/x86_64-linux-gnu/include/ && \
 
 # If installing multiple pips, install pip2 last so that pip == pip2 when done.
 RUN curl -O https://bootstrap.pypa.io/get-pip.py && \
-    python$PYVER get-pip.py && \
+    python get-pip.py && \
     rm get-pip.py
 
-RUN pip install --no-cache-dir --upgrade numpy==1.11.0 pexpect psutil nltk
-RUN [ `echo $PYVER | cut -c1-1` = "2" ] && pip install --no-cache-dir future || true
+RUN pip install --no-cache-dir --upgrade numpy==1.11.0 pexpect psutil nltk future
 
 # Set up Bazel.
 # Running bazel inside a `docker build` command causes trouble, cf:
@@ -84,7 +77,7 @@ ENV TF_ENABLE_XLA 1
 ENV CC_OPT_FLAGS "-march=sandybridge -mtune=broadwell"
 
 # Build and install TF
-RUN ./nvbuild.sh --python`echo $PYVER | cut -c1-1`
+RUN ./nvbuild.sh --python$PYVER
 
 ENV TF_ADJUST_HUE_FUSED         1
 ENV TF_ADJUST_SATURATION_FUSED  1

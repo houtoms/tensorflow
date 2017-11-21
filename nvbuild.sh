@@ -12,14 +12,14 @@ Usage() {
   echo "  Usage: $0 [OPTIONS]"
   echo ""
   echo "    OPTIONS          DESCRIPTION"
-  echo "    --python2        Build python2 package (default)"
-  echo "    --python3        Build python3 package"
+  echo "    --python2.7      Build python2.7 package (default)"
+  echo "    --python3.5      Build python3.5 package"
   echo "    --configonly     Run configure step only"
   echo "    --noconfig       Skip configure step"
   echo "    --noclean        Retain intermediate build files"
 }
 
-PYVER=2
+PYVER=2.7
 CONFIGONLY=0
 NOCONFIG=0
 NOCLEAN=0
@@ -27,8 +27,8 @@ NOCLEAN=0
 while [[ $# -gt 0 ]]; do
   case $1 in
     "--help"|"-h")  Usage; exit 1 ;;
-    "--python2")    PYVER=2 ;;
-    "--python3")    PYVER=3 ;;
+    "--python2.7")  PYVER=2.7 ;;
+    "--python3.5")  PYVER=3.5 ;;
     "--configonly") CONFIGONLY=1 ;;
     "--noconfig")   NOCONFIG=1 ;;
     "--noclean")    NOCLEAN=1 ;;
