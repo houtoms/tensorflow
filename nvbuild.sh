@@ -46,9 +46,6 @@ if [[ $NOCONFIG -eq 0 ]]; then
   yes "" | ./configure
 fi
 
-bazel fetch "//tensorflow/... -//tensorflow/contrib/nccl/..."
-./patch_eigen.sh
-
 if [[ $CONFIGONLY -eq 1 ]]; then
   exit 0
 fi
