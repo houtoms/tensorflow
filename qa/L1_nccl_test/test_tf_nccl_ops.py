@@ -8,6 +8,8 @@ For broadcast, send_op must be executed together with all recv ops;
   using tf.control_dependencies([send_op]) works, but reduces performance
   by 2x.
 """
+from __future__ import print_function
+from builtins import range
 
 import tensorflow as tf
 from tensorflow.contrib import nccl
@@ -29,16 +31,16 @@ def test_allreduce(sess, devices):
 	ngpu = len(devices)
 	nwarmup = 10
 	nrep    = 100
-	print "Running allreduce warmup"
-	for _ in xrange(nwarmup):
+	print("Running allreduce warmup")
+	for _ in range(nwarmup):
 		sess.run(sum_ops)
-	print "Running allreduce actual"
+	print("Running allreduce actual")
 	start_time = time.time()
-	for _ in xrange(nrep):
+	for _ in range(nrep):
 		sess.run(sum_ops)
 	elapsed_secs = time.time() - start_time
 	nbyte = data.size * data.dtype.itemsize
-	print "Allreduce aggregate BW:", nrep*ngpu*nbyte/elapsed_secs/1e9, 'GB/s'
+	print("Allreduce aggregate BW: {} GB/s".format(nrep*ngpu*nbyte/elapsed_secs/1e9))
 	
 	results = sess.run(sums)
 	return all([np.all(result == ngpu*data) for result in results])
@@ -54,16 +56,16 @@ def test_broadcast(sess, devices):
 	ngpu = len(devices)
 	nwarmup = 10
 	nrep    = 100
-	print "Running broadcast warmup"
-	for _ in xrange(nwarmup):
+	print("Running broadcast warmup")
+	for _ in range(nwarmup):
 		sess.run([send_op] + recv_ops)
-	print "Running broadcast actual"
+	print("Running broadcast actual")
 	start_time = time.time()
-	for _ in xrange(nrep):
+	for _ in range(nrep):
 		sess.run([send_op] + recv_ops)
 	elapsed_secs = time.time() - start_time
 	nbyte = data.size * data.dtype.itemsize
-	print "Broadcast aggregate BW:", nrep*ngpu*nbyte/elapsed_secs/1e9, 'GB/s'
+	print("Broadcast aggregate BW: {} GB/s".format(nrep*ngpu*nbyte/elapsed_secs/1e9))
 	
 	results = sess.run([send_op] + received_tensors)[1:]
 	return all([np.all(result == data) for result in results])
@@ -73,13 +75,13 @@ def main():
 	ngpu = 2
 	if len(sys.argv) > 1:
 		ngpu = int(sys.argv[1])
-	print "Running on %i GPUs" % ngpu
-	devices = ['/gpu:%i' % i for i in xrange(ngpu)]
+	print("Running on {} GPUs".format(ngpu))
+	devices = ['/gpu:%i' % i for i in range(ngpu)]
 	sess = tf.Session()
 	allreduce_success = test_allreduce(sess, devices)
 	broadcast_success = test_broadcast(sess, devices)
-	print "Allreduce", "PASSED" if allreduce_success else "FAILED"
-	print "Broadcast", "PASSED" if broadcast_success else "FAILED"
+	print("Allreduce", "PASSED" if allreduce_success else "FAILED")
+	print("Broadcast", "PASSED" if broadcast_success else "FAILED")
 	sess.close()
 	if not allreduce_success or not broadcast_success:
 		sys.exit(-1)
