@@ -141,7 +141,7 @@ set_model_args $MODEL
 # Number of iterations * batchsize should be equal to dataset size
 BATCH=128
 NGPU=$MAXGPUS
-ITER=10000
+ITER=$((10000/$MAXGPUS))
 echo Dryrun $MODEL, batchsize $BATCH, $NGPU GPUs, $ITER iterations
 bench "$MODEL" "$BATCH" "$NGPU" "$ITER" "$CONFIG" "$NET_NAME" 2>&1 | tee ${LOG_DIR}/dryrun_${MODEL}_b${BATCH}_${NGPU}gpu.log
 echo 'Done with dryrun.'
