@@ -37,6 +37,13 @@ if [[ "$ubuntu_version" == "14" ]]; then
   apt-get dist-upgrade -y
 fi
 
+PYMAJ=$(python -c 'import sys; print(sys.version_info[0])')
+if [[ "$PYMAJ" -eq 3 ]]; then
+  PYTHON_SETUPTOOLS=python3-setuptools
+else
+  PYTHON_SETUPTOOLS=python-setuptools
+fi 
+
 apt-get install -y --no-install-recommends \
     autoconf \
     automake \
@@ -50,11 +57,7 @@ apt-get install -y --no-install-recommends \
     openjdk-8-jdk \
     openjdk-8-jre-headless \
     pkg-config \
-    python-dev \
-    python-setuptools \
-    python-virtualenv \
-    python3-dev \
-    python3-setuptools \
+    $PYTHON_SETUPTOOLS \
     rsync \
     sudo \
     subversion \
