@@ -1,3 +1,4 @@
+from __future__ import print_function
 import sys
 import re
 import collections
@@ -104,7 +105,7 @@ def calcNetBatchGPU(filenames, net, batch, gpu):
             if(sobj):
                 speed = int(sobj.group(1))
             else:
-                print 'Can\'t extract speed from ', filename
+                print('Can\'t extract speed from ', filename)
     return speed
 
 ###############################################
@@ -152,7 +153,7 @@ def getAllNets(filenames):
 def main():
     args = sys.argv[1:]
     if not args:
-      print 'usage: [file ...]'
+      print('usage: [file ...]')
       sys.exit(1)
 
     filenames = []
@@ -171,10 +172,10 @@ def main():
     #Sort data by keys
     sorted_data = collections.OrderedDict(sorted(data.items()))
 
-    print "Writing csv file..."
+    print("Writing csv file...")
     for filename in filenames:
       print_csv("bench.csv", sorted_data);
-    print "Done"
+    print("Done")
 
 ###############################################
 main()
