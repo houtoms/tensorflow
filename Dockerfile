@@ -42,7 +42,7 @@ ENV BAZELRC /root/.bazelrc
 RUN echo "startup --batch" >> $BAZELRC && \
     echo "build --spawn_strategy=standalone --genrule_strategy=standalone" >> $BAZELRC
 
-RUN BAZEL_VERSION=0.5.4 && \
+RUN BAZEL_VERSION=0.7.0 && \
     mkdir /bazel && cd /bazel && \
     curl -fSsL -O https://github.com/bazelbuild/bazel/releases/download/$BAZEL_VERSION/bazel-$BAZEL_VERSION-installer-linux-x86_64.sh && \
     curl -fSsL -o /bazel/LICENSE.txt https://raw.githubusercontent.com/bazelbuild/bazel/master/LICENSE && \
