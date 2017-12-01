@@ -56,15 +56,13 @@ NUM_GPUS=`nvidia-smi -L | wc -l` && \
               -//tensorflow/contrib/tensor_forest:scatter_add_ndim_op_test \
               -//tensorflow/contrib/distributions:mvn_full_covariance_test \
               -//tensorflow/contrib/factorization:gmm_test \
-              -//tensorflow/contrib/memory_stats:memory_stats_ops_test \
               -//tensorflow/core/distributed_runtime:cluster_function_library_runtime_test \
   | tee testresult.tmp
 
 
 # Note: The first two tests were observed to fail intermittently with error
 #       "address already in use" when run as part of the above command
-#       on a DGX-1. The others timed out in some runs. memory_stats_ops_test
-#       returned incorrect results in 3 out of 200 runs when run in parallel.
+#       on a DGX-1. The others timed out in some runs.
 bazel test    --config=cuda -c opt --verbose_failures --local_test_jobs=1 \
               --test_tag_filters=-no_gpu,-benchmark-test --cache_test_results=no \
               --build_tests_only \
@@ -73,7 +71,6 @@ bazel test    --config=cuda -c opt --verbose_failures --local_test_jobs=1 \
               //tensorflow/core/debug:grpc_session_debug_test \
               //tensorflow/contrib/kfac/examples/tests:convnet_test \
               //tensorflow/python/kernel_tests:depthtospace_op_test \
-              //tensorflow/contrib/memory_stats:memory_stats_ops_test \
   | tee -a testresult.tmp
 
 grep "test\.log" testresult.tmp | /opt/tensorflow/qa/show_testlogs
