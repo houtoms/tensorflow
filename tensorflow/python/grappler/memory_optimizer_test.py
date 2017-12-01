@@ -204,7 +204,7 @@ class MemoryOptimizerRecomputeTest(test.TestCase):
         init_op_name=init_op_name,
         train_op_name=train_op_name,
         loss_op_name=loss_op_name)
-    self.assertAllClose(original_loss, memory_optimized_loss, rtol=1e-4, atol=2e-6)
+    self.assertAllClose(original_loss, memory_optimized_loss, rtol=1e-4, atol=5e-6)
 
 
 if __name__ == '__main__':
