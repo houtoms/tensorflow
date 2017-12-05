@@ -61,9 +61,6 @@ provides optimized performance on Volta's TensorCores. For more information
 on training with fp16 arithmetic see [Training with Mixed Precision](
 http://docs.nvidia.com/deeplearning/sdk/mixed-precision-training/index.html).
 
-nvcnn_hvd.py requires Horovod to be installed in the container prior to use.
-To install Horovod, see /workspace/docker-examples/Dockerfile.horovod.
-
 If not executing the container as root, the --allow-run-as-root flag may be
 omitted from the commands above.
 

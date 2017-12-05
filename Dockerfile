@@ -9,6 +9,10 @@ ENV NVIDIA_TENSORFLOW_VERSION 18.01
 ARG PYVER=2.7
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
+        libhwloc-dev \
+        libibverbs-dev \
+        libmlx5-dev \
+        libnuma-dev \
         pkg-config \
         python$PYVER \
         python$PYVER-dev \
@@ -22,6 +26,17 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 ENV PYTHONIOENCODING utf-8
 RUN ln -s /usr/bin/python$PYVER /usr/bin/python && \
     ln -s /usr/bin/python$PYVER /usr/bin/python`echo $PYVER | cut -c1-1`
+
+# Needed for Horovod
+RUN OPENMPI_VERSION=1.10.3 && \
+    wget -q -O - https://www.open-mpi.org/software/ompi/v1.10/downloads/openmpi-${OPENMPI_VERSION}.tar.gz | tar -xzf - && \
+    cd openmpi-${OPENMPI_VERSION} && \
+    ./configure --enable-orterun-prefix-by-default --with-cuda --with-verbs \
+                --prefix=/usr/local/mpi --disable-getpwuid && \
+    make -j"$(nproc)" install && \
+    cd .. && rm -rf openmpi-${OPENMPI_VERSION} && \
+    echo "/usr/local/mpi/lib" >> /etc/ld.so.conf.d/openmpi.conf && ldconfig
+ENV PATH /usr/local/mpi/bin:$PATH
 
 # TF 1.0 upstream needs this symlink
 RUN mkdir -p /usr/lib/x86_64-linux-gnu/include/ && \
@@ -91,6 +106,15 @@ WORKDIR /workspace
 COPY NVREADME.md README.md
 COPY docker-examples docker-examples
 RUN chmod -R a+w /workspace
+
+# Horovod
+ENV HOROVOD_GPU_ALLREDUCE NCCL
+ENV HOROVOD_NCCL_INCLUDE /usr/include
+ENV HOROVOD_NCCL_LIB /usr/lib/x86_64-linux-gnu
+RUN ln -s /usr/local/cuda/lib64/stubs/libcuda.so ./libcuda.so.1 && \
+    export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$PWD && \
+    pip install --no-cache-dir horovod && \
+    rm ./libcuda.so.1
 
 COPY nvidia_entrypoint.sh /usr/local/bin
 ENTRYPOINT ["/usr/local/bin/nvidia_entrypoint.sh"]
