@@ -26,13 +26,13 @@ before_script:
     - echo "${CI_BUILD_NAME}" | grep -Eq "(^|-)py2($|-)" && export PYVER=2.7 || export PYVER=3.5   && echo "${PYVER}"
     - export NV_DOCKER_ARGS="curl -s http://localhost:3476/docker/cli?dev=${RUNNER_GPUS//,/+}"     && echo "${NV_DOCKER_ARGS}"
     - export RELEASE_BRANCH_NAME=${CI_COMMIT_REF_NAME%%-devel}                                     && echo "${RELEASE_BRANCH_NAME}"
-    - export IMAGE_NAME_PREFIX="${CI_REGISTRY_IMAGE}:${RELEASE_BRANCH_NAME}"                       && echo "${IMAGE_NAME_PREFIX}"
-    - export BASE_IMAGE_NAME="${IMAGE_NAME_PREFIX}-py${PYVER%.*}-base"                             && echo "${BASE_IMAGE_NAME}"
-    - export BASE_IMAGE_NAME_VERSIONED="${BASE_IMAGE_NAME%-base}.${CI_PIPELINE_ID}"                && echo "${BASE_IMAGE_NAME_VERSIONED}"
-    - export DEVEL_IMAGE_NAME="${IMAGE_NAME_PREFIX}-py${PYVER%.*}-devel"                           && echo "${DEVEL_IMAGE_NAME}"
-    - export DEVEL_IMAGE_NAME_VERSIONED="${DEVEL_IMAGE_NAME%-devel}.${CI_PIPELINE_ID}-devel"       && echo "${DEVEL_IMAGE_NAME_VERSIONED}"
-    - export STAGE_IMAGE_NAME="${IMAGE_NAME_PREFIX}-py${PYVER%.*}-stage"                           && echo "${STAGE_IMAGE_NAME}"
-    - export QA_IMAGE_NAME="${IMAGE_NAME_PREFIX}-py${PYVER%.*}-qa"                                 && echo "${QA_IMAGE_NAME}"
+    - export IMAGE_NAME_ROOT="${CI_REGISTRY_IMAGE}:${RELEASE_BRANCH_NAME}-py${PYVER%.*}"           && echo "${IMAGE_NAME_PREFIX}"
+    - export BASE_IMAGE_NAME="${IMAGE_NAME_ROOT}-base"                                             && echo "${BASE_IMAGE_NAME}"
+    - export BASE_IMAGE_NAME_VERSIONED="${IMAGE_NAME_ROOT}.${CI_PIPELINE_ID}"                      && echo "${BASE_IMAGE_NAME_VERSIONED}"
+    - export DEVEL_IMAGE_NAME="${IMAGE_NAME_ROOT}-devel"                                           && echo "${DEVEL_IMAGE_NAME}"
+    - export DEVEL_IMAGE_NAME_VERSIONED="${IMAGE_NAME_ROOT}.${CI_PIPELINE_ID}-devel"               && echo "${DEVEL_IMAGE_NAME_VERSIONED}"
+    - export STAGE_IMAGE_NAME="${IMAGE_NAME_ROOT}-stage"                                           && echo "${STAGE_IMAGE_NAME}"
+    - export QA_IMAGE_NAME="${IMAGE_NAME_ROOT}-qa"                                                 && echo "${QA_IMAGE_NAME}"
     - export ORIGIN1="${CI_REPOSITORY_URL##*@}"
     - export ORIGIN_SSH=git@${ORIGIN1/\//:}                                                        && echo "${ORIGIN_SSH}"
     - export ORIGIN_HTTPS=https://${ORIGIN1}                                                       && echo "${ORIGIN_HTTPS}"
@@ -53,7 +53,7 @@ before_script:
                    --cache-from "${BASE_IMAGE_NAME}"
                    -t "${BASE_IMAGE_NAME}" -t "${BASE_IMAGE_NAME_VERSIONED}"
                    --build-arg "NVIDIA_BUILD_REF=${CI_COMMIT_SHA}"
-                   --build-arg "NVIDIA_BUILD_ID=${CI_JOB_ID}" 
+                   --build-arg "NVIDIA_BUILD_ID=${CI_JOB_ID}"
                    --build-arg "PYVER=${PYVER}" .
     - docker push "${BASE_IMAGE_NAME}"
     - docker push "${BASE_IMAGE_NAME_VERSIONED}"
@@ -67,7 +67,6 @@ py2-base:
 py3-base:
     stage: build base
     <<: *BASE
-
 
 .devel_template : &DEVEL
     variables:
@@ -172,12 +171,11 @@ py3-stage:
       TEST_SCRIPT: "./test.sh"
     script:
     - export RUNNER="${CI_BUILD_NAME##*--}"
-    - export TEST_WORK_DIR="${TEST_WORK_DIR%%--$RUNNER*}"
-    - export TEST_WORK_DIR="${TEST_WORK_DIR%-py[23]}"
+    - export TEST_WORK_DIR="${TEST_WORK_DIR%%--*}"
     - export TEST_SCRIPT="${TEST_SCRIPT/--$RUNNER.sh/.sh}"
-    - export TEST_SCRIPT="${TEST_SCRIPT/-py[23].sh/.sh}"
+    - export TEST_SCRIPT="${TEST_SCRIPT/--py[23].sh/.sh}"
     - cat /proc/driver/nvidia/version
-    - set -x && 
+    - set -x &&
       docker run --rm $(eval ${NV_DOCKER_ARGS})
              -v $DATADIR:/data
              $(eval echo ${EXTRA_DOCKER_RUN_ARGS})
@@ -254,7 +252,7 @@ py3-stage:
     - 2GPU
     only:
     - /^.*-devel$/
-    
+
 .M60_R384_2GPU: &M60_R384_2GPU
     tags:
     - M60
@@ -262,7 +260,7 @@ py3-stage:
     - 2GPU
     only:
     - /^.*-devel$/
-    
+
 .K80_R384_2GPU: &K80_R384_2GPU
     tags:
     - K80
@@ -270,7 +268,7 @@ py3-stage:
     - 2GPU
     only:
     - /^.*-devel$/
-    
+
 .P40_R384_1GPU: &P40_R384_1GPU
     tags:
     - P40
@@ -614,135 +612,135 @@ L3_cnn_resnet50_batch64_real_long--V100_R384_4GPU:
 
 #### V100_R384_4GPU Python 2 ####
 
-L0_models_alexnet-py2--V100_R384_4GPU:
+L0_models_alexnet--py2--V100_R384_4GPU:
     <<: *L0_TEST
     <<: *V100_R384_4GPU
 
-L0_models_imagenet-py2--V100_R384_4GPU:
+L0_models_imagenet--py2--V100_R384_4GPU:
     <<: *L0_TEST
     <<: *V100_R384_4GPU
 
-L0_models_mnist-py2--V100_R384_4GPU:
+L0_models_mnist--py2--V100_R384_4GPU:
     <<: *L0_TEST
     <<: *V100_R384_4GPU
 
-L0_convnet_benchmarks_alexnet-py2--V100_R384_4GPU:
+L0_convnet_benchmarks_alexnet--py2--V100_R384_4GPU:
     <<: *L0_TEST
     <<: *V100_R384_4GPU
     variables:
       TEST_WORK_DIR: "/opt/tensorflow/qa/L0_convnet_benchmarks"
       TEST_SCRIPT: "./test-alexnet.sh"
 
-L0_convnet_benchmarks_googlenet-py2--V100_R384_4GPU:
+L0_convnet_benchmarks_googlenet--py2--V100_R384_4GPU:
     <<: *L0_TEST
     <<: *V100_R384_4GPU
     variables:
       TEST_WORK_DIR: "/opt/tensorflow/qa/L0_convnet_benchmarks"
       TEST_SCRIPT: "./test-googlenet.sh"
 
-L0_convnet_benchmarks_overfeat-py2--V100_R384_4GPU:
+L0_convnet_benchmarks_overfeat--py2--V100_R384_4GPU:
     <<: *L0_TEST
     <<: *V100_R384_4GPU
     variables:
       TEST_WORK_DIR: "/opt/tensorflow/qa/L0_convnet_benchmarks"
       TEST_SCRIPT: "./test-overfeat.sh"
 
-L0_convnet_benchmarks_vgga-py2--V100_R384_4GPU:
+L0_convnet_benchmarks_vgga--py2--V100_R384_4GPU:
     <<: *L0_TEST
     <<: *V100_R384_4GPU
     variables:
       TEST_WORK_DIR: "/opt/tensorflow/qa/L0_convnet_benchmarks"
       TEST_SCRIPT: "./test-vgga.sh"
 
-L0_nvcnn_resnet50_batch64_real-py2--V100_R384_4GPU:
+L0_nvcnn_resnet50_batch64_real--py2--V100_R384_4GPU:
     <<: *L0_NVCNN_BENCHMARK
     <<: *V100_R384_4GPU
 
-L0_seq2seq-py2--V100_R384_4GPU:
+L0_seq2seq--py2--V100_R384_4GPU:
     <<: *L0_TEST
     <<: *V100_R384_4GPU
 
-L1_word2vec-py2--V100_R384_4GPU:
+L1_word2vec--py2--V100_R384_4GPU:
     <<: *L1_TEST
     <<: *V100_R384_4GPU
 
-L1_self_test-py2--V100_R384_4GPU:
+L1_self_test--py2--V100_R384_4GPU:
     <<: *L1_TEST
     <<: *V100_R384_4GPU
 
-L1_self_test_xla-py2--V100_R384_4GPU:
+L1_self_test_xla--py2--V100_R384_4GPU:
     <<: *L1_TEST
     <<: *V100_R384_4GPU
 
-L1_nccl_test-py2--V100_R384_4GPU:
+L1_nccl_test--py2--V100_R384_4GPU:
     <<: *L1_TEST
     <<: *V100_R384_4GPU
 
-L1_seq2seq-py2--V100_R384_4GPU:
+L1_seq2seq--py2--V100_R384_4GPU:
     <<: *L1_TEST
     <<: *V100_R384_4GPU
 
-L2_tensorflow_benchmarks-py2--V100_R384_4GPU:
+L2_tensorflow_benchmarks--py2--V100_R384_4GPU:
     <<: *L2_TEST
     <<: *V100_R384_4GPU
 
-L2_models_cifar10-py2--V100_R384_4GPU:
+L2_models_cifar10--py2--V100_R384_4GPU:
     <<: *L2_TEST
     <<: *V100_R384_4GPU
 
-L2_cnn_alexnet_batch128_real-py2--V100_R384_4GPU:
+L2_cnn_alexnet_batch128_real--py2--V100_R384_4GPU:
     <<: *L2_CNN_BENCHMARK
     <<: *V100_R384_4GPU
 
-L2_cnn_alexnet_batch128_synth-py2--V100_R384_4GPU:
+L2_cnn_alexnet_batch128_synth--py2--V100_R384_4GPU:
     <<: *L2_CNN_BENCHMARK
     <<: *V100_R384_4GPU
 
-L2_cnn_inception3_batch32_real-py2--V100_R384_4GPU:
+L2_cnn_inception3_batch32_real--py2--V100_R384_4GPU:
     <<: *L2_CNN_BENCHMARK
     <<: *V100_R384_4GPU
 
-L2_cnn_inception3_batch32_synth-py2--V100_R384_4GPU:
+L2_cnn_inception3_batch32_synth--py2--V100_R384_4GPU:
     <<: *L2_CNN_BENCHMARK
     <<: *V100_R384_4GPU
 
-L2_cnn_inception3_batch64_real-py2--V100_R384_4GPU:
+L2_cnn_inception3_batch64_real--py2--V100_R384_4GPU:
     <<: *L2_CNN_BENCHMARK
     <<: *V100_R384_4GPU
 
-L2_cnn_inception3_batch64_synth-py2--V100_R384_4GPU:
+L2_cnn_inception3_batch64_synth--py2--V100_R384_4GPU:
     <<: *L2_CNN_BENCHMARK
     <<: *V100_R384_4GPU
 
-L2_cnn_resnet50_batch32_real-py2--V100_R384_4GPU:
+L2_cnn_resnet50_batch32_real--py2--V100_R384_4GPU:
     <<: *L2_CNN_BENCHMARK
     <<: *V100_R384_4GPU
 
-L2_cnn_resnet50_batch32_synth-py2--V100_R384_4GPU:
+L2_cnn_resnet50_batch32_synth--py2--V100_R384_4GPU:
     <<: *L2_CNN_BENCHMARK
     <<: *V100_R384_4GPU
 
-L2_cnn_resnet50_batch64_real-py2--V100_R384_4GPU:
+L2_cnn_resnet50_batch64_real--py2--V100_R384_4GPU:
     <<: *L2_CNN_BENCHMARK
     <<: *V100_R384_4GPU
 
-L2_cnn_resnet50_batch64_synth-py2--V100_R384_4GPU:
+L2_cnn_resnet50_batch64_synth--py2--V100_R384_4GPU:
     <<: *L2_CNN_BENCHMARK
     <<: *V100_R384_4GPU
 
-L2_nvcnn_alexnet_batch128_real-py2--V100_R384_4GPU:
+L2_nvcnn_alexnet_batch128_real--py2--V100_R384_4GPU:
     <<: *L2_NVCNN_BENCHMARK
     <<: *V100_R384_4GPU
 
-L2_nvcnn_resnet50_batch64_real-py2--V100_R384_4GPU:
+L2_nvcnn_resnet50_batch64_real--py2--V100_R384_4GPU:
     <<: *L2_NVCNN_BENCHMARK
     <<: *V100_R384_4GPU
 
-L2_nvcnn_inception3_batch64_real-py2--V100_R384_4GPU:
+L2_nvcnn_inception3_batch64_real--py2--V100_R384_4GPU:
     <<: *L2_NVCNN_BENCHMARK
     <<: *V100_R384_4GPU
 
-L3_cnn_resnet50_batch64_real_long-py2--V100_R384_4GPU:
+L3_cnn_resnet50_batch64_real_long--py2--V100_R384_4GPU:
     <<: *L3_CNN_BENCHMARK
     <<: *V100_R384_4GPU
 
