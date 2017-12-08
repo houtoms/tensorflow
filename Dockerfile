@@ -25,7 +25,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 ENV PYTHONIOENCODING utf-8
 RUN rm -f /usr/bin/python && \
-    rm -f /usr/bin/python$`echo $PYVER | cut -c1-1` && \
+    rm -f /usr/bin/python`echo $PYVER | cut -c1-1` && \
     ln -s /usr/bin/python$PYVER /usr/bin/python && \
     ln -s /usr/bin/python$PYVER /usr/bin/python`echo $PYVER | cut -c1-1`
 
