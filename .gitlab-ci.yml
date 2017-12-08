@@ -416,6 +416,10 @@ L1_seq2seq--P100_R384_4GPU:
     <<: *L1_TEST
     <<: *P100_R384_4GPU
 
+L2_seq2seq--P100_R384_4GPU:
+    <<: *L2_TEST
+    <<: *P100_R384_4GPU
+
 L2_tensorflow_benchmarks--P100_R384_4GPU:
     <<: *L2_TEST
     <<: *P100_R384_4GPU
@@ -552,6 +556,10 @@ L1_nccl_test--V100_R384_4GPU:
 
 L1_seq2seq--V100_R384_4GPU:
     <<: *L1_TEST
+    <<: *V100_R384_4GPU
+
+L2_seq2seq--V100_R384_4GPU:
+    <<: *L2_TEST
     <<: *V100_R384_4GPU
 
 L2_tensorflow_benchmarks--V100_R384_4GPU:
