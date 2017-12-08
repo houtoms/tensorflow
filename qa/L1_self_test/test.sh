@@ -57,6 +57,8 @@ NUM_GPUS=`nvidia-smi -L | wc -l` && \
               -//tensorflow/contrib/distributions:mvn_full_covariance_test \
               -//tensorflow/contrib/factorization:gmm_test \
               -//tensorflow/core/distributed_runtime:cluster_function_library_runtime_test \
+              `# conv_ops_test has timed out in some M40 runs. Moved to serial tests below.` \
+              -//tensorflow/python/kernel_tests:conv_ops_test \
   | tee testresult.tmp
 
 
@@ -71,6 +73,7 @@ bazel test    --config=cuda -c opt --verbose_failures --local_test_jobs=1 \
               //tensorflow/core/debug:grpc_session_debug_test \
               //tensorflow/contrib/kfac/examples/tests:convnet_test \
               //tensorflow/python/kernel_tests:depthtospace_op_test \
+              //tensorflow/python/kernel_tests:conv_ops_test \
   | tee -a testresult.tmp
 
 grep "test\.log" testresult.tmp | /opt/tensorflow/qa/show_testlogs
