@@ -989,11 +989,11 @@ def inference_residual(net, input_layer, layer_counts, bottleneck_callback):
     x = net.pool(x, 'MAX', (3,3), (2,2), padding='SAME')
     for i in range(layer_counts[0]):
         x = bottleneck_callback(net, x,  256,  64, 1)
-    for i in xrange(layer_counts[1]):
+    for i in range(layer_counts[1]):
         x = bottleneck_callback(net, x, 512, 128, 2 if i==0 else 1)
-    for i in xrange(layer_counts[2]):
+    for i in range(layer_counts[2]):
         x = bottleneck_callback(net, x, 1024, 256, 2 if i==0 else 1)
-    for i in xrange(layer_counts[3]):
+    for i in range(layer_counts[3]):
         x = bottleneck_callback(net, x, 2048, 512, 2 if i==0 else 1)
     x = net.spatial_avg(x)
     return x
