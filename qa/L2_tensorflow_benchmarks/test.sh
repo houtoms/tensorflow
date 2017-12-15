@@ -99,6 +99,19 @@ function set_model_args {
         MIN_MiB["64"]=16000
         NET_NAME=resnet152
        ;;
+    resnext_50)
+        BATCHES_PER_GPU=(32 64 )
+        NET_NAME=resnext50
+       ;;
+    resnext_101)
+        BATCHES_PER_GPU=(32 64 )
+        NET_NAME=resnext101
+       ;;
+    resnext_152)
+        BATCHES_PER_GPU=(32 64 )
+        MIN_MiB["64"]=16000
+        NET_NAME=resnext152
+       ;;
     inception-resnet_v2)
         BATCHES_PER_GPU=(32 64 )
         MIN_MiB["64"]=16000
@@ -150,7 +163,7 @@ CONFIG="
     --display_every=20
     $DATA
 "
-MODELS=(googlenet vgg_11 vgg_16 vgg_19 overfeat alexnet_owt inception_v3 inception_v4 resnet_50 resnet_101 resnet_152 inception-resnet_v2)
+MODELS=(googlenet vgg_11 vgg_16 vgg_19 overfeat alexnet_owt inception_v3 inception_v4 resnet_50 resnet_101 resnet_152 resnext_50 resnext_101 resnext_152 inception-resnet_v2)
 
 echo 'Running Benchmark...'
 for MODEL in ${MODELS[@]}; do

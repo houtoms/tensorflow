@@ -76,6 +76,7 @@ TensorBoard can be used to monitor training:
 | googlenet              | GoogLeNet                  | https://arxiv.org/abs/1409.4842  |
 | vgg11,13,16,19         | Visual Geometry Group ABDE | https://arxiv.org/abs/1409.1556  |
 | resnet18,34,50,101,152 | Residual Networks v1       | https://arxiv.org/abs/1512.03385 |
+| resnext50,101,152      | ResNeXt                    | https://arxiv.org/abs/1611.05431 |
 | inception3             | Inception v3               | https://arxiv.org/abs/1512.00567 |
 | inception4             | Inception v4               | https://arxiv.org/abs/1602.07261 |
 | inception-resnet2      | Inception-ResNet v2        | https://arxiv.org/abs/1602.07261 |
