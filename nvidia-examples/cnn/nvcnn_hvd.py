@@ -785,31 +785,96 @@ def resnet_bottleneck_v1(net, input_layer, depth, depth_bottleneck, stride,
             x = net.conv(x, depth,            (1,1), activation='LINEAR')
         x = net.activate(x + shortcut)
         return x
-def inference_resnet_v1_impl(net, input_layer, layer_counts, basic=False):
+    
+def resnext_split_branch(net, input_layer, stride):
+    x = input_layer
+    with tf.name_scope('resnext_split_branch'):
+        x = net.conv(x, net.bottleneck_width, (1, 1), (stride, stride), activation='RELU', use_batch_norm=True)
+        x = net.conv(x, net.bottleneck_width, (3, 3), (1, 1), activation='RELU', use_batch_norm=True)
+    return x
+
+def resnext_shortcut(net, input_layer, stride, input_size, output_size):
+    x = input_layer
+    useConv = net.shortcut_type == 'C' or (net.shortcut_type == 'B' and input_size != output_size)
+    with tf.name_scope('resnext_shortcut'):
+        if useConv:
+            x = net.conv(x, output_size, (1,1), (stride, stride), use_batch_norm=True)
+        elif output_size == input_size:
+            if stride == 1:
+                x = input_layer
+            else:
+                x = net.pool(x, 'MAX', (1,1), (stride, stride))
+        else:
+            x = input_layer
+    return x
+
+def resnext_bottleneck_v1(net, input_layer, depth, depth_bottleneck, stride):
+    num_inputs = input_layer.get_shape().as_list()[1]
+    x = input_layer
+    with tf.name_scope('resnext_bottleneck_v1'):
+        shortcut = resnext_shortcut(net, x, stride, num_inputs, depth)
+        branches_list = []
+        for i in range(net.cardinality):
+            branch = resnext_split_branch(net, x, stride)
+            branches_list.append(branch)
+        concatenated_branches = tf.concat(values=branches_list, axis=1, name='concat')
+        bottleneck_depth = concatenated_branches.get_shape().as_list()[1]
+        x = net.conv(concatenated_branches, depth, (1, 1), (1, 1), activation=None)
+        x = net.activate(x + shortcut, 'RELU')
+    return x
+
+def inference_residual(net, input_layer, layer_counts, bottleneck_callback):
     net.use_batch_norm = True
     x = net.input_layer(input_layer)
     x = net.conv(x, 64,    (7,7), (2,2), padding='SAME_RESNET')
     x = net.pool(x, 'MAX', (3,3), (2,2), padding='SAME')
     for i in range(layer_counts[0]):
-        x = resnet_bottleneck_v1(net, x,  256,  64, 1, basic)
+        x = bottleneck_callback(net, x,  256,  64, 1)
     for i in range(layer_counts[1]):
-        x = resnet_bottleneck_v1(net, x,  512, 128, 2 if i==0 else 1, basic)
+        x = bottleneck_callback(net, x, 512, 128, 2 if i==0 else 1)
     for i in range(layer_counts[2]):
-        x = resnet_bottleneck_v1(net, x, 1024, 256, 2 if i==0 else 1, basic)
+        x = bottleneck_callback(net, x, 1024, 256, 2 if i==0 else 1)
     for i in range(layer_counts[3]):
-        x = resnet_bottleneck_v1(net, x, 2048, 512, 2 if i==0 else 1, basic)
+        x = bottleneck_callback(net, x, 2048, 512, 2 if i==0 else 1)
     x = net.spatial_avg(x)
     return x
+
+def inference_resnet_v1_basic_impl(net, input_layer, layer_counts):
+    basic_resnet_bottleneck_callback = partial(resnet_bottleneck_v1, basic=True)
+    return inference_residual(net, input_layer, layer_counts, basic_resnet_bottleneck_callback)
+
+def inference_resnet_v1_impl(net, input_layer, layer_counts):
+    return inference_residual(net, input_layer, layer_counts, resnet_bottleneck_v1)
+
+def inference_resnext_v1_impl(net, input_layer, layer_counts):
+    return inference_residual(net, input_layer, layer_counts, resnext_bottleneck_v1)
+
 def inference_resnet_v1(net, input_layer, nlayer):
     """Deep Residual Networks family of models
     https://arxiv.org/abs/1512.03385
     """
-    if   nlayer ==  18: return inference_resnet_v1_impl(net, input_layer, [2,2, 2,2], basic=True)
-    elif nlayer ==  34: return inference_resnet_v1_impl(net, input_layer, [3,4, 6,3], basic=True)
+    if   nlayer ==  18: return inference_resnet_v1_basic_impl(net, input_layer, [2,2, 2,2])
+    elif nlayer ==  34: return inference_resnet_v1_basic_impl(net, input_layer, [3,4, 6,3])
     elif nlayer ==  50: return inference_resnet_v1_impl(net, input_layer, [3,4, 6,3])
     elif nlayer == 101: return inference_resnet_v1_impl(net, input_layer, [3,4,23,3])
     elif nlayer == 152: return inference_resnet_v1_impl(net, input_layer, [3,8,36,3])
     else: raise ValueError("Invalid nlayer (%i); must be one of: 18,34,50,101,152" %
+                           nlayer)
+        
+def inference_resnext_v1(net, input_layer, nlayer):
+    """Aggregated  Residual Networks family of models
+    https://arxiv.org/abs/1611.05431
+    """
+    cardinality_to_bottleneck_width = { 1:64, 2:40, 4:24, 8:14, 32:4 }
+    net.cardinality = 32
+    net.shortcut_type = 'B'
+    assert net.cardinality in cardinality_to_bottleneck_width.keys(), \
+    "Invalid  cardinality (%i); must be one of: 1,2,4,8,32" % net.cardinality
+    net.bottleneck_width = cardinality_to_bottleneck_width[net.cardinality]  
+    if nlayer ==  50: return inference_resnext_v1_impl(net, input_layer, [3,4, 6,3])
+    elif nlayer == 101: return inference_resnext_v1_impl(net, input_layer, [3,4,23,3])
+    elif nlayer == 152: return inference_resnext_v1_impl(net, input_layer, [3,8,36,3])
+    else: raise ValueError("Invalid nlayer (%i); must be one of: 50,101,152" %
                            nlayer)
 
 # Stem functions
@@ -1006,7 +1071,7 @@ def main():
                          trivial, lenet,
                          alexnet, googlenet, vgg[11,13,16,19],
                          inception[3,4], resnet[18,34,50,101,152],
-                         inception-resnet2.""")
+                         resnext[50,101,152], inception-resnet2.""")
     cmdline.add_argument('--data_dir', default=None,
                          help="""Path to dataset in TFRecord format
                          (aka Example protobufs). Files should be
@@ -1118,6 +1183,11 @@ def main():
         nlayer = int(model_name[len('resnet'):])
         model_func = lambda net, images: inference_resnet_v1(net, images, nlayer)
         FLAGS.learning_rate = 0.1 if nlayer > 18 else 0.5
+    elif model_name.startswith('resnext'):
+        height, width = 224, 224
+        nlayer = int(model_name[len('resnext'):])
+        model_func = lambda net, images: inference_resnext_v1(net, images, nlayer)
+        FLAGS.learning_rate = 0.1
     elif model_name == 'inception4':
         height, width = 299, 299
         model_func = inference_inception_v4
