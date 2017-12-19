@@ -113,8 +113,8 @@ function set_model_args {
         NET_NAME=resnext152
        ;;
     inception-resnet_v2)
-        BATCHES_PER_GPU=(32 64 )
-        MIN_MiB["64"]=16000
+        BATCHES_PER_GPU=(32 56 )
+        MIN_MiB["56"]=16000
         NET_NAME=inception-resnet2
        ;;
     esac
