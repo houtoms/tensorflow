@@ -23,6 +23,7 @@ if [[ $MIN_GPU_MEM -lt 0 ]]; then
     exit 1
 fi
 
+
 function bench {
     NET=$1
     BATCH=$2
@@ -94,6 +95,19 @@ function set_model_args {
         MIN_MiB["64"]=16000
         NET_NAME=resnet152
        ;;
+    resnext_50)
+        BATCHES_PER_GPU=(32 64 )
+        NET_NAME=resnext50
+       ;;
+    resnext_101)
+        BATCHES_PER_GPU=(32 64 )
+        NET_NAME=resnext101
+       ;;
+    resnext_152)
+        BATCHES_PER_GPU=(32 56 )
+        MIN_MiB["56"]=16000
+        NET_NAME=resnext152
+       ;;
     inception-resnet_v2)
         BATCHES_PER_GPU=(32 64 )
         MIN_MiB["64"]=16000
@@ -123,8 +137,8 @@ nvidia-smi                   | tee -a $LOG_DIR/nvidia_smi.log
 echo "Running nvidia-smi -a" | tee -a $LOG_DIR/nvidia_smi.log
 nvidia-smi -a                | tee -a $LOG_DIR/nvidia_smi.log
 
-# Synthetic data is not currently supported
-DATA="--data_dir=/imagenet"
+#Comment out the following line in case of synthetic data
+DATA="--data_dir=/data/imagenet/train-val-tfrecord-480"
 
 CONFIG="
     --display_every=200
@@ -145,7 +159,7 @@ CONFIG="
     --display_every=20
     $DATA
 "
-MODELS=(googlenet vgg_11 vgg_16 vgg_19 alexnet_owt inception_v3 inception_v4 resnet_50 resnet_101 resnet_152 inception-resnet_v2)
+MODELS=(googlenet vgg_11 vgg_16 vgg_19 alexnet_owt inception_v3 inception_v4 resnet_50 resnet_101 resnet_152 resnext_50 resnext_101 resnext_152 inception-resnet_v2)
 
 echo 'Running Benchmark...'
 for MODEL in ${MODELS[@]}; do
