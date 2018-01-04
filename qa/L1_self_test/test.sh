@@ -43,6 +43,7 @@ NUM_GPUS=`nvidia-smi -L | wc -l` && \
               `# These are tested in serial below` \
               -//tensorflow/python:localhost_cluster_performance_test \
               -//tensorflow/core/debug:grpc_session_debug_test \
+              -//tensorflow/core/distributed_runtime/rpc:grpc_session_test_gpu \
               -//tensorflow/contrib/kfac/examples/tests:convnet_test \
               -//tensorflow/python/kernel_tests:depthtospace_op_test \
               `# We do not provide Go support` \
@@ -71,6 +72,7 @@ bazel test    --config=cuda -c opt --verbose_failures --local_test_jobs=1 \
               -- \
               //tensorflow/python:localhost_cluster_performance_test \
               //tensorflow/core/debug:grpc_session_debug_test \
+              //tensorflow/core/distributed_runtime/rpc:grpc_session_test_gpu \
               //tensorflow/contrib/kfac/examples/tests:convnet_test \
               //tensorflow/python/kernel_tests:depthtospace_op_test \
               //tensorflow/python/kernel_tests:conv_ops_test \
