@@ -64,9 +64,10 @@ def _apply_delete(ctx, paths):
       ctx, ["rm", "-rf"] + [ctx.path(path) for path in paths])
 
 def _tf_http_archive(ctx):
-  if ("mirror.bazel.build" not in ctx.attr.urls[0] or
+  if ("file:///" not in ctx.attr.urls[0] and
+      ("mirror.bazel.build" not in ctx.attr.urls[0] or
       (len(ctx.attr.urls) < 2 and
-       ctx.attr.name not in _SINGLE_URL_WHITELIST)):
+       ctx.attr.name not in _SINGLE_URL_WHITELIST))):
     fail("tf_http_archive(urls) must have redundant URLs. The " +
          "mirror.bazel.build URL must be present and it must come first. " +
          "Even if you don't have permission to mirror the file, please " +
@@ -90,7 +91,7 @@ def _tf_http_archive(ctx):
 tf_http_archive = repository_rule(
     implementation=_tf_http_archive,
     attrs={
-        "sha256": attr.string(mandatory=True),
+        "sha256": attr.string(mandatory=False),
         "urls": attr.string_list(mandatory=True, allow_empty=False),
         "strip_prefix": attr.string(),
         "type": attr.string(),
