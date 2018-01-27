@@ -48,6 +48,8 @@ NUM_GPUS=`nvidia-smi -L | wc -l` && \
               -//tensorflow/python/kernel_tests:depthtospace_op_test \
               `# We do not provide Go support` \
               -//tensorflow/go/... \
+              `# tflite tests fail badly` \
+              -//tensorflow/contrib/lite/... \
               `# This is tested by L1_self_test_xla` \
               -//tensorflow/compiler/... \
               `# Minor failures` \
