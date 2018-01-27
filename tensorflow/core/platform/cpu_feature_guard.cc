@@ -129,7 +129,8 @@ void InfoAboutUnusedCPUFeatures() {
 //     CheckIfFeatureUnused(CPUFeature::AVX2, "AVX2", missing_instructions);
 // #endif  // __AVX2__
 // #ifndef __AVX512F__
-//     CheckIfFeatureUnused(CPUFeature::AVX512F, "AVX512F", missing_instructions);
+//     CheckIfFeatureUnused(CPUFeature::AVX512F, "AVX512F",
+//     missing_instructions);
 // #endif  // __AVX512F__
 // #ifndef __FMA__
 //     CheckIfFeatureUnused(CPUFeature::FMA, "FMA", missing_instructions);

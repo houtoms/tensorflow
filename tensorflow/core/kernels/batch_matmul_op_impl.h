@@ -283,7 +283,6 @@ class CublasScratchAllocator : public perftools::gputools::ScratchAllocator {
   OpKernelContext* context_;
   std::vector<Tensor> allocated_tensors_;
 };
-
 }  // namespace
 
 template <typename Scalar>
@@ -395,11 +394,11 @@ struct LaunchBatchMatMul<GPUDevice, Scalar> {
                   batch_size, &scratch_allocator)
               .ok();
       if (!blas_launch_status) {
-        context->SetStatus(errors::Internal(
-            "Blas xGEMMBatched launch failed : a.shape=",
-            in_x.shape().DebugString(),
-            ", b.shape=", in_y.shape().DebugString(), ", m=", m, ", n=", n,
-            ", k=", k, ", batch_size=", batch_size));
+        context->SetStatus(
+            errors::Internal("Blas xGEMMBatched launch failed : a.shape=",
+                             in_x.shape().DebugString(), ", b.shape=",
+                             in_y.shape().DebugString(), ", m=", m, ", n=", n,
+                             ", k=", k, ", batch_size=", batch_size));
       }
     }
   }

@@ -19,15 +19,18 @@ limitations under the License.
 
 namespace tensorflow {
 
+#if !defined(INTEL_MKL)
 TF_CALL_float(REGISTER_BATCH_MATMUL_CPU);
 TF_CALL_double(REGISTER_BATCH_MATMUL_CPU);
+#endif
 TF_CALL_half(REGISTER_BATCH_MATMUL_CPU);
 TF_CALL_int32(REGISTER_BATCH_MATMUL_CPU);
 
 #if GOOGLE_CUDA
 TF_CALL_float(REGISTER_BATCH_MATMUL_GPU);
 TF_CALL_double(REGISTER_BATCH_MATMUL_GPU);
-// TODO(benbarsdell): Change this to the version in which cublasGemmBatchedEx is officially available
+// TODO(benbarsdell): Change this to the version in which cublasGemmBatchedEx is
+// officially available
 #if CUDA_VERSION >= 9000
 TF_CALL_half(REGISTER_BATCH_MATMUL_GPU);
 #endif

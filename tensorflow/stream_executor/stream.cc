@@ -4361,9 +4361,10 @@ Stream &Stream::ThenBlasTrsm(blas::Side side, blas::UpperLower uplo,
 
 Stream &Stream::ThenBlasGemmBatched(
     blas::Transpose transa, blas::Transpose transb, uint64 m, uint64 n,
-    uint64 k, float alpha, const port::ArraySlice<DeviceMemory<Eigen::half> *> &a,
-    int lda, const port::ArraySlice<DeviceMemory<Eigen::half> *> &b, int ldb,
-    float beta, const port::ArraySlice<DeviceMemory<Eigen::half> *> &c, int ldc,
+    uint64 k, float alpha,
+    const port::ArraySlice<DeviceMemory<Eigen::half> *> &a, int lda,
+    const port::ArraySlice<DeviceMemory<Eigen::half> *> &b, int ldb, float beta,
+    const port::ArraySlice<DeviceMemory<Eigen::half> *> &c, int ldc,
     int batch_count) {
   return ThenBlasGemmBatchedWithScratch(transa, transb, m, n, k, alpha, a, lda,
                                         b, ldb, beta, c, ldc, batch_count,
@@ -4372,9 +4373,10 @@ Stream &Stream::ThenBlasGemmBatched(
 
 Stream &Stream::ThenBlasGemmBatchedWithScratch(
     blas::Transpose transa, blas::Transpose transb, uint64 m, uint64 n,
-    uint64 k, float alpha, const port::ArraySlice<DeviceMemory<Eigen::half> *> &a,
-    int lda, const port::ArraySlice<DeviceMemory<Eigen::half> *> &b, int ldb,
-    float beta, const port::ArraySlice<DeviceMemory<Eigen::half> *> &c, int ldc,
+    uint64 k, float alpha,
+    const port::ArraySlice<DeviceMemory<Eigen::half> *> &a, int lda,
+    const port::ArraySlice<DeviceMemory<Eigen::half> *> &b, int ldb, float beta,
+    const port::ArraySlice<DeviceMemory<Eigen::half> *> &c, int ldc,
     int batch_count, ScratchAllocator *scratch_allocator) {
   VLOG_CALL(PARAM(transa), PARAM(transb), PARAM(m), PARAM(n), PARAM(k),
             PARAM(alpha), PARAM(a), PARAM(lda), PARAM(b), PARAM(ldb),
@@ -4382,9 +4384,9 @@ Stream &Stream::ThenBlasGemmBatchedWithScratch(
 
   ThenBlasImpl<blas::Transpose, blas::Transpose, uint64, uint64, uint64, float,
                const port::ArraySlice<DeviceMemory<Eigen::half> *> &, int,
-               const port::ArraySlice<DeviceMemory<Eigen::half> *> &, int, float,
-               const port::ArraySlice<DeviceMemory<Eigen::half> *> &, int, int,
-               ScratchAllocator *>
+               const port::ArraySlice<DeviceMemory<Eigen::half> *> &, int,
+               float, const port::ArraySlice<DeviceMemory<Eigen::half> *> &,
+               int, int, ScratchAllocator *>
       impl;
   return impl(this, &blas::BlasSupport::DoBlasGemmBatched, transa, transb, m, n,
               k, alpha, a, lda, b, ldb, beta, c, ldc, batch_count,
@@ -4714,6 +4716,39 @@ Stream &Stream::ThenMemset32(DeviceMemoryBase *location, uint32 pattern,
 Stream &Stream::ThenRnnForward(
     const dnn::RnnDescriptor &rnn_desc,
     const dnn::RnnSequenceTensorDescriptor &input_desc,
+    const DeviceMemory<Eigen::half> &input_data,
+    const dnn::RnnStateTensorDescriptor &input_h_desc,
+    const DeviceMemory<Eigen::half> &input_h_data,
+    const dnn::RnnStateTensorDescriptor &input_c_desc,
+    const DeviceMemory<Eigen::half> &input_c_data,
+    const DeviceMemory<Eigen::half> &params,
+    const dnn::RnnSequenceTensorDescriptor &output_desc,
+    DeviceMemory<Eigen::half> *output_data,
+    const dnn::RnnStateTensorDescriptor &output_h_desc,
+    DeviceMemory<Eigen::half> *output_h_data,
+    const dnn::RnnStateTensorDescriptor &output_c_desc,
+    DeviceMemory<Eigen::half> *output_c_data, bool is_training,
+    ScratchAllocator *reserve_space_allocator,
+    ScratchAllocator *workspace_allocator) {
+  // TODO(zhengxq): add VLOG PARAM calls.
+  if (ok()) {
+    if (dnn::DnnSupport *dnn = parent_->AsDnn()) {
+      CheckError(dnn->DoRnnForward(
+          this, rnn_desc, input_desc, input_data, input_h_desc, input_h_data,
+          input_c_desc, input_c_data, params, output_desc, output_data,
+          output_h_desc, output_h_data, output_c_desc, output_c_data,
+          is_training, reserve_space_allocator, workspace_allocator));
+    } else {
+      SetError();
+      LOG(WARNING) << "Attempting to call ThenRnnForward without DNN support";
+    }
+  }
+  return *this;
+}
+
+Stream &Stream::ThenRnnForward(
+    const dnn::RnnDescriptor &rnn_desc,
+    const dnn::RnnSequenceTensorDescriptor &input_desc,
     const DeviceMemory<float> &input_data,
     const dnn::RnnStateTensorDescriptor &input_h_desc,
     const DeviceMemory<float> &input_h_data,
@@ -4771,6 +4806,48 @@ Stream &Stream::ThenRnnForward(
     } else {
       SetError();
       LOG(WARNING) << "Attempting to call ThenRnnForward without DNN support";
+    }
+  }
+  return *this;
+}
+
+Stream &Stream::ThenRnnBackward(
+    const dnn::RnnDescriptor &rnn_desc,
+    const dnn::RnnSequenceTensorDescriptor &input_desc,
+    const DeviceMemory<Eigen::half> &input_data,
+    const dnn::RnnStateTensorDescriptor &input_h_desc,
+    const DeviceMemory<Eigen::half> &input_h_data,
+    const dnn::RnnStateTensorDescriptor &input_c_desc,
+    const DeviceMemory<Eigen::half> &input_c_data,
+    const DeviceMemory<Eigen::half> &params,
+    const dnn::RnnSequenceTensorDescriptor &output_desc,
+    const DeviceMemory<Eigen::half> &output_data,
+    const dnn::RnnStateTensorDescriptor &output_h_desc,
+    const DeviceMemory<Eigen::half> &output_h_data,
+    const dnn::RnnStateTensorDescriptor &output_c_desc,
+    const DeviceMemory<Eigen::half> &output_c_data,
+    const DeviceMemory<Eigen::half> &output_backprop_data,
+    const DeviceMemory<Eigen::half> &output_h_backprop_data,
+    const DeviceMemory<Eigen::half> &output_c_backprop_data,
+    DeviceMemory<Eigen::half> *input_backprop_data,
+    DeviceMemory<Eigen::half> *input_h_backprop_data,
+    DeviceMemory<Eigen::half> *input_c_backprop_data,
+    DeviceMemory<Eigen::half> *params_backprop_data,
+    DeviceMemory<uint8> *reserve_space_data,
+    ScratchAllocator *workspace_allocator) {
+  // TODO(zhengxq): add VLOG PARAM calls.
+  if (ok()) {
+    if (dnn::DnnSupport *dnn = parent_->AsDnn()) {
+      CheckError(dnn->DoRnnBackward(
+          this, rnn_desc, input_desc, input_data, input_h_desc, input_h_data,
+          input_c_desc, input_c_data, params, output_desc, output_data,
+          output_h_desc, output_h_data, output_c_desc, output_c_data,
+          output_backprop_data, output_h_backprop_data, output_c_backprop_data,
+          input_backprop_data, input_h_backprop_data, input_c_backprop_data,
+          params_backprop_data, reserve_space_data, workspace_allocator));
+    } else {
+      SetError();
+      LOG(WARNING) << "Attempting to call ThenRnnBackward without DNN support";
     }
   }
   return *this;
@@ -5012,22 +5089,24 @@ Stream &Stream::ThenEnqueueOnBackgroundThread(
   });
 }
 
-bool Stream::BlockHostUntilDone() {
+port::Status Stream::BlockHostUntilDone() {
   VLOG_CALL();
 
   if (!ok()) {
-    LOG(INFO)
-        << "stream " << this
-        << " did not block host until done; was already in an error state";
-    return false;
+    port::Status status = port::Status(
+        port::error::INTERNAL,
+        "stream did not block host until done; was already in an error state");
+    LOG(INFO) << status << " " << this;
+    return status;
   }
 
+  port::Status first_error;
   {
     // Wait until all active sub-streams have done their tasks.
     mutex_lock lock{mu_};
     for (auto &stream : sub_streams_) {
       if (!stream.second) {
-        CheckError(stream.first->BlockHostUntilDone());
+        first_error.Update(stream.first->BlockHostUntilDone());
         // Set this sub-stream as available.
         stream.second = true;
       }
@@ -5036,8 +5115,13 @@ bool Stream::BlockHostUntilDone() {
 
   temporary_memory_manager_.DeallocateFinalizedTemporaries();
 
-  CheckError(parent_->BlockHostUntilDone(this));
-  return ok();
+  first_error.Update(parent_->BlockHostUntilDone(this));
+  CheckError(first_error.ok());
+  return first_error;
+}
+
+port::Status Stream::BlockHostUntilDoneWithStatus() {
+  return BlockHostUntilDone();
 }
 
 }  // namespace gputools
