@@ -5,9 +5,9 @@ python /opt/tensorflow/nvidia-examples/OpenSeq2Seq/test/create_reversed_examples
 
 
 # 1GPU Test
-python /opt/tensorflow/nvidia-examples/OpenSeq2Seq/run.py --config=/opt/tensorflow/nvidia-examples/OpenSeq2Seq/example_configs/toy_data_config.json --mode=train --logdir=ModelAndLogFolder_1GPU
+python /opt/tensorflow/nvidia-examples/OpenSeq2Seq/run.py --config_file=/opt/tensorflow/nvidia-examples/OpenSeq2Seq/example_configs/toy_data_config.json --mode=train --logdir=ModelAndLogFolder_1GPU
 
-python /opt/tensorflow/nvidia-examples/OpenSeq2Seq/run.py --config=/opt/tensorflow/nvidia-examples/OpenSeq2Seq/example_configs/toy_data_config.json --mode=infer --logdir=ModelAndLogFolder_1GPU --inference_out=pred_1GPU.txt
+python /opt/tensorflow/nvidia-examples/OpenSeq2Seq/run.py --config_file=/opt/tensorflow/nvidia-examples/OpenSeq2Seq/example_configs/toy_data_config.json --mode=infer --logdir=ModelAndLogFolder_1GPU --inference_out=pred_1GPU.txt
 
 Result_1GPU="$(/opt/tensorflow/nvidia-examples/OpenSeq2Seq/multi-bleu.perl test/toy_data/test/target.txt < pred_1GPU.txt)"
 echo $Result_1GPU
@@ -26,9 +26,9 @@ EOF
 
 
 # 2GPU Test
-python /opt/tensorflow/nvidia-examples/OpenSeq2Seq/run.py --config=/opt/tensorflow/nvidia-examples/OpenSeq2Seq/example_configs/toy_data_config_2GPUs.json --mode=train --logdir=ModelAndLogFolder_2GPU
+python /opt/tensorflow/nvidia-examples/OpenSeq2Seq/run.py --config_file=/opt/tensorflow/nvidia-examples/OpenSeq2Seq/example_configs/toy_data_config_2GPUs.json --mode=train --logdir=ModelAndLogFolder_2GPU
 
-python /opt/tensorflow/nvidia-examples/OpenSeq2Seq/run.py --config=/opt/tensorflow/nvidia-examples/OpenSeq2Seq/example_configs/toy_data_config_2GPUs.json --mode=infer --logdir=ModelAndLogFolder_2GPU --inference_out=pred_2GPU.txt
+python /opt/tensorflow/nvidia-examples/OpenSeq2Seq/run.py --config_file=/opt/tensorflow/nvidia-examples/OpenSeq2Seq/example_configs/toy_data_config_2GPUs.json --mode=infer --logdir=ModelAndLogFolder_2GPU --inference_out=pred_2GPU.txt
 
 Result_2GPU="$(/opt/tensorflow/nvidia-examples/OpenSeq2Seq/multi-bleu.perl test/toy_data/test/target.txt < pred_2GPU.txt)"
 echo $Result_2GPU
