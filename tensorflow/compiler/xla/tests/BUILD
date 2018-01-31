@@ -1555,6 +1555,7 @@ xla_test(
 
 xla_test(
     name = "local_client_execute_test",
+    timeout = "long", # BB: Added after observing timeout on 2018-01-31
     srcs = ["local_client_execute_test.cc"],
     tags = ["optonly"],
     deps = [
