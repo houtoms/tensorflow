@@ -54,9 +54,9 @@ export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/cuda/lib64/stubs
 ln -s /usr/local/cuda/lib64/stubs/libcuda.so /usr/local/cuda/lib64/stubs/libcuda.so.1
 
 bazel build -c opt --config=cuda tensorflow/tools/pip_package:build_pip_package
-bazel-bin/tensorflow/tools/pip_package/build_pip_package /tmp/pip
-pip$PYVER install --no-cache-dir --upgrade /tmp/pip/tensorflow-*.whl
-rm -rf /tmp/pip/tensorflow-*.whl /usr/local/cuda/lib64/stubs/libcuda.so.1
+bazel-bin/tensorflow/tools/pip_package/build_pip_package /tmp/pip --gpu
+pip$PYVER install --no-cache-dir --upgrade /tmp/pip/tensorflow_gpu-*.whl
+rm -rf /tmp/pip/tensorflow_gpu-*.whl /usr/local/cuda/lib64/stubs/libcuda.so.1
 
 if [[ $NOCLEAN -eq 0 ]]; then
   bazel clean --expunge
