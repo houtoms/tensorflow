@@ -8,7 +8,7 @@ cat <<EOF
 
 NVIDIA Release ${NVIDIA_TENSORFLOW_VERSION} (build ${NVIDIA_BUILD_ID})
 
-Container image Copyright (c) 2017, NVIDIA CORPORATION.  All rights reserved.
+Container image Copyright (c) 2018, NVIDIA CORPORATION.  All rights reserved.
 Copyright 2017 The TensorFlow Authors.  All rights reserved.
 
 Various files include modifications (c) NVIDIA CORPORATION.  All rights reserved.
@@ -20,6 +20,8 @@ if [[ "$(find /usr -name libcuda.so.1) " == " " || "$(ls /dev/nvidiactl) " == " 
   echo "WARNING: The NVIDIA Driver was not detected.  GPU functionality will not be available."
   echo "   Use 'nvidia-docker run' to start this container; see"
   echo "   https://github.com/NVIDIA/nvidia-docker/wiki/nvidia-docker ."
+else
+  ( /usr/local/bin/checkSMVER.sh )  
 fi
 
 if [[ "$(df -k /dev/shm |grep ^shm |awk '{print $2}') " == "65536 " ]]; then
