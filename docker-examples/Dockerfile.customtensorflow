@@ -13,7 +13,7 @@
 #
 # https://docs.docker.com/engine/reference/builder/
 #
-FROM nvcr.io/nvidia/tensorflow:18.02
+FROM nvcr.io/nvidia/tensorflow:18.03
 
 # Bring in changes from outside container to /tmp
 # (assumes my-tensorflow-modifications.patch is in same directory as Dockerfile)
