@@ -490,14 +490,15 @@ def all_sync_params(tower_params, devices):
     if len(devices) == 1:
         return tf.no_op()
     sync_ops = []
-    # TODO(benbarsdell): Re-enable this once tf.contrib.nccl.broadcast is fixed
-    #                    See https://github.com/tensorflow/tensorflow/issues/15425#issuecomment-361835192
-    if False and have_nccl and FLAGS.nccl:
+    if have_nccl and FLAGS.nccl:
         for param_on_devices in zip(*tower_params):
             # Note: param_on_devices is [paramX_gpu0, paramX_gpu1, ...]
             param0 = param_on_devices[0]
-            received = nccl.broadcast(param0)
-            for device, param in zip(devices[1:], param_on_devices[1:]):
+            send_op, received_tensors = nccl.broadcast(param0, devices[1:])
+            sync_ops.append(send_op)
+            for device, param, received in zip(devices[1:],
+                                               param_on_devices[1:],
+                                               received_tensors):
                 with tf.device(device):
                     sync_op = param.assign(received)
                     sync_ops.append(sync_op)
