@@ -43,8 +43,9 @@ class InfeedThunk : public Thunk {
   InfeedThunk(const InfeedThunk&) = delete;
   InfeedThunk& operator=(const InfeedThunk&) = delete;
 
-  Status ExecuteOnStream(const BufferAllocations& buffer_allocations,
-                         perftools::gputools::Stream* stream) override;
+  tensorflow::Status ExecuteOnStream(
+      const BufferAllocations& buffer_allocations,
+      perftools::gputools::Stream* stream) override;
 
  private:
   const std::vector<BufferAllocation::Slice> tuple_element_buffers_;

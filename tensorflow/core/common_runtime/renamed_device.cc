@@ -21,8 +21,7 @@ namespace tensorflow {
 /* static */
 Device* RenamedDevice::NewRenamedDevice(const string& new_base,
                                         Device* underlying,
-                                        bool owns_underlying,
-                                        bool isolate_session_state) {
+                                        bool owns_underlying) {
   DeviceNameUtils::ParsedName parsed_name;
   CHECK(DeviceNameUtils::ParseFullName(new_base, &parsed_name));
   DeviceNameUtils::ParsedName underlying_parsed_name =
@@ -36,17 +35,15 @@ Device* RenamedDevice::NewRenamedDevice(const string& new_base,
                                           parsed_name.id);
   DeviceAttributes attributes(underlying->attributes());
   attributes.set_name(name);
-  return new RenamedDevice(underlying, attributes, owns_underlying,
-                           isolate_session_state);
+  return new RenamedDevice(underlying, attributes, owns_underlying);
 }
 
 RenamedDevice::RenamedDevice(Device* underlying,
                              const DeviceAttributes& attributes,
-                             bool owns_underlying, bool isolate_session_state)
+                             bool owns_underlying)
     : Device(underlying->env(), attributes),
       underlying_(underlying),
-      owns_underlying_(owns_underlying),
-      isolate_session_state_(isolate_session_state) {}
+      owns_underlying_(owns_underlying) {}
 
 RenamedDevice::~RenamedDevice() {
   if (owns_underlying_) {

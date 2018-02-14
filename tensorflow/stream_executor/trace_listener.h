@@ -65,8 +65,7 @@ class TraceListener {
                                             const port::Status* result) {}
 
   virtual void BlockHostUntilDoneBegin(int64 correlation_id, Stream* stream) {}
-  virtual void BlockHostUntilDoneComplete(int64 correlation_id,
-                                          const port::Status* result) {}
+  virtual void BlockHostUntilDoneComplete(int64 correlation_id, bool result) {}
 };
 
 }  // namespace gputools

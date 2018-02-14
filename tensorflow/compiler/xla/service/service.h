@@ -272,6 +272,8 @@ class Service : public ServiceInterface {
 
   // Create a Hlo module config for the given program shape and arguments.
   // execution_options is optional; if not given a default is used.
+  // has_hybrid_result is used to initialize the same-named field in
+  // HloModuleConfig -- see that class for documentation.
   StatusOr<std::unique_ptr<HloModuleConfig>> CreateModuleConfig(
       const ProgramShape& program_shape,
       tensorflow::gtl::ArraySlice<const Shape*> argument_shapes,
@@ -291,7 +293,7 @@ class Service : public ServiceInterface {
       std::vector<VersionedComputationHandle> versioned_handles,
       std::vector<std::unique_ptr<HloModuleConfig>> module_configs,
       Backend* backend,
-      std::vector<std::vector<perftools::gputools::StreamExecutor*>> executors);
+      std::vector<perftools::gputools::StreamExecutor*> executors);
 
   // Similar to BuildExecutable, but look in the compilation cache for the
   // executable first. If the executable is not in the cache, it is built and
@@ -325,8 +327,7 @@ class Service : public ServiceInterface {
           arguments,
       Backend* backend,
       tensorflow::gtl::ArraySlice<DeviceHandle> device_handles,
-      tensorflow::gtl::ArraySlice<string> result_tags,
-      ExecutionProfile* profile);
+      tensorflow::gtl::ArraySlice<string> result_tags);
 
   // Convenience function for adding a function to a user computation.
   template <typename RequestT, typename ResponseT>

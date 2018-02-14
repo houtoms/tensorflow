@@ -22,7 +22,7 @@ namespace tensorflow {
 REGISTER_OP("CrossReplicaSum")
     .Input("input: T")
     .Output("output: T")
-    .Attr("T: {bfloat16, float}")
+    .Attr("T: {float}")
     .SetShapeFn(shape_inference::UnchangedShape)
     .Doc(R"doc(
 An Op to sum inputs across replicated TPU instances. Each

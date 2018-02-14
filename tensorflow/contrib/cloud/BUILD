@@ -60,16 +60,14 @@ tf_py_test(
     size = "small",
     srcs = ["python/ops/bigquery_reader_ops_test.py"],
     additional_deps = [
+        ":bigquery_reader_ops_op_lib",
         ":cloud_py",
-        "//tensorflow/core:protos_all_py",
+        "//tensorflow/contrib/cloud/kernels:bigquery_reader_ops",
         "//tensorflow/python:array_ops",
         "//tensorflow/python:client_testlib",
         "//tensorflow/python:data_flow_ops",
-        "//tensorflow/python:dtypes",
         "//tensorflow/python:io_ops",
         "//tensorflow/python:parsing_ops",
-        "//tensorflow/python:platform",
-        "//tensorflow/python:util",
     ],
     tags = ["manual"],
 )

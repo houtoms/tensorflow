@@ -99,6 +99,7 @@ class RangeDatasetOp : public DatasetOpKernel {
         if ((dataset()->step_ > 0 && next_ >= dataset()->stop_) ||
             (dataset()->step_ < 0 && next_ <= dataset()->stop_)) {
           *end_of_sequence = true;
+          is_exhausted_ = true;
           return Status::OK();
         }
         Tensor value_tensor(cpu_allocator(), DT_INT64, {});
@@ -111,16 +112,19 @@ class RangeDatasetOp : public DatasetOpKernel {
       }
 
      protected:
-      Status SaveInternal(IteratorStateWriter* writer) override {
+      Status SaveInternal(OpKernelContext* ctx,
+                          IteratorBundleWriter* writer) override {
         mutex_lock l(mu_);
-        TF_RETURN_IF_ERROR(writer->WriteScalar(full_name("next"), next_));
+        TF_RETURN_IF_ERROR(
+            writer->WriteScalar<int64>(full_name("next"), next_));
         return Status::OK();
       }
 
       Status RestoreInternal(OpKernelContext* ctx,
-                             IteratorStateReader* reader) override {
+                             IteratorBundleReader* reader) override {
         mutex_lock l(mu_);
-        TF_RETURN_IF_ERROR(reader->ReadScalar(full_name("next"), &next_));
+        TF_RETURN_IF_ERROR(
+            reader->ReadScalar<int64>(full_name("next"), &next_));
         return Status::OK();
       }
 

@@ -48,9 +48,6 @@ class SingleMachineTest : public ::testing::Test {
   }
 
   void TearDown() override {
-    if (cluster_) {
-      TF_CHECK_OK(cluster_->Shutdown());
-    }
     cluster_.reset();
   }
 
@@ -181,7 +178,8 @@ TEST_F(SingleMachineTest, GraphOptimizations) {
   // With optimizations turned on, some nodes could have been optimized away,
   // and the cost model could be partial. Restart the cluster with optimizations
   // disabled and make sure we have all the information we're looking for.
-  TF_CHECK_OK(cluster_->Shutdown());
+  cluster_.reset();
+  cluster_.reset(new SingleMachine(5, 3, 0));
   cluster_->DisableOptimizer(true);
   TF_CHECK_OK(cluster_->Provision());
 
@@ -326,7 +324,7 @@ static void RunInfiniteTFLoop() {
 
 TEST_F(SingleMachineTest, InfiniteLoops) {
   // The RunInfiniteTFLoop function creates its own cluster.
-  TF_CHECK_OK(cluster_->Shutdown());
+  cluster_.reset();
 
   EXPECT_EXIT(RunInfiniteTFLoop(), ::testing::ExitedWithCode(0), ".*");
 }
@@ -580,8 +578,7 @@ TEST_F(SingleMachineTest, ReleaseMemoryAfterDestruction) {
   EXPECT_EQ(device_memory.size(), 1);
   EXPECT_GT(device_memory.begin()->second.bytes_in_use, 0);
 
-  // Shutting down the cluster_ would release all memory.
-  TF_CHECK_OK(cluster_->Shutdown());
+  // Reset cluster_ would release all memory.
   cluster_.reset();
   std::unordered_map<string, AllocatorStats> device_memory_after;
   TF_CHECK_OK(GetDeviceMemoryStats(options, &device_memory_after));

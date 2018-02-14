@@ -127,14 +127,11 @@ llvm::Value* EmitBufferIndexingGEP(llvm::Value* array, int64 index,
 
 // Returns the LLVM type which represents the given XLA primitive type.
 llvm::Type* PrimitiveTypeToIrType(PrimitiveType element_type,
-                                  llvm::Module* module);
-
-// Returns the type size in bits. If "type" is a struct, it must be packed.
-int GetSizeInBits(llvm::Type* type);
+                                  llvm::IRBuilder<>* ir_builder);
 
 // Returns the LLVM type which represents the given XLA shape. For example,
 // if "shape" is [5 x [10 x f32]], the function returns [5 x [10 x float]].
-llvm::Type* ShapeToIrType(const Shape& shape, llvm::Module* module);
+llvm::Type* ShapeToIrType(const Shape& shape, llvm::IRBuilder<>* ir_builder);
 
 // Returns a value that represents a pointer to a global string constant that
 // encodes the shape as a serialized protobuf.
@@ -152,7 +149,7 @@ StatusOr<Shape> DecodeSelfDescribingShapeConstant(const void* shape_ptr,
 // Converts a given literal to an IR Constant. Literals have known constant
 // values at IR emission time.
 llvm::Constant* ConvertLiteralToIrConstant(const Literal& literal,
-                                           llvm::Module* module);
+                                           llvm::IRBuilder<>* ir_builder);
 
 // Inserts an allocate of the requested type at the entry point of the
 // function that the builder is currently building. The insert point
@@ -230,6 +227,12 @@ llvm::Value* EmitComparison(llvm::CmpInst::Predicate predicate,
 void EmitLogging(const char* tag, llvm::Value* value,
                  llvm::IRBuilder<>* ir_builder);
 
+// Adds TBAA metadata to a load or store instruction using the given shape as
+// it's type.  The is_pointer_to parameter is used to indicate whether or not
+// this instruction loads or stores a pointer to an array.
+void SetTbaaForInstruction(llvm::Instruction* instruction, Shape shape,
+                           bool is_pointer_to);
+
 // Adds alignment metadata to a load instruction using the given alignment.
 // The alignment refers to the result of the load, not the load itself.
 void SetAlignmentMetadataForLoad(llvm::LoadInst* load, uint64_t alignment);
@@ -245,8 +248,6 @@ llvm::Instruction* AddRangeMetadata(int64 lower, int64 upper,
                                     llvm::Instruction* inst);
 
 void SetToFirstInsertPoint(llvm::BasicBlock* blk, llvm::IRBuilder<>* builder);
-
-void SetToLastInsertPoint(llvm::BasicBlock* blk, llvm::IRBuilder<>* builder);
 
 // Create a bitwise rotation of `rotand` by `rotor`.
 llvm::Value* CreateRor(llvm::Value* rotand, llvm::Value* rotor,
@@ -280,12 +281,6 @@ std::map<int, llvm::MDNode*> MergeMetadata(
 Status DumpIRToDirectory(const string& directory_name,
                          const string& hlo_module_name,
                          const llvm::Module& llvm_module, bool optimized);
-
-llvm::Function* CreateFunction(llvm::FunctionType* function_type,
-                               llvm::GlobalValue::LinkageTypes linkage,
-                               bool enable_fast_math, bool optimize_for_size,
-                               tensorflow::StringPiece name,
-                               llvm::Module* module);
 
 }  // namespace llvm_ir
 }  // namespace xla

@@ -107,8 +107,7 @@ def get_api_imports():
   # Import all required modules in their parent modules.
   # For e.g. if we import 'tf.foo.bar.Value'. Then, we also
   # import 'bar' in 'tf.foo'.
-  dest_modules = set(module_imports.keys())
-  for dest_module in dest_modules:
+  for dest_module in module_imports.keys():
     dest_module_split = dest_module.split('.')
     for dest_submodule_index in range(1, len(dest_module_split)):
       dest_submodule = '.'.join(dest_module_split[:dest_submodule_index])

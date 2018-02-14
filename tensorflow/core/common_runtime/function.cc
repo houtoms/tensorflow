@@ -153,20 +153,12 @@ class FunctionLibraryRuntimeImpl : public FunctionLibraryRuntime {
   Status Instantiate(const string& function_name, AttrSlice attrs,
                      Handle* handle) override;
 
-  Status ReleaseHandle(Handle handle) override;
-
   const FunctionBody* GetFunctionBody(Handle handle) override;
 
   Status CreateKernel(const NodeDef& ndef, OpKernel** kernel) override;
 
   void Run(const Options& opts, Handle handle, gtl::ArraySlice<Tensor> args,
            std::vector<Tensor>* rets, DoneCallback done) override;
-  // NOTE(mrry): This overload is currently only implemented for local function
-  // execution.
-  // TODO(b/70346412): Implement support for remote function execution when
-  // passing a call frame.
-  void Run(const Options& opts, Handle handle, CallFrameInterface* frame,
-           DoneCallback done) override;
 
   bool IsStateful(const string& function) override;
 
@@ -198,21 +190,18 @@ class FunctionLibraryRuntimeImpl : public FunctionLibraryRuntime {
 
   mutable mutex mu_;
 
-  int next_handle_ GUARDED_BY(mu_);
+  // func_graphs_ never shrinks or reorders its members.
+  std::vector<FunctionBody*> func_graphs_ GUARDED_BY(mu_);
 
   // The instantiated and transformed function is encoded as a Graph
   // object, and an executor is created for the graph.
   struct Item : public core::RefCounted {
     const Graph* graph = nullptr;  // Owned by exec.
-    FunctionBody* func_graph = nullptr;
     Executor* exec = nullptr;
 
-    ~Item() override {
-      delete this->func_graph;
-      delete this->exec;
-    }
+    ~Item() override { delete this->exec; }
   };
-  std::unordered_map<Handle, Item*> items_ GUARDED_BY(mu_);
+  std::vector<Item*> items_;
 
   ProcessFunctionLibraryRuntime* parent_ = nullptr;  // not owned.
 
@@ -247,7 +236,6 @@ FunctionLibraryRuntimeImpl::FunctionLibraryRuntimeImpl(
       device_name_(device_ == nullptr
                        ? ProcessFunctionLibraryRuntime::kDefaultFLRDevice
                        : device_->name()),
-      next_handle_(0),
       parent_(parent) {
   get_func_sig_ = [this](const string& op, const OpDef** sig) {
     return lib_def_->LookUpOpDef(op, sig);
@@ -258,9 +246,9 @@ FunctionLibraryRuntimeImpl::FunctionLibraryRuntimeImpl(
 }
 
 FunctionLibraryRuntimeImpl::~FunctionLibraryRuntimeImpl() {
-  for (auto item : items_) {
-    if (item.second) item.second->Unref();
-  }
+  for (FunctionBody* p : func_graphs_) delete p;
+  for (Item* item : items_)
+    if (item) item->Unref();
 }
 
 // An asynchronous op kernel which executes an instantiated function
@@ -321,8 +309,9 @@ const FunctionBody* FunctionLibraryRuntimeImpl::GetFunctionBody(Handle h) {
   }
 
   mutex_lock l(mu_);
-  CHECK_EQ(1, items_.count(local_handle));
-  return items_[local_handle]->func_graph;
+  CHECK_LE(0, local_handle);
+  CHECK_LT(local_handle, func_graphs_.size());
+  return func_graphs_[local_handle];
 }
 
 Status FunctionLibraryRuntimeImpl::CreateKernel(const NodeDef& ndef,
@@ -348,7 +337,7 @@ Status FunctionLibraryRuntimeImpl::CreateKernel(const NodeDef& ndef,
                                  kernel);
   }
 
-  // Try to instantiate this function for the func/attr. Maybe it's
+  // Try to instantiate this function for the func/attr. Maybe its
   // cached already.
   Handle handle;
   TF_RETURN_IF_ERROR(Instantiate(ndef.op(), AttrSlice(&ndef.attr()), &handle));
@@ -422,11 +411,7 @@ bool FunctionLibraryRuntimeImpl::IsLocalTarget(const AttrSlice& attrs) {
   if (device_ == nullptr) return true;
   string target = ProcessFunctionLibraryRuntime::ObtainFunctionTarget(attrs);
   if (target.empty()) return true;
-  Device* target_device;
-  if (!device_mgr_->LookupDevice(target, &target_device).ok()) {
-    return false;
-  }
-  return target_device == device_;
+  return target == device_->name();
 }
 
 AttrValueMap FunctionLibraryRuntimeImpl::FixAttrs(const AttrSlice& attrs) {
@@ -489,28 +474,10 @@ Status FunctionLibraryRuntimeImpl::Instantiate(const string& function_name,
     if (*handle != kInvalidHandle) {
       delete fbody;
     } else {
-      *handle = parent_->AddHandle(key, device_name_, next_handle_);
-      Item* item = new Item;
-      item->func_graph = fbody;
-      items_.insert({next_handle_, item});
-      next_handle_++;
+      *handle = parent_->AddHandle(key, device_name_, func_graphs_.size());
+      func_graphs_.push_back(fbody);
+      items_.resize(func_graphs_.size());
     }
-  }
-  return Status::OK();
-}
-
-Status FunctionLibraryRuntimeImpl::ReleaseHandle(Handle handle) {
-  if (!parent_->IsInstantiatedOnDevice(device_name_, handle)) {
-    return parent_->ReleaseHandle(handle);
-  }
-
-  LocalHandle h = parent_->GetHandleOnDevice(device_name_, handle);
-  mutex_lock l(mu_);
-  CHECK_EQ(1, items_.count(h));
-  Item* item = items_[h];
-  if (item->Unref()) {
-    items_.erase(h);
-    TF_RETURN_IF_ERROR(parent_->RemoveHandle(handle));
   }
   return Status::OK();
 }
@@ -558,16 +525,9 @@ Status FunctionLibraryRuntimeImpl::CreateItem(Handle handle, Item** item) {
   Executor* exec;
   TF_RETURN_IF_ERROR(NewLocalExecutor(params, g.release(), &exec));
 
-  {
-    // Guard item since it is already inserted in items_.
-    mutex_lock l(mu_);
-    if ((*item)->exec) {
-      delete exec;
-    } else {
-      (*item)->graph = graph;
-      (*item)->exec = exec;
-    }
-  }
+  *item = new Item;
+  (*item)->graph = graph;
+  (*item)->exec = exec;
   return Status::OK();
 }
 
@@ -575,18 +535,29 @@ Status FunctionLibraryRuntimeImpl::GetOrCreateItem(Handle handle, Item** item) {
   LocalHandle local_handle = parent_->GetHandleOnDevice(device_name_, handle);
   {
     mutex_lock l(mu_);
-    if (items_.count(local_handle) == 0) {
+    if (local_handle >= items_.size()) {
       return errors::NotFound("Function handle ", handle,
                               " is not valid. Likely an internal error.");
     }
     *item = items_[local_handle];
-    if ((*item)->exec != nullptr) {
+    if (*item != nullptr) {
+      (*item)->Ref();
       return Status::OK();
     }
   }
   // NOTE: We need to call CreateItem out of mu_ because creating an
   // executor needs to call CreateKernel.
-  return CreateItem(handle, item);
+  TF_RETURN_IF_ERROR(CreateItem(handle, item));
+
+  {
+    mutex_lock l(mu_);
+    if (items_[local_handle] == nullptr) {
+      // Install *item in items_.
+      items_[local_handle] = *item;
+      (*item)->Ref();
+    }
+  }
+  return Status::OK();
 }
 
 void FunctionLibraryRuntimeImpl::RunRemote(const Options& opts, Handle handle,
@@ -594,13 +565,16 @@ void FunctionLibraryRuntimeImpl::RunRemote(const Options& opts, Handle handle,
                                            std::vector<Tensor>* rets,
                                            Executor::Args* exec_args,
                                            Item* item, DoneCallback done) {
-  DCHECK(exec_args->call_frame == nullptr);
+  FunctionCallFrame* frame = exec_args->call_frame;
   string target_device = parent_->GetDeviceName(handle);
   string source_device = opts.source_device;
   Rendezvous* rendezvous = opts.rendezvous;
-  DeviceContext* device_context;
-  Status s = parent_->GetDeviceContext(target_device, &device_context);
+  // TODO(rohanj): Handle alloc_attrs in Rendezvous::Args.
+  Rendezvous::Args rendez_args;
+  Status s =
+      parent_->GetDeviceContext(target_device, &rendez_args.device_context);
   if (!s.ok()) {
+    delete frame;
     delete exec_args;
     done(s);
     return;
@@ -608,16 +582,6 @@ void FunctionLibraryRuntimeImpl::RunRemote(const Options& opts, Handle handle,
   int64 src_incarnation, target_incarnation;
   s = parent_->GetDeviceIncarnation(source_device, &src_incarnation);
   s.Update(parent_->GetDeviceIncarnation(target_device, &target_incarnation));
-  if (!s.ok()) {
-    delete exec_args;
-    done(s);
-    return;
-  }
-
-  const FunctionBody* fbody = GetFunctionBody(handle);
-  FunctionCallFrame* frame =
-      new FunctionCallFrame(fbody->arg_types, fbody->ret_types);
-  exec_args->call_frame = frame;
   if (!s.ok()) {
     delete frame;
     delete exec_args;
@@ -632,14 +596,12 @@ void FunctionLibraryRuntimeImpl::RunRemote(const Options& opts, Handle handle,
   std::vector<Tensor>* remote_args = new std::vector<Tensor>;
   ProcessFunctionLibraryRuntime::ReceiveTensorsAsync(
       source_device, target_device, "arg_", src_incarnation, args.size(),
-      device_context, {}, rendezvous, remote_args,
+      rendez_args, rendezvous, remote_args,
       [frame, remote_args, item, source_device, target_device,
-       target_incarnation, rendezvous, device_context, rets, done,
+       target_incarnation, rendezvous, rendez_args, rets, done,
        exec_args](const Status& status) {
         Status s = status;
-        if (s.ok()) {
-          s = frame->SetArgs(*remote_args);
-        }
+        s = frame->SetArgs(*remote_args);
         if (!s.ok()) {
           delete frame;
           delete remote_args;
@@ -649,8 +611,9 @@ void FunctionLibraryRuntimeImpl::RunRemote(const Options& opts, Handle handle,
         }
         item->exec->RunAsync(
             *exec_args, [item, frame, rets, done, source_device, target_device,
-                         target_incarnation, rendezvous, device_context,
+                         target_incarnation, rendezvous, rendez_args,
                          remote_args, exec_args](const Status& status) {
+              item->Unref();
               Status s = status;
               if (s.ok()) {
                 s = frame->ConsumeRetvals(rets);
@@ -664,7 +627,7 @@ void FunctionLibraryRuntimeImpl::RunRemote(const Options& opts, Handle handle,
               }
               s = ProcessFunctionLibraryRuntime::SendTensors(
                   target_device, source_device, "ret_", target_incarnation,
-                  *rets, device_context, {}, rendezvous);
+                  *rets, rendez_args, rendezvous);
               delete remote_args;
               delete exec_args;
               done(s);
@@ -680,50 +643,38 @@ void FunctionLibraryRuntimeImpl::Run(const Options& opts, Handle handle,
     done(errors::Cancelled(""));
     return;
   }
-  Options run_opts = opts;
-  if (opts.create_rendezvous) {
-    Rendezvous* rendezvous = new IntraProcessRendezvous(device_mgr_);
-    run_opts.rendezvous = rendezvous;
-    run_opts.create_rendezvous = false;
-    done = [done, rendezvous](const Status& status) {
-      rendezvous->Unref();
-      done(status);
-    };
-  }
   if (!parent_->IsInstantiatedOnDevice(device_name_, handle)) {
-    parent_->Run(run_opts, handle, args, rets, done);
+    parent_->Run(opts, handle, args, rets, done);
     return;
   }
-
-  DCHECK(run_opts.runner != nullptr);
-
-  Executor::Args* exec_args = new Executor::Args;
-  // Inherit the step_id from the caller.
-  exec_args->step_id = run_opts.step_id;
-  exec_args->rendezvous = run_opts.rendezvous;
-  exec_args->stats_collector = run_opts.stats_collector;
-  exec_args->cancellation_manager = run_opts.cancellation_manager;
-  exec_args->step_container = run_opts.step_container;
-  exec_args->runner = *run_opts.runner;
+  const FunctionBody* fbody = GetFunctionBody(handle);
+  FunctionCallFrame* frame =
+      new FunctionCallFrame(fbody->arg_types, fbody->ret_types);
 
   Item* item = nullptr;
   Status s = GetOrCreateItem(handle, &item);
   if (!s.ok()) {
-    delete exec_args;
+    delete frame;
     done(s);
     return;
   }
+  DCHECK(opts.runner != nullptr);
 
-  if (run_opts.remote_execution) {
-    // NOTE(mrry): `RunRemote()` will set `exec_args->call_frame` for us.
-    RunRemote(run_opts, handle, args, rets, exec_args, item, done);
+  Executor::Args* exec_args = new Executor::Args;
+  // Inherit the step_id from the caller.
+  exec_args->step_id = opts.step_id;
+  exec_args->rendezvous = opts.rendezvous;
+  exec_args->stats_collector = opts.stats_collector;
+  exec_args->call_frame = frame;
+  exec_args->cancellation_manager = opts.cancellation_manager;
+  exec_args->step_container = opts.step_container;
+  exec_args->runner = *opts.runner;
+
+  if (opts.remote_execution) {
+    RunRemote(opts, handle, args, rets, exec_args, item, done);
     return;
   }
 
-  const FunctionBody* fbody = GetFunctionBody(handle);
-  FunctionCallFrame* frame =
-      new FunctionCallFrame(fbody->arg_types, fbody->ret_types);
-  exec_args->call_frame = frame;
   s = frame->SetArgs(args);
   if (!s.ok()) {
     delete frame;
@@ -731,12 +682,12 @@ void FunctionLibraryRuntimeImpl::Run(const Options& opts, Handle handle,
     done(s);
     return;
   }
-
   item->exec->RunAsync(
       // Executor args
       *exec_args,
       // Done callback.
       [item, frame, rets, done, exec_args](const Status& status) {
+        item->Unref();
         Status s = status;
         if (s.ok()) {
           s = frame->ConsumeRetvals(rets);
@@ -745,66 +696,6 @@ void FunctionLibraryRuntimeImpl::Run(const Options& opts, Handle handle,
         delete exec_args;
         done(s);
       });
-}
-
-void FunctionLibraryRuntimeImpl::Run(const Options& opts, Handle handle,
-                                     CallFrameInterface* frame,
-                                     DoneCallback done) {
-  if (opts.cancellation_manager && opts.cancellation_manager->IsCancelled()) {
-    done(errors::Cancelled(""));
-    return;
-  }
-  if (!parent_->IsInstantiatedOnDevice(device_name_, handle) ||
-      opts.remote_execution) {
-    done(errors::Unimplemented("Remote calling with CallFrameInterface"));
-    return;
-  }
-
-  Options run_opts = opts;
-  if (opts.create_rendezvous) {
-    Rendezvous* rendezvous = new IntraProcessRendezvous(device_mgr_);
-    run_opts.rendezvous = rendezvous;
-    run_opts.create_rendezvous = false;
-    done = std::bind(
-        [rendezvous](DoneCallback done,
-                     // Begin unbound arguments.
-                     const Status& status) {
-          rendezvous->Unref();
-          done(status);
-        },
-        std::move(done), std::placeholders::_1);
-  }
-
-  Item* item = nullptr;
-  Status s = GetOrCreateItem(handle, &item);
-  if (!s.ok()) {
-    done(s);
-    return;
-  }
-  DCHECK(run_opts.runner != nullptr);
-
-  Executor::Args* exec_args = new Executor::Args;
-  // Inherit the step_id from the caller.
-  exec_args->step_id = run_opts.step_id;
-  exec_args->rendezvous = run_opts.rendezvous;
-  exec_args->stats_collector = run_opts.stats_collector;
-  exec_args->cancellation_manager = run_opts.cancellation_manager;
-  exec_args->step_container = run_opts.step_container;
-  exec_args->runner = *run_opts.runner;
-  exec_args->call_frame = frame;
-
-  item->exec->RunAsync(
-      // Executor args
-      *exec_args,
-      // Done callback.
-      std::bind(
-          [item, frame, exec_args](DoneCallback done,
-                                   // Start unbound arguments.
-                                   const Status& status) {
-            delete exec_args;
-            done(status);
-          },
-          std::move(done), std::placeholders::_1));
 }
 
 bool FunctionLibraryRuntimeImpl::IsStateful(const string& func) {

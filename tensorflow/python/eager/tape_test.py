@@ -22,6 +22,7 @@ from __future__ import print_function
 from tensorflow.python.eager import backprop
 from tensorflow.python.eager import context
 from tensorflow.python.eager import custom_gradient
+from tensorflow.python.eager import tape
 from tensorflow.python.eager import test
 from tensorflow.python.framework import constant_op
 from tensorflow.python.framework import dtypes
@@ -80,8 +81,8 @@ class TapeTest(test.TestCase):
       tf_e = tf_d + tf_f
       tf_da, tf_db = gradients_impl.gradients(tf_e, [tf_a, tf_b])
 
-      self.assertAllEqual(da, tf_da.eval())
-      self.assertAllEqual(db, tf_db.eval())
+      self.assertAllEqual(da.numpy(), tf_da.eval())
+      self.assertAllEqual(db.numpy(), tf_db.eval())
 
   def testBasicFunctional(self):
 
@@ -92,7 +93,7 @@ class TapeTest(test.TestCase):
     aa = constant_op.constant([[1., 0.], [0., 1.]])
     bb = constant_op.constant([[1., 2.], [3., 4.]])
     da, = backprop.gradients_function(forward, ['a'])(aa, bb)
-    self.assertAllEqual(da,
+    self.assertAllEqual(da.numpy(),
                         math_ops.matmul(
                             array_ops.ones_like(aa),
                             array_ops.transpose(bb)).numpy())
@@ -106,7 +107,7 @@ class TapeTest(test.TestCase):
     aa = constant_op.constant([[1., 0.], [0., 1.]])
     bb = constant_op.constant([[1., 2.], [3., 4.]])
     da, = backprop.gradients_function(forward, [0])(aa, bb)
-    self.assertAllEqual(da,
+    self.assertAllEqual(da.numpy(),
                         math_ops.matmul(
                             array_ops.ones_like(aa),
                             array_ops.transpose(bb)).numpy())
@@ -120,11 +121,11 @@ class TapeTest(test.TestCase):
     aa = constant_op.constant([[1., 0.], [0., 1.]])
     bb = constant_op.constant([[1., 2.], [3., 4.]])
     val, (da,) = backprop.val_and_grad_function(forward, ['a'])(aa, bb)
-    self.assertAllEqual(da,
+    self.assertAllEqual(da.numpy(),
                         math_ops.matmul(
                             array_ops.ones_like(aa),
-                            array_ops.transpose(bb)))
-    self.assertAllEqual(val, forward(aa, bb))
+                            array_ops.transpose(bb)).numpy())
+    self.assertAllEqual(val.numpy(), forward(aa, bb).numpy())
 
   def testTwoOutputs(self):
 
@@ -142,8 +143,8 @@ class TapeTest(test.TestCase):
       tf_rr = 2 * math_ops.reduce_sum(tf_mm)
       tf_da, tf_db = gradients_impl.gradients(tf_rr, [tf_a, tf_b])
 
-      self.assertAllEqual(da, tf_da.eval())
-      self.assertAllEqual(db, tf_db.eval())
+      self.assertAllEqual(da.numpy(), tf_da.eval())
+      self.assertAllEqual(db.numpy(), tf_db.eval())
 
   def testGcTwoOutputs(self):
 
@@ -154,7 +155,7 @@ class TapeTest(test.TestCase):
     labels = constant_op.constant([0])
     logits = constant_op.constant([[0.0]])
     grad, = backprop.gradients_function(fn, [0])(logits, labels)
-    self.assertAllEqual(grad, [[0.0]])
+    self.assertAllEqual(grad.numpy(), [[0.0]])
 
   def testTfTensor(self):
 
@@ -163,7 +164,26 @@ class TapeTest(test.TestCase):
 
     t = constant_op.constant(1.0)
     g, = backprop.gradients_function(fn, [0])(t)
-    self.assertAllEqual(g, 1.0)
+    self.assertEqual(g.numpy(), 1.0)
+
+  def testTapeGC(self):
+    # TODO(apassos) figure out how to test this without using tape internal
+    # APIs.
+    tape.push_new_tape()
+
+    def f():
+      x = constant_op.constant(1.0)
+      tape.watch(x)
+      x = gradient_is_constant(x)
+      x = gradient_is_constant(x)
+      x = gradient_is_constant(x)
+
+    f()
+    t = tape.pop_tape()
+    tensor_tape, op_tape = t.export()
+    self.assertEqual(len(tensor_tape), 1)  # The watched tensor will remain on
+                                           # the tape
+    self.assertEqual(len(op_tape), 0)  # No operations should remain on the tape
 
   def testCustomGradientGraphMode(self):
     with context.graph_mode(), self.test_session():

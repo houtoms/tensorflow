@@ -34,12 +34,10 @@ add_library(lib_tf STATIC IMPORTED )
 set_target_properties(lib_tf PROPERTIES IMPORTED_LOCATION
         ${PREBUILT_DIR}/lib/libtensorflow-core.a)
 # Change to compile flags should be replicated into bazel build file
-# TODO: Consider options other than -O2 for binary size.
-#       e.g. -Os for gcc, and -Oz for clang.
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DIS_SLIM_BUILD \
                      -std=c++11 -fno-rtti -fno-exceptions \
                      -O2 -Wno-narrowing -fomit-frame-pointer \
-                     -mfpu=neon -mfloat-abi=softfp -fPIE -fPIC \
+                     -mfpu=neon -mfloat-abi=softfp -fPIE \
                      -ftemplate-depth=900 \
                      -DGOOGLE_PROTOBUF_NO_RTTI \
                      -DGOOGLE_PROTOBUF_NO_STATIC_INITIALIZER")

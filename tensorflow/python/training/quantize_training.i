@@ -65,9 +65,6 @@ def do_quantize_training_on_graphdef(input_graph, num_bits):
 
   graph.ParseFromString(result_graph_string)
   return graph
-
-do_quantize_training_on_graphdef._tf_api_names = [
-    'train.do_quantize_training_on_graphdef']
 %}
 
 %unignoreall

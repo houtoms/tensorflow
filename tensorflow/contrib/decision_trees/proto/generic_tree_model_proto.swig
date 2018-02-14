@@ -2,7 +2,7 @@
 
 %include "net/proto/swig/protofunc.swig"
 
-#ifndef ABSL_MUST_USE_RESULT
+#ifndef MUST_USE_RESULT
 #error Use this file only as a %include or %import after google.swig.
 #endif
 

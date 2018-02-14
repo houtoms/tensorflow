@@ -302,7 +302,6 @@ cc_library(
             "//tensorflow/contrib/tensor_forest/proto:fertile_stats_proto_cc",
         ],
         [
-            "//third_party/eigen3",
             "//tensorflow/contrib/decision_trees/proto:generic_tree_model_cc_headers_only",
             "//tensorflow/contrib/tensor_forest/proto:fertile_stats_proto_cc_headers_only",
         ],
@@ -323,7 +322,6 @@ cc_library(
     srcs = ["params.cc"],
     hdrs = ["params.h"],
     deps = [
-        "//third_party/eigen3",
         "//tensorflow/core:framework_headers_lib",
     ] + if_static(
         [

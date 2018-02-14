@@ -12,11 +12,12 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
-#define EIGEN_USE_THREADS
 
 #include "tensorflow/compiler/xla/tests/local_client_test_base.h"
 
 #include <vector>
+
+#define EIGEN_USE_THREADS
 
 #include "third_party/eigen3/unsupported/Eigen/CXX11/Tensor"
 #include "tensorflow/compiler/xla/client/local_client.h"
@@ -89,9 +90,6 @@ int64 TestAllocator::deallocation_count(int device_ordinal) const {
 
 /* static */ TestAllocator* LocalClientTestBase::GetOrCreateAllocator(
     perftools::gputools::Platform* platform) {
-  static tensorflow::mutex mu(tensorflow::LINKER_INITIALIZED);
-  tensorflow::mutex_lock lock(mu);
-
   if (allocator_ == nullptr) {
     allocator_ = new TestAllocator(
         platform == nullptr ? PlatformUtil::GetDefaultPlatform().ValueOrDie()
@@ -135,10 +133,29 @@ std::unique_ptr<ScopedShapedBuffer> LocalClientTestBase::LiteralToShapedBuffer(
       .ConsumeValueOrDie();
 }
 
+void LocalClientTestBase::CopyShapedBufferToLiteral(
+    const ShapedBuffer& shaped_buffer, ShapeIndex* index, Literal* literal) {
+  const Shape& shape = ShapeUtil::GetSubshape(shaped_buffer.shape(), *index);
+  if (ShapeUtil::IsTuple(shape)) {
+    *literal->mutable_shape() = shape;
+    for (int i = 0; i < ShapeUtil::TupleElementCount(shape); ++i) {
+      Literal* element_literal = literal->add_tuple_literals();
+      index->push_back(i);
+      CopyShapedBufferToLiteral(shaped_buffer, index, element_literal);
+      index->pop_back();
+    }
+  } else {
+    ASSERT_IS_OK(transfer_manager_->TransferLiteralFromDevice(
+        stream_executor_, shaped_buffer.buffer(*index), shape, shape, literal));
+  }
+}
+
 std::unique_ptr<Literal> LocalClientTestBase::ShapedBufferToLiteral(
     const ShapedBuffer& shaped_buffer) {
-  return local_client_->ShapedBufferToLiteral(shaped_buffer)
-      .ConsumeValueOrDie();
+  auto literal = MakeUnique<Literal>();
+  ShapeIndex index;
+  CopyShapedBufferToLiteral(shaped_buffer, &index, literal.get());
+  return literal;
 }
 
 ExecutableBuildOptions LocalClientTestBase::DefaultExecutableBuildOptions()

@@ -29,21 +29,12 @@ namespace tensorflow {
 class RenamedDevice : public Device {
  public:
   static Device* NewRenamedDevice(const string& new_base, Device* underlying,
-                                  bool owns_underlying,
-                                  bool isolate_session_state);
-
+                                  bool owns_underlying);
   ~RenamedDevice() override;
 
   // Below are virtual methods defined on DeviceBase
   bool RequiresRecordingAccessedTensors() const override {
     return underlying_->RequiresRecordingAccessedTensors();
-  }
-
-  const DeviceBase* UnderlyingDevice() const override {
-    return underlying_->UnderlyingDevice();
-  }
-  DeviceBase* UnderlyingDevice() override {
-    return underlying_->UnderlyingDevice();
   }
 
   const CpuWorkerThreads* tensorflow_cpu_worker_threads() const override {
@@ -106,8 +97,9 @@ class RenamedDevice : public Device {
 
   Status Sync() override { return underlying_->Sync(); }
 
-  Status MaybeRewriteGraph(std::unique_ptr<Graph>* graph) override {
-    return underlying_->MaybeRewriteGraph(graph);
+  Status MaybeRewriteGraph(const FunctionDefLibrary& library,
+                           std::unique_ptr<Graph>* graph) override {
+    return underlying_->MaybeRewriteGraph(library, graph);
   }
 
   Status FillContextMap(const Graph* graph,
@@ -115,21 +107,11 @@ class RenamedDevice : public Device {
     return underlying_->FillContextMap(graph, device_context_map);
   }
 
-  // Returns the resource manager associated w/ this device.
-  ResourceMgr* resource_manager() override {
-    if (isolate_session_state_) {
-      return Device::resource_manager();
-    } else {
-      return underlying_->resource_manager();
-    }
-  }
-
  private:
   RenamedDevice(Device* underlying, const DeviceAttributes& attributes,
-                bool owns_underlying, bool isolate_session_state);
+                bool owns_underlying);
   Device* const underlying_;
   const bool owns_underlying_;
-  const bool isolate_session_state_;
 };
 
 }  // namespace tensorflow

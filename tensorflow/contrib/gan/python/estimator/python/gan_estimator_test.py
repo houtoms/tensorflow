@@ -48,8 +48,7 @@ from tensorflow.python.training import training
 from tensorflow.python.training import training_util
 
 
-def generator_fn(noise_dict, mode):
-  del mode
+def generator_fn(noise_dict):
   noise = noise_dict['x']
   return layers.fully_connected(noise, noise.shape[1].value)
 
@@ -91,6 +90,7 @@ def mock_head(testcase, expected_generator_inputs, expected_real_data,
         generator_var_names,
         set([x.name for x in gan_model.generator_variables]))
     testcase.assertEqual(generator_scope_name, gan_model.generator_scope.name)
+    testcase.assertEqual(generator_fn, gan_model.generator_fn)
     testcase.assertEqual(_or_none(expected_real_data), gan_model.real_data)
     # TODO(joelshor): Add check on `discriminator_real_outputs`.
     # TODO(joelshor): Add check on `discriminator_gen_outputs`.

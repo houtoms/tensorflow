@@ -31,8 +31,6 @@ limitations under the License.
 #include "tensorflow/core/lib/strings/stringprintf.h"
 #include "tensorflow/core/platform/logging.h"
 
-using ::tensorflow::strings::HumanReadableNumBytes;
-
 namespace xla {
 
 StatusOr<int64> MinimumMemoryForSequence(
@@ -377,7 +375,6 @@ StatusOr<std::vector<const HloInstruction*>> CreateMemoryMinimizingSequence(
   // Note that this is just a heuristic. One obvious inaccuracy is that the
   // memory required for sub-computations might be different when considered
   // within the caller's context. But it's good enough for now.
-  VLOG(2) << "Computation: " << computation.name();
   TF_ASSIGN_OR_RETURN(
       std::vector<const HloInstruction*> list_sequence,
       ListScheduler::Run(computation, points_to_analysis, size_function));
@@ -385,7 +382,7 @@ StatusOr<std::vector<const HloInstruction*>> CreateMemoryMinimizingSequence(
       const int64 list_memory,
       MinimumMemoryForComputation(computation, list_sequence,
                                   points_to_analysis, size_function));
-  VLOG(2) << "Min-memory list sequence: " << HumanReadableNumBytes(list_memory);
+  VLOG(2) << "Min-memory list sequence: " << list_memory << " bytes";
 
   TF_ASSIGN_OR_RETURN(
       std::vector<const HloInstruction*> dfs_sequence,
@@ -394,15 +391,13 @@ StatusOr<std::vector<const HloInstruction*>> CreateMemoryMinimizingSequence(
       const int64 dfs_memory,
       MinimumMemoryForComputation(computation, dfs_sequence, points_to_analysis,
                                   size_function));
-  VLOG(2) << "Min-memory dfs sequence: " << HumanReadableNumBytes(dfs_memory);
+  VLOG(2) << "Min-memory dfs sequence: " << dfs_memory << " bytes";
 
   if (list_memory <= dfs_memory) {
-    VLOG(2) << "Chose min-memory list sequence: "
-            << HumanReadableNumBytes(list_memory);
+    VLOG(2) << "Chose min-memory list sequence: " << list_memory << " bytes";
     return list_sequence;
   } else {
-    VLOG(2) << "Chose min-memory dfs sequence: "
-            << HumanReadableNumBytes(dfs_memory);
+    VLOG(2) << "Chose min-memory dfs sequence: " << dfs_memory << " bytes";
     return dfs_sequence;
   }
 }

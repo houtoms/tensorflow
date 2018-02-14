@@ -206,10 +206,7 @@ void RecordYielder::ShardLoop(Shard* shard) {
       shard->status = errors::InvalidArgument("Can't open ", filename);
       break;
     }
-    io::RecordReaderOptions options =
-        io::RecordReaderOptions::CreateRecordReaderOptions(
-            opts_.compression_type);
-    io::RecordReader rdr(file.get(), options);
+    io::RecordReader rdr(file.get());
     uint64 offset = 0;
     string record;
     while (true) {

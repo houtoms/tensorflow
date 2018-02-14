@@ -15,6 +15,7 @@ limitations under the License.
 
 #include "tensorflow/compiler/aot/runtime.h"
 
+#include "tensorflow/compiler/tf2xla/xla_local_runtime_context.h"
 #include "tensorflow/core/framework/allocator.h"
 #include "tensorflow/core/platform/test.h"
 

@@ -37,9 +37,6 @@ See the @{$python/train} guide.
 @@clip_by_average_norm
 @@clip_by_global_norm
 @@global_norm
-@@cosine_decay
-@@linear_cosine_decay
-@@noisy_linear_cosine_decay
 @@exponential_decay
 @@inverse_time_decay
 @@natural_exp_decay

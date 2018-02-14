@@ -117,8 +117,7 @@ def _build_class_page(page_info):
   parts.append(page_info.guides)
   parts.append(page_info.doc.docstring)
   parts.append(_build_function_details(page_info.doc.function_details))
-  parts.append(_build_compatibility(page_info.doc.compatibility))
-
+  assert not page_info.doc.compatibility
   parts.append('\n\n')
 
   if page_info.classes:
@@ -140,8 +139,7 @@ def _build_class_page(page_info):
 
       parts.append(prop_info.doc.docstring)
       parts.append(_build_function_details(prop_info.doc.function_details))
-      parts.append(_build_compatibility(prop_info.doc.compatibility))
-
+      assert not prop_info.doc.compatibility
       parts.append('\n\n')
 
     parts.append('\n\n')
@@ -208,8 +206,6 @@ def _build_module_page(page_info):
     parts.append(str(page_info.defined_in))
 
   parts.append(page_info.doc.docstring)
-  parts.append(_build_compatibility(page_info.doc.compatibility))
-
   parts.append('\n\n')
 
   if page_info.modules:
@@ -294,9 +290,7 @@ def _build_compatibility(compatibility):
   for key in sorted_keys:
 
     value = compatibility[key]
-    # Dedent so that it does not trigger markdown code formatting.
-    value = textwrap.dedent(value)
-    parts.append('\n\n#### %s Compatibility\n%s\n' % (key.title(), value))
+    parts.append('\n\n#### %s compatibility\n%s\n' % (key, value))
 
   return ''.join(parts)
 

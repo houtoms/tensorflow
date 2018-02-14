@@ -35,7 +35,6 @@ from tensorflow.contrib.learn.python.learn import trainable
 from tensorflow.contrib.learn.python.learn.estimators import run_config
 from tensorflow.contrib.tpu.python.tpu import tpu_estimator
 from tensorflow.python.estimator import estimator as core_estimator
-from tensorflow.python.estimator import util as estimator_util
 from tensorflow.python.framework import ops
 from tensorflow.python.platform import tf_logging as logging
 from tensorflow.python.training import basic_session_run_hooks
@@ -45,18 +44,6 @@ from tensorflow.python.util import compat
 
 
 __all__ = ["Experiment"]
-
-
-def _get_standardized_predicate_fn(predicate_fn):
-  pred_fn_args = estimator_util.fn_args(predicate_fn)
-  if "checkpoint_path" not in pred_fn_args:
-    # pylint: disable=unused-argument
-    def _pred_fn_wrapper(eval_results, checkpoint_path):
-      return predicate_fn(eval_results)
-
-    return _pred_fn_wrapper
-  else:
-    return predicate_fn
 
 
 class _EvalAndExportListener(basic_session_run_hooks.CheckpointSaverListener):
@@ -153,8 +140,7 @@ class Experiment(object):
                delay_workers_by_global_step=False,
                export_strategies=None,
                train_steps_per_iteration=None,
-               checkpoint_and_export=False,
-               saving_listeners=None):
+               checkpoint_and_export=False):
     """Constructor for `Experiment`.
 
     Creates an Experiment instance. None of the functions passed to this
@@ -163,16 +149,16 @@ class Experiment(object):
 
     Args:
       estimator: Object implementing Estimator interface, which could be a
-        combination of @{tf.contrib.learn.Trainable} and
-        @{tf.contrib.learn.Evaluable} (deprecated), or
-        @{tf.estimator.Estimator}.
+        combination of ${tf.contrib.learn.Trainable} and
+        ${tf.contrib.learn.Evaluable} (deprecated), or
+        ${tf.estimator.`Estimator}.
       train_input_fn: function, returns features and labels for training.
       eval_input_fn: function, returns features and labels for evaluation. If
         `eval_steps` is `None`, this should be configured only to produce for a
         finite number of batches (generally, 1 epoch over the evaluation data).
       eval_metrics: `dict` of string, metric function. If `None`, default set
         is used. This should be `None` if the `estimator` is
-        @{tf.estimator.Estimator}. If metrics are provided they will be
+        ${tf.estimator.Estimator}. If metrics are provided they will be
         *appended* to the default set.
       train_steps: Perform this many steps of training. `None`, the default,
         means train forever.
@@ -214,9 +200,6 @@ class Experiment(object):
         `save_checkpoints_steps`. Also, this parameter leads to the creation of
         a default `CheckpointSaverHook` instead of a `ValidationMonitor`, so the
         provided `train_monitors` will need to be adjusted accordingly.
-      saving_listeners: list of `CheckpointSaverListener` objects. Used by
-        tf.estimator.Estimator for callbacks that run immediately before or
-        after checkpoint savings.
 
     Raises:
       ValueError: if `estimator` does not implement Estimator interface,
@@ -238,9 +221,6 @@ class Experiment(object):
         raise ValueError(
             "`estimator` must implement `tf.contrib.learn.Trainable`"
             "or `tf.estimator.`Estimator`.")
-      if saving_listeners is not None:
-        raise ValueError("`saving_listeners` must be `None` with "
-                         "`tf.contrib.learn.Estimator`.")
 
     if isinstance(estimator, tpu_estimator.TPUEstimator):
       logging.warn(
@@ -262,7 +242,6 @@ class Experiment(object):
     self._eval_delay_secs = eval_delay_secs
     self._continuous_eval_throttle_secs = continuous_eval_throttle_secs
     self._checkpoint_and_export = checkpoint_and_export
-    self._saving_listeners = saving_listeners
     # Using 1 on a non-cached file system requires a lot of overhead to
     # read the checkpoint state file. This is particular bad on GCS, so
     # we use a different default. This is a temporary band-aid, to be
@@ -383,11 +362,9 @@ class Experiment(object):
       logging.info("Waiting %d secs before starting training.", remaining)
       time.sleep(delay_secs)
 
-    return self._call_train(
-        input_fn=self._train_input_fn,
-        max_steps=self._train_steps,
-        hooks=self._train_monitors + extra_hooks,
-        saving_listeners=self._saving_listeners)
+    return self._call_train(input_fn=self._train_input_fn,
+                            max_steps=self._train_steps,
+                            hooks=self._train_monitors + extra_hooks)
 
   def evaluate(self, delay_secs=None, name=None):
     """Evaluate on the evaluation data.
@@ -459,33 +436,22 @@ class Experiment(object):
       evaluate_checkpoint_only_once: Whether to skip evaluation of checkpoints
         that have already been evaluated. Default is `True`.
       continuous_eval_predicate_fn: A predicate function determining whether to
-        continue eval after each iteration. A `predicate_fn` has one of the
-        following signatures:
-          * (eval_results) -> boolean
-          * (eval_results, checkpoint_path) -> boolean
-        Where `eval_results` is the dictionary of metric evaluations and
-        checkpoint_path is the path to the checkpoint containing the parameters
-        on which that evaluation was based.
-        At the beginning of evaluation, the passed `eval_results` will be None
-        so it's expected that the predicate function handles that gracefully.
-        When `predicate_fn` is not specified, continuous eval will run in an
-        infinite loop (if `train_steps` is None). or exit once global step
-        reaches `train_steps`.
-
+        continue eval after each iteration. `predicate_fn` takes the evaluation
+        results as arguments. At the beginning of evaluation, the passed eval
+        results will be None so it's expected that the predicate function
+        handles that gracefully. When `predicate_fn` is not specified,
+        continuous eval will run in an infinite loop (if `train_steps` is None)
+        or exit once global step reaches `train_steps`.
       export: Whether to export from this step. Default is 'True'.
 
     Raises:
       ValueError: if `continuous_eval_predicate_fn` is neither None nor
         callable.
     """
-    if continuous_eval_predicate_fn is not None:
-      if not callable(continuous_eval_predicate_fn):
-        raise ValueError(
-            "`continuous_eval_predicate_fn` must be a callable, or None.")
-      predicate_fn = _get_standardized_predicate_fn(
-          continuous_eval_predicate_fn)
-    else:
-      predicate_fn = None
+    if (continuous_eval_predicate_fn is not None and
+        not callable(continuous_eval_predicate_fn)):
+      raise ValueError(
+          "`continuous_eval_predicate_fn` must be a callable, or None.")
 
     if delay_secs is None:
       delay_secs = self._eval_delay_secs
@@ -499,10 +465,8 @@ class Experiment(object):
     previous_path = None
     eval_result = None
     last_warning_time = 0
-    while (not predicate_fn or
-           predicate_fn(
-               eval_result,
-               checkpoint_path=previous_path if eval_result else None)):
+    while (not continuous_eval_predicate_fn or
+           continuous_eval_predicate_fn(eval_result)):
       # Exit if we have already reached number of steps to train.
       if self._has_training_stopped(eval_result):
         logging.info("Exiting continuous eval, global_step=%s >= "
@@ -708,19 +672,11 @@ class Experiment(object):
 
     Args:
       continuous_eval_predicate_fn: A predicate function determining whether to
-        continue eval after each iteration. A `predicate_fn` has one of the
-        following signatures:
-          * (eval_results) -> boolean
-          * (eval_results, checkpoint_path) -> boolean
-        Where `eval_results` is the dictionary of metric evaluations and
-        checkpoint_path is the path to the checkpoint containing the parameters
-        on which that evaluation was based.
-        At the beginning of evaluation, the passed `eval_results` and
-        `checkpoint_path` will be None so it's expected that the predicate
-        function handles that gracefully.
-        When `predicate_fn` is not specified, continuous eval will run in an
-        infinite loop (if `train_steps` is None). or exit once global step
-        reaches `train_steps`.
+        continue after each iteration. `predicate_fn` takes the evaluation
+        results as its arguments. At the beginning of evaluation, the passed
+        eval results will be None so it's expected that the predicate function
+        handles that gracefully. When `predicate_fn` is not specified, this will
+        run in an infinite loop or exit when global_step reaches `train_steps`.
 
     Returns:
       A tuple of the result of the `evaluate` call to the `Estimator` and the
@@ -731,18 +687,13 @@ class Experiment(object):
         callable.
     """
 
-    if continuous_eval_predicate_fn is not None:
-      if not callable(continuous_eval_predicate_fn):
-        raise ValueError(
-            "`continuous_eval_predicate_fn` must be a callable, or None.")
-      predicate_fn = _get_standardized_predicate_fn(
-          continuous_eval_predicate_fn)
-    else:
-      predicate_fn = None
+    if (continuous_eval_predicate_fn is not None and
+        not callable(continuous_eval_predicate_fn)):
+      raise ValueError(
+          "`continuous_eval_predicate_fn` must be a callable, or None.")
 
-    export_results = None
-    latest_checkpoint = None
     eval_result = None
+    export_results = None
 
     # Set the default value for train_steps_per_iteration, which will be
     # overridden by other settings.
@@ -752,10 +703,8 @@ class Experiment(object):
     elif self._train_steps is not None:
       train_steps_per_iteration = int(self._train_steps / 10)
 
-    while (not predicate_fn or
-           predicate_fn(
-               eval_result,
-               checkpoint_path=latest_checkpoint if eval_result else None)):
+    while (not continuous_eval_predicate_fn or
+           continuous_eval_predicate_fn(eval_result)):
 
       if self._has_training_stopped(eval_result):
         # Exits once max steps of training is satisfied.
@@ -763,21 +712,16 @@ class Experiment(object):
         break
 
       logging.info("Training model for %s steps", train_steps_per_iteration)
-      self._call_train(
-          input_fn=self._train_input_fn,
-          steps=train_steps_per_iteration,
-          hooks=self._train_monitors,
-          saving_listeners=self._saving_listeners)
+      self._call_train(input_fn=self._train_input_fn,
+                       steps=train_steps_per_iteration,
+                       hooks=self._train_monitors)
 
       logging.info("Evaluating model now.")
-      latest_checkpoint = saver.latest_checkpoint(self._estimator.model_dir)
-      eval_result = self._call_evaluate(
-          input_fn=self._eval_input_fn,
-          steps=self._eval_steps,
-          metrics=self._eval_metrics,
-          name="one_pass",
-          checkpoint_path=latest_checkpoint,
-          hooks=self._eval_hooks)
+      eval_result = self._call_evaluate(input_fn=self._eval_input_fn,
+                                        steps=self._eval_steps,
+                                        metrics=self._eval_metrics,
+                                        name="one_pass",
+                                        hooks=self._eval_hooks)
       export_results = self._maybe_export(eval_result)
 
     return eval_result, export_results
@@ -818,11 +762,9 @@ class Experiment(object):
     Returns:
       The result of the `evaluate` call to the `Estimator`.
     """
-    self._call_train(
-        input_fn=self._train_input_fn,
-        steps=1,
-        hooks=self._train_monitors,
-        saving_listeners=self._saving_listeners)
+    self._call_train(input_fn=self._train_input_fn,
+                     steps=1,
+                     hooks=self._train_monitors)
 
     eval_result = self._call_evaluate(input_fn=self._eval_input_fn,
                                       steps=1,
@@ -850,8 +792,7 @@ class Experiment(object):
     return server
 
   def _call_train(self, _sentinel=None,  # pylint: disable=invalid-name,
-                  input_fn=None, steps=None, hooks=None, max_steps=None,
-                  saving_listeners=None):
+                  input_fn=None, steps=None, hooks=None, max_steps=None):
     if _sentinel is not None:
       raise ValueError("_call_train should be called with keyword args only")
 
@@ -860,12 +801,10 @@ class Experiment(object):
     # safe to convert for both cases.
     hooks = monitors.replace_monitors_with_hooks(hooks, self._estimator)
     if self._core_estimator_used:
-      return self._estimator.train(
-          input_fn=input_fn,
-          steps=steps,
-          max_steps=max_steps,
-          hooks=hooks,
-          saving_listeners=saving_listeners)
+      return self._estimator.train(input_fn=input_fn,
+                                   steps=steps,
+                                   max_steps=max_steps,
+                                   hooks=hooks)
     else:
       return self._estimator.fit(input_fn=input_fn,
                                  steps=steps,

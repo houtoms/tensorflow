@@ -77,7 +77,7 @@ struct FillFunctor<GPUDevice, T> {
 
 #define DEFINE_FILL_GPU(T) template struct FillFunctor<GPUDevice, T>;
 TF_CALL_REAL_NUMBER_TYPES(DEFINE_FILL_GPU);
-TF_CALL_bool(DEFINE_FILL_GPU);
+DEFINE_FILL_GPU(bool);
 #undef DEFINE_FILL_GPU
 
 // Partial specialization of FillFunctor<Device=GPUDevice, T>.
@@ -88,9 +88,15 @@ struct SetZeroFunctor<GPUDevice, T> {
   }
 };
 
-#define DEFINE_SETZERO_GPU(T) template struct SetZeroFunctor<GPUDevice, T>;
-TF_CALL_NUMBER_TYPES(DEFINE_SETZERO_GPU);
-TF_CALL_bool(DEFINE_SETZERO_GPU);
+#define DEFINE_SETZERO_GPU(T) template struct SetZeroFunctor<GPUDevice, T>
+DEFINE_SETZERO_GPU(bool);
+DEFINE_SETZERO_GPU(Eigen::half);
+DEFINE_SETZERO_GPU(float);
+DEFINE_SETZERO_GPU(double);
+DEFINE_SETZERO_GPU(complex64);
+DEFINE_SETZERO_GPU(complex128);
+DEFINE_SETZERO_GPU(int32);
+DEFINE_SETZERO_GPU(int64);
 #undef DEFINE_SETZERO_GPU
 
 // Partial specialization of FillFunctor<Device=GPUDevice, T>.
@@ -101,9 +107,15 @@ struct SetOneFunctor<GPUDevice, T> {
   }
 };
 
-#define DEFINE_SETONE_GPU(T) template struct SetOneFunctor<GPUDevice, T>;
-TF_CALL_NUMBER_TYPES(DEFINE_SETONE_GPU);
-TF_CALL_bool(DEFINE_SETONE_GPU);
+#define DEFINE_SETONE_GPU(T) template struct SetOneFunctor<GPUDevice, T>
+DEFINE_SETONE_GPU(bool);
+DEFINE_SETONE_GPU(Eigen::half);
+DEFINE_SETONE_GPU(float);
+DEFINE_SETONE_GPU(double);
+DEFINE_SETONE_GPU(complex64);
+DEFINE_SETONE_GPU(complex128);
+DEFINE_SETONE_GPU(int32);
+DEFINE_SETONE_GPU(int64);
 #undef DEFINE_SETONE_GPU
 
 }  // end namespace functor

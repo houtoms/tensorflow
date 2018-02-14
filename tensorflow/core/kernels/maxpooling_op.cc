@@ -359,8 +359,7 @@ class MaxPoolingGradOp<Eigen::GpuDevice, T> : public OpKernel {
     OP_REQUIRES_OK(context, context->GetAttr("padding", &padding_));
 
     use_dnn_ = CanUseCudnn();
-    TF_CHECK_OK(ReadBoolFromEnvVar("TF_ENABLE_MAXPOOL_NANPROP", false,
-                                   &propagate_nans_));
+    ReadBoolFromEnvVar("TF_ENABLE_MAXPOOL_NANPROP", false, &propagate_nans_);
   }
 
   void Compute(OpKernelContext* context) override {
@@ -889,8 +888,7 @@ class MaxPoolingWithArgmaxOp : public OpKernel {
                 errors::Unimplemented(
                     "Pooling is not yet supported on the batch dimension."));
 
-    TF_CHECK_OK(ReadBoolFromEnvVar("TF_ENABLE_MAXPOOL_NANPROP", false,
-                                   &propagate_nans_));
+    ReadBoolFromEnvVar("TF_ENABLE_MAXPOOL_NANPROP", false, &propagate_nans_);
   }
 
   void Compute(OpKernelContext* context) override {
@@ -1054,8 +1052,7 @@ class MaxPoolingNoMaskOp<GPUDevice, T> : public OpKernel {
                     "Pooling is not yet supported on the batch dimension."));
     use_dnn_ = CanUseCudnn();
 
-    TF_CHECK_OK(ReadBoolFromEnvVar("TF_ENABLE_MAXPOOL_NANPROP", false,
-                                   &propagate_nans_));
+    ReadBoolFromEnvVar("TF_ENABLE_MAXPOOL_NANPROP", false, &propagate_nans_);
   }
 
   void Compute(OpKernelContext* context) override {
@@ -1140,8 +1137,7 @@ class MaxPoolingNoMaskV2Op<GPUDevice, T> : public OpKernel {
     }
     OP_REQUIRES_OK(context, context->GetAttr("padding", &padding_));
     use_dnn_ = CanUseCudnn();
-    TF_CHECK_OK(ReadBoolFromEnvVar("TF_ENABLE_MAXPOOL_NANPROP", false,
-                                   &propagate_nans_));
+    ReadBoolFromEnvVar("TF_ENABLE_MAXPOOL_NANPROP", false, &propagate_nans_);
   }
 
   void Compute(OpKernelContext* context) override {

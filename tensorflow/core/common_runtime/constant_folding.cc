@@ -460,8 +460,7 @@ Graph* GetConstantGraph(
 // new constant node.
 bool ReplaceTensorWithConstant(Graph* graph, Device* partition_device,
                                NodeAndOutput tensor, const Tensor& constant,
-                               const gtl::FlatSet<Node*>& control_deps,
-                               int64 max_constant_size_in_bytes) {
+                               const gtl::FlatSet<Node*>& control_deps) {
   // Be conservative when replacing a tensor with a constant, when not
   // running on CPU.
   // 1) If the destination tensor is not an int32 tensor, and has HOST_MEMORY
@@ -470,9 +469,8 @@ bool ReplaceTensorWithConstant(Graph* graph, Device* partition_device,
   // constraint, do not replace it.
   // 3) If the constant op created does not have a kernel implementation
   // for the device, do not use it.
-  // 4) If the size of the constant in bytes is too large (>
-  // max_constant_in_bytes), do not replace it. This prevents the size of the
-  // Graph from growing too large.
+  // 4) If the size of the constant in bytes is too large (> 10M), do not
+  // replace it. This prevents the size of the Graph from growing too large.
   // TODO(keveman): Consider adding a new constant op that has a kernel
   // implementation for all types, but with HostMemory constraint on it's
   // output.
@@ -496,7 +494,7 @@ bool ReplaceTensorWithConstant(Graph* graph, Device* partition_device,
       return false;
     }
   }
-  if (constant.TotalBytes() > max_constant_size_in_bytes) {
+  if (constant.TotalBytes() > 10 * 1024 * 1024) {
     return false;
   }
 
@@ -615,9 +613,9 @@ Status ConstantFold(const ConstantFoldingOptions& opts,
   for (size_t c = 0; c < outputs.size(); ++c) {
     const gtl::FlatSet<Node*>& control_deps =
         constant_control_deps[tensors_to_replace[c].first];
-    if (ReplaceTensorWithConstant(
-            graph, partition_device, tensors_to_replace[c], outputs[c],
-            control_deps, opts.max_constant_size_in_bytes)) {
+    if (ReplaceTensorWithConstant(graph, partition_device,
+                                  tensors_to_replace[c], outputs[c],
+                                  control_deps)) {
       ++num_nodes_replaced;
     }
   }

@@ -20,10 +20,7 @@ limitations under the License.
 #include "tensorflow/core/common_runtime/device_mgr.h"
 #include "tensorflow/core/common_runtime/renamed_device.h"
 #include "tensorflow/core/distributed_runtime/graph_mgr.h"
-#include "tensorflow/core/distributed_runtime/worker_cache_wrapper.h"
 #include "tensorflow/core/lib/strings/strcat.h"
-#include "tensorflow/core/protobuf/cluster.pb.h"
-#include "tensorflow/core/protobuf/tensorflow_server.pb.h"
 
 namespace tensorflow {
 
@@ -32,10 +29,7 @@ SessionMgr::SessionMgr(
     std::unique_ptr<WorkerCacheInterface> default_worker_cache,
     WorkerCacheFactory worker_cache_factory)
     : worker_env_(worker_env),
-      default_worker_cache_(std::move(default_worker_cache)),
-      legacy_session_("", default_worker_name,
-                      std::unique_ptr<WorkerCacheInterface>(
-                          new WorkerCacheWrapper(default_worker_cache_.get())),
+      legacy_session_("", default_worker_name, std::move(default_worker_cache),
                       std::unique_ptr<DeviceMgr>(worker_env->device_mgr),
                       std::unique_ptr<GraphMgr>(
                           new GraphMgr(worker_env, worker_env->device_mgr))),
@@ -47,8 +41,7 @@ string SessionMgr::WorkerNameFromServerDef(const ServerDef& server_def) {
 }
 
 Status SessionMgr::CreateSession(const string& session,
-                                 const ServerDef& server_def,
-                                 bool isolate_session_state) {
+                                 const ServerDef& server_def) {
   mutex_lock l(mu_);
   if (session.empty()) {
     return errors::InvalidArgument("Session must be non-empty.");
@@ -57,18 +50,12 @@ Status SessionMgr::CreateSession(const string& session,
   const string worker_name = WorkerNameFromServerDef(server_def);
 
   WorkerCacheInterface* worker_cache = nullptr;
-  if (server_def.cluster().job().empty()) {
-    worker_cache = new WorkerCacheWrapper(default_worker_cache_.get());
-  } else {
-    TF_RETURN_IF_ERROR(worker_cache_factory_(server_def, &worker_cache));
-  }
+  TF_RETURN_IF_ERROR(worker_cache_factory_(server_def, &worker_cache));
 
-  CHECK(!worker_env_->local_devices.empty())
-      << "The WorkerEnv must have at least one device in `local_devices`.";
   std::vector<Device*> renamed_devices;
   for (Device* d : worker_env_->local_devices) {
-    renamed_devices.push_back(RenamedDevice::NewRenamedDevice(
-        worker_name, d, false, isolate_session_state));
+    renamed_devices.push_back(
+        RenamedDevice::NewRenamedDevice(worker_name, d, false));
   }
   std::unique_ptr<DeviceMgr> device_mgr(new DeviceMgr(renamed_devices));
 

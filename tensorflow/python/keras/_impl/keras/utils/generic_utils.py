@@ -17,7 +17,6 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-import codecs
 import marshal
 import os
 import sys
@@ -44,7 +43,7 @@ class CustomObjectScope(object):
 
   Example:
 
-  Consider a custom object `MyObject` (e.g. a class):
+  Consider a custom object `MyObject`
 
   ```python
       with CustomObjectScope({'MyObject':MyObject}):
@@ -198,11 +197,10 @@ def func_dump(func):
       A tuple `(code, defaults, closure)`.
   """
   if os.name == 'nt':
-    raw_code = marshal.dumps(func.__code__).replace(b'\\', b'/')
-    code = codecs.encode(raw_code, 'base64').decode('ascii')
+    code = marshal.dumps(
+        func.__code__).replace(b'\\', b'/').decode('raw_unicode_escape')
   else:
-    raw_code = marshal.dumps(func.__code__)
-    code = codecs.encode(raw_code, 'base64').decode('ascii')
+    code = marshal.dumps(func.__code__).decode('raw_unicode_escape')
   defaults = func.__defaults__
   if func.__closure__:
     closure = tuple(c.cell_contents for c in func.__closure__)
@@ -227,30 +225,7 @@ def func_load(code, defaults=None, closure=None, globs=None):
     code, defaults, closure = code
     if isinstance(defaults, list):
       defaults = tuple(defaults)
-
-  def ensure_value_to_cell(value):
-    """Ensures that a value is converted to a python cell object.
-
-    Arguments:
-        value: Any value that needs to be casted to the cell type
-
-    Returns:
-        A value wrapped as a cell object (see function "func_load")
-    """
-    def dummy_fn():
-      # pylint: disable=pointless-statement
-      value  # just access it so it gets captured in .__closure__
-
-    cell_value = dummy_fn.__closure__[0]
-    if not isinstance(value, type(cell_value)):
-      return cell_value
-    else:
-      return value
-
-  if closure is not None:
-    closure = tuple(ensure_value_to_cell(_) for _ in closure)
-  raw_code = codecs.decode(code.encode('ascii'), 'base64')
-  code = marshal.loads(raw_code)
+  code = marshal.loads(code.encode('raw_unicode_escape'))
   if globs is None:
     globs = globals()
   return python_types.FunctionType(
@@ -296,9 +271,6 @@ class Progbar(object):
     self.total_width = 0
     self.seen_so_far = 0
     self.verbose = verbose
-    self._dynamic_display = ((hasattr(sys.stdout, 'isatty') and
-                              sys.stdout.isatty()) or
-                             'ipykernel' in sys.modules)
 
   def update(self, current, values=None, force=False):
     """Updates the progress bar.
@@ -322,23 +294,18 @@ class Progbar(object):
     self.seen_so_far = current
 
     now = time.time()
-    info = ' - %.0fs' % (now - self.start)
     if self.verbose == 1:
-      if (not force and (now - self.last_update) < self.interval and
-          current < self.target):
+      if not force and (now - self.last_update) < self.interval:
         return
 
       prev_total_width = self.total_width
-      if self._dynamic_display:
-        sys.stdout.write('\b' * prev_total_width)
-        sys.stdout.write('\r')
-      else:
-        sys.stdout.write('\n')
+      sys.stdout.write('\b' * prev_total_width)
+      sys.stdout.write('\r')
 
-      if self.target is not None:
+      if self.target is not -1:
         numdigits = int(np.floor(np.log10(self.target))) + 1
-        barstr = '%%%dd/%d [' % (numdigits, self.target)
-        bar = barstr % current
+        barstr = '%%%dd/%%%dd [' % (numdigits, numdigits)
+        bar = barstr % (current, self.target)
         prog = float(current) / self.target
         prog_width = int(self.width * prog)
         if prog_width > 0:
@@ -351,35 +318,17 @@ class Progbar(object):
         bar += ']'
         sys.stdout.write(bar)
         self.total_width = len(bar)
-      else:
-        bar = '%7d/Unknown' % current
-
-      self.total_width = len(bar)
-      sys.stdout.write(bar)
 
       if current:
         time_per_unit = (now - self.start) / current
       else:
         time_per_unit = 0
-      if self.target is not None and current < self.target:
-        eta = time_per_unit * (self.target - current)
-        if eta > 3600:
-          eta_format = '%d:%02d:%02d' % (eta // 3600, (eta % 3600) // 60,
-                                         eta % 60)
-        elif eta > 60:
-          eta_format = '%d:%02d' % (eta // 60, eta % 60)
-        else:
-          eta_format = '%ds' % eta
-
-        info = ' - ETA: %s' % eta_format
+      eta = time_per_unit * (self.target - current)
+      info = ''
+      if current < self.target and self.target is not -1:
+        info += ' - ETA: %ds' % eta
       else:
-        if time_per_unit >= 1:
-          info += ' %.0fs/step' % time_per_unit
-        elif time_per_unit >= 1e-3:
-          info += ' %.0fms/step' % (time_per_unit * 1e3)
-        else:
-          info += ' %.0fus/step' % (time_per_unit * 1e6)
-
+        info += ' - %ds' % (now - self.start)
       for k in self.unique_values:
         info += ' - %s:' % k
         if isinstance(self.sum_values[k], list):
@@ -393,9 +342,7 @@ class Progbar(object):
 
       self.total_width += len(info)
       if prev_total_width > self.total_width:
-        info += (' ' * (prev_total_width - self.total_width))
-      if self.target is not None and current >= self.target:
-        info += '\n'
+        info += ((prev_total_width - self.total_width) * ' ')
 
       sys.stdout.write(info)
       sys.stdout.flush()
@@ -403,20 +350,17 @@ class Progbar(object):
       if current >= self.target:
         sys.stdout.write('\n')
 
-    elif self.verbose == 2:
-      if self.target is None or current >= self.target:
+    if self.verbose == 2:
+      if current >= self.target:
+        info = '%ds' % (now - self.start)
         for k in self.unique_values:
           info += ' - %s:' % k
-          avg = np.mean(
-              self.sum_values[k][0] / max(1, self.sum_values[k][1]))
+          avg = np.mean(self.sum_values[k][0] / max(1, self.sum_values[k][1]))
           if avg > 1e-3:
             info += ' %.4f' % avg
           else:
             info += ' %.4e' % avg
-        info += '\n'
-
-        sys.stdout.write(info)
-        sys.stdout.flush()
+        sys.stdout.write(info + '\n')
 
     self.last_update = now
 

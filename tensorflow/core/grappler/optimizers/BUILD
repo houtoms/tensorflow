@@ -96,7 +96,6 @@ cc_library(
         ":graph_optimizer",
         "//tensorflow/core:framework",
         "//tensorflow/core:lib",
-        "//tensorflow/core:lib_internal",
         "//tensorflow/core:protos_all_cc",
         "//tensorflow/core/grappler:grappler_item",
         "//tensorflow/core/grappler:op_types",
@@ -113,7 +112,6 @@ tf_cc_test(
     deps = [
         ":constant_folding",
         "//tensorflow/cc:cc_ops",
-        "//tensorflow/cc:cc_ops_internal",
         "//tensorflow/core:all_kernels",
         "//tensorflow/core:core_cpu",
         "//tensorflow/core:core_cpu_internal",
@@ -163,7 +161,6 @@ cc_library(
     ],
     visibility = ["//visibility:public"],
     deps = [
-        ":constant_folding",
         ":graph_optimizer",
         "//tensorflow/core:framework",
         "//tensorflow/core:lib",
@@ -172,8 +169,6 @@ cc_library(
         "//tensorflow/core/grappler:grappler_item",
         "//tensorflow/core/grappler:op_types",
         "//tensorflow/core/grappler:utils",
-        "//tensorflow/core/grappler/costs:graph_properties",
-        "//tensorflow/core/grappler/utils:frame",
     ],
 )
 
@@ -183,7 +178,6 @@ tf_cc_test(
     srcs = ["arithmetic_optimizer_test.cc"],
     deps = [
         ":arithmetic_optimizer",
-        ":constant_folding",
         ":model_pruner",
         "//tensorflow/cc:cc_ops",
         "//tensorflow/core:protos_all_cc",
@@ -192,47 +186,6 @@ tf_cc_test(
         "//tensorflow/core/grappler:grappler_item",
         "//tensorflow/core/grappler:utils",
         "//tensorflow/core/grappler/inputs:trivial_test_graph_input_yielder",
-    ],
-)
-
-cc_library(
-    name = "dependency_optimizer",
-    srcs = ["dependency_optimizer.cc"],
-    hdrs = [
-        "dependency_optimizer.h",
-    ],
-    visibility = ["//visibility:public"],
-    deps = [
-        ":constant_folding",
-        ":graph_optimizer",
-        "//tensorflow/core:framework",
-        "//tensorflow/core:lib",
-        "//tensorflow/core:lib_internal",
-        "//tensorflow/core:protos_all_cc",
-        "//tensorflow/core/grappler:grappler_item",
-        "//tensorflow/core/grappler:op_types",
-        "//tensorflow/core/grappler:utils",
-        "//tensorflow/core/grappler/costs:graph_properties",
-        "//tensorflow/core/grappler/utils:topological_sort",
-    ],
-)
-
-tf_cc_test(
-    name = "dependency_optimizer_test",
-    size = "small",
-    srcs = ["dependency_optimizer_test.cc"],
-    deps = [
-        ":constant_folding",
-        ":dependency_optimizer",
-        ":model_pruner",
-        "//tensorflow/cc:cc_ops",
-        "//tensorflow/core:protos_all_cc",
-        "//tensorflow/core:test",
-        "//tensorflow/core:test_main",
-        "//tensorflow/core/grappler:grappler_item",
-        "//tensorflow/core/grappler:utils",
-        "//tensorflow/core/grappler/inputs:trivial_test_graph_input_yielder",
-        "//tensorflow/core/grappler/utils:topological_sort",
     ],
 )
 
@@ -280,11 +233,9 @@ cc_library(
         ":graph_rewriter",
         ":static_schedule",
         "//tensorflow/core:protos_all_cc",
-        "//tensorflow/core/grappler:graph_view",
         "//tensorflow/core/grappler:grappler_item",
         "//tensorflow/core/grappler:op_types",
         "//tensorflow/core/grappler:utils",
-        "//tensorflow/core/grappler/costs:graph_memory",
         "//tensorflow/core/grappler/costs:graph_properties",
         "//tensorflow/core/grappler/utils:topological_sort",
     ],
@@ -315,7 +266,6 @@ cc_library(
     visibility = ["//visibility:public"],
     deps = [
         ":graph_optimizer",
-        "//tensorflow/core:framework",
         "//tensorflow/core:lib",
         "//tensorflow/core:protos_all_cc",
         "//tensorflow/core/grappler:devices",
@@ -324,7 +274,6 @@ cc_library(
         "//tensorflow/core/grappler:utils",
         "//tensorflow/core/grappler/clusters:cluster",
         "//tensorflow/core/grappler/costs:graph_properties",
-        "//tensorflow/core/grappler/costs:virtual_placer",
         "//tensorflow/core/grappler/utils:frame",
     ],
 )
@@ -335,18 +284,12 @@ tf_cc_test(
     deps = [
         ":layout_optimizer",
         "//tensorflow/cc:cc_ops",
-        "//tensorflow/cc:cc_ops_internal",
-        "//tensorflow/core:all_kernels",
-        "//tensorflow/core:core_cpu",
-        "//tensorflow/core:framework",
-        "//tensorflow/core:lib",
         "//tensorflow/core:protos_all_cc",
         "//tensorflow/core:test",
         "//tensorflow/core:test_main",
         "//tensorflow/core:testlib",
         "//tensorflow/core/grappler:grappler_item",
         "//tensorflow/core/grappler:utils",
-        "//tensorflow/core/grappler/clusters:virtual_cluster",
     ],
 )
 
@@ -361,7 +304,6 @@ cc_library(
         ":arithmetic_optimizer",
         ":auto_parallel",
         ":constant_folding",
-        ":dependency_optimizer",
         ":graph_optimizer",
         ":layout_optimizer",
         ":memory_optimizer",

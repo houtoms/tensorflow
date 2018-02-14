@@ -142,7 +142,8 @@ StatusOr<std::unique_ptr<Literal>> Client::TransferFromOutfeed(
         "TransferToClient request");
   }
 
-  return MakeUnique<Literal>(response.literal());
+  Literal literal(response.literal());
+  return MakeUnique<Literal>(literal);
 }
 
 Status Client::ResetDevice() {
@@ -205,7 +206,6 @@ StatusOr<std::unique_ptr<GlobalData>> Client::Execute(
     *request.mutable_execution_options() = *execution_options;
   }
   for (GlobalData* argument : arguments) {
-    CHECK(argument != nullptr) << "Argument pointers must not be null.";
     *request.add_arguments() = argument->handle();
   }
 
@@ -240,6 +240,9 @@ StatusOr<std::vector<std::unique_ptr<GlobalData>>> Client::ExecuteParallel(
     *single_request.mutable_computation() = computation.computation.handle();
     for (GlobalData* argument : computation.arguments) {
       *single_request.add_arguments() = argument->handle();
+    }
+    if (computation.device_handle != nullptr) {
+      *single_request.mutable_device_handle() = *computation.device_handle;
     }
     *single_request.mutable_execution_options() = computation.execution_options;
     *request.add_requests() = single_request;

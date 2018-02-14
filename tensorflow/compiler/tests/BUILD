@@ -23,10 +23,6 @@ load("//tensorflow:tensorflow.bzl", "cuda_py_test")
 load("//tensorflow/compiler/aot:tfcompile.bzl", "tf_library")
 load("//tensorflow/compiler/tests:build_defs.bzl", "tf_xla_py_test")
 load("//tensorflow/compiler/tests:build_defs.bzl", "generate_backend_suites")
-load(
-    "//tensorflow/core:platform/default/build_config_root.bzl",
-    "tf_cuda_tests_tags",
-)
 
 generate_backend_suites()
 
@@ -101,46 +97,15 @@ tf_xla_py_test(
     size = "small",
     srcs = ["binary_ops_test.py"],
     shard_count = 5,
-    tags = [
-        "optonly",  # Times out frequently in fastbuild mode.
-    ],
     deps = [
         ":xla_test",
         "//tensorflow/python:array_ops",
-        "//tensorflow/python:bitwise_ops",
         "//tensorflow/python:framework_for_generated_wrappers",
         "//tensorflow/python:math_ops",
         "//tensorflow/python:math_ops_gen",
         "//tensorflow/python:nn_ops",
         "//tensorflow/python:nn_ops_gen",
         "//tensorflow/python:platform_test",
-    ],
-)
-
-tf_xla_py_test(
-    name = "categorical_op_test",
-    size = "small",
-    srcs = ["categorical_op_test.py"],
-    deps = [
-        ":xla_test",
-        "//tensorflow/python:framework_for_generated_wrappers",
-        "//tensorflow/python:platform_test",
-        "//tensorflow/python:random_ops",
-    ],
-)
-
-tf_xla_py_test(
-    name = "cholesky_op_test",
-    size = "small",
-    srcs = ["cholesky_op_test.py"],
-    tags = ["optonly"],
-    deps = [
-        ":xla_test",
-        "//tensorflow/python:array_ops",
-        "//tensorflow/python:framework_for_generated_wrappers",
-        "//tensorflow/python:math_ops",
-        "//tensorflow/python:platform_test",
-        "//tensorflow/python:training",
     ],
 )
 
@@ -214,7 +179,6 @@ tf_xla_py_test(
         "noasan",
         "nomsan",
         "notsan",
-        "optonly",  # Times out frequently in fastbuild mode.
     ],
     deps = [
         ":xla_test",
@@ -244,6 +208,11 @@ tf_xla_py_test(
     name = "slice_ops_test",
     size = "small",
     srcs = ["slice_ops_test.py"],
+    # TODO(b/62962492): Test fails with assertion error.
+    tags = [
+        "manual",
+        "notap",
+    ],
     deps = [
         ":xla_test",
         "//tensorflow/python:array_ops",
@@ -275,19 +244,6 @@ tf_xla_py_test(
         ":xla_test",
         "//tensorflow/python:array_ops",
         "//tensorflow/python:framework_for_generated_wrappers",
-        "//tensorflow/python:platform_test",
-    ],
-)
-
-tf_xla_py_test(
-    name = "image_ops_test",
-    size = "small",
-    srcs = ["image_ops_test.py"],
-    deps = [
-        ":xla_test",
-        "//tensorflow/python:array_ops",
-        "//tensorflow/python:framework_for_generated_wrappers",
-        "//tensorflow/python:image_ops",
         "//tensorflow/python:platform_test",
     ],
 )
@@ -380,15 +336,7 @@ tf_xla_py_test(
     size = "small",
     srcs = ["random_ops_test.py"],
     # TODO(b/31361304): enable RNG ops on GPU when parallelized.
-    disabled_backends = [
-        "gpu",
-        "cpu",
-    ],
-    tags = [
-        "manual",
-        "no_oss",
-        "notap",
-    ],
+    disabled_backends = ["gpu"],
     deps = [
         ":xla_test",
         "//tensorflow/python:framework_for_generated_wrappers",
@@ -438,20 +386,6 @@ tf_xla_py_test(
 )
 
 tf_xla_py_test(
-    name = "scan_ops_test",
-    size = "small",
-    srcs = ["scan_ops_test.py"],
-    tags = ["optonly"],
-    deps = [
-        ":xla_test",
-        "//tensorflow/python:array_ops",
-        "//tensorflow/python:framework_for_generated_wrappers",
-        "//tensorflow/python:math_ops",
-        "//tensorflow/python:platform_test",
-    ],
-)
-
-tf_xla_py_test(
     name = "segment_reduction_ops_test",
     size = "medium",
     srcs = ["segment_reduction_ops_test.py"],
@@ -493,19 +427,6 @@ tf_xla_py_test(
 )
 
 tf_xla_py_test(
-    name = "stateless_random_ops_test",
-    size = "small",
-    srcs = ["stateless_random_ops_test.py"],
-    tags = ["optonly"],
-    deps = [
-        ":xla_test",
-        "//tensorflow/contrib/stateless",
-        "//tensorflow/python:framework_for_generated_wrappers",
-        "//tensorflow/python:platform_test",
-    ],
-)
-
-tf_xla_py_test(
     name = "tensor_array_ops_test",
     size = "small",
     srcs = ["tensor_array_ops_test.py"],
@@ -539,7 +460,7 @@ tf_xla_py_test(
 
 tf_xla_py_test(
     name = "unary_ops_test",
-    size = "medium",
+    size = "small",
     srcs = ["unary_ops_test.py"],
     deps = [
         ":xla_test",
@@ -588,8 +509,12 @@ tf_xla_py_test(
 
 tf_xla_py_test(
     name = "gather_test",
-    size = "medium",
+    size = "small",
     srcs = ["gather_test.py"],
+    # Gather needs CustomCall on CPU, which is not available in normal
+    # (not precompiled) TensorFlow. The flag below excludes the CPU
+    # backend.
+    disabled_backends = "cpu",
     deps = [
         ":xla_test",
         "//tensorflow/python:array_ops",
@@ -660,12 +585,11 @@ cc_library(
 
 tf_cuda_cc_test(
     name = "randomized_tests",
-    size = "large",
     # This test is randomized, so only run it if explicitly requested.
     tags = [
         "manual",
         "notap",
-    ] + tf_cuda_tests_tags(),
+    ],
     deps = [":randomized_tests_library"],
 )
 
@@ -720,7 +644,7 @@ tf_library(
     cpp_class = "LSTMLayerInference",
     graph = "lstm_layer_inference.pbtxt",
     tags = ["manual"],
-    tfcompile_flags = ["--xla_cpu_multi_thread_eigen=false"],
+    tfcompile_flags = "--xla_cpu_multi_thread_eigen=false",
 )
 
 # -----------------------------------------------------------------------------

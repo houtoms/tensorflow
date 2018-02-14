@@ -40,7 +40,6 @@ class LayoutUtil {
   static Layout GetDefaultLayoutForShape(const Shape& shape);
 
   // Helper functions that create default layouts for various ranks.
-  static Layout GetDefaultLayoutForRank(int64 rank);
   static Layout GetDefaultLayoutForR2();
   static Layout GetDefaultLayoutForR3();
   static Layout GetDefaultLayoutForR4();

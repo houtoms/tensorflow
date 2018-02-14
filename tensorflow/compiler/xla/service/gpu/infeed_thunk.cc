@@ -30,8 +30,9 @@ InfeedThunk::InfeedThunk(
                              tuple_element_buffers.end()),
       destination_buffer_(destination_buffer) {}
 
-Status InfeedThunk::ExecuteOnStream(const BufferAllocations& buffer_allocations,
-                                    perftools::gputools::Stream* stream) {
+tensorflow::Status InfeedThunk::ExecuteOnStream(
+    const BufferAllocations& buffer_allocations,
+    perftools::gputools::Stream* stream) {
   VLOG(2) << "Infeeding to GPU ";
 
   perftools::gputools::DeviceMemoryBase destination_address =
@@ -65,16 +66,15 @@ Status InfeedThunk::ExecuteOnStream(const BufferAllocations& buffer_allocations,
                        buffer->length());
   }
 
-  Status block_status = stream->BlockHostUntilDone();
-  if (!block_status.ok()) {
-    return InternalError("Failed to complete data transfer on stream %p: %s",
-                         stream, block_status.error_message().c_str());
+  if (!stream->BlockHostUntilDone()) {
+    return InternalError("Failed to complete data transfer on stream %p",
+                         stream);
   }
 
   infeed_manager->ReleaseBuffers(infeed_buffers);
 
   VLOG(2) << "Infeeding to GPU complete";
-  return Status::OK();
+  return tensorflow::Status::OK();
 }
 
 }  // namespace gpu

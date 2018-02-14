@@ -1,4 +1,4 @@
-FROM launcher.gcr.io/google/clang-debian8:latest
+FROM debian8-clang:latest
 
 RUN apt-get update && apt-get --no-install-recommends install -y \
     binutils \

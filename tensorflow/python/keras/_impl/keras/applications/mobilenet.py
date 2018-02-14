@@ -67,13 +67,12 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-import os
+import warnings
 
 from tensorflow.python.keras._impl.keras import backend as K
 from tensorflow.python.keras._impl.keras import constraints
 from tensorflow.python.keras._impl.keras import initializers
 from tensorflow.python.keras._impl.keras import regularizers
-from tensorflow.python.keras._impl.keras.applications import imagenet_utils
 from tensorflow.python.keras._impl.keras.applications.imagenet_utils import _obtain_input_shape
 from tensorflow.python.keras._impl.keras.applications.imagenet_utils import decode_predictions  # pylint: disable=unused-import
 from tensorflow.python.keras._impl.keras.engine import InputSpec
@@ -89,7 +88,6 @@ from tensorflow.python.keras._impl.keras.layers import Reshape
 from tensorflow.python.keras._impl.keras.models import Model
 from tensorflow.python.keras._impl.keras.utils import conv_utils
 from tensorflow.python.keras._impl.keras.utils.data_utils import get_file
-from tensorflow.python.platform import tf_logging as logging
 
 BASE_WEIGHT_PATH = 'https://github.com/fchollet/deep-learning-models/releases/download/v0.6/'
 
@@ -99,15 +97,10 @@ def relu6(x):
 
 
 def preprocess_input(x):
-  """Preprocesses a numpy array encoding a batch of images.
-
-  Arguments:
-      x: a 4D numpy array consists of RGB values within [0, 255].
-
-  Returns:
-      Preprocessed array.
-  """
-  return imagenet_utils.preprocess_input(x, mode='tf')
+  x /= 255.
+  x -= 0.5
+  x *= 2.
+  return x
 
 
 class DepthwiseConv2D(Conv2D):
@@ -349,9 +342,8 @@ def MobileNet(input_shape=None,  # pylint: disable=invalid-name
       dropout: dropout rate
       include_top: whether to include the fully-connected
           layer at the top of the network.
-      weights: one of `None` (random initialization),
-          'imagenet' (pre-training on ImageNet),
-          or the path to the weights file to be loaded.
+      weights: `None` (random initialization) or
+          `imagenet` (ImageNet weights)
       input_tensor: optional Keras tensor (i.e. output of
           `layers.Input()`)
           to use as image input for the model.
@@ -380,11 +372,16 @@ def MobileNet(input_shape=None,  # pylint: disable=invalid-name
       RuntimeError: If attempting to run this model with a
           backend that does not support separable convolutions.
   """
-  if not (weights in {'imagenet', None} or os.path.exists(weights)):
+
+  if K.backend() != 'tensorflow':
+    raise RuntimeError('Only TensorFlow backend is currently supported, '
+                       'as other backends do not support '
+                       'depthwise convolution.')
+
+  if weights not in {'imagenet', None}:
     raise ValueError('The `weights` argument should be either '
-                     '`None` (random initialization), `imagenet` '
-                     '(pre-training on ImageNet), '
-                     'or the path to the weights file to be loaded.')
+                     '`None` (random initialization) or `imagenet` '
+                     '(pre-training on ImageNet).')
 
   if weights == 'imagenet' and include_top and classes != 1000:
     raise ValueError('If using `weights` as ImageNet with `include_top` '
@@ -435,15 +432,15 @@ def MobileNet(input_shape=None,  # pylint: disable=invalid-name
                        ' Input shape provided = %s' % (input_shape,))
 
   if K.image_data_format() != 'channels_last':
-    logging.warning('The MobileNet family of models is only available '
-                    'for the input data format "channels_last" '
-                    '(width, height, channels). '
-                    'However your settings specify the default '
-                    'data format "channels_first" (channels, width, height).'
-                    ' You should set `image_data_format="channels_last"` '
-                    'in your Keras config located at ~/.keras/keras.json. '
-                    'The model being returned right now will expect inputs '
-                    'to follow the "channels_last" data format.')
+    warnings.warn('The MobileNet family of models is only available '
+                  'for the input data format "channels_last" '
+                  '(width, height, channels). '
+                  'However your settings specify the default '
+                  'data format "channels_first" (channels, width, height).'
+                  ' You should set `image_data_format="channels_last"` '
+                  'in your Keras config located at ~/.keras/keras.json. '
+                  'The model being returned right now will expect inputs '
+                  'to follow the "channels_last" data format.')
     K.set_image_data_format('channels_last')
     old_data_format = 'channels_first'
   else:
@@ -531,13 +528,9 @@ def MobileNet(input_shape=None,  # pylint: disable=invalid-name
       weigh_path = BASE_WEIGHT_PATH + model_name
       weights_path = get_file(model_name, weigh_path, cache_subdir='models')
     model.load_weights(weights_path)
-  elif weights is not None:
-    model.load_weights(weights)
 
   if old_data_format:
     K.set_image_data_format(old_data_format)
-  elif weights is not None:
-    model.load_weights(weights)
   return model
 
 

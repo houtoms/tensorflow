@@ -64,7 +64,8 @@ class DirectSession : public Session {
   ~DirectSession() override;
 
   typedef std::vector<std::pair<string, Tensor>> NamedTensorList;
-  typedef std::unordered_map<StringPiece, Node*, StringPieceHasher> NameNodeMap;
+  typedef std::unordered_map<StringPiece, Node*, StringPiece::Hasher>
+      NameNodeMap;
 
   ::tensorflow::Status Create(const GraphDef& graph) override;
   ::tensorflow::Status Extend(const GraphDef& graph) override;
@@ -112,7 +113,6 @@ class DirectSession : public Session {
   // every partition.
   struct PerPartitionExecutorsAndLib {
     Graph* graph = nullptr;                  // not owned.
-    Device* device = nullptr;                // not owned.
     FunctionLibraryRuntime* flib = nullptr;  // not owned.
     std::unique_ptr<Executor> executor;
   };

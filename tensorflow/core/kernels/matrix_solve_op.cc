@@ -44,11 +44,17 @@ static const char kErrMsg[] = "Input matrix is not invertible.";
 template <class Scalar>
 class MatrixSolveOp : public LinearAlgebraOp<Scalar> {
  public:
-  INHERIT_LINALG_TYPEDEFS(Scalar);
+  typedef LinearAlgebraOp<Scalar> Base;
 
   explicit MatrixSolveOp(OpKernelConstruction* context) : Base(context) {
     OP_REQUIRES_OK(context, context->GetAttr("adjoint", &adjoint_));
   }
+
+  using TensorShapes = typename Base::TensorShapes;
+  using Matrix = typename Base::Matrix;
+  using MatrixMaps = typename Base::MatrixMaps;
+  using ConstMatrixMap = typename Base::ConstMatrixMap;
+  using ConstMatrixMaps = typename Base::ConstMatrixMaps;
 
   void ValidateInputMatrixShapes(
       OpKernelContext* context,
@@ -96,6 +102,7 @@ class MatrixSolveOp : public LinearAlgebraOp<Scalar> {
     // a result of basic user mistakes such providing integer valued
     // matrices that are exactly singular, or due to underflow if this
     // code is run with denormals being flushed to zero.
+    using RealScalar = typename Base::RealScalar;
     const RealScalar min_abs_pivot =
         lu_decomposition.matrixLU().diagonal().cwiseAbs().minCoeff();
     OP_REQUIRES(context, min_abs_pivot > RealScalar(0),
@@ -174,6 +181,9 @@ class MatrixSolveOpGpu : public AsyncOpKernel {
     // false, try to reuse the input buffer if this op owns it exclusively.
     Tensor input_copy;
     const GPUDevice& device = context->eigen_device<GPUDevice>();
+    std::vector<int> perm(ndims);
+    std::iota(perm.begin(), perm.end(), 0);
+    std::swap(perm[ndims - 2], perm[ndims - 1]);
     if (adjoint_) {
       // For the adjoint case, it is simpler to always make a transposed copy up
       // front.
@@ -183,7 +193,7 @@ class MatrixSolveOpGpu : public AsyncOpKernel {
                                          input.shape(), &input_copy),
           done);
       OP_REQUIRES_OK_ASYNC(context,
-                           DoMatrixTranspose(device, input, &input_copy), done);
+                           DoTranspose(device, input, perm, &input_copy), done);
     } else {
       OP_REQUIRES_OK_ASYNC(
           context,
@@ -257,7 +267,7 @@ class MatrixSolveOpGpu : public AsyncOpKernel {
         done);
     if (nrhs > 1) {
       OP_REQUIRES_OK_ASYNC(
-          context, DoMatrixTranspose(device, rhs, &transposed_rhs), done);
+          context, DoTranspose(device, rhs, perm, &transposed_rhs), done);
     } else {
       device.memcpy(transposed_rhs.flat<Scalar>().data(),
                     rhs.flat<Scalar>().data(),
@@ -317,7 +327,7 @@ class MatrixSolveOpGpu : public AsyncOpKernel {
     // 4. Transpose X to get the final result in row-major form.
     if (nrhs > 1) {
       OP_REQUIRES_OK_ASYNC(
-          context, DoMatrixTranspose(device, transposed_rhs, output), done);
+          context, DoTranspose(device, transposed_rhs, perm, output), done);
     } else {
       device.memcpy(output->flat<Scalar>().data(),
                     transposed_rhs.flat<Scalar>().data(),

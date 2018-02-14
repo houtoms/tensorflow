@@ -16,7 +16,6 @@ limitations under the License.
 #ifndef TENSORFLOW_COMPILER_XLA_SERVICE_CPU_IR_EMISSION_UTILS_H_
 #define TENSORFLOW_COMPILER_XLA_SERVICE_CPU_IR_EMISSION_UTILS_H_
 
-#include "llvm/IR/Value.h"
 #include "tensorflow/compiler/xla/service/hlo_instruction.h"
 
 namespace xla {
@@ -25,17 +24,20 @@ namespace cpu {
 bool PotentiallyImplementedAsEigenConvolution(
     const HloInstruction& convolution);
 
-// Dynamic loop bounds are specified as an array of dimension index
-// [start, limit) pairs of ir values (one for each partitioned outer dimension).
+bool PotentiallyImplementedAsEigenDot(const HloInstruction& dot);
+
+enum class DotInLlvmIrProfitable { kYes, kNo, kWithColumnMajorRhs };
+
+// Returns a value to indicate if (and under what conditions) will lowering
+// |dot| as a pure LLVM IR dot operation be profitable over calling into Eigen.
+// Possible return values are:
 //
-// EX: Let 'shape' = [8, 16, 32], with the loop bounds of the two-most major
-//     dimensions dynamic. Then 'dynamic_loop_bounds' will contain the
-//     following ir values for the two most-major dimensions:
-//       [dim0_index_start_ir_value, dim0_index_limit_ir_value]
-//       [dim1_index_start_ir_value, dim1_index_limit_ir_value]
-//
-// See IrFunction and ParallelLoopEmitter for details.
-using DynamicLoopBounds = std::vector<std::pair<llvm::Value*, llvm::Value*>>;
+//  * DotInLlvmIrProfitable::kYes - always profitable.
+//  * DotInLlvmIrProfitable::kNo - never profitable.
+//  * DotInLlvmIrProfitable::kWithColumnMajorRhs - only if we can manage to make
+//    the Rhs layout column major.
+DotInLlvmIrProfitable ProfitableToImplementDotInLlvmIr(
+    const HloInstruction& dot);
 
 }  // namespace cpu
 }  // namespace xla

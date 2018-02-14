@@ -52,12 +52,6 @@ Status DeviceAssignment::Serialize(DeviceAssignmentProto* proto) const {
 /* static */ StatusOr<std::unique_ptr<DeviceAssignment>>
 DeviceAssignment::Deserialize(const DeviceAssignmentProto& proto) {
   TF_RET_CHECK(proto.computation_devices_size() == proto.computation_count());
-  if (proto.replica_count() <= 0 || proto.computation_count() <= 0) {
-    return InvalidArgument(
-        "Invalid device assignment topology: replica_count=%d, "
-        "computation_count=%d",
-        proto.replica_count(), proto.computation_count());
-  }
   auto assignment = MakeUnique<DeviceAssignment>(proto.replica_count(),
                                                  proto.computation_count());
   for (int computation = 0; computation < proto.computation_count();
@@ -100,7 +94,7 @@ StatusOr<DeviceAssignment> ComputationPlacer::AssignDevices(
     se::Platform::Id platform_id,
     ComputationPlacerCreationFunction creation_function) {
   tensorflow::mutex_lock lock(
-      ComputationPlacer::platform_computation_placer_mutex_);
+      *ComputationPlacer::platform_computation_placer_mutex());
   auto* computation_placers = GetPlatformComputationPlacers();
   CHECK(computation_placers->find(platform_id) == computation_placers->end());
   (*computation_placers)[platform_id].creation_function = creation_function;
@@ -109,7 +103,7 @@ StatusOr<DeviceAssignment> ComputationPlacer::AssignDevices(
 /* static */ StatusOr<ComputationPlacer*> ComputationPlacer::GetForPlatform(
     const se::Platform* platform) {
   tensorflow::mutex_lock lock(
-      ComputationPlacer::platform_computation_placer_mutex_);
+      *ComputationPlacer::platform_computation_placer_mutex());
   auto* computation_placers = GetPlatformComputationPlacers();
 
   auto it = computation_placers->find(platform->id());
@@ -128,9 +122,11 @@ StatusOr<DeviceAssignment> ComputationPlacer::AssignDevices(
   return it->second.placer.get();
 }
 
-/* static */ tensorflow::mutex
-    ComputationPlacer::platform_computation_placer_mutex_(
-        tensorflow::LINKER_INITIALIZED);
+/* static */ tensorflow::mutex*
+ComputationPlacer::platform_computation_placer_mutex() {
+  static tensorflow::mutex* m = new tensorflow::mutex;
+  return m;
+}
 
 /* static */ std::map<perftools::gputools::Platform::Id,
                       ComputationPlacer::State>*

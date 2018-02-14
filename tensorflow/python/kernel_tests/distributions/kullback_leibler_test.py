@@ -59,21 +59,13 @@ class KLTest(test.TestCase):
     # pylint: disable=unused-argument,unused-variable
 
     with self.test_session():
-      a = MyDistException(loc=0.0, scale=1.0, allow_nan_stats=False)
+      a = MyDistException(loc=0.0, scale=1.0)
       kl = kullback_leibler.kl_divergence(a, a, allow_nan_stats=False)
       with self.assertRaisesOpError(
           "KL calculation between .* and .* returned NaN values"):
         kl.eval()
-      with self.assertRaisesOpError(
-          "KL calculation between .* and .* returned NaN values"):
-        a.kl_divergence(a).eval()
-      a = MyDistException(loc=0.0, scale=1.0, allow_nan_stats=True)
       kl_ok = kullback_leibler.kl_divergence(a, a)
       self.assertAllEqual([float("nan")], kl_ok.eval())
-      self_kl_ok = a.kl_divergence(a)
-      self.assertAllEqual([float("nan")], self_kl_ok.eval())
-      cross_ok = a.cross_entropy(a)
-      self.assertAllEqual([float("nan")], cross_ok.eval())
 
   def testRegistrationFailures(self):
 
@@ -94,22 +86,16 @@ class KLTest(test.TestCase):
     for (k, v) in _DIVERGENCES.items():
       self.assertEqual(v, _registered_kl(*k))
 
-  def _testIndirectRegistration(self, fn):
+  def testIndirectRegistration(self):
 
     class Sub1(normal.Normal):
-
-      def entropy(self):
-        return ""
+      pass
 
     class Sub2(normal.Normal):
-
-      def entropy(self):
-        return ""
+      pass
 
     class Sub11(Sub1):
-
-      def entropy(self):
-        return ""
+      pass
 
     # pylint: disable=unused-argument,unused-variable
     @kullback_leibler.RegisterKL(Sub1, Sub1)
@@ -130,30 +116,16 @@ class KLTest(test.TestCase):
     sub2 = Sub2(loc=0.0, scale=1.0)
     sub11 = Sub11(loc=0.0, scale=1.0)
 
-    self.assertEqual("sub1-1", fn(sub1, sub1))
-    self.assertEqual("sub1-2", fn(sub1, sub2))
-    self.assertEqual("sub2-1", fn(sub2, sub1))
-    self.assertEqual("sub1-1", fn(sub11, sub11))
-    self.assertEqual("sub1-1", fn(sub11, sub1))
-    self.assertEqual("sub1-2", fn(sub11, sub2))
-    self.assertEqual("sub1-1", fn(sub11, sub1))
-    self.assertEqual("sub1-2", fn(sub11, sub2))
-    self.assertEqual("sub2-1", fn(sub2, sub11))
-    self.assertEqual("sub1-1", fn(sub1, sub11))
-
-  def testIndirectRegistrationKLFun(self):
-    self._testIndirectRegistration(kullback_leibler.kl_divergence)
-
-  def testIndirectRegistrationKLSelf(self):
-    self._testIndirectRegistration(
-        lambda p, q: p.kl_divergence(q))
-
-  def testIndirectRegistrationCrossEntropy(self):
-    self._testIndirectRegistration(
-        lambda p, q: p.cross_entropy(q))
-
-  def testFunctionCrossEntropy(self):
-    self._testIndirectRegistration(kullback_leibler.cross_entropy)
+    self.assertEqual("sub1-1", kullback_leibler.kl_divergence(sub1, sub1))
+    self.assertEqual("sub1-2", kullback_leibler.kl_divergence(sub1, sub2))
+    self.assertEqual("sub2-1", kullback_leibler.kl_divergence(sub2, sub1))
+    self.assertEqual("sub1-1", kullback_leibler.kl_divergence(sub11, sub11))
+    self.assertEqual("sub1-1", kullback_leibler.kl_divergence(sub11, sub1))
+    self.assertEqual("sub1-2", kullback_leibler.kl_divergence(sub11, sub2))
+    self.assertEqual("sub1-1", kullback_leibler.kl_divergence(sub11, sub1))
+    self.assertEqual("sub1-2", kullback_leibler.kl_divergence(sub11, sub2))
+    self.assertEqual("sub2-1", kullback_leibler.kl_divergence(sub2, sub11))
+    self.assertEqual("sub1-1", kullback_leibler.kl_divergence(sub1, sub11))
 
 
 if __name__ == "__main__":

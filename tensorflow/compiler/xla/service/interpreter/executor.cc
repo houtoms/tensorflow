@@ -85,7 +85,7 @@ bool InterpreterExecutor::HostCallback(Stream *stream,
 bool InterpreterExecutor::CreateStreamDependency(Stream *dependent,
                                                  Stream *other) {
   AsExecutorStream(dependent)->EnqueueTask(
-      [other]() { SE_CHECK_OK(other->BlockHostUntilDoneWithStatus()); });
+      [other]() { other->BlockHostUntilDone(); });
   AsExecutorStream(dependent)->BlockUntilDone();
   return true;
 }
@@ -100,9 +100,9 @@ bool InterpreterExecutor::StopTimer(Stream *stream, Timer *timer) {
   return true;
 }
 
-port::Status InterpreterExecutor::BlockHostUntilDoneWithStatus(Stream *stream) {
+bool InterpreterExecutor::BlockHostUntilDone(Stream *stream) {
   AsExecutorStream(stream)->BlockUntilDone();
-  return port::Status::OK();
+  return true;
 }
 
 DeviceDescription *InterpreterExecutor::PopulateDeviceDescription() const {

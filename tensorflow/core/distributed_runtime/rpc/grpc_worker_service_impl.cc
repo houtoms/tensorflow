@@ -32,8 +32,6 @@ const char* GrpcWorkerMethodName(GrpcWorkerMethod id) {
       return "/tensorflow.WorkerService/GetStatus";
     case GrpcWorkerMethod::kCreateWorkerSession:
       return "/tensorflow.WorkerService/CreateWorkerSession";
-    case GrpcWorkerMethod::kDeleteWorkerSession:
-      return "/tensorflow.WorkerService/DeleteWorkerSession";
     case GrpcWorkerMethod::kRegisterGraph:
       return "/tensorflow.WorkerService/RegisterGraph";
     case GrpcWorkerMethod::kDeregisterGraph:

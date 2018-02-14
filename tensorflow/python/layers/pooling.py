@@ -20,7 +20,6 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-from tensorflow.python.eager import context
 from tensorflow.python.framework import tensor_shape
 from tensorflow.python.layers import base
 from tensorflow.python.layers import utils
@@ -145,9 +144,6 @@ def average_pooling1d(inputs, pool_size, strides,
 
   Returns:
     The output tensor, of rank 3.
-
-  Raises:
-    ValueError: if eager execution is enabled.
   """
   layer = AveragePooling1D(pool_size=pool_size,
                            strides=strides,
@@ -210,9 +206,6 @@ def max_pooling1d(inputs, pool_size, strides,
 
   Returns:
     The output tensor, of rank 3.
-
-  Raises:
-    ValueError: if eager execution is enabled.
   """
   layer = MaxPooling1D(pool_size=pool_size,
                        strides=strides,
@@ -351,9 +344,6 @@ def average_pooling2d(inputs,
 
   Returns:
     Output tensor.
-
-  Raises:
-    ValueError: if eager execution is enabled.
   """
   layer = AveragePooling2D(pool_size=pool_size, strides=strides,
                            padding=padding, data_format=data_format,
@@ -419,9 +409,6 @@ def max_pooling2d(inputs,
 
   Returns:
     Output tensor.
-
-  Raises:
-    ValueError: if eager execution is enabled.
   """
   layer = MaxPooling2D(pool_size=pool_size, strides=strides,
                        padding=padding, data_format=data_format,
@@ -573,9 +560,6 @@ def average_pooling3d(inputs,
 
   Returns:
     Output tensor.
-
-  Raises:
-    ValueError: if eager execution is enabled.
   """
   layer = AveragePooling3D(pool_size=pool_size, strides=strides,
                            padding=padding, data_format=data_format,
@@ -645,9 +629,6 @@ def max_pooling3d(inputs,
 
   Returns:
     Output tensor.
-
-  Raises:
-    ValueError: if eager execution is enabled.
   """
   layer = MaxPooling3D(pool_size=pool_size, strides=strides,
                        padding=padding, data_format=data_format,

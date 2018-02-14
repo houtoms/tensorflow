@@ -101,8 +101,21 @@ Status ComputeArgSizes(const CompileResult& compile_result,
                        std::vector<int64>* arg_sizes) {
   const xla::ProgramShape& ps = compile_result.program_shape;
   for (int i = 0; i < ps.parameters_size(); ++i) {
-    arg_sizes->push_back(xla::ShapeUtil::ByteSizeOf(
-        ps.parameters(i), compile_result.pointer_size));
+    if (i == ps.parameters_size() - 1 && compile_result.has_context_arg) {
+      // If the compiled function needs a XlaLocalRuntimeContext* arg, it's
+      // always last, and must be represented as an opaque type.
+      const xla::PrimitiveType type = ps.parameters(i).element_type();
+      if (type != xla::OPAQUE) {
+        return errors::InvalidArgument(
+            "expected final context arg to be opaque, but got type: ",
+            xla::PrimitiveType_Name(type), ", from program shape: ",
+            xla::ShapeUtil::HumanString(ps));
+      }
+      arg_sizes->push_back(-1);
+    } else {
+      arg_sizes->push_back(xla::ShapeUtil::ByteSizeOf(
+          ps.parameters(i), compile_result.pointer_size));
+    }
   }
   return Status::OK();
 }
@@ -152,6 +165,11 @@ string RewriteWithName(const string& name, string code,
 Status GenArgMethods(const tf2xla::Config& config, const xla::ProgramShape& ps,
                      const CompileResult& compile_result, string* methods) {
   size_t num_args = ps.parameters_size();
+  if (compile_result.has_context_arg) {
+    // If the compiled function needs a XlaLocalRuntimeContext* arg, it's
+    // always last, and is set in the class constructor.
+    num_args--;
+  }
   if (config.feed_size() != num_args) {
     return errors::InvalidArgument("mismatch between feed_size(",
                                    config.feed_size(), ") and num_args(",
@@ -400,7 +418,7 @@ namespace xla { class ExecutableRunOptions; }
 // (Implementation detail) Entry point to the function in the object file.
 extern "C" void {{ENTRY}}(
     void* result, const xla::ExecutableRunOptions* run_options,
-    const void** args, void** temps, tensorflow::int64* profile_counters);
+    const void** args, void** temps);
 
 {{NS_START}}
 // {{CLASS}} represents a computation previously specified in a
@@ -456,6 +474,7 @@ class {{CLASS}} : public tensorflow::XlaCompiledCpuFunction {
       data->temp_sizes = TempSizes();
       data->num_temps = kNumTemps;
       data->result_index = kResultIndex;
+      data->requires_runtime_context = {{HAS_CONTEXT_ARG}};
       data->arg_names = StaticArgNames();
       data->result_names = StaticResultNames();
       data->program_shape = StaticProgramShape();
@@ -464,7 +483,7 @@ class {{CLASS}} : public tensorflow::XlaCompiledCpuFunction {
     return *kStaticData;
   }
 
-  {{CLASS}}(AllocMode alloc_mode = AllocMode::ARGS_RESULTS_PROFILES_AND_TEMPS)
+  {{CLASS}}(AllocMode alloc_mode = AllocMode::ARGS_RESULTS_AND_TEMPS)
       : XlaCompiledCpuFunction(StaticData(), alloc_mode) {}
 
   {{CLASS}}(const {{CLASS}}&) = delete;
@@ -477,8 +496,8 @@ class {{CLASS}} : public tensorflow::XlaCompiledCpuFunction {
   // void set_argN_data(void* data)
   //   Sets the buffer of type T for positional argument N. May be called in
   //   any AllocMode. Must be called before Run to have an affect. Must be
-  //   called in AllocMode::RESULTS_PROFILES_AND_TEMPS_ONLY for each positional
-  //   argument, to set the argument buffers.
+  //   called in AllocMode::RESULTS_AND_TEMPS_ONLY for each positional argument,
+  //   to set the argument buffers.
   //
   // T* argN_data()
   //   Returns the buffer of type T for positional argument N.
@@ -541,6 +560,8 @@ class {{CLASS}} : public tensorflow::XlaCompiledCpuFunction {
       {"{{ARG_SIZES}}", str_util::Join(arg_sizes, ", ")},
       {"{{CLASS}}", opts.class_name},
       {"{{ENTRY}}", compile_result.entry_point},
+      {"{{HAS_CONTEXT_ARG}}",
+       compile_result.has_context_arg ? "true" : "false"},
       {"{{INCLUDE_XLA_DATA_PROTO}}", include_xla_data_proto},
       {"{{METHODS_ARG}}\n", methods_arg},
       {"{{METHODS_RESULT}}\n", methods_result},

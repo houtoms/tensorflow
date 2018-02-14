@@ -162,7 +162,7 @@ void HostExecutor::DeallocateStream(Stream *stream) {}
 
 bool HostExecutor::CreateStreamDependency(Stream *dependent, Stream *other) {
   AsHostStream(dependent)->EnqueueTask(
-      [other]() { SE_CHECK_OK(other->BlockHostUntilDoneWithStatus()); });
+      [other]() { other->BlockHostUntilDone(); });
   AsHostStream(dependent)->BlockUntilDone();
   return true;
 }
@@ -177,9 +177,9 @@ bool HostExecutor::StopTimer(Stream *stream, Timer *timer) {
   return true;
 }
 
-port::Status HostExecutor::BlockHostUntilDoneWithStatus(Stream *stream) {
+bool HostExecutor::BlockHostUntilDone(Stream *stream) {
   AsHostStream(stream)->BlockUntilDone();
-  return port::Status::OK();
+  return true;
 }
 
 DeviceDescription *HostExecutor::PopulateDeviceDescription() const {

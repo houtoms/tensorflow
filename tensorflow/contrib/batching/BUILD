@@ -70,29 +70,6 @@ tf_cc_test(
 )
 
 cc_library(
-    name = "adaptive_shared_batch_scheduler",
-    hdrs = ["adaptive_shared_batch_scheduler.h"],
-    deps = [
-        ":batch_scheduler",
-        "//tensorflow/contrib/batching/util:periodic_function_dynamic",
-        "//tensorflow/core:lib",
-    ],
-)
-
-tf_cc_test(
-    name = "adaptive_shared_batch_scheduler_test",
-    srcs = ["adaptive_shared_batch_scheduler_test.cc"],
-    tags = ["manual"],  # b/69013768
-    deps = [
-        ":adaptive_shared_batch_scheduler",
-        "//tensorflow/contrib/batching/test_util:fake_clock_env",
-        "//tensorflow/core:lib",
-        "//tensorflow/core:test",
-        "//tensorflow/core:test_main",
-    ],
-)
-
-cc_library(
     name = "basic_batch_scheduler",
     hdrs = ["basic_batch_scheduler.h"],
     deps = [
@@ -178,13 +155,14 @@ tf_custom_op_py_library(
     deps = [
         ":batch_ops",
         "//tensorflow/contrib/util:util_py",
-        "//tensorflow/python:array_ops",
         "//tensorflow/python:client_testlib",
+        "//tensorflow/python:errors",
         "//tensorflow/python:framework_for_generated_wrappers",
-        "//tensorflow/python:gradients",
+        "//tensorflow/python:math_ops",
         "//tensorflow/python:platform",
-        "//tensorflow/python:script_ops",
-        "//tensorflow/python:util",
+        "//tensorflow/python:state_ops",
+        "//tensorflow/python:variable_scope",
+        "//tensorflow/python:variables",
     ],
 )
 

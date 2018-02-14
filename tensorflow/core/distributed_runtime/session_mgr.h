@@ -45,8 +45,7 @@ class SessionMgr {
   ~SessionMgr() {}
 
   // Allocates state for a new session.
-  Status CreateSession(const string& session, const ServerDef& server_def,
-                       bool isolate_session_state);
+  Status CreateSession(const string& session, const ServerDef& server_def);
 
   // Locates the worker session for a given session handle
   WorkerSession* WorkerSessionForSession(const string& session);
@@ -72,7 +71,6 @@ class SessionMgr {
   // legacy_session_ is deleted. Further, we must ensure that WorkerSession's
   // device_mgr is deleted after WorkerSession's graph_mgr.
 
-  std::unique_ptr<WorkerCacheInterface> default_worker_cache_;
   WorkerSession legacy_session_;
 
   const WorkerCacheFactory worker_cache_factory_;

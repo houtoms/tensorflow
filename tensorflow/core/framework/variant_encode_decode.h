@@ -233,7 +233,6 @@ void EncodeVariant(const T& value, string* buf) {
   VariantTensorData data;
   EncodeVariantImpl(value, TypeResolver<T>(), &data);
   data.set_type_name(TypeNameVariant(value));
-  DCHECK(buf != nullptr);
   data.SerializeToString(buf);
 }
 

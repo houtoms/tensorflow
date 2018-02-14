@@ -18,27 +18,27 @@ limitations under the License.
 #include "tensorflow/core/framework/op.h"
 #include "tensorflow/core/framework/op_kernel.h"
 
+using namespace tensorflow;
+
 REGISTER_OP("Fact")
     .Output("fact: string")
     .Doc(R"doc(
 Output a fact about factorials.
 )doc");
 
-class FactOp : public tensorflow::OpKernel {
+class FactOp : public OpKernel {
  public:
-  explicit FactOp(tensorflow::OpKernelConstruction* context)
-      : OpKernel(context) {}
+  explicit FactOp(OpKernelConstruction* context) : OpKernel(context) {}
 
-  void Compute(tensorflow::OpKernelContext* context) override {
+  void Compute(OpKernelContext* context) override {
     // Output a scalar string.
-    tensorflow::Tensor* output_tensor = nullptr;
-    OP_REQUIRES_OK(context, context->allocate_output(
-                                0, tensorflow::TensorShape(), &output_tensor));
-    using tensorflow::string;
+    Tensor* output_tensor = nullptr;
+    OP_REQUIRES_OK(context,
+                   context->allocate_output(0, TensorShape(), &output_tensor));
     auto output = output_tensor->template scalar<string>();
 
     output() = "0! == 1";
   }
 };
 
-REGISTER_KERNEL_BUILDER(Name("Fact").Device(tensorflow::DEVICE_CPU), FactOp);
+REGISTER_KERNEL_BUILDER(Name("Fact").Device(DEVICE_CPU), FactOp);

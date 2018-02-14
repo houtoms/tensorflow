@@ -71,14 +71,12 @@ void XlaTransferManager::CopyCPUTensorToDevice(const Tensor* cpu_tensor,
     void* dst_ptr = DMAHelper::base(device_tensor);
     se::DeviceMemoryBase dev_dst_ptr(dst_ptr, total_bytes);
 
-    Status status;
+    Status status = Status::OK();
     stream_->ThenMemcpy(&dev_dst_ptr, src_ptr, total_bytes);
     // TODO(hpucha): Make this asynchronous.
-    Status block_status = stream_->BlockHostUntilDone();
-    if (!block_status.ok()) {
+    if (!stream_->BlockHostUntilDone()) {
       status = xla::InternalError(
-          "Failed to complete data transfer on stream %p: %s", stream_,
-          block_status.error_message().c_str());
+          "Failed to complete data transfer on stream %p", stream_);
     }
 
     done(status);
@@ -107,14 +105,12 @@ void XlaTransferManager::CopyDeviceTensorToCPU(const Tensor* device_tensor,
     se::DeviceMemoryBase dev_src_ptr(src_ptr, total_bytes);
     void* dst_ptr = DMAHelper::base(cpu_tensor);
 
-    Status status;
+    Status status = Status::OK();
     stream_->ThenMemcpy(dst_ptr, dev_src_ptr, total_bytes);
     // TODO(hpucha): Make this asynchronous.
-    Status block_status = stream_->BlockHostUntilDone();
-    if (!block_status.ok()) {
+    if (!stream_->BlockHostUntilDone()) {
       status = xla::InternalError(
-          "Failed to complete data transfer on stream %p: %s", stream_,
-          block_status.error_message().c_str());
+          "Failed to complete data transfer on stream %p", stream_);
     }
 
     done(status);

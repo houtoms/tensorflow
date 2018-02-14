@@ -192,10 +192,6 @@ class BasicBatchScheduler : public BatchScheduler<TaskType> {
   size_t NumEnqueuedTasks() const override;
   size_t SchedulingCapacity() const override;
 
-  size_t max_task_size() const override {
-    return shared_scheduler_queue_->max_task_size();
-  }
-
  private:
   explicit BasicBatchScheduler(
       std::unique_ptr<BatchScheduler<TaskType>> shared_scheduler_queue);

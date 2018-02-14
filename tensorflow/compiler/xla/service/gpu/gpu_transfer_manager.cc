@@ -44,7 +44,7 @@ GpuTransferManager::GpuTransferManager()
     : GenericTransferManager(
           se::cuda::kCudaPlatformId,
           /*pointer_size=*/llvm::DataLayout(gpu::GpuCompiler::kDataLayout)
-              .getPointerSize(0 /* default address space */)) {}
+              .getPointerSize()) {}
 
 Status GpuTransferManager::TransferLiteralToInfeed(se::StreamExecutor* executor,
                                                    const Literal& literal) {
@@ -105,13 +105,12 @@ Status GpuTransferManager::EnqueueBuffersToInfeed(
   // infeed requests, blocking on the stream might be
   // heavy-handed. Figure out if finer-grained acknowledgement is
   // possible.
-  Status block_status = stream->BlockHostUntilDone();
-  if (!block_status.ok()) {
+  if (!stream->BlockHostUntilDone()) {
     for (gpu::InfeedBuffer* b : buffers) {
       b->Done();
     }
-    return InternalError("Failed to complete data transfer on stream %p: %s",
-                         stream, block_status.error_message().c_str());
+    return InternalError("Failed to complete data transfer on stream %p",
+                         stream);
   }
 
   infeed_manager->EnqueueBuffers(buffers);

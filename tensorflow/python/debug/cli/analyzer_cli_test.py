@@ -28,7 +28,6 @@ from tensorflow.core.protobuf import config_pb2
 from tensorflow.core.protobuf import rewriter_config_pb2
 from tensorflow.python.client import session
 from tensorflow.python.debug.cli import analyzer_cli
-from tensorflow.python.debug.cli import cli_config
 from tensorflow.python.debug.cli import cli_shared
 from tensorflow.python.debug.cli import command_parser
 from tensorflow.python.debug.cli import debugger_cli_common
@@ -46,17 +45,10 @@ from tensorflow.python.platform import test
 from tensorflow.python.util import tf_inspect
 
 
-def _cli_config_from_temp_file():
-  return cli_config.CLIConfig(
-      config_file_path=os.path.join(tempfile.mkdtemp(), ".tfdbg_config"))
-
-
 def no_rewrite_session_config():
   rewriter_config = rewriter_config_pb2.RewriterConfig(
       disable_model_pruning=True,
-      constant_folding=rewriter_config_pb2.RewriterConfig.OFF,
-      arithmetic_optimization=rewriter_config_pb2.RewriterConfig.OFF)
-
+      constant_folding=rewriter_config_pb2.RewriterConfig.OFF)
   graph_options = config_pb2.GraphOptions(rewrite_options=rewriter_config)
   return config_pb2.ConfigProto(graph_options=graph_options)
 
@@ -520,7 +512,7 @@ def create_analyzer_cli(dump):
        and has the common tfdbg commands, e.g., lt, ni, li, lo, registered.
   """
   # Construct the analyzer.
-  analyzer = analyzer_cli.DebugAnalyzer(dump, _cli_config_from_temp_file())
+  analyzer = analyzer_cli.DebugAnalyzer(dump)
 
   # Construct the handler registry.
   registry = debugger_cli_common.CommandHandlerRegistry()
@@ -1224,14 +1216,12 @@ class AnalyzerCLISimpleMulAddTest(test_util.TensorFlowTestCase):
         "       [-14.,   4.]])"], out.lines)
 
   def testAddGetTensorFilterLambda(self):
-    analyzer = analyzer_cli.DebugAnalyzer(self._debug_dump,
-                                          _cli_config_from_temp_file())
+    analyzer = analyzer_cli.DebugAnalyzer(self._debug_dump)
     analyzer.add_tensor_filter("foo_filter", lambda x, y: True)
     self.assertTrue(analyzer.get_tensor_filter("foo_filter")(None, None))
 
   def testAddGetTensorFilterNestedFunction(self):
-    analyzer = analyzer_cli.DebugAnalyzer(self._debug_dump,
-                                          _cli_config_from_temp_file())
+    analyzer = analyzer_cli.DebugAnalyzer(self._debug_dump)
 
     def foo_filter(unused_arg_0, unused_arg_1):
       return True
@@ -1240,16 +1230,14 @@ class AnalyzerCLISimpleMulAddTest(test_util.TensorFlowTestCase):
     self.assertTrue(analyzer.get_tensor_filter("foo_filter")(None, None))
 
   def testAddTensorFilterEmptyName(self):
-    analyzer = analyzer_cli.DebugAnalyzer(self._debug_dump,
-                                          _cli_config_from_temp_file())
+    analyzer = analyzer_cli.DebugAnalyzer(self._debug_dump)
 
     with self.assertRaisesRegexp(ValueError,
                                  "Input argument filter_name cannot be empty."):
       analyzer.add_tensor_filter("", lambda datum, tensor: True)
 
   def testAddTensorFilterNonStrName(self):
-    analyzer = analyzer_cli.DebugAnalyzer(self._debug_dump,
-                                          _cli_config_from_temp_file())
+    analyzer = analyzer_cli.DebugAnalyzer(self._debug_dump)
 
     with self.assertRaisesRegexp(
         TypeError,
@@ -1257,8 +1245,7 @@ class AnalyzerCLISimpleMulAddTest(test_util.TensorFlowTestCase):
       analyzer.add_tensor_filter(1, lambda datum, tensor: True)
 
   def testAddGetTensorFilterNonCallable(self):
-    analyzer = analyzer_cli.DebugAnalyzer(self._debug_dump,
-                                          _cli_config_from_temp_file())
+    analyzer = analyzer_cli.DebugAnalyzer(self._debug_dump)
 
     with self.assertRaisesRegexp(
         TypeError, "Input argument filter_callable is expected to be callable, "
@@ -1266,8 +1253,7 @@ class AnalyzerCLISimpleMulAddTest(test_util.TensorFlowTestCase):
       analyzer.add_tensor_filter("foo_filter", "bar")
 
   def testGetNonexistentTensorFilter(self):
-    analyzer = analyzer_cli.DebugAnalyzer(self._debug_dump,
-                                          _cli_config_from_temp_file())
+    analyzer = analyzer_cli.DebugAnalyzer(self._debug_dump)
 
     analyzer.add_tensor_filter("foo_filter", lambda datum, tensor: True)
     with self.assertRaisesRegexp(ValueError,

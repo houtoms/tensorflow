@@ -12,11 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-"""TFGAN estimator module.
-
-GANEstimator provides all the infrastructure support of a TensorFlow Estimator
-with the feature support of TFGAN.
-"""
+"""TFGAN grouped API. Please see README.md for details and usage."""
 
 from __future__ import absolute_import
 from __future__ import division

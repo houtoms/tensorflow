@@ -6,11 +6,10 @@ licenses(["notice"])  # MIT/X derivative license
 exports_files(["COPYING"])
 
 CURL_WIN_COPTS = [
-    "/Iexternal/curl/lib",
+    "/I%prefix%/curl/lib",
     "/DHAVE_CONFIG_H",
     "/DCURL_DISABLE_FTP",
     "/DCURL_DISABLE_NTLM",
-    "/DCURL_DISABLE_PROXY",
     "/DHAVE_LIBZ",
     "/DHAVE_ZLIB_H",
     # Defining _USING_V110_SDK71_ is hackery to defeat curl's incorrect
@@ -24,8 +23,6 @@ CURL_WIN_SRCS = [
     "lib/asyn-thread.c",
     "lib/inet_ntop.c",
     "lib/system_win32.c",
-    "lib/vtls/schannel.c",
-    "lib/idn_win32.c",
 ]
 
 cc_library(
@@ -227,14 +224,14 @@ cc_library(
         "lib/wildcard.h",
         "lib/x509asn1.h",
     ] + select({
-        "@org_tensorflow//tensorflow:darwin": [
+        "@%ws%//tensorflow:darwin": [
             "lib/vtls/darwinssl.c",
         ],
-        "@org_tensorflow//tensorflow:ios": [
+        "@%ws%//tensorflow:ios": [
             "lib/vtls/darwinssl.c",
         ],
-        "@org_tensorflow//tensorflow:windows": CURL_WIN_SRCS,
-        "@org_tensorflow//tensorflow:windows_msvc": CURL_WIN_SRCS,
+        "@%ws%//tensorflow:windows": CURL_WIN_SRCS,
+        "@%ws%//tensorflow:windows_msvc": CURL_WIN_SRCS,
         "//conditions:default": [
             "lib/vtls/openssl.c",
         ],
@@ -251,10 +248,10 @@ cc_library(
         "include/curl/typecheck-gcc.h",
     ],
     copts = select({
-        "@org_tensorflow//tensorflow:windows": CURL_WIN_COPTS,
-        "@org_tensorflow//tensorflow:windows_msvc": CURL_WIN_COPTS,
+        "@%ws%//tensorflow:windows": CURL_WIN_COPTS,
+        "@%ws%//tensorflow:windows_msvc": CURL_WIN_COPTS,
         "//conditions:default": [
-            "-Iexternal/curl/lib",
+            "-I%prefix%/curl/lib",
             "-D_GNU_SOURCE",
             "-DHAVE_CONFIG_H",
             "-DCURL_DISABLE_FTP",
@@ -264,14 +261,14 @@ cc_library(
             "-Wno-string-plus-int",
         ],
     }) + select({
-        "@org_tensorflow//tensorflow:darwin": [
+        "@%ws%//tensorflow:darwin": [
             "-fno-constant-cfstrings",
         ],
-        "@org_tensorflow//tensorflow:windows": [
+        "@%ws%//tensorflow:windows": [
             # See curl.h for discussion of write size and Windows
             "/DCURL_MAX_WRITE_SIZE=16384",
         ],
-        "@org_tensorflow//tensorflow:windows_msvc": [
+        "@%ws%//tensorflow:windows_msvc": [
             # See curl.h for discussion of write size and Windows
             "/DCURL_MAX_WRITE_SIZE=16384",
         ],
@@ -279,30 +276,23 @@ cc_library(
             "-DCURL_MAX_WRITE_SIZE=65536",
         ],
     }),
-    defines = ["CURL_STATICLIB"],
     includes = ["include"],
     linkopts = select({
-        "@org_tensorflow//tensorflow:android": [
+        "@%ws%//tensorflow:android": [
             "-pie",
         ],
-        "@org_tensorflow//tensorflow:darwin": [
+        "@%ws%//tensorflow:darwin": [
             "-Wl,-framework",
             "-Wl,CoreFoundation",
             "-Wl,-framework",
             "-Wl,Security",
         ],
-        "@org_tensorflow//tensorflow:ios": [],
-        "@org_tensorflow//tensorflow:windows": [
-            "-DEFAULTLIB:ws2_32.lib",
-            "-DEFAULTLIB:advapi32.lib",
-            "-DEFAULTLIB:crypt32.lib",
-            "-DEFAULTLIB:Normaliz.lib",
+        "@%ws%//tensorflow:ios": [],
+        "@%ws%//tensorflow:windows": [
+            "-Wl,ws2_32.lib",
         ],
-        "@org_tensorflow//tensorflow:windows_msvc": [
-            "-DEFAULTLIB:ws2_32.lib",
-            "-DEFAULTLIB:advapi32.lib",
-            "-DEFAULTLIB:crypt32.lib",
-            "-DEFAULTLIB:Normaliz.lib",
+        "@%ws%//tensorflow:windows_msvc": [
+            "-Wl,ws2_32.lib",
         ],
         "//conditions:default": [
             "-lrt",
@@ -312,9 +302,9 @@ cc_library(
     deps = [
         "@zlib_archive//:zlib",
     ] + select({
-        "@org_tensorflow//tensorflow:ios": [],
-        "@org_tensorflow//tensorflow:windows": [],
-        "@org_tensorflow//tensorflow:windows_msvc": [],
+        "@%ws%//tensorflow:ios": [],
+        "@%ws%//tensorflow:windows": [],
+        "@%ws%//tensorflow:windows_msvc": [],
         "//conditions:default": [
             "@boringssl//:ssl",
         ],
@@ -322,7 +312,7 @@ cc_library(
 )
 
 CURL_BIN_WIN_COPTS = [
-    "/Iexternal/curl/lib",
+    "/I%prefix%/curl/lib",
     "/DHAVE_CONFIG_H",
     "/DCURL_DISABLE_LIBCURL_OPTION",
 ]
@@ -416,10 +406,10 @@ cc_binary(
         "src/tool_xattr.h",
     ],
     copts = select({
-        "@org_tensorflow//tensorflow:windows": CURL_BIN_WIN_COPTS,
-        "@org_tensorflow//tensorflow:windows_msvc": CURL_BIN_WIN_COPTS,
+        "@%ws%//tensorflow:windows": CURL_BIN_WIN_COPTS,
+        "@%ws%//tensorflow:windows_msvc": CURL_BIN_WIN_COPTS,
         "//conditions:default": [
-            "-Iexternal/curl/lib",
+            "-I%prefix%/curl/lib",
             "-D_GNU_SOURCE",
             "-DHAVE_CONFIG_H",
             "-DCURL_DISABLE_LIBCURL_OPTION",
@@ -448,22 +438,12 @@ genrule(
         "#  include \"lib/config-win32.h\"",
         "#  define BUILDING_LIBCURL 1",
         "#  define CURL_DISABLE_CRYPTO_AUTH 1",
-        "#  define CURL_DISABLE_DICT 1",
-        "#  define CURL_DISABLE_FILE 1",
-        "#  define CURL_DISABLE_GOPHER 1",
         "#  define CURL_DISABLE_IMAP 1",
         "#  define CURL_DISABLE_LDAP 1",
         "#  define CURL_DISABLE_LDAPS 1",
         "#  define CURL_DISABLE_POP3 1",
         "#  define CURL_PULL_WS2TCPIP_H 1",
-        "#  define CURL_DISABLE_SMTP 1",
-        "#  define CURL_DISABLE_TELNET 1",
-        "#  define CURL_DISABLE_TFTP 1",
-        "#  define CURL_PULL_WS2TCPIP_H 1",
-        "#  define USE_WINDOWS_SSPI 1",
-        "#  define USE_WIN32_IDN 1",
-        "#  define USE_SCHANNEL 1",
-        "#  define WANT_IDN_PROTOTYPES 1",
+        "#  define HTTP_ONLY 1",
         "#elif defined(__APPLE__)",
         "#  define HAVE_FSETXATTR_6 1",
         "#  define HAVE_SETMODE 1",
@@ -497,6 +477,7 @@ genrule(
         "#  define HAVE_RAND_EGD 1",
         "#  define HAVE_RAND_STATUS 1",
         "#  define HAVE_SSL_GET_SHUTDOWN 1",
+        "#  define HAVE_STROPTS_H 1",
         "#  define HAVE_TERMIOS_H 1",
         "#  define OS \"x86_64-pc-linux-gnu\"",
         "#  define RANDOM_FILE \"/dev/urandom\"",

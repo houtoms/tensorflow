@@ -105,7 +105,6 @@ Status ClusterFunctionLibraryRuntime::ConstructFunctionGraph(
         Rendezvous::CreateKey(target, 1 /* src_incarnation */, target,
                               out.name(), FrameAndIter(0, 0));
     recv_keys->push_back(key);
-    ++i;
   }
   return Status::OK();
 }
@@ -125,11 +124,8 @@ Status ClusterFunctionLibraryRuntime::Instantiate(
   WorkerInterface* wi = worker_session_->worker_cache->CreateWorker(target);
 
   if (wi == nullptr) {
-    std::vector<string> workers;
-    worker_session_->worker_cache->ListWorkers(&workers);
-    return errors::InvalidArgument(
-        "Could not find worker with target: ", target,
-        " Available workers: ", str_util::Join(workers, ", "));
+    return errors::InvalidArgument("Could not find worker with target: ",
+                                   target);
   }
 
   // Make RPC and obtain a graph handle.

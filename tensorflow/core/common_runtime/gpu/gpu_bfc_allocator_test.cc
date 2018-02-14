@@ -354,13 +354,12 @@ BENCHMARK(BM_AllocationDelayed)->Arg(1)->Arg(10)->Arg(100)->Arg(1000);
 
 }  // namespace
 
-class GPUBFCAllocatorPrivateMethodsTest : public ::testing::Test {
+class GPUBFCAllocatorBinDebugInfoTest : public ::testing::Test {
  protected:
-  // The following test methods are called from tests. The reason for this is
-  // that this class is a friend class to BFCAllocator, but tests are not, so
-  // only methods inside this class can access private members of BFCAllocator.
-
-  void TestBinDebugInfo() {
+  // This test method is called from a test. The reason for this is that this
+  // class is a friend class to BFCAllocator, but tests are not, so only this
+  // method can access the type BFCAllocator::BinDebugInfo.
+  void testBinDebugInfo() {
     GPUBFCAllocator a(0, 1 << 30);
 
     std::vector<void*> initial_ptrs;
@@ -437,24 +436,9 @@ class GPUBFCAllocatorPrivateMethodsTest : public ::testing::Test {
       }
     }
   }
-
-  void TestLog2FloorNonZeroSlow() {
-    GPUBFCAllocator a(0 /* device_id */, 1 /* total_memory */);
-    EXPECT_EQ(-1, a.Log2FloorNonZeroSlow(0));
-    EXPECT_EQ(0, a.Log2FloorNonZeroSlow(1));
-    EXPECT_EQ(1, a.Log2FloorNonZeroSlow(2));
-    EXPECT_EQ(1, a.Log2FloorNonZeroSlow(3));
-    EXPECT_EQ(9, a.Log2FloorNonZeroSlow(1023));
-    EXPECT_EQ(10, a.Log2FloorNonZeroSlow(1024));
-    EXPECT_EQ(10, a.Log2FloorNonZeroSlow(1025));
-  }
 };
 
-TEST_F(GPUBFCAllocatorPrivateMethodsTest, BinDebugInfo) { TestBinDebugInfo(); }
-
-TEST_F(GPUBFCAllocatorPrivateMethodsTest, Log2FloorNonZeroSlow) {
-  TestLog2FloorNonZeroSlow();
-}
+TEST_F(GPUBFCAllocatorBinDebugInfoTest, BinDebugInfo) { testBinDebugInfo(); }
 
 }  // namespace tensorflow
 

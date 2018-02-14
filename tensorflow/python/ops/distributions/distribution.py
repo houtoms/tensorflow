@@ -31,7 +31,6 @@ from tensorflow.python.framework import tensor_shape
 from tensorflow.python.framework import tensor_util
 from tensorflow.python.ops import array_ops
 from tensorflow.python.ops import math_ops
-from tensorflow.python.ops.distributions import kullback_leibler
 from tensorflow.python.ops.distributions import util
 from tensorflow.python.util import tf_inspect
 
@@ -44,26 +43,10 @@ __all__ = [
 ]
 
 _DISTRIBUTION_PUBLIC_METHOD_WRAPPERS = [
-    "batch_shape",
-    "batch_shape_tensor",
-    "cdf",
-    "covariance",
-    "cross_entropy",
-    "entropy",
-    "event_shape",
-    "event_shape_tensor",
-    "kl_divergence",
-    "log_cdf",
-    "log_prob",
-    "log_survival_function",
-    "mean",
-    "mode",
-    "prob",
-    "sample",
-    "stddev",
-    "survival_function",
-    "variance",
-]
+    "batch_shape_tensor", "batch_shape", "event_shape_tensor", "event_shape",
+    "sample", "log_prob", "prob", "log_cdf", "cdf", "log_survival_function",
+    "survival_function", "entropy", "mean", "variance", "stddev", "mode",
+    "covariance"]
 
 
 @six.add_metaclass(abc.ABCMeta)
@@ -625,7 +608,7 @@ class Distribution(_BaseDistribution):
     """Indicates that `event_shape == []`.
 
     Args:
-      name: Python `str` prepended to names of ops created by this function.
+      name: The name to give this op.
 
     Returns:
       is_scalar_event: `bool` scalar `Tensor`.
@@ -639,7 +622,7 @@ class Distribution(_BaseDistribution):
     """Indicates that `batch_shape == []`.
 
     Args:
-      name: Python `str` prepended to names of ops created by this function.
+      name: The name to give this op.
 
     Returns:
       is_scalar_batch: `bool` scalar `Tensor`.
@@ -700,7 +683,7 @@ class Distribution(_BaseDistribution):
 
     Args:
       value: `float` or `double` `Tensor`.
-      name: Python `str` prepended to names of ops created by this function.
+      name: The name to give this op.
 
     Returns:
       log_prob: a `Tensor` of shape `sample_shape(x) + self.batch_shape` with
@@ -727,7 +710,7 @@ class Distribution(_BaseDistribution):
 
     Args:
       value: `float` or `double` `Tensor`.
-      name: Python `str` prepended to names of ops created by this function.
+      name: The name to give this op.
 
     Returns:
       prob: a `Tensor` of shape `sample_shape(x) + self.batch_shape` with
@@ -764,7 +747,7 @@ class Distribution(_BaseDistribution):
 
     Args:
       value: `float` or `double` `Tensor`.
-      name: Python `str` prepended to names of ops created by this function.
+      name: The name to give this op.
 
     Returns:
       logcdf: a `Tensor` of shape `sample_shape(x) + self.batch_shape` with
@@ -797,7 +780,7 @@ class Distribution(_BaseDistribution):
 
     Args:
       value: `float` or `double` `Tensor`.
-      name: Python `str` prepended to names of ops created by this function.
+      name: The name to give this op.
 
     Returns:
       cdf: a `Tensor` of shape `sample_shape(x) + self.batch_shape` with
@@ -835,7 +818,7 @@ class Distribution(_BaseDistribution):
 
     Args:
       value: `float` or `double` `Tensor`.
-      name: Python `str` prepended to names of ops created by this function.
+      name: The name to give this op.
 
     Returns:
       `Tensor` of shape `sample_shape(x) + self.batch_shape` with values of type
@@ -870,7 +853,7 @@ class Distribution(_BaseDistribution):
 
     Args:
       value: `float` or `double` `Tensor`.
-      name: Python `str` prepended to names of ops created by this function.
+      name: The name to give this op.
 
     Returns:
       `Tensor` of shape `sample_shape(x) + self.batch_shape` with values of type
@@ -916,7 +899,7 @@ class Distribution(_BaseDistribution):
 
     Args:
       value: `float` or `double` `Tensor`.
-      name: Python `str` prepended to names of ops created by this function.
+      name: The name to give this op.
 
     Returns:
       quantile: a `Tensor` of shape `sample_shape(x) + self.batch_shape` with
@@ -940,7 +923,7 @@ class Distribution(_BaseDistribution):
     denotes expectation, and `Var.shape = batch_shape + event_shape`.
 
     Args:
-      name: Python `str` prepended to names of ops created by this function.
+      name: The name to give this op.
 
     Returns:
       variance: Floating-point `Tensor` with shape identical to
@@ -971,7 +954,7 @@ class Distribution(_BaseDistribution):
     denotes expectation, and `stddev.shape = batch_shape + event_shape`.
 
     Args:
-      name: Python `str` prepended to names of ops created by this function.
+      name: The name to give this op.
 
     Returns:
       stddev: Floating-point `Tensor` with shape identical to
@@ -1019,7 +1002,7 @@ class Distribution(_BaseDistribution):
     length-`k'` vector.
 
     Args:
-      name: Python `str` prepended to names of ops created by this function.
+      name: The name to give this op.
 
     Returns:
       covariance: Floating-point `Tensor` with shape `[B1, ..., Bn, k', k']`
@@ -1036,67 +1019,6 @@ class Distribution(_BaseDistribution):
     """Mode."""
     with self._name_scope(name):
       return self._mode()
-
-  def _cross_entropy(self, other):
-    return kullback_leibler.cross_entropy(
-        self, other, allow_nan_stats=self.allow_nan_stats)
-
-  def cross_entropy(self, other, name="cross_entropy"):
-    """Computes the (Shannon) cross entropy.
-
-    Denote this distribution (`self`) by `P` and the `other` distribution by
-    `Q`. Assuming `P, Q` are absolutely continuous with respect to
-    one another and permit densities `p(x) dr(x)` and `q(x) dr(x)`, (Shanon)
-    cross entropy is defined as:
-
-    ```none
-    H[P, Q] = E_p[-log q(X)] = -int_F p(x) log q(x) dr(x)
-    ```
-
-    where `F` denotes the support of the random variable `X ~ P`.
-
-    Args:
-      other: `tf.distributions.Distribution` instance.
-      name: Python `str` prepended to names of ops created by this function.
-
-    Returns:
-      cross_entropy: `self.dtype` `Tensor` with shape `[B1, ..., Bn]`
-        representing `n` different calculations of (Shanon) cross entropy.
-    """
-    with self._name_scope(name):
-      return self._cross_entropy(other)
-
-  def _kl_divergence(self, other):
-    return kullback_leibler.kl_divergence(
-        self, other, allow_nan_stats=self.allow_nan_stats)
-
-  def kl_divergence(self, other, name="kl_divergence"):
-    """Computes the Kullback--Leibler divergence.
-
-    Denote this distribution (`self`) by `p` and the `other` distribution by
-    `q`. Assuming `p, q` are absolutely continuous with respect to reference
-    measure `r`, (Shanon) cross entropy is defined as:
-
-    ```none
-    KL[p, q] = E_p[log(p(X)/q(X))]
-             = -int_F p(x) log q(x) dr(x) + int_F p(x) log p(x) dr(x)
-             = H[p, q] - H[p]
-    ```
-
-    where `F` denotes the support of the random variable `X ~ p`, `H[., .]`
-    denotes (Shanon) cross entropy, and `H[.]` denotes (Shanon) entropy.
-
-    Args:
-      other: `tf.distributions.Distribution` instance.
-      name: Python `str` prepended to names of ops created by this function.
-
-    Returns:
-      kl_divergence: `self.dtype` `Tensor` with shape `[B1, ..., Bn]`
-        representing `n` different calculations of the Kullback-Leibler
-        divergence.
-    """
-    with self._name_scope(name):
-      return self._kl_divergence(other)
 
   @contextlib.contextmanager
   def _name_scope(self, name=None, values=None):

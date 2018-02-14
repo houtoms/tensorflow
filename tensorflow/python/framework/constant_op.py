@@ -42,7 +42,6 @@ from __future__ import division
 from __future__ import print_function
 
 import numpy as np
-import six
 
 from tensorflow.core.framework import attr_value_pb2
 from tensorflow.python.eager import context
@@ -55,10 +54,10 @@ from tensorflow.python.framework import tensor_util
 
 def _eager_reshape(tensor, shape, ctx):
   """Eager-only version of Reshape op; requires tensor is an eager Tensor."""
-  attr_t = tensor._datatype_enum()  # pylint: disable=protected-access
+  attr_t = tensor.dtype.as_datatype_enum
   attr_tshape, (shape,) = execute.args_to_matching_eager(
       [shape], ctx, dtypes.int32)
-  attr_tshape = attr_tshape
+  attr_tshape = attr_tshape.as_datatype_enum
   inputs_flat = [tensor, shape]
   attrs = ("T", attr_t, "Tshape", attr_tshape)
   result, = execute.execute(
@@ -108,13 +107,10 @@ def convert_to_eager_tensor(value, ctx, dtype=None):
           dtype, value.dtype))
     return value
   if dtype is not None:
-    try:
-      dtype = dtype.as_datatype_enum
-    except AttributeError:
-      dtype = dtypes.as_dtype(dtype).as_datatype_enum
+    dtype = dtype.as_datatype_enum
   device = ctx.device_name
   handle = ctx._handle  # pylint: disable=protected-access
-  if isinstance(value, (float,) + six.integer_types):
+  if isinstance(value, (int, float)):
     # Use a scalar cache. This will put each scalar of each type only once on
     # each device. Scalars don't use much device memory but copying scalars can
     # trigger memcpys which are slow.
@@ -198,7 +194,7 @@ def constant(value, dtype=None, shape=None, name="Const", verify_shape=False):
         # We don't have a Fill kernel for bool dtype on GPU. So we first run
         # Fill on CPU and then copy to GPU if needed.
         with ops.device("/device:CPU:0"):
-          x = _eager_fill(shape.as_list(), t.cpu(), ctx)
+          x = _eager_fill(shape.as_list(), t.as_cpu_tensor(), ctx)
         return _eager_identity(x, ctx)
       else:
         return _eager_fill(shape.as_list(), t, ctx)

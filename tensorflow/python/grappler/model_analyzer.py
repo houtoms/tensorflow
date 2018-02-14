@@ -22,18 +22,16 @@ from tensorflow.python import pywrap_tensorflow as tf_wrap
 from tensorflow.python.framework import errors
 
 
-def GenerateModelReport(metagraph, debug=False):
+def GenerateModelReport(metagraph):
   """Report what's known statically about each node in the provided metagraph.
 
   Args:
     metagraph: A TensorFlow MetaGraphDef.
-    debug: Add some information useful for debugging.
 
   Returns:
     A string containing the report.
   """
   with errors.raise_exception_on_not_ok_status():
-    ret_from_swig = tf_wrap.GenerateModelReport(metagraph.SerializeToString(),
-                                                debug)
+    ret_from_swig = tf_wrap.GenerateModelReport(metagraph.SerializeToString())
 
   return ret_from_swig

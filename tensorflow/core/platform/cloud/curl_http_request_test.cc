@@ -219,10 +219,6 @@ class FakeLibCurl : public LibCurl {
   }
   void curl_free(void* p) override { port::Free(p); }
 
-  const char* curl_easy_strerror(CURLcode errornum) override {
-    return "<unimplemented>";
-  }
-
   // Variables defining the behavior of this fake.
   string response_content_;
   uint64 response_code_;
@@ -267,6 +263,7 @@ TEST(CurlHttpRequestTest, GetRequest) {
 
   std::vector<char> scratch;
   scratch.insert(scratch.begin(), kTestContent.begin(), kTestContent.end());
+  StringPiece result;
   scratch.reserve(100);
 
   TF_EXPECT_OK(http_request.SetUri("http://www.testuri.com"));
@@ -597,6 +594,7 @@ TEST(CurlHttpRequestTest, ErrorReturnsNoResponse) {
 
   std::vector<char> scratch;
   scratch.insert(scratch.begin(), kTestContent.begin(), kTestContent.end());
+  StringPiece result;
   scratch.reserve(100);
 
   TF_EXPECT_OK(http_request.SetUri("http://www.testuri.com"));

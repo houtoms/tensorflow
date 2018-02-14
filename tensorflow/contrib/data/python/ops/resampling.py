@@ -20,7 +20,6 @@ from __future__ import print_function
 import numpy as np
 
 from tensorflow.contrib.data.python.ops import batching
-from tensorflow.contrib.data.python.ops import scan_ops
 from tensorflow.python.data.ops import dataset_ops
 from tensorflow.python.framework import dtypes
 from tensorflow.python.framework import ops
@@ -29,6 +28,7 @@ from tensorflow.python.ops import control_flow_ops
 from tensorflow.python.ops import logging_ops
 from tensorflow.python.ops import math_ops
 from tensorflow.python.ops import random_ops
+from tensorflow.python.ops import resource_variable_ops
 
 
 def rejection_resample(class_func, target_dist, initial_dist=None, seed=None):
@@ -68,20 +68,26 @@ def rejection_resample(class_func, target_dist, initial_dist=None, seed=None):
       num_classes = (target_dist_t.shape[0].value or
                      array_ops.shape(target_dist_t)[0])
       smoothing_constant = 10
-      initial_examples_per_class_seen = array_ops.fill(
-          [num_classes], np.int64(smoothing_constant))
+      # Disable device functions and colocation constraints so that the variable
+      # will be placed with the eventual DT_VARIANT dataset tensor.
+      with ops.colocate_with(None, ignore_existing=True):
+        num_examples_per_class_seen = resource_variable_ops.ResourceVariable(
+            initial_value=array_ops.fill([num_classes],
+                                         np.int64(smoothing_constant)),
+            trainable=False,
+            collections=[ops.GraphKeys.LOCAL_VARIABLES],
+            name="local_class_count",
+            dtype=dtypes.int64)
 
-      def update_estimate_and_tile(num_examples_per_class_seen, c):
-        updated_examples_per_class_seen, dist = _estimate_data_distribution(
-            c, num_examples_per_class_seen)
-        tiled_dist = array_ops.tile(
-            array_ops.expand_dims(dist, 0), [dist_estimation_batch_size, 1])
-        return updated_examples_per_class_seen, tiled_dist
+      def update_estimate_and_tile(c):
+        return array_ops.tile(
+            array_ops.expand_dims(
+                _estimate_data_distribution(c, num_examples_per_class_seen), 0),
+            [dist_estimation_batch_size, 1])
 
       initial_dist_ds = (class_values_ds.batch(dist_estimation_batch_size)
-                         .apply(scan_ops.scan(initial_examples_per_class_seen,
-                                              update_estimate_and_tile))
-                         .apply(batching.unbatch()))
+                         .map(update_estimate_and_tile).apply(batching
+                                                              .unbatch()))
       acceptance_dist_ds = initial_dist_ds.map(
           lambda initial: _calculate_acceptance_probs(initial, target_dist_t))
 
@@ -168,21 +174,20 @@ def _estimate_data_distribution(c, num_examples_per_class_seen):
 
   Args:
     c: The class labels.  Type `int32`, shape `[batch_size]`.
-    num_examples_per_class_seen: Type `int64`, shape `[num_classes]`,
-      containing counts.
+    num_examples_per_class_seen: A `ResourceVariable` containing counts.
+      Type `int64`, shape `[num_classes]`.
 
   Returns:
-    num_examples_per_lass_seen: Updated counts.  Type `int64`, shape
-      `[num_classes]`.
     dist: The updated distribution.  Type `float32`, shape `[num_classes]`.
   """
   num_classes = num_examples_per_class_seen.get_shape()[0].value
-  # Update the class-count based on what labels are seen in batch.
-  num_examples_per_class_seen = math_ops.add(
-      num_examples_per_class_seen, math_ops.reduce_sum(
+  # Update the class-count based on what labels are seen in
+  # batch.  But do this asynchronously to avoid performing a
+  # cross-device round-trip.  Just use the cached value.
+  num_examples_per_class_seen = num_examples_per_class_seen.assign_add(
+      math_ops.reduce_sum(
           array_ops.one_hot(c, num_classes, dtype=dtypes.int64), 0))
   init_prob_estimate = math_ops.truediv(
       num_examples_per_class_seen,
       math_ops.reduce_sum(num_examples_per_class_seen))
-  dist = math_ops.cast(init_prob_estimate, dtypes.float32)
-  return num_examples_per_class_seen, dist
+  return math_ops.cast(init_prob_estimate, dtypes.float32)

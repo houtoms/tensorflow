@@ -90,19 +90,17 @@ class CUDABlas : public blas::BlasSupport {
   // for err_on_failure.
   template <typename FuncT, typename... Args>
   bool DoBlasInternal(FuncT cublas_func, Stream *stream, bool pointer_mode_host,
-                      Args... args) {
+                      bool use_tensor_ops, Args... args) {
     return DoBlasInternalImpl(cublas_func, stream, pointer_mode_host,
-                              /*err_on_failure=*/true, /*use_tensor_ops=*/false,
-                              args...);
+                              /*err_on_failure=*/true, use_tensor_ops, args...);
   }
   template <typename FuncT, typename... Args>
   bool DoBlasInternalFailureOK(FuncT cublas_func, Stream *stream,
-                               bool pointer_mode_host, Args... args) {
-    // Tensor ops are hard-coded off in this path, but can still be enabled with
-    // a specific algorithm choice as in DoBlasGemmWithAlgorithmImpl().
+                               bool pointer_mode_host, bool use_tensor_ops,
+                               Args... args) {
     return DoBlasInternalImpl(cublas_func, stream, pointer_mode_host,
-                              /*err_on_failure=*/false,
-                              /*use_tensor_ops=*/false, args...);
+                              /*err_on_failure=*/false, use_tensor_ops,
+                              args...);
   }
 
   // A helper function to implement DoBlasGemmBatched interfaces for generic
@@ -115,7 +113,6 @@ class CUDABlas : public blas::BlasSupport {
       const port::ArraySlice<DeviceMemory<T> *> &b_array, int ldb, T beta,
       const port::ArraySlice<DeviceMemory<T> *> &c_array, int ldc,
       int batch_count, ScratchAllocator *scratch_allocator);
-
   // A helper function to implement DoBlasGemmBatched interfaces for generic
   // types supporting tensor op math.
   template <typename T>

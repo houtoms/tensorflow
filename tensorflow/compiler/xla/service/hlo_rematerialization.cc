@@ -62,11 +62,16 @@ bool IsRematerializable(const HloInstruction* instruction) {
     case HloOpcode::kConstant:
     case HloOpcode::kCrossReplicaSum:
     case HloOpcode::kCustomCall:
+    case HloOpcode::kOutfeed:
+    case HloOpcode::kInfeed:
     case HloOpcode::kParameter:
+    case HloOpcode::kRecv:
+    case HloOpcode::kSend:
+    case HloOpcode::kTrace:
     case HloOpcode::kWhile:
       return false;
     default:
-      return !instruction->HasSideEffect();
+      return true;
   }
 }
 
@@ -566,9 +571,7 @@ Status MemoryUsageTracker::BeginInstruction(Item* item) {
   VLOG(3) << "  memory usage = " << memory_usage_;
   VLOG(10) << ToString();
 
-  if (VLOG_IS_ON(1)) {
-    DCHECK(Check());
-  }
+  DCHECK(Check());
   return Status::OK();
 }
 
@@ -605,9 +608,8 @@ Status MemoryUsageTracker::EndInstruction() {
   VLOG(3) << "  memory usage = " << memory_usage_;
   VLOG(10) << ToString();
 
-  if (VLOG_IS_ON(1)) {
-    DCHECK(Check());
-  }
+  DCHECK(Check());
+
   return Status::OK();
 }
 
@@ -1024,9 +1026,7 @@ StatusOr<bool> HloRematerialization::RematerializeComputation(
 
       HloInstruction* best = best_item->instruction;
       VLOG(1) << "Rematerializing instruction " << best->name() << " (saving "
-              << HumanReadableNumBytes(
-                     memory_tracker.MemoryReducedIfRematerialized(best_item))
-              << ")";
+              << memory_tracker.MemoryReducedIfRematerialized(best_item) << ")";
       changed = true;
       remat_count++;
 
@@ -1106,8 +1106,8 @@ StatusOr<bool> HloRematerialization::RematerializeComputation(
         net_instructions_added++;
       }
 
-      VLOG(1) << "memory_usage after rematerialization = "
-              << HumanReadableNumBytes(memory_tracker.memory_usage());
+      VLOG(3) << "memory_usage after rematerialization = "
+              << memory_tracker.memory_usage();
     }
 
     const CallSite* callsite = call_graph_node.GetCallSite(instruction);

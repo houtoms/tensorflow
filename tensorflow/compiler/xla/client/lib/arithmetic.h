@@ -45,10 +45,10 @@ Computation CreateScalarMinComputation(PrimitiveType type,
                                        ComputationBuilder* builder);
 
 // Creates a scalar logical AND computation and returns it.
-Computation CreateScalarAndComputation(ComputationBuilder* builder);
+Computation CreateScalarLogicalAndComputation(ComputationBuilder* builder);
 
 // Creates a scalar logical OR computation and returns it.
-Computation CreateScalarOrComputation(ComputationBuilder* builder);
+Computation CreateScalarLogicalOrComputation(ComputationBuilder* builder);
 
 // Returns whether any predicate in "predicates" is set.
 //

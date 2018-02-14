@@ -50,7 +50,7 @@ def _powerset(iterable):
   """
   s = list(iterable)
   return itertools.chain.from_iterable(
-      itertools.combinations(s, r) for r in range(len(s) + 1))
+      itertools.combinations(s, r) for r in range(len(s)+1))
 
 
 class ReducedShapeTest(test.TestCase):
@@ -89,23 +89,6 @@ class ReducedShapeTest(test.TestCase):
       self._check([10, 10, 10], [-1, -1], [10, 10, 1])
       self._check([10, 10, 10], [-1, 0], [1, 10, 1])
       self._check([10, 10, 10], [-3], [1, 10, 10])
-
-
-class ReductionUnknownShape(test.TestCase):
-
-  def testBasic(self):
-    with self.test_session():
-      for dtype, reductions in [(dtypes.float32,
-                                 (math_ops.reduce_sum, math_ops.reduce_mean,
-                                  math_ops.reduce_prod, math_ops.reduce_max,
-                                  math_ops.reduce_min)),
-                                (dtypes.bool, (math_ops.reduce_all,
-                                               math_ops.reduce_any))]:
-        for reduction in reductions:
-          x = array_ops.placeholder(
-              dtype=dtype, shape=None)  # Some tensor w/ unknown shape.
-          y = reduction(x)
-          self.assertEqual(y.shape, ())
 
 
 class BaseReductionTest(test.TestCase):
@@ -179,13 +162,6 @@ class SumReductionTest(BaseReductionTest):
                                                       np.ndarray):
       reduction_axes = tuple(reduction_axes)
     return np.sum(x, axis=reduction_axes, keepdims=keep_dims)
-
-  def testAxesType(self):
-    for dtype in [dtypes.int64, dtypes.int32]:
-      with self.test_session(use_gpu=True) as sess:
-        v = math_ops.reduce_sum([0, 0], constant_op.constant(0, dtype=dtype))
-        tf_v = sess.run(v)
-      self.assertAllEqual(tf_v, 0)
 
   def testInfinity(self):
     for dtype in [np.float32, np.float64]:
@@ -325,9 +301,8 @@ class SumReductionTest(BaseReductionTest):
   # Int64??
 
   def testGradient(self):
-    for dtype in [
-        dtypes.float32, dtypes.float64, dtypes.complex64, dtypes.complex128
-    ]:
+    for dtype in [dtypes.float32, dtypes.float64, dtypes.complex64,
+                  dtypes.complex128]:
       x = self._makeIncremental([2, 3, 4, 2], dtype)
       self._compareGradientAxes(x)
 
@@ -394,13 +369,6 @@ class MeanReductionTest(BaseReductionTest):
       return np_sum // count
     return np_sum / count
 
-  def testAxesType(self):
-    for dtype in [dtypes.int64, dtypes.int32]:
-      with self.test_session(use_gpu=True) as sess:
-        v = math_ops.reduce_mean([0, 0], constant_op.constant(0, dtype=dtype))
-        tf_v = sess.run(v)
-      self.assertAllEqual(tf_v, 0)
-
   def testInfinity(self):
     for dtype in [np.float32, np.float64]:
       for special_value_x in [-np.inf, np.inf]:
@@ -466,13 +434,6 @@ class ProdReductionTest(BaseReductionTest):
                                                       np.ndarray):
       reduction_axes = tuple(reduction_axes)
     return np.prod(x, axis=reduction_axes, keepdims=keep_dims)
-
-  def testAxesType(self):
-    for dtype in [dtypes.int64, dtypes.int32]:
-      with self.test_session(use_gpu=True) as sess:
-        v = math_ops.reduce_prod([0, 0], constant_op.constant(0, dtype=dtype))
-        tf_v = sess.run(v)
-      self.assertAllEqual(tf_v, 0)
 
   def testInfinity(self):
     for dtype in [np.float32, np.float64]:
@@ -569,13 +530,6 @@ class MinReductionTest(test.TestCase):
     self._compare(x, reduction_axes, False, use_gpu=False)
     self._compare(x, reduction_axes, True, use_gpu=True)
     self._compare(x, reduction_axes, True, use_gpu=False)
-
-  def testAxesType(self):
-    for dtype in [dtypes.int64, dtypes.int32]:
-      with self.test_session(use_gpu=True) as sess:
-        v = math_ops.reduce_min([0, 0], constant_op.constant(0, dtype=dtype))
-        tf_v = sess.run(v)
-      self.assertAllEqual(tf_v, 0)
 
   def testInfinity(self):
     for dtype in [np.float32, np.float64]:
@@ -682,13 +636,6 @@ class MaxReductionTest(test.TestCase):
     self._compare(x, reduction_axes, False, use_gpu=False)
     self._compare(x, reduction_axes, True, use_gpu=True)
     self._compare(x, reduction_axes, True, use_gpu=False)
-
-  def testAxesType(self):
-    for dtype in [dtypes.int64, dtypes.int32]:
-      with self.test_session(use_gpu=True) as sess:
-        v = math_ops.reduce_max([0, 0], constant_op.constant(0, dtype=dtype))
-        tf_v = sess.run(v)
-      self.assertAllEqual(tf_v, 0)
 
   def testInfinity(self):
     for dtype in [np.float32, np.float64]:
@@ -810,14 +757,6 @@ class AllReductionTest(test.TestCase):
     self._compare(x, reduction_axes, True, use_gpu=True)
     self._compare(x, reduction_axes, True, use_gpu=False)
 
-  def testAxesType(self):
-    for dtype in [dtypes.int64, dtypes.int32]:
-      with self.test_session(use_gpu=True) as sess:
-        v = math_ops.reduce_all([True, True],
-                                constant_op.constant(0, dtype=dtype))
-        tf_v = sess.run(v)
-      self.assertAllEqual(tf_v, True)
-
   def testAll3D(self):
     # Create a 3D array of bools and reduce across all possible
     # dimensions
@@ -858,14 +797,6 @@ class AnyReductionTest(test.TestCase):
     self._compare(x, reduction_axes, False, use_gpu=False)
     self._compare(x, reduction_axes, True, use_gpu=True)
     self._compare(x, reduction_axes, True, use_gpu=False)
-
-  def testAxesType(self):
-    for dtype in [dtypes.int64, dtypes.int32]:
-      with self.test_session(use_gpu=True) as sess:
-        v = math_ops.reduce_any([True, True],
-                                constant_op.constant(0, dtype=dtype))
-        tf_v = sess.run(v)
-      self.assertAllEqual(tf_v, True)
 
   def testAll3D(self):
     # Create a 3D array of bools and reduce across all possible
@@ -930,9 +861,8 @@ class CountNonzeroReductionTest(test.TestCase):
   def testFloatReduce4D(self):
     # Create a 4D array of floats and reduce across some
     # dimensions
-    np_arr = np.floor(np.arange(0.0, 210.0) / 100.0).reshape([2, 3, 5,
-                                                              7]).astype(
-                                                                  np.float32)
+    np_arr = np.floor(np.arange(0.0, 210.0) / 100.0).reshape(
+        [2, 3, 5, 7]).astype(np.float32)
     self._compareAll(np_arr, None)
     self._compareAll(np_arr, [])
     self._compareAll(np_arr, [0])

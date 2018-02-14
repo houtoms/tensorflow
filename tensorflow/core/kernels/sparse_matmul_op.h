@@ -54,9 +54,8 @@ EIGEN_DEVICE_FUNC inline Packet pexpand_bf16_u(const Packet& from) {
 }
 
 // Specialization non-scalar version on non-sse.
-// Enable vectorization on z13 and higher
 #if defined(EIGEN_VECTORIZE_ALTIVEC) || defined(EIGEN_VECTORIZE_VSX) || \
-    defined(EIGEN_VECTORIZE_NEON) || defined(EIGEN_VECTORIZE_ZVECTOR)
+    defined(EIGEN_VECTORIZE_NEON)
 template <typename Packet>
 EIGEN_DEVICE_FUNC inline Packet4f pexpand_bf16_l(const Packet4f& from) {
   float r[4];
@@ -127,9 +126,8 @@ EIGEN_DEVICE_FUNC inline Packet pload2bf16(
 }
 
 // Specialization for pload4bf16 and pload2bf16 for non-sse.
-// Enable vectorization on z13 and higher.
 #if defined(EIGEN_VECTORIZE_ALTIVEC) || defined(EIGEN_VECTORIZE_VSX) || \
-    defined(EIGEN_VECTORIZE_NEON) || defined(EIGEN_VECTORIZE_ZVECTOR)
+    defined(EIGEN_VECTORIZE_NEON)
 template <>
 EIGEN_STRONG_INLINE Packet4f pload4bf16<Packet4f>(const float* from) {
   tensorflow::uint32 p[4];

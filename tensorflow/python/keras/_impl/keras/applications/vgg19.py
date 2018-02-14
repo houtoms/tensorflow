@@ -25,8 +25,6 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-import os
-
 from tensorflow.python.keras._impl.keras import backend as K
 from tensorflow.python.keras._impl.keras.applications.imagenet_utils import _obtain_input_shape
 from tensorflow.python.keras._impl.keras.applications.imagenet_utils import decode_predictions  # pylint: disable=unused-import
@@ -70,9 +68,8 @@ def VGG19(include_top=True,
   Arguments:
       include_top: whether to include the 3 fully-connected
           layers at the top of the network.
-      weights: one of `None` (random initialization),
-         'imagenet' (pre-training on ImageNet),
-         or the path to the weights file to be loaded.
+      weights: one of `None` (random initialization)
+          or "imagenet" (pre-training on ImageNet).
       input_tensor: optional Keras tensor (i.e. output of `layers.Input()`)
           to use as image input for the model.
       input_shape: optional shape tuple, only to be specified
@@ -104,11 +101,10 @@ def VGG19(include_top=True,
       ValueError: in case of invalid argument for `weights`,
           or invalid input shape.
   """
-  if not (weights in {'imagenet', None} or os.path.exists(weights)):
+  if weights not in {'imagenet', None}:
     raise ValueError('The `weights` argument should be either '
-                     '`None` (random initialization), `imagenet` '
-                     '(pre-training on ImageNet), '
-                     'or the path to the weights file to be loaded.')
+                     '`None` (random initialization) or `imagenet` '
+                     '(pre-training on ImageNet).')
 
   if weights == 'imagenet' and include_top and classes != 1000:
     raise ValueError('If using `weights` as imagenet with `include_top`'
@@ -202,15 +198,15 @@ def VGG19(include_top=True,
       weights_path = get_file(
           'vgg19_weights_tf_dim_ordering_tf_kernels.h5',
           WEIGHTS_PATH,
-          cache_subdir='models',
-          file_hash='cbe5617147190e668d6c5d5026f83318')
+          cache_subdir='models')
     else:
       weights_path = get_file(
           'vgg19_weights_tf_dim_ordering_tf_kernels_notop.h5',
           WEIGHTS_PATH_NO_TOP,
-          cache_subdir='models',
-          file_hash='253f8cb515780f3b799900260a226db6')
+          cache_subdir='models')
     model.load_weights(weights_path)
+    if K.backend() == 'theano':
+      layer_utils.convert_all_kernels_in_model(model)
 
     if K.image_data_format() == 'channels_first':
       if include_top:
@@ -219,6 +215,4 @@ def VGG19(include_top=True,
         dense = model.get_layer(name='fc1')
         layer_utils.convert_dense_weights_data_format(dense, shape,
                                                       'channels_first')
-  elif weights is not None:
-    model.load_weights(weights)
   return model

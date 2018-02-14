@@ -84,10 +84,10 @@ class MultivariateNormalDiag(
   #### Examples
 
   ```python
-  tfd = tf.contrib.distributions
+  ds = tf.contrib.distributions
 
   # Initialize a single 2-variate Gaussian.
-  mvn = tfd.MultivariateNormalDiag(
+  mvn = ds.MultivariateNormalDiag(
       loc=[1., -1],
       scale_diag=[1, 2.])
 
@@ -101,7 +101,7 @@ class MultivariateNormalDiag(
   mvn.prob([-1., 0]).eval()  # shape: []
 
   # Initialize a 3-batch, 2-variate scaled-identity Gaussian.
-  mvn = tfd.MultivariateNormalDiag(
+  mvn = ds.MultivariateNormalDiag(
       loc=[1., -1],
       scale_identity_multiplier=[1, 2., 3])
 
@@ -119,7 +119,7 @@ class MultivariateNormalDiag(
   mvn.prob([-1., 0]).eval()  # shape: [3]
 
   # Initialize a 2-batch of 3-variate Gaussians.
-  mvn = tfd.MultivariateNormalDiag(
+  mvn = ds.MultivariateNormalDiag(
       loc=[[1., 2, 3],
            [11, 22, 33]]           # shape: [2, 3]
       scale_diag=[[1., 2, 3],

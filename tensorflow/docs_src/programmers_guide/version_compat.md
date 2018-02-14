@@ -60,16 +60,14 @@ patch versions.  The public APIs consist of
     * [`tensor_shape`](https://github.com/tensorflow/tensorflow/blob/master/tensorflow/core/framework/tensor_shape.proto)
     * [`types`](https://github.com/tensorflow/tensorflow/blob/master/tensorflow/core/framework/types.proto)
 
-## What is *not* covered {not_covered}
+## What is *not* covered
 
 Some API functions are explicitly marked as "experimental" and can change in
 backward incompatible ways between minor releases. These include:
 
 *   **Experimental APIs**: The @{tf.contrib} module and its submodules in Python
     and any functions in the C API or fields in protocol buffers that are
-    explicitly commented as being experimental. In particular, any field in a
-    protocol buffer which is called "experimental" and all its fields and
-    submessages can change at any time.
+    explicitly commented as being experimental.
 
 *   **Other languages**: TensorFlow APIs in languages other than Python and C,
     such as:

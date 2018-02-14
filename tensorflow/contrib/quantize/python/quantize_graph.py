@@ -25,10 +25,7 @@ from tensorflow.python.framework import ops
 from tensorflow.python.ops import variables
 
 
-def _create_graph(input_graph,
-                  is_training,
-                  elements=None,
-                  device_name_or_function=None):
+def _create_graph(input_graph, is_training, elements=None):
   """Returns a transformed training input_graph for simulated quantization.
 
   The forward pass has fake quantization ops inserted to simulate the error
@@ -39,12 +36,12 @@ def _create_graph(input_graph,
     is_training: Whether quantizing training or eval graph.
     elements: (Optional) List of Tensors and Operations in input_graph whose
         corresponding elements in the new graph will be returned.
-    device_name_or_function: (Optional) The device name or function to use.
 
   Returns:
+    Returns a tuple(g, l) where:
     g is new tf.Graph that is rewritten for simulated quantization.
     l is a list of Tensors/Operations in g corresponding to the provided input
-        elements, if elements is not None.
+        elements.
 
   Raises:
     ValueError: If elements contains an element that isn't a tf.Tensor or
@@ -52,14 +49,11 @@ def _create_graph(input_graph,
   """
   # TODO(suharshs): Describe the process in more detail in the doc string.
   g = copy_graph.CopyGraph(input_graph)
-  with g.as_default():
-    with ops.device(device_name_or_function):
-      fold_batch_norms.FoldBatchNorms(g)
-      quantize.Quantize(g, is_training=is_training)
-  if elements is None:
-    return g
-
+  fold_batch_norms.FoldBatchNorms(g)
+  quantize.Quantize(g, is_training=is_training)
   return_elements = []
+  if elements is None:
+    elements = []
   for element in elements:
     if isinstance(element, (ops.Tensor, variables.Variable)):
       return_elements.append(g.get_tensor_by_name(element.name))
@@ -72,9 +66,7 @@ def _create_graph(input_graph,
   return g, return_elements
 
 
-def create_training_graph(input_graph,
-                          elements=None,
-                          device_name_or_function=None):
+def create_training_graph(input_graph, elements=None):
   """Returns a transformed training input_graph for simulated quantization.
 
   The forward pass has fake quantization ops inserted to simulate the error
@@ -84,25 +76,21 @@ def create_training_graph(input_graph,
     input_graph: The tf.Graph to be transformed.
     elements: (Optional) List of Tensors and Operations in input_graph whose
         corresponding elements in the new graph will be returned.
-    device_name_or_function: (Optional) The device name or function to use.
 
   Returns:
+    Returns a tuple(g, l) where:
     g is new tf.Graph that is rewritten for simulated quantization.
     l is a list of Tensors/Operations in g corresponding to the provided input
-        elements, if elements is not None.
+        elements.
 
   Raises:
     ValueError: If elements contains an element that isn't a tf.Tensor or
         tf.Operation.
   """
-  return _create_graph(
-      input_graph=input_graph,
-      is_training=True,
-      elements=elements,
-      device_name_or_function=device_name_or_function)
+  return _create_graph(input_graph, True, elements)
 
 
-def create_eval_graph(input_graph, elements=None, device_name_or_function=None):
+def create_eval_graph(input_graph, elements=None):
   """Returns a transformed eval input_graph for simulated quantization.
 
   The forward pass has fake quantization ops inserted to simulate the error
@@ -112,19 +100,15 @@ def create_eval_graph(input_graph, elements=None, device_name_or_function=None):
     input_graph: The tf.Graph to be transformed.
     elements: (Optional) List of Tensors and Operations in input_graph whose
         corresponding elements in the new graph will be returned.
-    device_name_or_function: (Optional) The device name or function to use.
 
   Returns:
+    Returns a tuple(g, l) where:
     g is new tf.Graph that is rewritten for simulated quantization.
     l is a list of Tensors/Operations in g corresponding to the provided input
-        elements, if elements is not None.
+        elements.
 
   Raises:
     ValueError: If elements contains an element that isn't a tf.Tensor or
         tf.Operation.
   """
-  return _create_graph(
-      input_graph=input_graph,
-      is_training=False,
-      elements=elements,
-      device_name_or_function=device_name_or_function)
+  return _create_graph(input_graph, False, elements)

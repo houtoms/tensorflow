@@ -101,10 +101,7 @@ def per_example_maxent_loss(labels, weights, logits, num_classes, eps=1e-15):
 
   unweighted_loss = array_ops.expand_dims(-math_ops.log(probs_for_real_class),
                                           1)
-  if weights is None:
-    return unweighted_loss, control_flow_ops.no_op()
-  else:
-    return unweighted_loss * weights, control_flow_ops.no_op()
+  return unweighted_loss * weights, control_flow_ops.no_op()
 
 
 def per_example_squared_loss(labels, weights, predictions):

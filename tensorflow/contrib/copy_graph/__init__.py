@@ -13,6 +13,8 @@
 # limitations under the License.
 # ==============================================================================
 """Functions to copy elements between graphs.
+
+See the @{$python/contrib.copy_graph} guide.
 """
 
 from __future__ import absolute_import

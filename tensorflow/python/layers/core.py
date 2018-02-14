@@ -43,7 +43,7 @@ class Dense(base.Layer):
   """Densely-connected layer class.
 
   This layer implements the operation:
-  `outputs = activation(inputs * kernel + bias)`
+  `outputs = activation(inputs.kernel + bias)`
   Where `activation` is the activation function passed as the `activation`
   argument (if not `None`), `kernel` is a weights matrix created by the layer,
   and `bias` is a bias vector created by the layer
@@ -231,9 +231,6 @@ def dense(
 
   Returns:
     Output tensor.
-
-  Raises:
-    ValueError: if eager execution is enabled.
   """
   layer = Dense(units,
                 activation=activation,
@@ -286,19 +283,11 @@ class Dropout(base.Layer):
     self.noise_shape = noise_shape
     self.seed = seed
 
-  def _get_noise_shape(self, inputs):
+  def _get_noise_shape(self, _):
     # Subclasses of `Dropout` may implement `_get_noise_shape(self, inputs)`,
     # which will override `self.noise_shape`, and allows for custom noise
     # shapes with dynamically sized inputs.
-    if self.noise_shape is None:
-      return self.noise_shape
-
-    symbolic_shape = array_ops.shape(inputs)
-    noise_shape = [
-        symbolic_shape[axis] if shape is None else shape
-        for axis, shape in enumerate(self.noise_shape)
-    ]
-    return noise_shape
+    return self.noise_shape
 
   def call(self, inputs, training=False):
 
@@ -344,9 +333,6 @@ def dropout(inputs,
 
   Returns:
     Output tensor.
-
-  Raises:
-    ValueError: if eager execution is enabled.
   """
   layer = Dropout(rate, noise_shape=noise_shape, seed=seed, name=name)
   return layer.apply(inputs, training=training)

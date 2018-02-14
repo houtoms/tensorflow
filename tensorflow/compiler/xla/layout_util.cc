@@ -83,10 +83,6 @@ Layout CreateDefaultLayoutForRank(int64 rank) {
   return CreateDefaultLayoutForRank(shape.dimensions_size());
 }
 
-/* static */ Layout LayoutUtil::GetDefaultLayoutForRank(int64 rank) {
-  return CreateDefaultLayoutForRank(rank);
-}
-
 /* static */ Layout LayoutUtil::GetDefaultLayoutForR2() {
   return CreateDefaultLayoutForRank(2);
 }

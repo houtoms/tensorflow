@@ -259,11 +259,8 @@ TEST_F(HeapSimulatorTest, MultiplyDot) {
       HloInstruction::CreateParameter(2, f32scalar_, "paramY"));
   auto mul = builder.AddInstruction(HloInstruction::CreateBinary(
       f32vec4_, HloOpcode::kMultiply, paramA, paramX));
-  DotDimensionNumbers dot_dnums;
-  dot_dnums.add_lhs_contracting_dimensions(1);
-  dot_dnums.add_rhs_contracting_dimensions(0);
   auto dot = builder.AddInstruction(
-      HloInstruction::CreateDot(f32vec4_, mul, paramY, dot_dnums));
+      HloInstruction::CreateBinary(f32vec4_, HloOpcode::kDot, mul, paramY));
 
   // The buffer for dot is the output, and it cannot be shared with the buffer
   // for mul, since dot isn't elementwise.
@@ -295,11 +292,8 @@ TEST_F(HeapSimulatorTest, MultiplyDotAdd) {
       HloInstruction::CreateParameter(2, f32scalar_, "paramY"));
   auto mul = builder.AddInstruction(HloInstruction::CreateBinary(
       f32vec4_, HloOpcode::kMultiply, paramA, paramX));
-  DotDimensionNumbers dot_dnums;
-  dot_dnums.add_lhs_contracting_dimensions(1);
-  dot_dnums.add_rhs_contracting_dimensions(0);
   auto dot = builder.AddInstruction(
-      HloInstruction::CreateDot(f32vec4_, mul, paramY, dot_dnums));
+      HloInstruction::CreateBinary(f32vec4_, HloOpcode::kDot, mul, paramY));
   auto add = builder.AddInstruction(
       HloInstruction::CreateBinary(f32vec4_, HloOpcode::kAdd, dot, paramA));
 
@@ -333,13 +327,10 @@ TEST_F(HeapSimulatorTest, MultiplyDotDot) {
       HloInstruction::CreateParameter(2, f32scalar_, "paramY"));
   auto mul = builder.AddInstruction(HloInstruction::CreateBinary(
       f32vec4_, HloOpcode::kMultiply, paramA, paramX));
-  DotDimensionNumbers dot_dnums;
-  dot_dnums.add_lhs_contracting_dimensions(1);
-  dot_dnums.add_rhs_contracting_dimensions(0);
   auto dot0 = builder.AddInstruction(
-      HloInstruction::CreateDot(f32vec4_, mul, paramY, dot_dnums));
+      HloInstruction::CreateBinary(f32vec4_, HloOpcode::kDot, mul, paramY));
   auto dot1 = builder.AddInstruction(
-      HloInstruction::CreateDot(f32vec4_, dot0, paramY, dot_dnums));
+      HloInstruction::CreateBinary(f32vec4_, HloOpcode::kDot, dot0, paramY));
 
   // The buffer for dot1 is the output.  No buffers can be shared.  The buffer
   // for mul is freed before the end, since it's no longer used after dot0
@@ -374,13 +365,10 @@ TEST_F(HeapSimulatorTest, MultiplyDotDotTuple) {
       HloInstruction::CreateParameter(2, f32scalar_, "paramY"));
   auto mul = builder.AddInstruction(HloInstruction::CreateBinary(
       f32vec4_, HloOpcode::kMultiply, paramA, paramX));
-  DotDimensionNumbers dot_dnums;
-  dot_dnums.add_lhs_contracting_dimensions(1);
-  dot_dnums.add_rhs_contracting_dimensions(0);
   auto dot0 = builder.AddInstruction(
-      HloInstruction::CreateDot(f32vec4_, mul, paramY, dot_dnums));
+      HloInstruction::CreateBinary(f32vec4_, HloOpcode::kDot, mul, paramY));
   auto dot1 = builder.AddInstruction(
-      HloInstruction::CreateDot(f32vec4_, dot0, paramY, dot_dnums));
+      HloInstruction::CreateBinary(f32vec4_, HloOpcode::kDot, dot0, paramY));
   auto tuple =
       builder.AddInstruction(HloInstruction::CreateTuple({dot0, dot1}));
 

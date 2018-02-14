@@ -26,8 +26,6 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-import os
-
 from tensorflow.python.keras._impl.keras import backend as K
 from tensorflow.python.keras._impl.keras import layers
 from tensorflow.python.keras._impl.keras.applications.imagenet_utils import _obtain_input_shape
@@ -58,7 +56,7 @@ def identity_block(input_tensor, kernel_size, filters, stage, block):
   Arguments:
       input_tensor: input tensor
       kernel_size: default 3, the kernel size of middle conv layer at main path
-      filters: list of integers, the filters of 3 conv layer at main path
+      filters: list of integers, the filterss of 3 conv layer at main path
       stage: integer, current stage label, used for generating layer names
       block: 'a','b'..., current block label, used for generating layer names
 
@@ -97,7 +95,7 @@ def conv_block(input_tensor, kernel_size, filters, stage, block, strides=(2,
   Arguments:
       input_tensor: input tensor
       kernel_size: default 3, the kernel size of middle conv layer at main path
-      filters: list of integers, the filters of 3 conv layer at main path
+      filters: list of integers, the filterss of 3 conv layer at main path
       stage: integer, current stage label, used for generating layer names
       block: 'a','b'..., current block label, used for generating layer names
       strides: Tuple of integers.
@@ -163,9 +161,8 @@ def ResNet50(include_top=True,
   Arguments:
       include_top: whether to include the fully-connected
           layer at the top of the network.
-      weights: one of `None` (random initialization),
-          'imagenet' (pre-training on ImageNet),
-          or the path to the weights file to be loaded.
+      weights: one of `None` (random initialization)
+          or "imagenet" (pre-training on ImageNet).
       input_tensor: optional Keras tensor (i.e. output of `layers.Input()`)
           to use as image input for the model.
       input_shape: optional shape tuple, only to be specified
@@ -197,11 +194,10 @@ def ResNet50(include_top=True,
       ValueError: in case of invalid argument for `weights`,
           or invalid input shape.
   """
-  if not (weights in {'imagenet', None} or os.path.exists(weights)):
+  if weights not in {'imagenet', None}:
     raise ValueError('The `weights` argument should be either '
-                     '`None` (random initialization), `imagenet` '
-                     '(pre-training on ImageNet), '
-                     'or the path to the weights file to be loaded.')
+                     '`None` (random initialization) or `imagenet` '
+                     '(pre-training on ImageNet).')
 
   if weights == 'imagenet' and include_top and classes != 1000:
     raise ValueError('If using `weights` as imagenet with `include_top`'
@@ -287,6 +283,4 @@ def ResNet50(include_top=True,
           cache_subdir='models',
           md5_hash='a268eb855778b3df3c7506639542a6af')
     model.load_weights(weights_path)
-  elif weights is not None:
-    model.load_weights(weights)
   return model

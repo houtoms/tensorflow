@@ -91,9 +91,10 @@ void Partition(const GraphDef& graph_def,
   Status s = Partition(popts, &g, partitions);
   CHECK(s.ok()) << s;
 
-  // Check versions.
+  // Check versions
   EXPECT_EQ(graph_def.versions().producer(), TF_GRAPH_DEF_VERSION);
-  // Partitions must inherit the versions of the original graph.
+  EXPECT_EQ(graph_def.versions().min_consumer(),
+            TF_GRAPH_DEF_VERSION_MIN_CONSUMER);
   for (auto& it : *partitions) {
     EXPECT_EQ(graph_def.versions().producer(), it.second.versions().producer());
     EXPECT_EQ(graph_def.versions().min_consumer(),

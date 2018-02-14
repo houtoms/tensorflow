@@ -44,15 +44,7 @@ void Worker::CreateWorkerSessionAsync(const CreateWorkerSessionRequest* request,
                                       CreateWorkerSessionResponse* response,
                                       StatusCallback done) {
   Status s = env_->session_mgr->CreateSession(request->session_handle(),
-                                              request->server_def(),
-                                              request->isolate_session_state());
-  done(s);
-}
-
-void Worker::DeleteWorkerSessionAsync(const DeleteWorkerSessionRequest* request,
-                                      DeleteWorkerSessionResponse* response,
-                                      StatusCallback done) {
-  Status s = env_->session_mgr->DeleteSession(request->session_handle());
+                                              request->server_def());
   done(s);
 }
 
@@ -140,8 +132,7 @@ void Worker::DoRunGraph(CallOptions* opts, RunGraphRequestWrapper* request,
     return;
   }
   StepStatsCollector* collector = nullptr;
-  if (request->exec_opts().report_tensor_allocations_upon_oom() ||
-      request->exec_opts().record_timeline() ||
+  if (request->exec_opts().record_timeline() ||
       request->exec_opts().record_costs()) {
     collector = new StepStatsCollector(response->mutable_step_stats());
     // TODO(mrry,pbar): GPU tracing for distributed steps.
@@ -188,7 +179,6 @@ void Worker::DoRunGraph(CallOptions* opts, RunGraphRequestWrapper* request,
             response->AddRecv(key, val);
           }
         }
-        if (collector) collector->Finalize();
         delete collector;
         delete out;
         done(s);
