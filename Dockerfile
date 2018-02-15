@@ -30,8 +30,8 @@ RUN rm -f /usr/bin/python && \
     ln -s /usr/bin/python$PYVER /usr/bin/python`echo $PYVER | cut -c1-1`
 
 # Needed for Horovod
-RUN OPENMPI_VERSION=1.10.3 && \
-    wget -q -O - https://www.open-mpi.org/software/ompi/v1.10/downloads/openmpi-${OPENMPI_VERSION}.tar.gz | tar -xzf - && \
+RUN OPENMPI_VERSION=3.0.0 && \
+    wget -q -O - https://www.open-mpi.org/software/ompi/v3.0/downloads/openmpi-${OPENMPI_VERSION}.tar.gz | tar -xzf - && \
     cd openmpi-${OPENMPI_VERSION} && \
     ./configure --enable-orterun-prefix-by-default --with-cuda --with-verbs \
                 --prefix=/usr/local/mpi --disable-getpwuid && \
@@ -39,6 +39,19 @@ RUN OPENMPI_VERSION=1.10.3 && \
     cd .. && rm -rf openmpi-${OPENMPI_VERSION} && \
     echo "/usr/local/mpi/lib" >> /etc/ld.so.conf.d/openmpi.conf && ldconfig
 ENV PATH /usr/local/mpi/bin:$PATH
+
+# The following works around a segfault in OpenMPI 3.0
+# when run within a single node without ssh being installed.
+RUN /bin/echo -e '#!/bin/bash'\
+'\ncat <<EOF'\
+'\n======================================================================'\
+'\nTo run a multi-node job, install an ssh client and clear plm_rsh_agent'\
+'\nin '/usr/local/mpi/etc/openmpi-mca-params.conf'.'\
+'\n======================================================================'\
+'\nEOF'\
+'\nexit 1' >> /usr/local/mpi/bin/rsh_warn.sh && \
+    chmod +x /usr/local/mpi/bin/rsh_warn.sh && \
+    echo "plm_rsh_agent = /usr/local/mpi/bin/rsh_warn.sh" >> /usr/local/mpi/etc/openmpi-mca-params.conf
 
 # TF 1.0 upstream needs this symlink
 RUN mkdir -p /usr/lib/x86_64-linux-gnu/include/ && \
