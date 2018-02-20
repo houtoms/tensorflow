@@ -31,7 +31,6 @@ function bench {
     ITER=$4
     CONFIG=$5
     NET_NAME=$6
-    NUM_PROC_PER_GPU=$(expr 40 / $NGPU)
     echo Running $NET, batchsize $BATCH, $NGPU GPUs, $ITER iterations
     python -u ../../nvidia-examples/cnn/nvcnn.py \
       --model=$NET_NAME \
@@ -163,7 +162,6 @@ MODELS=(googlenet vgg_11 vgg_16 vgg_19 alexnet_owt inception_v3 inception_v4 res
 
 echo 'Running Benchmark...'
 for MODEL in ${MODELS[@]}; do
-    GPUS=(1 2 4 8)
     ITER=300
     set_model_args $MODEL
     for BATCH_PER_GPU in ${BATCHES_PER_GPU[@]}; do
@@ -171,13 +169,12 @@ for MODEL in ${MODELS[@]}; do
         if [[ -n "$REQ_MiB" && $((REQ_MiB * 1024*1024)) -gt $MIN_GPU_MEM ]]; then
             continue
         fi
-        for NGPU in ${GPUS[@]}; do
-            if [[ $NGPU -gt $MAXGPUS ]]; then
-                continue
-            fi
+        NGPU=1
+        while [[ "$NGPU" -le "$MAXGPUS" ]]; do
             #set_model_args $MODEL
-            BATCH=$(expr $BATCH_PER_GPU \* $NGPU)
+            BATCH=$(($BATCH_PER_GPU * $NGPU))
             bench "$MODEL" "$BATCH_PER_GPU" "$NGPU" "$ITER" "$CONFIG" "$NET_NAME" 2>&1 | tee ${LOG_DIR}/output_${MODEL}_b${BATCH}_${NGPU}gpu.log
+            NGPU=$((NGPU * 2))
         done
     done
 done
