@@ -43,13 +43,15 @@ NUM_GPUS=`nvidia-smi -L | wc -l` && \
               `# These are tested in serial below` \
               -//tensorflow/python:localhost_cluster_performance_test \
               -//tensorflow/core/debug:grpc_session_debug_test \
-              -//tensorflow/core/distributed_runtime/rpc:grpc_session_test_gpu \
               -//tensorflow/contrib/kfac/examples/tests:convnet_test \
               -//tensorflow/python/kernel_tests:depthtospace_op_test \
               `# We do not provide Go support` \
               -//tensorflow/go/... \
               `# This is tested by L1_self_test_xla` \
               -//tensorflow/compiler/... \
+              `# grpc_session_test_gpu is a flaker.`\
+              `# It usually runs in 370 sec, but sumtimes timesout after 900.` \
+              -//tensorflow/core/distributed_runtime/rpc:grpc_session_test_gpu \
               `# Minor failures` \
               -//tensorflow/python/kernel_tests:atrous_conv2d_test \
               -//tensorflow/python/debug:debugger_cli_common_test \
