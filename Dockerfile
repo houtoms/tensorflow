@@ -129,7 +129,7 @@ ENV HOROVOD_NCCL_INCLUDE /usr/include
 ENV HOROVOD_NCCL_LIB /usr/lib/x86_64-linux-gnu
 RUN ln -s /usr/local/cuda/lib64/stubs/libcuda.so ./libcuda.so.1 && \
     export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$PWD && \
-    pip install --no-cache-dir horovod && \
+    pip install --no-cache-dir horovod==0.11.3 && \
     rm ./libcuda.so.1
 
 COPY nvidia_entrypoint.sh /usr/local/bin
