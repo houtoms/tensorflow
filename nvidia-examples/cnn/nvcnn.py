@@ -16,6 +16,9 @@
 
 """
 Changelog:
+1.5
+  - Ignore (with warning) --fp16 flag for inference
+  - Use only single GPU for inference.
 1.4
   - Fixed minor bug in model name exception
   - Added fallback to support PNG images in input dataset
@@ -1266,6 +1269,13 @@ def main():
     FLAGS.strong_scaling = False
     FLAGS.nccl           = True
     FLAGS.xla            = False
+    if FLAGS.eval:
+        if FLAGS.num_gpus != 1:
+            print("WARNING: eval always runs on a single GPU. Ignoring --num_gpus flag.")
+            FLAGS.num_gpus=1
+        if FLAGS.fp16:
+            print("WARNING: eval supports only fp32 math. Ignoring --fp16 flag.")
+            FLAGS.fp16 = False
 
     nclass = 1000
     total_batch_size = FLAGS.batch_size
