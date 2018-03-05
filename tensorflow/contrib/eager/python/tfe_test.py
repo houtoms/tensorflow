@@ -102,13 +102,9 @@ class TFETest(test_util.TensorFlowTestCase):
     # Expect at least one device.
     self.assertTrue(tfe.list_devices())
 
-  def testNumGPUs(self):
-    devices = tfe.list_devices()
     # TODO(benbarsdell): XLA may not be the only device type that breaks this
     #                    test. Also not sure what the purpose of the test is.
     devices = [d for d in devices if not d.split(':')[-2].startswith('XLA')]
-    self.assertEqual(len(devices) - 1, tfe.num_gpus())
-
   def testAddCheckNumericsOpsRaisesError(self):
     with self.assertRaisesRegexp(
         RuntimeError,
