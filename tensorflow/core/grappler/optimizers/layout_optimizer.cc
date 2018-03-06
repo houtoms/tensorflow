@@ -2050,9 +2050,10 @@ int GetNumGPUs(const Cluster& cluster) {
           device.second.environment().end()) {
         const string arch = device.second.environment().at("architecture");
         // TODO(yaozhang): Enable for Volta GPUs (compute capability version 7).
-        if (arch < "7") {
+        // Enable Volta in NV container
+        //if (arch < "7") {
           num_gpus++;
-        }
+        //}
       }
     }
   }
