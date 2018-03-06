@@ -667,6 +667,8 @@ def _find_libs(repository_ctx, cuda_config):
       "cudnn": _find_cuda_lib(
           "cudnn", repository_ctx, cpu_value, cuda_config.cudnn_install_basedir,
           cuda_config.cudnn_version),
+      "nvToolsExt": _find_cuda_lib(
+          "nvToolsExt", repository_ctx, cpu_value, cuda_config.cuda_toolkit_path),
       "cupti": _find_cupti_lib(repository_ctx, cuda_config)
   }
 
@@ -821,6 +823,7 @@ def _create_dummy_repository(repository_ctx):
            "%{cudnn_lib}": _lib_name("cudnn", cpu_value),
            "%{cufft_lib}": _lib_name("cufft", cpu_value),
            "%{curand_lib}": _lib_name("curand", cpu_value),
+           "%{nvtools_lib}": _lib_name("nvToolsExt", cpu_value),
            "%{cupti_lib}": _lib_name("cupti", cpu_value),
            "%{cuda_include_genrules}": '',
            "%{cuda_headers}": '',
@@ -840,6 +843,7 @@ def _create_dummy_repository(repository_ctx):
   repository_ctx.file("cuda/cuda/lib/%s" % _lib_name("cudnn", cpu_value))
   repository_ctx.file("cuda/cuda/lib/%s" % _lib_name("curand", cpu_value))
   repository_ctx.file("cuda/cuda/lib/%s" % _lib_name("cufft", cpu_value))
+  repository_ctx.file("cuda/cuda/lib/%s" % _lib_name("nvToolsExt", cpu_value))
   repository_ctx.file("cuda/cuda/lib/%s" % _lib_name("cupti", cpu_value))
 
   # Set up cuda_config.h, which is used by
@@ -1055,6 +1059,7 @@ def _create_local_cuda_repository(repository_ctx):
            "%{cudnn_lib}": cuda_libs["cudnn"].file_name,
            "%{cufft_lib}": cuda_libs["cufft"].file_name,
            "%{curand_lib}": cuda_libs["curand"].file_name,
+           "%{nvtools_lib}": cuda_libs["nvToolsExt"].file_name,
            "%{cupti_lib}": cuda_libs["cupti"].file_name,
            "%{cuda_include_genrules}": "\n".join(genrules),
            "%{cuda_headers}": ('":cuda-include",\n' +
