@@ -1,5 +1,22 @@
 FROM nvdl.githost.io:4678/dgx/cuda:9.0-cudnn7.1-devel-ubuntu16.04--18.04
 
+################################################################################
+# TODO: REMOVE THESE LINES ONCE BASE CONTIANER INTEGRATES MOFED USERSPACE DRIVER
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        wget \
+        libnl-route-3-200 \
+        libnuma1 && \
+    rm -rf /var/lib/apt/lists/*
+
+ENV MOFED_VERSION=3.4-1.0.0.0
+RUN wget -q -O - http://content.mellanox.com/ofed/MLNX_OFED-${MOFED_VERSION}/MLNX_OFED_LINUX-${MOFED_VERSION}-ubuntu16.04-x86_64.tgz | tar -xzf - && \
+        dpkg --install MLNX_OFED_LINUX-${MOFED_VERSION}-ubuntu16.04-x86_64/DEBS/libibverbs1_*_amd64.deb && \
+        dpkg --install MLNX_OFED_LINUX-${MOFED_VERSION}-ubuntu16.04-x86_64/DEBS/libibverbs-dev_*_amd64.deb && \
+        dpkg --install MLNX_OFED_LINUX-${MOFED_VERSION}-ubuntu16.04-x86_64/DEBS/libmlx5-1_*_amd64.deb && \
+        dpkg --install MLNX_OFED_LINUX-${MOFED_VERSION}-ubuntu16.04-x86_64/DEBS/ibverbs-utils_*_amd64.deb && \
+        rm -rf MLNX_OFED_LINUX-${MOFED_VERSION}-ubuntu16.04-x86_64
+################################################################################
+
 ENV LD_LIBRARY_PATH /usr/local/cuda/extras/CUPTI/lib64:${LD_LIBRARY_PATH}
 
 ENV TENSORFLOW_VERSION 1.6.0+
@@ -10,8 +27,6 @@ ARG PYVER=2.7
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
         libhwloc-dev \
-        libibverbs-dev \
-        libmlx5-dev \
         libnuma-dev \
         pkg-config \
         python$PYVER \
