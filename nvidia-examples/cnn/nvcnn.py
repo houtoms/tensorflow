@@ -16,6 +16,13 @@
 
 """
 Changelog:
+1.6
+  - Center crop evaluation images.
+  - Enable LARC learning rate control
+  - Correctly order UPDATE_OPS and global_step update during training.
+  - Set default learning rate policy to polynomial decay.
+  - Add cmd line options for checkpoint and summary intervals.
+  - Scale resnet learning rate by batch size.
 1.5
   - Ignore (with warning) --fp16 flag for inference
   - Use only single GPU for inference.
@@ -365,7 +372,9 @@ def decode_png(imgdata, channels=3):
 
 def random_crop_and_resize_image(image, bbox, height, width):
     with tf.name_scope('random_crop_and_resize'):
-        if not FLAGS.eval:
+        if FLAGS.eval:
+            image = tf.image.central_crop(image, 224./256.)
+        else:
             bbox_begin, bbox_size, distorted_bbox = tf.image.sample_distorted_bounding_box(
                 tf.shape(image),
                 bounding_boxes=bbox,
@@ -632,13 +641,16 @@ class FeedForwardTrainer(object):
                     params = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES,
                                                scope=var_scope.name)
                     self.tower_params.append(params)
-                    # Apply loss scaling to improve numerical stability
-                    if FLAGS.loss_scale != 1:
-                        scale = FLAGS.loss_scale
-                        grads  = [grad*(1./scale)
-                                  for grad in tf.gradients(loss*scale, params)]
-                    else:
-                        grads = tf.gradients(loss, params)
+                    update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS,
+                                                   scope=var_scope.name) or []
+                    with tf.control_dependencies(update_ops):
+                        # Apply loss scaling to improve numerical stability
+                        if FLAGS.loss_scale != 1:
+                            scale = FLAGS.loss_scale
+                            grads  = [grad*(1./scale)
+                                      for grad in tf.gradients(loss*scale, params)]
+                        else:
+                            grads = tf.gradients(loss, params)
                     gradvars = list(zip(grads, params))
                     tower_gradvars.append(gradvars)
                     with tf.device('/cpu:0'): # No in_top_k implem on GPU
@@ -680,19 +692,36 @@ class FeedForwardTrainer(object):
         for device_num, device in enumerate(devices):
             with tf.device(device):
                 gradvars = tower_gradvars[device_num]
+                for i, (g, v) in enumerate(gradvars):
+                    #Apply LARC scaling
+                    if FLAGS.larc_eta is not None:
+                        LARC_eta = float(FLAGS.larc_eta)
+                        LARC_epsilon = float(FLAGS.larc_epsilon)
+                        if g is not None:
+                            v_norm = tf.norm(tensor=v, ord=2)
+                            g_norm = tf.norm(tensor=g, ord=2)
+                            larc_local_lr = tf.cond(
+                                pred = tf.logical_and(
+                                    tf.not_equal(v_norm, tf.constant(0.0)),
+                                    tf.not_equal(g_norm, tf.constant(0.0))),
+                                true_fn = lambda: LARC_eta * v_norm / g_norm,
+                                false_fn = lambda: LARC_epsilon)
+
+                            if FLAGS.larc_mode != "scale": #CLIP
+                                larc_local_lr = tf.minimum(
+                                    larc_local_lr/self.learning_rate, 1.0)
+                            gradvars[i] = (tf.multiply(larc_local_lr, g), v)
                 opt = self.make_optimizer()
                 train_op = opt.apply_gradients(gradvars)
                 train_ops.append(train_op)
         # Combine all of the ops required for a training step
-        update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS) or []
         with tf.device('/cpu:0'):
-            increment_global_step_op = tf.assign_add(self.global_step, 1)
-        update_ops.append(increment_global_step_op)
+            with tf.control_dependencies(train_ops):
+                increment_global_step_op = tf.assign_add(self.global_step, 1)
         self.enqueue_ops = []
         self.enqueue_ops.append(tf.group(*preload_ops))
         self.enqueue_ops.append(tf.group(*gpucopy_ops))
-        train_and_update_ops = tf.group(*(train_ops + update_ops))
-        all_training_ops = (self.enqueue_ops + [train_and_update_ops])
+        all_training_ops = (self.enqueue_ops + [increment_global_step_op])
         return total_loss_avg, self.learning_rate, all_training_ops
     def init(self, sess, devices):
         init_op = tf.global_variables_initializer()
@@ -1252,6 +1281,16 @@ def main():
     cmdline.add_argument('--display_every', default=1, type=int,
                          help="""How often (in iterations) to print out
                          running information.""")
+    cmdline.add_argument('--save_interval', default=43200, type=int,
+                         help="""Time in seconds between checkpoints.""")
+    cmdline.add_argument('--summary_interval', default=3600, type=int,
+                         help="""Time in seconds between saves of summary
+                         statistics.""")
+    cmdline.add_argument('--larc_eta', default=None, type=float,
+                         help="""LARC eta value. If not specified, LARC is
+                         disabled.""")
+    cmdline.add_argument('--larc_mode', default='clip',
+                         help="""LARC mode can be 'clip' or 'scale'.""")
     add_bool_argument(cmdline, '--eval',
                       help="""Evaluate the top-1 and top-5 accuracy of
                       a checkpointed model.""")
@@ -1297,7 +1336,7 @@ def main():
     # Training hyperparameters
     FLAGS.learning_rate         = 0.001 # Model-specific values are set below
     FLAGS.momentum              = 0.9
-    FLAGS.lr_decay_policy       = 'step'
+    FLAGS.lr_decay_policy       = 'poly'
     FLAGS.lr_decay_epochs       = 30
     FLAGS.lr_decay_rate         = 0.1
     FLAGS.lr_poly_power         = 2.
@@ -1305,11 +1344,10 @@ def main():
     FLAGS.input_buffer_size     = min(10000, nrecord)
     FLAGS.distort_color         = False
     FLAGS.nstep_burnin          = 20
-    FLAGS.summary_interval_secs = 600
-    FLAGS.save_interval_secs    = 600
     # Scaling to avoid fp16 underflow
     #*FLAGS.loss_scale            = (1 << 7) if FLAGS.fp16 else 1
-    FLAGS.loss_scale            = 1 # TODO: May need to decide this based on model
+    FLAGS.loss_scale            = 10. # TODO: May need to decide this based on model
+    FLAGS.larc_epsilon          = 1.
 
     model_dtype = tf.float16 if FLAGS.fp16 else tf.float32
 
@@ -1363,7 +1401,7 @@ def main():
         height, width = 224, 224
         nlayer = int(model_name[len('resnet'):])
         model_func = lambda net, images: inference_resnet_v1(net, images, nlayer)
-        FLAGS.learning_rate = 0.1 if nlayer > 18 else 0.5
+        FLAGS.learning_rate = 1.0 * total_batch_size / 1024.0
     elif model_name.startswith('resnext'):
         height, width = 224, 224
         nlayer = int(model_name[len('resnext'):])
@@ -1495,10 +1533,10 @@ def main():
         try:
             start_time = time.time()
             if (summary_ops is not None and
-                (step == 0 or
-                 time.time() - last_summary_time > FLAGS.summary_interval_secs)):
+                (step == 0 or step+1 == nstep or
+                 time.time() - last_summary_time > FLAGS.summary_interval)):
                 if step != 0:
-                    last_summary_time += FLAGS.summary_interval_secs
+                    last_summary_time += FLAGS.summary_interval
                 print("Writing summaries to ", log_dir)
                 summary, loss, lr = sess.run([summary_ops] + ops_to_run)[:3]
                 train_writer.add_summary(summary, step)
@@ -1515,8 +1553,8 @@ def main():
             oom = True
 
         if (saver is not None and
-            time.time() - last_save_time > FLAGS.save_interval_secs):
-            last_save_time += FLAGS.save_interval_secs
+            (time.time() - last_save_time > FLAGS.save_interval or step+1 == nstep)):
+            last_save_time += FLAGS.save_interval
             save_path = saver.save(sess, checkpoint_file,
                                    global_step=trainer.global_step)
             print("Checkpoint written to", save_path)
