@@ -1287,7 +1287,7 @@ def main():
                          help="""Time in seconds between saves of summary
                          statistics.""")
     cmdline.add_argument('--larc_eta', default=None, type=float,
-                         """LARC eta value. If not specified, LARC is
+                         help="""LARC eta value. If not specified, LARC is
                          disabled.""")
     cmdline.add_argument('--larc_mode', default='clip',
                          help="""LARC mode can be 'clip' or 'scale'.""")
