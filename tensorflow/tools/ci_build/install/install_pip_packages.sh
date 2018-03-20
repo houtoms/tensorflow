@@ -56,7 +56,7 @@ rm -rf /usr/lib/python3/dist-packages/six*
 #pip2 install --no-binary=:all: --upgrade numpy==1.12.0
 pip2 install --upgrade numpy==1.12.0
 
-pip2 install scipy==0.18.1
+pip2 install scipy==0.19.0
 
 pip2 install scikit-learn==0.18.1
 
