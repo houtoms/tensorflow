@@ -20,6 +20,8 @@ tensorflow/tools/ci_build/install/install_auditwheel.sh
 
 export LD_LIBRARY_PATH=/usr/local/cuda/extras/CUPTI/lib64:$LD_LIBRARY_PATH
 
+# TODO(benbarsdell): Re-enable local_client_execute_test_gpu once CUDA version is > 9.0
+#                      (due to known issue with PTX generation).
 NUM_GPUS=`nvidia-smi -L | wc -l` && \
   bazel test  --config=cuda -c opt --verbose_failures --local_test_jobs=$NUM_GPUS \
               --run_under=//tensorflow/tools/ci_build/gpu_build:parallel_gpu_execute \
@@ -27,5 +29,6 @@ NUM_GPUS=`nvidia-smi -L | wc -l` && \
               --build_tests_only \
               -- \
               //tensorflow/compiler/... \
+              -//tensorflow/compiler/xla/tests:local_client_execute_test_gpu \
   | tee testresult.tmp && grep "test\.log" testresult.tmp \
   | /opt/tensorflow/qa/show_testlogs
