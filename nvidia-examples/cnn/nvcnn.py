@@ -692,25 +692,29 @@ class FeedForwardTrainer(object):
         for device_num, device in enumerate(devices):
             with tf.device(device):
                 gradvars = tower_gradvars[device_num]
-                for i, (g, v) in enumerate(gradvars):
-                    #Apply LARC scaling
-                    if FLAGS.larc_eta is not None:
-                        LARC_eta = float(FLAGS.larc_eta)
-                        LARC_epsilon = float(FLAGS.larc_epsilon)
-                        if g is not None:
-                            v_norm = tf.norm(tensor=v, ord=2)
-                            g_norm = tf.norm(tensor=g, ord=2)
-                            larc_local_lr = tf.cond(
-                                pred = tf.logical_and(
-                                    tf.not_equal(v_norm, tf.constant(0.0)),
-                                    tf.not_equal(g_norm, tf.constant(0.0))),
-                                true_fn = lambda: LARC_eta * v_norm / g_norm,
-                                false_fn = lambda: LARC_epsilon)
+                #Apply LARC scaling
+                if FLAGS.larc_eta is not None:
+                    LARC_eta = float(FLAGS.larc_eta)
+                    LARC_epsilon = float(FLAGS.larc_epsilon)
+                    v_list = [ tf.norm(tensor=v, ord=2) for _, v in gradvars ]
+                    g_list = [ tf.norm(tensor=g, ord=2) if g is not None else 0.0 for g, _ in gradvars ]
+                    v_norms = tf.stack(v_list)
+                    g_norms = tf.stack(g_list)
+                    zeds = tf.zeros_like(v_norms)
+                    cond = tf.logical_and(
+                        tf.not_equal(v_norms, zeds),
+                        tf.not_equal(g_norms, zeds))
+                    true_vals = tf.scalar_mul(LARC_eta, tf.div(v_norms, g_norms))
+                    false_vals = tf.fill(tf.shape(v_norms), LARC_epsilon)
+                    larc_local_lr = tf.where(cond, true_vals, false_vals)
+                    if FLAGS.LARC_mode != "scale":
+                        ones = tf.ones_like(v_norms)
+                        lr = tf.fill(tf.shape(v_norms), self.learning_rate)
+                        larc_local_lr = tf.minimum(tf.div(larc_local_lr, lr), ones)
 
-                            if FLAGS.larc_mode != "scale": #CLIP
-                                larc_local_lr = tf.minimum(
-                                    larc_local_lr/self.learning_rate, 1.0)
-                            gradvars[i] = (tf.multiply(larc_local_lr, g), v)
+                    gradvars = [(tf.multiply(larc_local_lr[i], g), v) if g is not None else (None, v) 
+                        for i, (g, v) in enumerate(gradvars) ]
+
                 opt = self.make_optimizer()
                 train_op = opt.apply_gradients(gradvars)
                 train_ops.append(train_op)
