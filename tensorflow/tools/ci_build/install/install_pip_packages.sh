@@ -37,7 +37,7 @@ pip2 install --upgrade absl-py
 pip2 install --upgrade werkzeug==0.11.10
 
 # Install bleach. html5lib will be picked up as a dependency.
-pip2 install --upgrade bleach==1.5.0
+pip2 install --upgrade bleach==2.0.0
 
 # Install markdown.
 pip2 install --upgrade markdown==2.6.8
