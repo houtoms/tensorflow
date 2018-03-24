@@ -95,6 +95,17 @@ RUN BAZEL_VERSION=0.11.0 && \
     bash ./bazel-$BAZEL_VERSION-installer-linux-x86_64.sh && \
     rm -rf /bazel
 
+# TensorRT
+RUN wget -qO libnvinfer.deb "http://cuda-repo/release-candidates/Libraries/TensorRT/v3.0/3.0.4-GA-cl_23531598/CUDA9.0-r384/Ubuntu16_04-x64/deb/libnvinfer4_4.0.4-1+cuda9.0_amd64.deb" && \
+    wget -qO libnvinfer-dev.deb "http://cuda-repo/release-candidates/Libraries/TensorRT/v3.0/3.0.4-GA-cl_23531598/CUDA9.0-r384/Ubuntu16_04-x64/deb/libnvinfer-dev_4.0.4-1+cuda9.0_amd64.deb" && \
+    dpkg -i libnvinfer.deb && \
+    dpkg -i libnvinfer-dev.deb && \
+    rm /usr/lib/x86_64-linux-gnu/libnvcaffe_parser.a \
+       /usr/lib/x86_64-linux-gnu/libnvparsers.a \
+       /usr/lib/x86_64-linux-gnu/libnvinfer_plugin.a \
+       /usr/lib/x86_64-linux-gnu/libnvinfer.a \
+       libnvinfer.deb libnvinfer-dev.deb
+
 # Download and build TensorFlow.
 WORKDIR /opt/tensorflow
 COPY . .
@@ -120,6 +131,7 @@ ENV TF_CUDA_COMPUTE_CAPABILITIES "5.2,6.0,6.1,7.0"
 ENV TF_NEED_GCP 0
 ENV TF_NEED_HDFS 0
 ENV TF_ENABLE_XLA 1
+ENV TF_NEED_TENSORRT 1
 ENV CC_OPT_FLAGS "-march=sandybridge -mtune=broadwell"
 
 # Build and install TF
