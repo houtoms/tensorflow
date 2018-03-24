@@ -548,16 +548,14 @@ class FeedForwardTrainer(object):
             opt = tf.train.MomentumOptimizer(self.learning_rate, FLAGS.momentum,
                                              use_nesterov=True)
             opt = hvd.DistributedOptimizer(opt)
-            update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS) or []
-            with tf.control_dependencies(update_ops):
-                if FLAGS.loss_scale != 1:
-                    loss = loss * float(FLAGS.loss_scale)
-                gradvars = opt.compute_gradients(loss,
-                    gate_gradients=tf.train.Optimizer.GATE_NONE)
-                if FLAGS.loss_scale != 1:
-                    inv_scale = 1. / float(FLAGS.loss_scale)
-                    gradvars = [(grad * inv_scale, var)
-                                for grad, var in gradvars]
+            if FLAGS.loss_scale != 1:
+                loss = loss * float(FLAGS.loss_scale)
+            gradvars = opt.compute_gradients(loss,
+                gate_gradients=tf.train.Optimizer.GATE_NONE)
+            if FLAGS.loss_scale != 1:
+                inv_scale = 1. / float(FLAGS.loss_scale)
+                gradvars = [(grad * inv_scale, var)
+                            for grad, var in gradvars]
 
             if FLAGS.LARC_eta is not None:
                 LARC_eta = float(FLAGS.LARC_eta)
@@ -1260,8 +1258,11 @@ def main():
         logits = net.fully_connected(output, nclass, activation='LINEAR')
         if logits.dtype != tf.float32:
             logits = tf.cast(logits, tf.float32)
-        loss = tf.losses.sparse_softmax_cross_entropy(
-            logits=logits, labels=labels)
+        update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS,
+                                       scope=var_scope.name) or []
+        with tf.control_dependencies(update_ops):
+            loss = tf.losses.sparse_softmax_cross_entropy(
+                logits=logits, labels=labels)
         # Add weight decay
         if FLAGS.weight_decay is not None and FLAGS.weight_decay != 0.:
             params = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES,

@@ -641,16 +641,13 @@ class FeedForwardTrainer(object):
                     params = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES,
                                                scope=var_scope.name)
                     self.tower_params.append(params)
-                    update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS,
-                                                   scope=var_scope.name) or []
-                    with tf.control_dependencies(update_ops):
-                        # Apply loss scaling to improve numerical stability
-                        if FLAGS.loss_scale != 1:
-                            scale = FLAGS.loss_scale
-                            grads  = [grad*(1./scale)
-                                      for grad in tf.gradients(loss*scale, params)]
-                        else:
-                            grads = tf.gradients(loss, params)
+                    # Apply loss scaling to improve numerical stability
+                    if FLAGS.loss_scale != 1:
+                        scale = FLAGS.loss_scale
+                        grads  = [grad*(1./scale)
+                                  for grad in tf.gradients(loss*scale, params)]
+                    else:
+                        grads = tf.gradients(loss, params)
                     gradvars = list(zip(grads, params))
                     tower_gradvars.append(gradvars)
                     with tf.device('/cpu:0'): # No in_top_k implem on GPU
@@ -1436,8 +1433,11 @@ def main():
         logits = net.fully_connected(output, nclass, activation='LINEAR')
         if logits.dtype != tf.float32:
             logits = tf.cast(logits, tf.float32)
-        loss = tf.losses.sparse_softmax_cross_entropy(
-            logits=logits, labels=labels)
+        update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS,
+                                       scope=var_scope.name) or []
+        with tf.control_dependencies(update_ops):
+            loss = tf.losses.sparse_softmax_cross_entropy(
+                logits=logits, labels=labels)
         # Add weight decay
         if FLAGS.weight_decay is not None and FLAGS.weight_decay != 0.:
             params = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES,
