@@ -16,6 +16,14 @@
 
 """
 Changelog:
+1.1
+  - Center crop evaluation images
+  - Enable LARC learning rate control
+  - Correctly order UPDATE_OPS and global_step update during training.
+  - Set default learning rate policy to polynomial decay.
+  - Add cmd line options for checkpoint and summary intervals.
+  - Add loss scaling.
+  - Scale resnet learning rate by batch size.
 1.0
   - Initial version based on nvcnn.py 1.4
 """
@@ -329,7 +337,9 @@ def decode_png(imgdata, channels=3):
 
 def random_crop_and_resize_image(image, bbox, height, width):
     with tf.name_scope('random_crop_and_resize'):
-        if not FLAGS.eval:
+        if FLAGS.eval:
+            image = tf.image.central_crop(image, 224./256.)
+        else:
             bbox_begin, bbox_size, distorted_bbox = tf.image.sample_distorted_bounding_box(
                 tf.shape(image),
                 bounding_boxes=bbox,
@@ -410,6 +420,7 @@ class ImagePreprocessor(object):
         record_input = data_flow_ops.RecordInput(
             file_pattern=os.path.join(FLAGS.data_dir, '%s-*' % self.subset),
             parallelism=64,
+            seed=301+hvd.rank(),
             # Note: This causes deadlock during init if larger than dataset
             buffer_size=FLAGS.input_buffer_size,
             batch_size=batch_size)
@@ -510,14 +521,13 @@ class FeedForwardTrainer(object):
                     # Force all variables to be stored as float32
                     custom_getter=float32_variable_storage_getter) as var_scope:
                 loss, logits = self.loss_func(images, labels, var_scope)
-                
-                with tf.device('/cpu:0'): # No in_top_k implem on GPU
-                    top1 = tf.reduce_mean(
-                        tf.cast(tf.nn.in_top_k(logits, labels, 1), tf.float32))
-                    top5 = tf.reduce_mean(
-                        tf.cast(tf.nn.in_top_k(logits, labels, 5), tf.float32))
+ 
+        with tf.device('/cpu:0'): # No in_top_k implem on GPU
+            top1 = tf.reduce_mean(
+                tf.cast(tf.nn.in_top_k(logits, labels, 1), tf.float32))
+            top5 = tf.reduce_mean(
+                tf.cast(tf.nn.in_top_k(logits, labels, 5), tf.float32))
 
-        with tf.device('/cpu:0'):
             averager = tf.train.ExponentialMovingAverage(0.90, name='loss_avg',
                                                          zero_debias=True)
             avg_op = averager.apply([loss])
@@ -538,19 +548,51 @@ class FeedForwardTrainer(object):
             opt = tf.train.MomentumOptimizer(self.learning_rate, FLAGS.momentum,
                                              use_nesterov=True)
             opt = hvd.DistributedOptimizer(opt)
-            train_op = opt.minimize(loss,
-                                    gate_gradients=tf.train.Optimizer.GATE_NONE)
+            update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS) or []
+            with tf.control_dependencies(update_ops):
+                if FLAGS.loss_scale != 1:
+                    loss = loss * float(FLAGS.loss_scale)
+                gradvars = opt.compute_gradients(loss,
+                    gate_gradients=tf.train.Optimizer.GATE_NONE)
+                if FLAGS.loss_scale != 1:
+                    inv_scale = 1. / float(FLAGS.loss_scale)
+                    gradvars = [(grad * inv_scale, var)
+                                for grad, var in gradvars]
 
-        update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS) or []
+            if FLAGS.LARC_eta is not None:
+                LARC_eta = float(FLAGS.LARC_eta)
+                LARC_epsilon = float(FLAGS.LARC_epsilon)
+                v_list = [tf.norm(tensor=v, ord=2) for _, v in gradvars]
+                g_list = [tf.norm(tensor=g, ord=2) if g is not None else 0.0
+                          for g, _ in gradvars ]
+                v_norms = tf.stack(v_list)
+                g_norms = tf.stack(g_list)
+                zeds = tf.zeros_like(v_norms)
+                cond = tf.logical_and(
+                    tf.not_equal(v_norms, zeds),
+                    tf.not_equal(g_norms, zeds))
+                true_vals = tf.scalar_mul(LARC_eta, tf.div(v_norms, g_norms))
+                false_vals = tf.fill(tf.shape(v_norms), LARC_epsilon)
+                larc_local_lr = tf.where(cond, true_vals, false_vals)
+                if FLAGS.LARC_mode != "scale":
+                    ones = tf.ones_like(v_norms)
+                    lr = tf.fill(tf.shape(v_norms), self.learning_rate)
+                    larc_local_lr = tf.minimum(tf.div(larc_local_lr, lr), ones)
+
+                gradvars = [(tf.multiply(larc_local_lr[i], g), v)
+                            if g is not None else (None, v) 
+                            for i, (g, v) in enumerate(gradvars) ]
+
+            train_op = opt.apply_gradients(gradvars)
+
         with tf.device('/cpu:0'):
-            increment_global_step_op = tf.assign_add(self.global_step, 1)
-        update_ops.append(increment_global_step_op)
+            with tf.control_dependencies([train_op]):
+                increment_global_step_op = tf.assign_add(self.global_step, 1)
         self.enqueue_ops = []
         self.enqueue_ops.append(preload_op)
         if gpucopy_op is not None:
             self.enqueue_ops.append(gpucopy_op)
-        train_and_update_ops = tf.group(*([train_op] + update_ops))
-        all_training_ops = (self.enqueue_ops + [train_and_update_ops])
+        all_training_ops = (self.enqueue_ops + [increment_global_step_op])
         return total_loss_avg, self.learning_rate, all_training_ops
     def init(self, sess):
         init_op = tf.global_variables_initializer()
@@ -1062,8 +1104,8 @@ def add_bool_argument(cmdline, shortname, longname=None, default=False, help=Non
     return cmdline
 
 def main():
-    tf.set_random_seed(1234)
-    np.random.seed(4321)
+    tf.set_random_seed(1234+hvd.rank())
+    np.random.seed(4321+hvd.rank())
     cmdline = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     # Basic options
     cmdline.add_argument('-m', '--model', required=True,
@@ -1090,6 +1132,10 @@ def main():
     cmdline.add_argument('--display_every', default=1, type=int,
                          help="""How often (in iterations) to print out
                          running information.""")
+    cmdline.add_argument('--save_interval', default=43200, type=int,
+                         help="""Time in seconds between checkpoints.""")
+    cmdline.add_argument('--summary_interval', default=3600, type=int,
+                         help="""Time in seconds between saves of summary statistics.""")
     add_bool_argument(cmdline, '--eval',
                       help="""Evaluate the top-1 and top-5 accuracy of
                       a checkpointed model.""")
@@ -1122,7 +1168,7 @@ def main():
     # Training hyperparameters
     FLAGS.learning_rate         = 0.001 # Model-specific values are set below
     FLAGS.momentum              = 0.9
-    FLAGS.lr_decay_policy       = 'step'
+    FLAGS.lr_decay_policy       = 'poly'
     FLAGS.lr_decay_epochs       = 30
     FLAGS.lr_decay_rate         = 0.1
     FLAGS.lr_poly_power         = 2.
@@ -1130,8 +1176,10 @@ def main():
     FLAGS.input_buffer_size     = min(10000, nrecord)
     FLAGS.distort_color         = False
     FLAGS.nstep_burnin          = 20
-    FLAGS.summary_interval_secs = 600
-    FLAGS.save_interval_secs    = 600
+    FLAGS.loss_scale            = 10. # TODO: May need to decide this based on model
+    FLAGS.LARC_eta              = 0.003
+    FLAGS.LARC_epsilon          = 1.
+    FLAGS.LARC_mode             = 'clip'
 
     model_dtype = tf.float16 if FLAGS.fp16 else tf.float32
 
@@ -1182,7 +1230,7 @@ def main():
         height, width = 224, 224
         nlayer = int(model_name[len('resnet'):])
         model_func = lambda net, images: inference_resnet_v1(net, images, nlayer)
-        FLAGS.learning_rate = 0.1 if nlayer > 18 else 0.5
+        FLAGS.learning_rate = 1. * (batch_size * hvd.size() / 1024.0) if nlayer > 18 else 0.5
     elif model_name.startswith('resnext'):
         height, width = 224, 224
         nlayer = int(model_name[len('resnext'):])
@@ -1247,7 +1295,7 @@ def main():
         print("Building evaluation graph")
         top1_op, top5_op, enqueue_ops = evaluator.evaluation_step(batch_size)
     else:
-        nstep_per_epoch = nrecord // batch_size
+        nstep_per_epoch = nrecord // (batch_size * hvd.size())
         trainer = FeedForwardTrainer(preprocessor, loss_func, nstep_per_epoch)
         print_r0("Building training graph")
         total_loss, learning_rate, train_ops = trainer.training_step(
@@ -1256,6 +1304,8 @@ def main():
     print_r0("Creating session")
     config = tf.ConfigProto()
     config.intra_op_parallelism_threads = 1
+    config.inter_op_parallelism_threads = 10
+    config.gpu_options.force_gpu_compatible = True
     config.gpu_options.visible_device_list = str(hvd.local_rank())
 
     sess = tf.Session(config=config)
@@ -1317,10 +1367,10 @@ def main():
         try:
             start_time = time.time()
             if (hvd.rank() == 0 and summary_ops is not None and
-                (step == 0 or
-                 time.time() - last_summary_time > FLAGS.summary_interval_secs)):
+                (step == 0 or step+1 == nstep or
+                 time.time() - last_summary_time > FLAGS.summary_interval)):
                 if step != 0:
-                    last_summary_time += FLAGS.summary_interval_secs
+                    last_summary_time += FLAGS.summary_interval
                 print("Writing summaries to ", log_dir)
                 summary, loss, lr = sess.run([summary_ops] + ops_to_run)[:3]
                 train_writer.add_summary(summary, step)
@@ -1337,8 +1387,8 @@ def main():
             oom = True
 
         if (hvd.rank() == 0 and saver is not None and
-            time.time() - last_save_time > FLAGS.save_interval_secs):
-            last_save_time += FLAGS.save_interval_secs
+            (time.time() - last_save_time > FLAGS.save_interval or step+1 == nstep)):
+            last_save_time += FLAGS.save_interval
             save_path = saver.save(sess, checkpoint_file,
                                    global_step=trainer.global_step)
             print("Checkpoint written to", save_path)
