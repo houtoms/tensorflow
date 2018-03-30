@@ -60,7 +60,7 @@ NUM_GPUS=`nvidia-smi -L | wc -l` && \
               -//tensorflow/contrib/distributions:mvn_full_covariance_test \
               -//tensorflow/contrib/factorization:gmm_test \
               -//tensorflow/core/distributed_runtime:cluster_function_library_runtime_test \
-              `# These two are flakers as of tf 1.7. Moving to serial tests below.` \
+              `# These are flakers as of tf 1.7. Keeping ram_file test below.` \
               -//tensorflow/contrib/learn:monitors_test \
               -//tensorflow/core/platform/cloud:ram_file_block_cache_test \
               `# conv_ops_test has timed out in some M40 runs. Moved to serial tests below.` \
@@ -80,7 +80,6 @@ bazel test    --config=cuda -c opt --verbose_failures --local_test_jobs=1 \
               //tensorflow/contrib/kfac/examples/tests:convnet_test \
               //tensorflow/python/kernel_tests:depthtospace_op_test \
               //tensorflow/python/kernel_tests:conv_ops_test \
-              //tensorflow/contrib/learn:monitors_test \
               //tensorflow/core/platform/cloud:ram_file_block_cache_test \
   | tee -a testresult.tmp
 
