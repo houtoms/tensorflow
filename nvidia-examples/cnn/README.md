@@ -2,52 +2,66 @@
 # Convolutional neural network training scripts
 
 These scripts implement a number of popular CNN models and demonstrate
-efficient training on multi-GPU systems. It can be used for benchmarking,
-training and evaluation of models.
+efficient single-node training on multi-GPU systems. It can be used for
+benchmarking, training and evaluation of models.
 
 Two methods of parallelization are demonstrated.
  * Tensorflow native distributed graphs in nvcnn.py.
  * Uber's Horovod data-parallel framework in nvcnn_hvd.py
 
-## Benchmarking Example
+## ResNet50 Training Example
 
-Assumes TFRecord dataset in /data/imagenet_tfrecord.
+The following command lines initiate training of the ResNet50 model using fp16
+arithmetic. We assume Imagenet is saved in TFRecord format at
+/data/imagenet_tfrecord.
 
-### nvcnn.py
+### Using nvcnn.py
     $ python nvcnn.py --model=resnet50 \
                       --data_dir=/data/imagenet_tfrecord \
-                      --batch_size=64 \
+                      --batch_size=256 \
                       --num_gpus=8 \
-                      --fp16
+                      --fp16 \
+                      --larc_mode=clip \
+                      --larc_eta=0.003 \
+                      --loss_scale=128 \
+                      --log_dir=./checkpoint-dir \
+                      --save_interval=3600 \
+                      --num_epochs=90 \
+                      --display_every=100
 
-### nvcnn_hvd.py
+### Using nvcnn_hvd.py
     $ mpiexec --allow-run-as-root -np 8 python nvcnn_hvd.py \
                       --model=resnet50 \
                       --data_dir=/data/imagenet_tfrecord \
-                      --batch_size=64 \
-                      --fp16
+                      --batch_size=256 \
+                      --fp16 \
+                      --larc_mode=clip \
+                      --larc_eta=0.003 \
+                      --loss_scale=128 \
+                      --log_dir=./checkpoint-dir \
+                      --save_interval=3600 \
+                      --num_epochs=90 \
+                      --display_every=100
 
-## Training Example
 
-## nvcnn.py
+## Evaluating accuracy on the test set
+
+Both FP32 and FP16 training store model parameters in fp32 precision. Thus
+the `--fp16` flag is not needed for eval jobs. Also, evaluation is performed
+on a single GPU.
+
+### Using nvcnn.py
     $ python nvcnn.py --model=resnet50 \
                       --data_dir=/data/imagenet_tfrecord \
-                      --batch_size=64 \
-                      --num_gpus=8 \
-                      --num_epochs=120 \
-                      --display_every=50 \
-                      --log_dir=/home/train/resnet50-1 \
-                      --fp16
+                      --batch_size=256 \
+                      --log_dir=./checkpoint-dir
 
-## nvcnn_hvd.py
-    $ mpiexec --allow-run-as-root -np 8 python nvcnn_hvd.py
-                      --model=resnet50 \
-                      --data_dir=/data/imagenet_tfrecord \
-                      --batch_size=64 \
-                      --num_epochs=120 \
-                      --display_every=50 \
-                      --log_dir=/home/train/resnet50-1 \
-                      --fp16
+### Using nvcnn_hvd.py
+    $ python nvcnn_hvd.py --model=resnet50 \
+                          --data_dir=/data/imagenet_tfrecord \
+                          --batch_size=256 \
+                          --log_dir=./checkpoint-dir
+
 
 ## Use notes
 

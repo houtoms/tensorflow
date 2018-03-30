@@ -19,7 +19,7 @@ Changelog:
 1.6
   - Center crop evaluation images.
   - Enable LARC learning rate control
-  - Correctly order UPDATE_OPS and global_step update during training.
+  - Correctly order global_step update in training graph.
   - Set default learning rate policy to polynomial decay.
   - Add cmd line options for checkpoint and summary intervals.
   - Scale resnet learning rate by batch size.
@@ -59,7 +59,7 @@ Changelog:
 from __future__ import print_function
 from builtins import range
 
-__version__ = "1.4"
+__version__ = "1.6"
 
 import numpy as np
 import tensorflow as tf
@@ -642,7 +642,7 @@ class FeedForwardTrainer(object):
                                                scope=var_scope.name)
                     self.tower_params.append(params)
                     # Apply loss scaling to improve numerical stability
-                    if FLAGS.loss_scale != 1:
+                    if FLAGS.loss_scale != 1.:
                         scale = FLAGS.loss_scale
                         grads  = [grad*(1./scale)
                                   for grad in tf.gradients(loss*scale, params)]
@@ -693,8 +693,9 @@ class FeedForwardTrainer(object):
                 if FLAGS.larc_eta is not None:
                     LARC_eta = float(FLAGS.larc_eta)
                     LARC_epsilon = float(FLAGS.larc_epsilon)
-                    v_list = [ tf.norm(tensor=v, ord=2) for _, v in gradvars ]
-                    g_list = [ tf.norm(tensor=g, ord=2) if g is not None else 0.0 for g, _ in gradvars ]
+                    v_list = [tf.norm(tensor=v, ord=2) for _, v in gradvars]
+                    g_list = [tf.norm(tensor=g, ord=2) if g is not None else 0.0
+                              for g, _ in gradvars]
                     v_norms = tf.stack(v_list)
                     g_norms = tf.stack(g_list)
                     zeds = tf.zeros_like(v_norms)
@@ -704,25 +705,28 @@ class FeedForwardTrainer(object):
                     true_vals = tf.scalar_mul(LARC_eta, tf.div(v_norms, g_norms))
                     false_vals = tf.fill(tf.shape(v_norms), LARC_epsilon)
                     larc_local_lr = tf.where(cond, true_vals, false_vals)
-                    if FLAGS.LARC_mode != "scale":
+                    if FLAGS.larc_mode != "scale":
                         ones = tf.ones_like(v_norms)
                         lr = tf.fill(tf.shape(v_norms), self.learning_rate)
                         larc_local_lr = tf.minimum(tf.div(larc_local_lr, lr), ones)
 
-                    gradvars = [(tf.multiply(larc_local_lr[i], g), v) if g is not None else (None, v) 
-                        for i, (g, v) in enumerate(gradvars) ]
+                    gradvars = [(tf.multiply(larc_local_lr[i], g), v)
+                                if g is not None else (None, v) 
+                                for i, (g, v) in enumerate(gradvars) ]
 
                 opt = self.make_optimizer()
                 train_op = opt.apply_gradients(gradvars)
                 train_ops.append(train_op)
         # Combine all of the ops required for a training step
+        update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS) or []
         with tf.device('/cpu:0'):
             with tf.control_dependencies(train_ops):
                 increment_global_step_op = tf.assign_add(self.global_step, 1)
         self.enqueue_ops = []
         self.enqueue_ops.append(tf.group(*preload_ops))
         self.enqueue_ops.append(tf.group(*gpucopy_ops))
-        all_training_ops = (self.enqueue_ops + [increment_global_step_op])
+        train_and_update_ops = tf.group(*([increment_global_step_op] + update_ops))
+        all_training_ops = (self.enqueue_ops + [train_and_update_ops])
         return total_loss_avg, self.learning_rate, all_training_ops
     def init(self, sess, devices):
         init_op = tf.global_variables_initializer()
@@ -1287,6 +1291,8 @@ def main():
     cmdline.add_argument('--summary_interval', default=3600, type=int,
                          help="""Time in seconds between saves of summary
                          statistics.""")
+    cmdline.add_argument('--loss_scale', default=1., type=float,
+                         help="""Loss scaling factor. Set to 1 to disable.""")
     cmdline.add_argument('--larc_eta', default=None, type=float,
                          help="""LARC eta value. If not specified, LARC is
                          disabled.""")
@@ -1346,8 +1352,6 @@ def main():
     FLAGS.distort_color         = False
     FLAGS.nstep_burnin          = 20
     # Scaling to avoid fp16 underflow
-    #*FLAGS.loss_scale            = (1 << 7) if FLAGS.fp16 else 1
-    FLAGS.loss_scale            = 10. # TODO: May need to decide this based on model
     FLAGS.larc_epsilon          = 1.
 
     model_dtype = tf.float16 if FLAGS.fp16 else tf.float32
@@ -1433,11 +1437,8 @@ def main():
         logits = net.fully_connected(output, nclass, activation='LINEAR')
         if logits.dtype != tf.float32:
             logits = tf.cast(logits, tf.float32)
-        update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS,
-                                       scope=var_scope.name) or []
-        with tf.control_dependencies(update_ops):
-            loss = tf.losses.sparse_softmax_cross_entropy(
-                logits=logits, labels=labels)
+        loss = tf.losses.sparse_softmax_cross_entropy(
+            logits=logits, labels=labels)
         # Add weight decay
         if FLAGS.weight_decay is not None and FLAGS.weight_decay != 0.:
             params = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES,

@@ -18,8 +18,7 @@
 Changelog:
 1.1
   - Center crop evaluation images
-  - Enable LARC learning rate control
-  - Correctly order UPDATE_OPS and global_step update during training.
+  - Implement LARC learning rate control
   - Set default learning rate policy to polynomial decay.
   - Add cmd line options for checkpoint and summary intervals.
   - Add loss scaling.
@@ -52,7 +51,7 @@ except:
           "docker-examples/Dockerfile.horovod." % __file__)
     raise
 
-__version__ = "1.0"
+__version__ = "1.1"
 
 def tensorflow_version_tuple():
     v = tf.__version__
@@ -548,7 +547,7 @@ class FeedForwardTrainer(object):
             opt = tf.train.MomentumOptimizer(self.learning_rate, FLAGS.momentum,
                                              use_nesterov=True)
             opt = hvd.DistributedOptimizer(opt)
-            if FLAGS.loss_scale != 1:
+            if FLAGS.loss_scale != 1.:
                 loss = loss * float(FLAGS.loss_scale)
             gradvars = opt.compute_gradients(loss,
                 gate_gradients=tf.train.Optimizer.GATE_NONE)
@@ -557,9 +556,9 @@ class FeedForwardTrainer(object):
                 gradvars = [(grad * inv_scale, var)
                             for grad, var in gradvars]
 
-            if FLAGS.LARC_eta is not None:
-                LARC_eta = float(FLAGS.LARC_eta)
-                LARC_epsilon = float(FLAGS.LARC_epsilon)
+            if FLAGS.larc_eta is not None:
+                LARC_eta = float(FLAGS.larc_eta)
+                LARC_epsilon = float(FLAGS.larc_epsilon)
                 v_list = [tf.norm(tensor=v, ord=2) for _, v in gradvars]
                 g_list = [tf.norm(tensor=g, ord=2) if g is not None else 0.0
                           for g, _ in gradvars ]
@@ -572,7 +571,7 @@ class FeedForwardTrainer(object):
                 true_vals = tf.scalar_mul(LARC_eta, tf.div(v_norms, g_norms))
                 false_vals = tf.fill(tf.shape(v_norms), LARC_epsilon)
                 larc_local_lr = tf.where(cond, true_vals, false_vals)
-                if FLAGS.LARC_mode != "scale":
+                if FLAGS.larc_mode != "scale":
                     ones = tf.ones_like(v_norms)
                     lr = tf.fill(tf.shape(v_norms), self.learning_rate)
                     larc_local_lr = tf.minimum(tf.div(larc_local_lr, lr), ones)
@@ -581,16 +580,15 @@ class FeedForwardTrainer(object):
                             if g is not None else (None, v) 
                             for i, (g, v) in enumerate(gradvars) ]
 
-            train_op = opt.apply_gradients(gradvars)
+            train_op = opt.apply_gradients(gradvars, global_step=self.global_step)
 
-        with tf.device('/cpu:0'):
-            with tf.control_dependencies([train_op]):
-                increment_global_step_op = tf.assign_add(self.global_step, 1)
         self.enqueue_ops = []
         self.enqueue_ops.append(preload_op)
         if gpucopy_op is not None:
             self.enqueue_ops.append(gpucopy_op)
-        all_training_ops = (self.enqueue_ops + [increment_global_step_op])
+        update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS) or []
+        train_and_update_ops = tf.group(*([train_op] + update_ops))
+        all_training_ops = (self.enqueue_ops + [train_and_update_ops])
         return total_loss_avg, self.learning_rate, all_training_ops
     def init(self, sess):
         init_op = tf.global_variables_initializer()
@@ -1134,6 +1132,13 @@ def main():
                          help="""Time in seconds between checkpoints.""")
     cmdline.add_argument('--summary_interval', default=3600, type=int,
                          help="""Time in seconds between saves of summary statistics.""")
+    cmdline.add_argument('--loss_scale', default=1., type=float,
+                         help="""Loss scaling factor. Set to 1 to disable.""")
+    cmdline.add_argument('--larc_eta', default=None, type=float,
+                         help="""LARC eta value. If not specified, LARC is
+                         disabled.""")
+    cmdline.add_argument('--larc_mode', default='clip',
+                         help="""LARC mode can be 'clip' or 'scale'.""")
     add_bool_argument(cmdline, '--eval',
                       help="""Evaluate the top-1 and top-5 accuracy of
                       a checkpointed model.""")
@@ -1174,10 +1179,16 @@ def main():
     FLAGS.input_buffer_size     = min(10000, nrecord)
     FLAGS.distort_color         = False
     FLAGS.nstep_burnin          = 20
-    FLAGS.loss_scale            = 10. # TODO: May need to decide this based on model
-    FLAGS.LARC_eta              = 0.003
-    FLAGS.LARC_epsilon          = 1.
-    FLAGS.LARC_mode             = 'clip'
+    FLAGS.larc_epsilon          = 1.
+
+    if FLAGS.eval:
+        if FLAGS.data_dir is None:
+            raise ValueError("eval requires data_dir to be specified")
+        if hvd.size() > 1:
+            raise ValueError("Multi-GPU evaluation is not supported")
+        if FLAGS.fp16:
+            print("WARNING: eval supports only fp32 math. Ignoring --fp16 flag.")
+            FLAGS.fp16 = False
 
     model_dtype = tf.float16 if FLAGS.fp16 else tf.float32
 
@@ -1258,11 +1269,8 @@ def main():
         logits = net.fully_connected(output, nclass, activation='LINEAR')
         if logits.dtype != tf.float32:
             logits = tf.cast(logits, tf.float32)
-        update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS,
-                                       scope=var_scope.name) or []
-        with tf.control_dependencies(update_ops):
-            loss = tf.losses.sparse_softmax_cross_entropy(
-                logits=logits, labels=labels)
+        loss = tf.losses.sparse_softmax_cross_entropy(
+            logits=logits, labels=labels)
         # Add weight decay
         if FLAGS.weight_decay is not None and FLAGS.weight_decay != 0.:
             params = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES,
@@ -1286,12 +1294,6 @@ def main():
         return top1, top5
 
     if FLAGS.eval:
-        if FLAGS.data_dir is None:
-            raise ValueError("eval requires data_dir to be specified")
-        if FLAGS.fp16:
-            raise ValueError("eval cannot be run with in fp16")
-        if hvd.size() > 1:
-            raise ValueError("Multi-GPU evaluation is not supported")
         evaluator = FeedForwardEvaluator(preprocessor, eval_func)
         print("Building evaluation graph")
         top1_op, top5_op, enqueue_ops = evaluator.evaluation_step(batch_size)
