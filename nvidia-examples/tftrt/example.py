@@ -160,16 +160,15 @@ orig_graph = get_simple_graph_def()
 inp_dims = (BATCH_SIZE, 24, 24, 2)
 dummy_input = np.random.random_sample(inp_dims)
 
+# tf 2 trt conversion for FP32
 tftrt_fp32 = convert_tftrt_fp(orig_graph, BATCH_SIZE, "FP32")
+# tf 2 trt conversion for FP16
 tftrt_fp16 = convert_tftrt_fp(orig_graph, BATCH_SIZE, "FP16")
+# tf 2 trt conversion for int8
 tftrt_int8 = convert_tftrt_fp(orig_graph, BATCH_SIZE, "INT8")
 
+# execute each graph
 tf_res = run_graphdef(orig_graph, dummy_input)
 tftrt_fp32_res = run_graphdef(tftrt_fp32, dummy_input)
 tftrt_fp16_res = run_graphdef(tftrt_fp16, dummy_input)
 tftrt_int8_res = run_graphdef(tftrt_int8, dummy_input)
-
-
-print(tftrt_fp32_res)
-print(tftrt_fp16_res)
-print(tftrt_int8_res)
