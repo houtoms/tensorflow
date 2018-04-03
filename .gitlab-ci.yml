@@ -128,6 +128,7 @@ digits:
     - /^.*-devel$/
     except:
     - tags
+    allow_failure: true
 
 .stage_template : &STAGE
     environment: staging
