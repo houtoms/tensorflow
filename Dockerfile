@@ -145,19 +145,25 @@ ENV TF_AUTOTUNE_THRESHOLD       2
 # TensorBoard
 EXPOSE 6006
 
+# Horovod with fp16 patch
+ENV HOROVOD_GPU_ALLREDUCE NCCL
+ENV HOROVOD_NCCL_INCLUDE /usr/include
+ENV HOROVOD_NCCL_LIB /usr/lib/x86_64-linux-gnu
+ENV HOROVOD_NCCL_LINK SHARED
+RUN git clone https://github.com/uber/horovod.git /horovod && \
+    cd /horovod && \
+    git checkout 85882b0b04afe207ae9d5b91cc1eef726dea0083 && \
+    git apply /opt/tensorflow/horovod_fp16.patch && \
+    git apply /opt/tensorflow/horovod_shared_lib.patch && \
+    ln -s /usr/local/cuda/lib64/stubs/libcuda.so ./libcuda.so.1 && \
+    export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$PWD && \
+    python setup.py install && \
+    rm -rf /horovod
+
 WORKDIR /workspace
 COPY NVREADME.md README.md
 COPY docker-examples docker-examples
 RUN chmod -R a+w /workspace
-
-# Horovod
-ENV HOROVOD_GPU_ALLREDUCE NCCL
-ENV HOROVOD_NCCL_INCLUDE /usr/include
-ENV HOROVOD_NCCL_LIB /usr/lib/x86_64-linux-gnu
-RUN ln -s /usr/local/cuda/lib64/stubs/libcuda.so ./libcuda.so.1 && \
-    export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$PWD && \
-    pip install --no-cache-dir horovod==0.11.3 && \
-    rm ./libcuda.so.1
 
 COPY nvidia_entrypoint.sh /usr/local/bin
 ENTRYPOINT ["/usr/local/bin/nvidia_entrypoint.sh"]
