@@ -150,6 +150,8 @@ ENV HOROVOD_GPU_ALLREDUCE NCCL
 ENV HOROVOD_NCCL_INCLUDE /usr/include
 ENV HOROVOD_NCCL_LIB /usr/lib/x86_64-linux-gnu
 ENV HOROVOD_NCCL_LINK SHARED
+ENV HOROVOD_GPU_ALLGATHER MPI
+ENV HOROVOD_GPU_BROADCAST MPI
 RUN git clone https://github.com/uber/horovod.git /horovod && \
     cd /horovod && \
     git checkout 85882b0b04afe207ae9d5b91cc1eef726dea0083 && \
