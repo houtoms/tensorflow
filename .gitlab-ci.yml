@@ -516,19 +516,19 @@ L2_tensorflow_resnext_50_benchmarks--P100_R384_4GPU:
       TEST_WORK_DIR: "/opt/tensorflow/qa/L2_tensorflow_benchmarks"
       TEST_SCRIPT: "./test-resnext-50.sh"
 
-L2_tensorflow_resnext_101_benchmarks--P100_R384_4GPU:
-    <<: *L2_TEST
-    <<: *P100_R384_4GPU
-    variables:
-      TEST_WORK_DIR: "/opt/tensorflow/qa/L2_tensorflow_benchmarks"
-      TEST_SCRIPT: "./test-resnext-101.sh"
+#L2_tensorflow_resnext_101_benchmarks--P100_R384_4GPU:
+#    <<: *L2_TEST
+#    <<: *P100_R384_4GPU
+#    variables:
+#      TEST_WORK_DIR: "/opt/tensorflow/qa/L2_tensorflow_benchmarks"
+#      TEST_SCRIPT: "./test-resnext-101.sh"
 
-L2_tensorflow_resnext_152_benchmarks--P100_R384_4GPU:
-    <<: *L2_TEST
-    <<: *P100_R384_4GPU
-    variables:
-      TEST_WORK_DIR: "/opt/tensorflow/qa/L2_tensorflow_benchmarks"
-      TEST_SCRIPT: "./test-resnext-152.sh"
+#L2_tensorflow_resnext_152_benchmarks--P100_R384_4GPU:
+#    <<: *L2_TEST
+#    <<: *P100_R384_4GPU
+#    variables:
+#      TEST_WORK_DIR: "/opt/tensorflow/qa/L2_tensorflow_benchmarks"
+#      TEST_SCRIPT: "./test-resnext-152.sh"
 
 L2_models_cifar10--P100_R384_4GPU:
     <<: *L2_TEST
@@ -756,19 +756,19 @@ L2_tensorflow_resnext_50_benchmarks--V100_R384_4GPU:
       TEST_WORK_DIR: "/opt/tensorflow/qa/L2_tensorflow_benchmarks"
       TEST_SCRIPT: "./test-resnext-50.sh"
 
-L2_tensorflow_resnext_101_benchmarks--V100_R384_4GPU:
-    <<: *L2_TEST
-    <<: *V100_R384_4GPU
-    variables:
-      TEST_WORK_DIR: "/opt/tensorflow/qa/L2_tensorflow_benchmarks"
-      TEST_SCRIPT: "./test-resnext-101.sh"
+#L2_tensorflow_resnext_101_benchmarks--V100_R384_4GPU:
+#    <<: *L2_TEST
+#    <<: *V100_R384_4GPU
+#    variables:
+#      TEST_WORK_DIR: "/opt/tensorflow/qa/L2_tensorflow_benchmarks"
+#      TEST_SCRIPT: "./test-resnext-101.sh"
 
-L2_tensorflow_resnext_152_benchmarks--V100_R384_4GPU:
-    <<: *L2_TEST
-    <<: *V100_R384_4GPU
-    variables:
-      TEST_WORK_DIR: "/opt/tensorflow/qa/L2_tensorflow_benchmarks"
-      TEST_SCRIPT: "./test-resnext-152.sh"
+#L2_tensorflow_resnext_152_benchmarks--V100_R384_4GPU:
+#    <<: *L2_TEST
+#    <<: *V100_R384_4GPU
+#    variables:
+#      TEST_WORK_DIR: "/opt/tensorflow/qa/L2_tensorflow_benchmarks"
+#      TEST_SCRIPT: "./test-resnext-152.sh"
 
 L2_models_cifar10--V100_R384_4GPU:
     <<: *L2_TEST
@@ -968,26 +968,26 @@ L2_tensorflow_resnet_152_benchmarks--py2--V100_R384_4GPU:
       TEST_WORK_DIR: "/opt/tensorflow/qa/L2_tensorflow_benchmarks"
       TEST_SCRIPT: "./test-resnet-152.sh"
 
-L2_tensorflow_resnext_50_benchmarks--py2--V100_R384_4GPU:
-    <<: *L2_TEST
-    <<: *V100_R384_4GPU
-    variables:
-      TEST_WORK_DIR: "/opt/tensorflow/qa/L2_tensorflow_benchmarks"
-      TEST_SCRIPT: "./test-resnext-50.sh"
+#L2_tensorflow_resnext_50_benchmarks--py2--V100_R384_4GPU:
+#    <<: *L2_TEST
+#    <<: *V100_R384_4GPU
+#    variables:
+#      TEST_WORK_DIR: "/opt/tensorflow/qa/L2_tensorflow_benchmarks"
+#      TEST_SCRIPT: "./test-resnext-50.sh"
 
-L2_tensorflow_resnext_101_benchmarks--py2--V100_R384_4GPU:
-    <<: *L2_TEST
-    <<: *V100_R384_4GPU
-    variables:
-      TEST_WORK_DIR: "/opt/tensorflow/qa/L2_tensorflow_benchmarks"
-      TEST_SCRIPT: "./test-resnext-101.sh"
+#L2_tensorflow_resnext_101_benchmarks--py2--V100_R384_4GPU:
+#    <<: *L2_TEST
+#    <<: *V100_R384_4GPU
+#    variables:
+#      TEST_WORK_DIR: "/opt/tensorflow/qa/L2_tensorflow_benchmarks"
+#      TEST_SCRIPT: "./test-resnext-101.sh"
 
-L2_tensorflow_resnext_152_benchmarks--py2--V100_R384_4GPU:
-    <<: *L2_TEST
-    <<: *V100_R384_4GPU
-    variables:
-      TEST_WORK_DIR: "/opt/tensorflow/qa/L2_tensorflow_benchmarks"
-      TEST_SCRIPT: "./test-resnext-152.sh"
+#L2_tensorflow_resnext_152_benchmarks--py2--V100_R384_4GPU:
+#    <<: *L2_TEST
+#    <<: *V100_R384_4GPU
+#    variables:
+#      TEST_WORK_DIR: "/opt/tensorflow/qa/L2_tensorflow_benchmarks"
+#      TEST_SCRIPT: "./test-resnext-152.sh"
 
 L2_models_cifar10--py2--V100_R384_4GPU:
     <<: *L2_TEST
@@ -1967,19 +1967,19 @@ L2_tensorflow_resnext_50_benchmarks--P40_R384_1GPU:
       TEST_WORK_DIR: "/opt/tensorflow/qa/L2_tensorflow_benchmarks"
       TEST_SCRIPT: "./test-resnext-50.sh"
 
-L2_tensorflow_resnext_101_benchmarks--P40_R384_1GPU:
-    <<: *L2_TEST
-    <<: *P40_R384_1GPU
-    variables:
-      TEST_WORK_DIR: "/opt/tensorflow/qa/L2_tensorflow_benchmarks"
-      TEST_SCRIPT: "./test-resnext-101.sh"
+#L2_tensorflow_resnext_101_benchmarks--P40_R384_1GPU:
+#    <<: *L2_TEST
+#    <<: *P40_R384_1GPU
+#    variables:
+#      TEST_WORK_DIR: "/opt/tensorflow/qa/L2_tensorflow_benchmarks"
+#      TEST_SCRIPT: "./test-resnext-101.sh"
 
-L2_tensorflow_resnext_152_benchmarks--P40_R384_1GPU:
-    <<: *L2_TEST
-    <<: *P40_R384_1GPU
-    variables:
-      TEST_WORK_DIR: "/opt/tensorflow/qa/L2_tensorflow_benchmarks"
-      TEST_SCRIPT: "./test-resnext-152.sh"
+#L2_tensorflow_resnext_152_benchmarks--P40_R384_1GPU:
+#    <<: *L2_TEST
+#    <<: *P40_R384_1GPU
+#    variables:
+#      TEST_WORK_DIR: "/opt/tensorflow/qa/L2_tensorflow_benchmarks"
+#      TEST_SCRIPT: "./test-resnext-152.sh"
 
 L2_models_cifar10--P40_R384_1GPU:
     <<: *L2_TEST
@@ -2176,19 +2176,19 @@ L2_tensorflow_resnext_50_benchmarks--M40_R384_1GPU:
       TEST_WORK_DIR: "/opt/tensorflow/qa/L2_tensorflow_benchmarks"
       TEST_SCRIPT: "./test-resnext-50.sh"
 
-L2_tensorflow_resnext_101_benchmarks--M40_R384_1GPU:
-    <<: *L2_TEST
-    <<: *M40_R384_1GPU
-    variables:
-      TEST_WORK_DIR: "/opt/tensorflow/qa/L2_tensorflow_benchmarks"
-      TEST_SCRIPT: "./test-resnext-101.sh"
+#L2_tensorflow_resnext_101_benchmarks--M40_R384_1GPU:
+#    <<: *L2_TEST
+#    <<: *M40_R384_1GPU
+#    variables:
+#      TEST_WORK_DIR: "/opt/tensorflow/qa/L2_tensorflow_benchmarks"
+#      TEST_SCRIPT: "./test-resnext-101.sh"
 
-L2_tensorflow_resnext_152_benchmarks--M40_R384_1GPU:
-    <<: *L2_TEST
-    <<: *M40_R384_1GPU
-    variables:
-      TEST_WORK_DIR: "/opt/tensorflow/qa/L2_tensorflow_benchmarks"
-      TEST_SCRIPT: "./test-resnext-152.sh"
+#L2_tensorflow_resnext_152_benchmarks--M40_R384_1GPU:
+#    <<: *L2_TEST
+#    <<: *M40_R384_1GPU
+#    variables:
+#      TEST_WORK_DIR: "/opt/tensorflow/qa/L2_tensorflow_benchmarks"
+#      TEST_SCRIPT: "./test-resnext-152.sh"
 
 L2_models_cifar10--M40_R384_1GPU:
     <<: *L2_TEST

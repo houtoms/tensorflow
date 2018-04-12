@@ -142,11 +142,26 @@ nvidia-smi -a                | tee -a $LOG_DIR/nvidia_smi.log
 DATA="--data_dir=/data/imagenet/train-val-tfrecord-480"
 
 CONFIG="
+    --display_every=200
+    $DATA
+"
+#Dryrun to cache imagenet
+MODEL=alexnet_owt
+set_model_args $MODEL
+# Number of iterations * batchsize should be equal to dataset size
+BATCH=128
+NGPU=$MAXGPUS
+ITER=$((10000/$MAXGPUS))
+echo Dryrun $MODEL, batchsize $BATCH, $NGPU GPUs, $ITER iterations
+bench "$MODEL" "$BATCH" "$NGPU" "$ITER" "$CONFIG" "$NET_NAME" 2>&1 | tee ${LOG_DIR}/dryrun_${MODEL}_b${BATCH}_${NGPU}gpu.log
+echo 'Done with dryrun.'
+
+CONFIG="
     --display_every=20
     $DATA
 "
 
-echo 'Running correctness tests...'
+echo 'Running Benchmark...'
 for MODEL in ${MODELS[@]}; do
     ITER=300
     set_model_args $MODEL
@@ -164,7 +179,7 @@ for MODEL in ${MODELS[@]}; do
         done
     done
 done
-echo 'Done with tests.'
+echo 'Done with Benchmark.'
 
 echo 'Running parser...'
 python ${THIS_DIR}/parsers/parser.py ${LOG_DIR}/output*.log
