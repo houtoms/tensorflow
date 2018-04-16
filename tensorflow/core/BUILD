@@ -2200,6 +2200,7 @@ tf_cuda_library(
         ":protos_all_cc",
         "//third_party/eigen3",
         "//tensorflow/core/grappler:grappler_item",
+        "@local_config_cuda//cuda:nvtools",
     ] + if_mkl(
         [
             "//third_party/mkl:intel_binary_blob",

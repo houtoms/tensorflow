@@ -22,6 +22,9 @@ limitations under the License.
 #include <unordered_map>
 #include <vector>
 
+#include "cuda/include/cuda_profiler_api.h"
+#include "cuda/include/nvToolsExt.h"
+
 #include "tensorflow/core/common_runtime/costmodel_manager.h"
 #include "tensorflow/core/common_runtime/pending_counts.h"
 #include "tensorflow/core/common_runtime/step_stats_collector.h"
@@ -1555,6 +1558,8 @@ void ExecutorState::Process(TaggedNode tagged_node, int64 scheduled_usec) {
       nodestats::SetScheduled(stats, scheduled_usec);
       nodestats::SetAllStart(stats);
     }
+    nvtxRangeId_t nvtx_range = nvtxRangeStartA(node->name().c_str());
+
 
     if (vlog_) {
       VLOG(1) << "Process node: " << id << " step " << params.step_id << " "
@@ -1587,6 +1592,7 @@ void ExecutorState::Process(TaggedNode tagged_node, int64 scheduled_usec) {
         MaybeMarkCompleted(input_frame, input_iter, id);
         // Continue to process the nodes in 'inline_ready'.
         completed = NodeDone(s, item.node, ready, stats, &inline_ready);
+        nvtxRangeEnd(nvtx_range);
         continue;
       }
 
@@ -1605,7 +1611,7 @@ void ExecutorState::Process(TaggedNode tagged_node, int64 scheduled_usec) {
         AsyncState* state =
             new AsyncState(params, tagged_node, &item, first_input, stats);
 
-        auto done = [this, state]() {
+        auto done = [this, state, nvtx_range]() {
           Device* device = impl_->params_.device;
           NodeExecStatsWrapper* stats = state->stats;  // Shorthand
           Entry* first_input = state->first_input;     // Shorthand
@@ -1646,6 +1652,7 @@ void ExecutorState::Process(TaggedNode tagged_node, int64 scheduled_usec) {
           }
           const bool completed =
               NodeDone(s, state->item->node, ready, stats, nullptr);
+          nvtxRangeEnd(nvtx_range);
           delete state;
           if (completed) Finish();
         };
@@ -1695,6 +1702,7 @@ void ExecutorState::Process(TaggedNode tagged_node, int64 scheduled_usec) {
       }
       // Postprocess.
       completed = NodeDone(s, item.node, ready, stats, &inline_ready);
+      nvtxRangeEnd(nvtx_range);
     }
   }  // while !inline_ready.empty()
 
