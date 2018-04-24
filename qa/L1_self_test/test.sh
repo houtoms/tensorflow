@@ -36,6 +36,7 @@ NUM_GPUS=`nvidia-smi -L | wc -l` && \
               --build_tests_only \
               -- \
               //tensorflow/... \
+              //tensorflow/contrib/tensorrt/... \
               //tensorflow/contrib/cudnn_rnn:cudnn_rnn_ops_test \
               //tensorflow/contrib/cudnn_rnn:cudnn_rnn_ops_test_cc \
               `# These are tested in serial below` \
