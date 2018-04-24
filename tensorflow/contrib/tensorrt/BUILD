@@ -273,14 +273,18 @@ tf_cc_test(
     ],
 )
 
-filegroup(
-    name = "all_files",
-    srcs = glob(
-        ["**/*"],
-        exclude = [
-            "**/METADATA",
-            "**/OWNERS",
-        ],
-    ),
-    visibility = ["//tensorflow:__subpackages__"],
+py_test(
+    name = "tf_trt_integration_test",
+    srcs = ["test/tf_trt_integration_test.py"],
+    main = "test/tf_trt_integration_test.py",
+    srcs_version = "PY2AND3",
+    tags = [
+        "manual",
+        "notap",
+    ],
+    deps = [
+        ":init_py",
+        "//tensorflow/python:client_testlib",
+        "//tensorflow/python:framework_test_lib",
+    ],
 )
