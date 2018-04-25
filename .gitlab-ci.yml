@@ -413,10 +413,6 @@ L0_nvcnn_resnet50_batch64_real--P100_R384_4GPU:
     <<: *L0_NVCNN_BENCHMARK
     <<: *P100_R384_4GPU
 
-L0_horovod_fp16--P100_R384_4GPU:
-    <<: *L0_TEST
-    <<: *P100_R384_4GPU
-
 L0_horovod--P100_R384_4GPU:
     <<: *L0_TEST
     <<: *P100_R384_4GPU
@@ -651,10 +647,6 @@ L0_convnet_benchmarks_vgga--1100_R384_1GPU:
 
 L0_nvcnn_resnet50_batch64_real--V100_R384_4GPU:
     <<: *L0_NVCNN_BENCHMARK
-    <<: *V100_R384_4GPU
-
-L0_horovod_fp16--V100_R384_4GPU:
-    <<: *L0_TEST
     <<: *V100_R384_4GPU
 
 L0_horovod--V100_R384_4GPU:
@@ -893,10 +885,6 @@ L0_nvcnn_resnet50_batch64_real--py2--V100_R384_4GPU:
     <<: *L0_NVCNN_BENCHMARK
     <<: *V100_R384_4GPU
 
-L0_horovod_fp16--py2--V100_R384_4GPU:
-    <<: *L0_TEST
-    <<: *V100_R384_4GPU
-
 L0_horovod--py2--V100_R384_4GPU:
     <<: *L0_TEST
     <<: *V100_R384_4GPU
@@ -1108,10 +1096,6 @@ L0_convnet_benchmarks_vgga--P40_R384_1GPU:
       TEST_WORK_DIR: "/opt/tensorflow/qa/L0_convnet_benchmarks"
       TEST_SCRIPT: "./test-vgga.sh"
 
-L0_horovod_fp16--P40_R384_1GPU:
-    <<: *L0_TEST
-    <<: *P40_R384_1GPU
-
 L0_horovod--P40_R384_1GPU:
     <<: *L0_TEST
     <<: *P40_R384_1GPU
@@ -1319,10 +1303,6 @@ L0_convnet_benchmarks_vgga--M40_R384_1GPU:
     variables:
       TEST_WORK_DIR: "/opt/tensorflow/qa/L0_convnet_benchmarks"
       TEST_SCRIPT: "./test-vgga.sh"
-
-L0_horovod_fp16--M40_R384_1GPU:
-    <<: *L0_TEST
-    <<: *M40_R384_1GPU
 
 L0_horovod--M40_R384_1GPU:
     <<: *L0_TEST
