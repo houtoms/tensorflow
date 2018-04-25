@@ -78,7 +78,21 @@ RUN curl -O https://bootstrap.pypa.io/get-pip.py && \
     python get-pip.py && \
     rm get-pip.py
 
-RUN pip install --no-cache-dir --upgrade numpy==1.11.0 pexpect psutil nltk future
+# nltk version specified per OpenSeq2Seq requirements
+RUN pip install --no-cache-dir --upgrade \
+        numpy==1.11.0 \
+        pexpect \
+        psutil \
+        nltk>=3.2.3 \
+        future
+
+# other OpenSeq2Seq dependencies
+RUN pip install --no-cache-dir --upgrade \
+        resampy \
+        python_speech_features \
+        pandas \
+        six \
+        tqdm
 
 # Set up Bazel.
 # Running bazel inside a `docker build` command causes trouble, cf:

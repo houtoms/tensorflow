@@ -445,26 +445,9 @@ L1_seq2seq--P100_R384_4GPU:
     <<: *L1_TEST
     <<: *P100_R384_4GPU
 
-L2_seq2seq_1GPU--P100_R384_4GPU:
+L2_seq2seq--P100_R384_4GPU:
     <<: *L2_TEST
     <<: *P100_R384_4GPU
-    variables:
-      TEST_WORK_DIR: "/opt/tensorflow/qa/L2_seq2seq"
-      TEST_SCRIPT: "./test-1GPU.sh"
-
-L2_seq2seq_2GPU--P100_R384_4GPU:
-    <<: *L2_TEST
-    <<: *P100_R384_4GPU
-    variables:
-      TEST_WORK_DIR: "/opt/tensorflow/qa/L2_seq2seq"
-      TEST_SCRIPT: "./test-2GPU.sh"
-
-L2_seq2seq_4GPU--P100_R384_4GPU:
-    <<: *L2_TEST
-    <<: *P100_R384_4GPU
-    variables:
-      TEST_WORK_DIR: "/opt/tensorflow/qa/L2_seq2seq"
-      TEST_SCRIPT: "./test-4GPU.sh"
 
 L2_tensorflow_googlenet_overfeat_alexnet_benchmarks--P100_R384_4GPU:
     <<: *L2_TEST
@@ -677,30 +660,13 @@ L1_nccl_test--V100_R384_4GPU:
     <<: *L1_TEST
     <<: *V100_R384_4GPU
 
-L1_seq2seq--V100_R384_4GPU:
+L1_seq2seq--V100_R384_1GPU:
     <<: *L1_TEST
-    <<: *V100_R384_4GPU
-
-L2_seq2seq_1GPU--V100_R384_1GPU:
-    <<: *L2_TEST
     <<: *V100_R384_1GPU
-    variables:
-      TEST_WORK_DIR: "/opt/tensorflow/qa/L2_seq2seq"
-      TEST_SCRIPT: "./test-1GPU.sh"
 
-L2_seq2seq_2GPU--V100_R384_4GPU:
+L2_seq2seq--V100_R384_4GPU:
     <<: *L2_TEST
     <<: *V100_R384_4GPU
-    variables:
-      TEST_WORK_DIR: "/opt/tensorflow/qa/L2_seq2seq"
-      TEST_SCRIPT: "./test-2GPU.sh"
-
-L2_seq2seq_4GPU--V100_R384_4GPU:
-    <<: *L2_TEST
-    <<: *V100_R384_4GPU
-    variables:
-      TEST_WORK_DIR: "/opt/tensorflow/qa/L2_seq2seq"
-      TEST_SCRIPT: "./test-4GPU.sh"
 
 L2_tensorflow_googlenet_overfeat_alexnet_benchmarks--V100_R384_4GPU:
     <<: *L2_TEST
