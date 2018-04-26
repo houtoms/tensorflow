@@ -3,7 +3,9 @@
 set -e
 set -o pipefail
 
-DATA_DIR="/dldata/wmt16_en_de/"
+cd /opt/tensorflow/nvidia-examples/OpenSeq2Seq
+
+DATA_DIR="/data/wmt16_en_de/"
 MAX_GPUS=$(nvidia-smi -L | wc -l)
 sed -i "s|^data_root *=.*\$|data_root = \"$DATA_DIR\"|" \
     example_configs/text2text/en-de-nmt-small.py
