@@ -434,6 +434,8 @@ class ImagePreprocessor(object):
             for i, record in enumerate(records):
                 imgdata, label, bbox, text = deserialize_image_record(record)
                 image = self.preprocess(imgdata, bbox, thread_id=i)
+                image = tf.clip_by_value(image, 0., 255.)
+                image = tf.cast(image, self.dtype)
                 label -= 1 # Change to 0-based (don't use background class)
                 images.append(image)
                 labels.append(label)
@@ -441,8 +443,6 @@ class ImagePreprocessor(object):
             images = tf.parallel_stack(images)
             labels = tf.concat(labels, 0)
             images = tf.reshape(images, [-1, self.height, self.width, 3])
-            images = tf.clip_by_value(images, 0., 255.)
-            images = tf.cast(images, self.dtype)
         return images, labels
 
 def stage(tensors):
