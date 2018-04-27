@@ -78,6 +78,7 @@ import time
 import math
 from collections import defaultdict
 import argparse
+from functools import partial
 
 def tensorflow_version_tuple():
     v = tf.__version__
