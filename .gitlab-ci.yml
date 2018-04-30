@@ -367,6 +367,11 @@ L0_verify_sig:
     tags:
     - 1GPU
 
+L0_tensorboard:
+    <<: *L0_TEST
+    tags:
+    - 1GPU
+
 #### P100_R384_4GPU ####
 
 L0_models_alexnet--P100_R384_4GPU:
