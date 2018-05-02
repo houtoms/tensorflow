@@ -84,7 +84,8 @@ RUN pip install --no-cache-dir --upgrade \
         pexpect \
         psutil \
         nltk>=3.2.3 \
-        future
+        future \
+        mock
 
 # other OpenSeq2Seq dependencies
 RUN pip install --no-cache-dir --upgrade \
