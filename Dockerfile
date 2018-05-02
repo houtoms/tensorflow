@@ -128,14 +128,6 @@ COPY . .
 RUN mkdir -p /workspace/nvidia-examples && \
      ln -s /opt/tensorflow/nvidia-examples/* /workspace/nvidia-examples/
 
-# HACK to enable use of system nccl.h when building TF
-RUN mkdir -p nccl/src && \
-    cp /usr/include/nccl.h nccl/src/ && \
-    cp `ls /usr/share/doc/libnccl?/copyright | tail -1` nccl/LICENSE.txt && \
-    tar -cf third_party/nccl.tar nccl/ && \
-    gzip    third_party/nccl.tar && \
-    rm -r nccl/
-
 ENV CUDA_TOOLKIT_PATH /usr/local/cuda
 ENV TF_CUDA_VERSION "9.0"
 ENV TF_CUDNN_VERSION "7"
@@ -146,6 +138,8 @@ ENV TF_NEED_GCP 0
 ENV TF_NEED_HDFS 0
 ENV TF_ENABLE_XLA 1
 ENV TF_NEED_TENSORRT 1
+ENV TF_NCCL_VERSION 2
+ENV NCCL_INSTALL_PATH /usr
 ENV CC_OPT_FLAGS "-march=sandybridge -mtune=broadwell"
 
 # Build and install TF

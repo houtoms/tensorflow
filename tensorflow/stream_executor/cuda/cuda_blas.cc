@@ -2115,12 +2115,6 @@ bool CUDABlas::DoBlasGemvWithProfilingImpl(
     const DeviceMemory<T> &a, int lda, const DeviceMemory<T> &x, int incx,
     const T &beta, DeviceMemory<T> *y, int incy,
     blas::ProfileResult *output_profile_result) {
-  struct TimerDeleter {
-    void operator()(CUDATimer *t) {
-      t->Destroy();
-      delete t;
-    }
-  };
   std::unique_ptr<CUDATimer, TimerDeleter> timer;
   if (output_profile_result != nullptr) {
     timer.reset(new CUDATimer(parent_));
@@ -2153,12 +2147,6 @@ bool CUDABlas::DoBlasGemmWithProfilingImpl(
     uint64 n, uint64 k, const ParamType &alpha, const DeviceMemory<T> &a,
     int lda, const DeviceMemory<T> &b, int ldb, const ParamType &beta,
     DeviceMemory<T> *c, int ldc, blas::ProfileResult *output_profile_result) {
-  struct TimerDeleter {
-    void operator()(CUDATimer *t) {
-      t->Destroy();
-      delete t;
-    }
-  };
   std::unique_ptr<CUDATimer, TimerDeleter> timer;
   if (output_profile_result != nullptr) {
     timer.reset(new CUDATimer(parent_));
@@ -2227,12 +2215,6 @@ bool CUDABlas::DoBlasGemmWithAlgorithmImpl(
     return false;
   }
 
-  struct TimerDeleter {
-    void operator()(CUDATimer *t) {
-      t->Destroy();
-      delete t;
-    }
-  };
   std::unique_ptr<CUDATimer, TimerDeleter> timer;
   if (output_profile_result != nullptr) {
     timer.reset(new CUDATimer(parent_));
