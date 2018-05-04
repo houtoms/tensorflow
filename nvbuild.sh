@@ -40,12 +40,14 @@ while [[ $# -gt 0 ]]; do
   shift 1
 done
 
-export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/cuda/lib64/stubs
-ln -fs /usr/local/cuda/lib64/stubs/libcuda.so /usr/local/cuda/lib64/stubs/libcuda.so.1
-
 cd /opt/tensorflow
 export PYTHON_BIN_PATH=/usr/bin/python$PYVER
+LIBCUDA_FOUND=$(ldconfig -p | awk '{print $1}' | grep libcuda.so | wc -l)
 if [[ $NOCONFIG -eq 0 ]]; then
+  if [[ "$LIBCUDA_FOUND" -eq 0 ]]; then
+      export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/cuda/lib64/stubs
+      ln -fs /usr/local/cuda/lib64/stubs/libcuda.so /usr/local/cuda/lib64/stubs/libcuda.so.1
+  fi
   yes "" | ./configure
 fi
 
@@ -56,10 +58,12 @@ fi
 bazel build -c opt --config=cuda tensorflow/tools/pip_package:build_pip_package
 bazel-bin/tensorflow/tools/pip_package/build_pip_package /tmp/pip --gpu
 pip$PYVER install --no-cache-dir --upgrade /tmp/pip/tensorflow_gpu-*.whl
-rm -rf /tmp/pip/tensorflow_gpu-*.whl /usr/local/cuda/lib64/stubs/libcuda.so.1
-
+rm -f /tmp/pip/tensorflow_gpu-*.whl
 if [[ $NOCLEAN -eq 0 ]]; then
   bazel clean --expunge
   rm -rf /root/.cache/bazel
   rm .tf_configure.bazelrc .bazelrc
+  if [[ "$LIBCUA_FOUND" -eq 0 ]]; then
+    rm /usr/local/cuda/lib64/stubs/libcuda.so.1
+  fi
 fi
