@@ -99,9 +99,8 @@ def _cnn_model_function(features, labels, mode, params):
         with tf.device(device):
             # Stage inputs to the device
             gpucopy_op, (inputs, labels) = _stage([inputs, labels])
-            # Cast to training precision
-            inputs = tf.cast(inputs, model_dtype)
     with tf.device(device):
+        inputs = tf.cast(inputs, model_dtype)
         imagenet_mean = np.array([121, 115, 100], dtype=np.float32)
         imagenet_std  = np.array([ 70,  68,  71], dtype=np.float32)
         inputs = tf.subtract(inputs, imagenet_mean)

@@ -119,8 +119,8 @@ def image_set(filenames, batch_size, height, width,
     shuffle_buffer_size = 10000
     num_readers = 1
     ds = tf.data.Dataset.from_tensor_slices(filenames)
-    ds = ds.shard(nranks, rank)
     if training:
+        #ds = ds.shard(nranks, rank)
         ds = ds.repeat()
         ds = ds.shuffle(shuffle_buffer_size, seed=5 * (1 + rank))
     ds = ds.interleave(
@@ -141,7 +141,7 @@ def image_set_new(filenames, batch_size, height, width,
                      num_threads=10, nsummary=10,
                      cache_data=False, num_splits=1):
     ds = tf.data.TFRecordDataset.list_files(filenames)
-    ds = ds.shard(nranks, rank) # HACK TESTING
+    #ds = ds.shard(nranks, rank) # HACK TESTING
     ds = ds.shuffle(buffer_size=10000, seed=5 * (1 + rank))
     ds = ds.apply(interleave_ops.parallel_interleave(
         tf.data.TFRecordDataset, cycle_length=10))
