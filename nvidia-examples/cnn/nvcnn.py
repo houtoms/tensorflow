@@ -439,19 +439,35 @@ class ImagePreprocessor(object):
                 tf.summary.image('original_image_and_bbox', image_with_bbox)
             image = random_crop_and_resize_image(image, bbox,
                                                  self.height, self.width)
+            if FLAGS.eval or not FLAGS.distort_color:
+                # cast to uint8 if we are not doing color distortion
+                # no need to clip since the resize operation creates
+                # an interpolated image and there is no way interpolation
+                # can yield values outside the min,max range of the original
+                # image
+                image = tf.cast(image, self.dtype)
             if thread_id < self.nsummary:
                 tf.summary.image('cropped_resized_image',
                                  tf.expand_dims(image, 0))
             if not FLAGS.eval:
+                # this op just moves bytes around and can handle images of
+                # both integer and float types. We can cast to uint8 before
+                # or after without changing the result
                 image = tf.image.random_flip_left_right(image)
             if thread_id < self.nsummary:
                 tf.summary.image('flipped_image',
                                  tf.expand_dims(image, 0))
             if FLAGS.distort_color and not FLAGS.eval:
+                # the input to this op must be a float image,
+                # thus we did not cast to uint8 yet
                 image = distort_image_color(image, order=thread_id%2)
                 if thread_id < self.nsummary:
                     tf.summary.image('distorted_color_image',
                                      tf.expand_dims(image, 0))
+                # cast to uint8
+                # distort_image_color includes clip to uint8 range,
+                # so we don't have to clip before casting
+                image = tf.cast(image, self.dtype)
         return image
     def device_minibatches(self, total_batch_size):
         record_input = data_flow_ops.RecordInput(
@@ -471,8 +487,6 @@ class ImagePreprocessor(object):
             for i, record in enumerate(records):
                 imgdata, label, bbox, text = deserialize_image_record(record)
                 image = self.preprocess(imgdata, bbox, thread_id=i)
-                image = tf.clip_by_value(image, 0., 255.)
-                image = tf.cast(image, self.dtype)
                 label -= 1 # Change to 0-based (don't use background class)
                 device_num = i % self.num_devices
                 images[device_num].append(image)
