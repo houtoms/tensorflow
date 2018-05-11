@@ -15,13 +15,18 @@ DATA="--data_dir=/data/imagenet/train-val-tfrecord-480"
 NETWORKS=("alexnet.py" \
           "googlenet.py" \
           "inception_v3.py" \
+          "inception_v4.py" \
+          "inception_resnet_v2.py" \
           "overfeat.py" \
           "resnet.py --layers=50" \
           "resnet.py --layers=101" \
           "resnet.py --layers=152" \
           "vgg.py --layers=11" \
           "vgg.py --layers=16" \
-          "vgg.py --layers=19" )
+          "vgg.py --layers=19" \
+          )
+          # Do not test resnext or xception until performant
+          # grouped convs are available.
 
 get_PERF() {
     SCRIPT="$1"
