@@ -308,15 +308,12 @@ py3-stage:
 ############################################################
 ## TEMPLATES
 ##
-#.L2_cnn_benchmarks: &L2_CNN_BENCHMARK
-#    <<: *L2_TEST
-#    variables:
-#      TEST_WORK_DIR: "/opt/tensorflow/qa/L2_cnn_benchmarks"
-#      TEST_SCRIPT: "./test-${CI_BUILD_NAME#L2_cnn_benchmarks-}.sh"
-#L2_cnn_benchmarks-alexnet--py2--V100_R384_4GPU:
-#    <<: *L2_CNN_BENCHMARK
-#    <<: *V100_R384_4GPU
-
+.L2_cnn_benchmarks: &L2_CNN_BENCHMARK
+    <<: *L2_TEST
+    variables:
+      TEST_WORK_DIR: "/opt/tensorflow/qa/L2_cnn_benchmarks"
+      TEST_SCRIPT: "./${CI_JOB_NAME}.sh"
+##
 ############################################################
 
 L0_verify_sig:
@@ -378,6 +375,64 @@ L0_seq2seq--P100_R384_4GPU:
 L0_tftrt--P100_R384_4GPU:
     <<: *L0_TEST
     <<: *P100_R384_4GPU
+
+####  NVIDIA CNN TESTS  ####
+L0_resnet_sanity--P100_R384_4GPU:
+    <<: *L0_TEST
+    <<: *P100_R384_4GPU
+
+L1_cnn_sanity--P100_R384_4GPU:
+    <<: *L1_TEST
+    <<: *P100_R384_4GPU
+
+L2_bench_alexnet--P100_R384_4GPU:
+    <<: *L2_CNN_BENCHMARK
+    <<: *P100_R384_4GPU
+
+L2_bench_googlenet--P100_R384_4GPU:
+    <<: *L2_CNN_BENCHMARK
+    <<: *P100_R384_4GPU
+
+L2_bench_inception_v3--P100_R384_4GPU:
+    <<: *L2_CNN_BENCHMARK
+    <<: *P100_R384_4GPU
+
+L2_bench_inception_v4--P100_R384_4GPU:
+    <<: *L2_CNN_BENCHMARK
+    <<: *P100_R384_4GPU
+
+L2_bench_inception_resnet_v2--P100_R384_4GPU:
+    <<: *L2_CNN_BENCHMARK
+    <<: *P100_R384_4GPU
+
+L2_bench_overfeat--P100_R384_4GPU:
+    <<: *L2_CNN_BENCHMARK
+    <<: *P100_R384_4GPU
+
+L2_bench_resnet50--P100_R384_4GPU:
+    <<: *L2_CNN_BENCHMARK
+    <<: *P100_R384_4GPU
+
+L2_bench_resnet101--P100_R384_4GPU:
+    <<: *L2_CNN_BENCHMARK
+    <<: *P100_R384_4GPU
+
+L2_bench_resnet152--P100_R384_4GPU:
+    <<: *L2_CNN_BENCHMARK
+    <<: *P100_R384_4GPU
+
+L2_bench_vgg11--P100_R384_4GPU:
+    <<: *L2_CNN_BENCHMARK
+    <<: *P100_R384_4GPU
+
+L2_bench_vgg16--P100_R384_4GPU:
+    <<: *L2_CNN_BENCHMARK
+    <<: *P100_R384_4GPU
+
+L2_bench_vgg19--P100_R384_4GPU:
+    <<: *L2_CNN_BENCHMARK
+    <<: *P100_R384_4GPU
+############################
 
 L1_word2vec--P100_R384_4GPU:
     <<: *L1_TEST
@@ -457,6 +512,64 @@ L0_tftrt--V100_R384_1GPU:
     <<: *L0_TEST
     <<: *V100_R384_1GPU
 
+####  NVIDIA CNN TESTS  ####
+L0_resnet_sanity--V100_R384_4GPU:
+    <<: *L0_TEST
+    <<: *V100_R384_4GPU
+
+L1_cnn_sanity--V100_R384_4GPU:
+    <<: *L1_TEST
+    <<: *V100_R384_4GPU
+
+L2_bench_alexnet--V100_R384_4GPU:
+    <<: *L2_CNN_BENCHMARK
+    <<: *V100_R384_4GPU
+
+L2_bench_googlenet--V100_R384_4GPU:
+    <<: *L2_CNN_BENCHMARK
+    <<: *V100_R384_4GPU
+
+L2_bench_inception_v3--V100_R384_4GPU:
+    <<: *L2_CNN_BENCHMARK
+    <<: *V100_R384_4GPU
+
+L2_bench_inception_v4--V100_R384_4GPU:
+    <<: *L2_CNN_BENCHMARK
+    <<: *V100_R384_4GPU
+
+L2_bench_inception_resnet_v2--V100_R384_4GPU:
+    <<: *L2_CNN_BENCHMARK
+    <<: *V100_R384_4GPU
+
+L2_bench_overfeat--V100_R384_4GPU:
+    <<: *L2_CNN_BENCHMARK
+    <<: *V100_R384_4GPU
+
+L2_bench_resnet50--V100_R384_4GPU:
+    <<: *L2_CNN_BENCHMARK
+    <<: *V100_R384_4GPU
+
+L2_bench_resnet101--V100_R384_4GPU:
+    <<: *L2_CNN_BENCHMARK
+    <<: *V100_R384_4GPU
+
+L2_bench_resnet152--V100_R384_4GPU:
+    <<: *L2_CNN_BENCHMARK
+    <<: *V100_R384_4GPU
+
+L2_bench_vgg11--V100_R384_4GPU:
+    <<: *L2_CNN_BENCHMARK
+    <<: *V100_R384_4GPU
+
+L2_bench_vgg16--V100_R384_4GPU:
+    <<: *L2_CNN_BENCHMARK
+    <<: *V100_R384_4GPU
+
+L2_bench_vgg19--V100_R384_4GPU:
+    <<: *L2_CNN_BENCHMARK
+    <<: *V100_R384_4GPU
+############################
+
 L1_word2vec--V100_R384_1GPU:
     <<: *L1_TEST
     <<: *V100_R384_1GPU
@@ -535,6 +648,64 @@ L0_tftrt--py2--V100_R384_1GPU:
     <<: *L0_TEST
     <<: *V100_R384_1GPU
 
+####  NVIDIA CNN TESTS  ####
+L0_resnet_sanity--py2--V100_R384_4GPU:
+    <<: *L0_TEST
+    <<: *V100_R384_4GPU
+
+L1_cnn_sanity--py2--V100_R384_4GPU:
+    <<: *L1_TEST
+    <<: *V100_R384_4GPU
+
+L2_bench_alexnet--py2--V100_R384_4GPU:
+    <<: *L2_CNN_BENCHMARK
+    <<: *V100_R384_4GPU
+
+L2_bench_googlenet--py2--V100_R384_4GPU:
+    <<: *L2_CNN_BENCHMARK
+    <<: *V100_R384_4GPU
+
+L2_bench_inception_v3--py2--V100_R384_4GPU:
+    <<: *L2_CNN_BENCHMARK
+    <<: *V100_R384_4GPU
+
+L2_bench_inception_v4--py2--V100_R384_4GPU:
+    <<: *L2_CNN_BENCHMARK
+    <<: *V100_R384_4GPU
+
+L2_bench_inception_resnet_v2--py2--V100_R384_4GPU:
+    <<: *L2_CNN_BENCHMARK
+    <<: *V100_R384_4GPU
+
+L2_bench_overfeat--py2--V100_R384_4GPU:
+    <<: *L2_CNN_BENCHMARK
+    <<: *V100_R384_4GPU
+
+L2_bench_resnet50--py2--V100_R384_4GPU:
+    <<: *L2_CNN_BENCHMARK
+    <<: *V100_R384_4GPU
+
+L2_bench_resnet101--py2--V100_R384_4GPU:
+    <<: *L2_CNN_BENCHMARK
+    <<: *V100_R384_4GPU
+
+L2_bench_resnet152--py2--V100_R384_4GPU:
+    <<: *L2_CNN_BENCHMARK
+    <<: *V100_R384_4GPU
+
+L2_bench_vgg11--py2--V100_R384_4GPU:
+    <<: *L2_CNN_BENCHMARK
+    <<: *V100_R384_4GPU
+
+L2_bench_vgg16--py2--V100_R384_4GPU:
+    <<: *L2_CNN_BENCHMARK
+    <<: *V100_R384_4GPU
+
+L2_bench_vgg19--py2--V100_R384_4GPU:
+    <<: *L2_CNN_BENCHMARK
+    <<: *V100_R384_4GPU
+############################
+
 L1_word2vec--py2--V100_R384_1GPU:
     <<: *L1_TEST
     <<: *V100_R384_1GPU
@@ -609,6 +780,64 @@ L0_tftrt--P40_R384_1GPU:
     <<: *L0_TEST
     <<: *P40_R384_1GPU
 
+####  NVIDIA CNN TESTS  ####
+L0_resnet_sanity--P40_R384_1GPU:
+    <<: *L0_TEST
+    <<: *P40_R384_1GPU
+
+L1_cnn_sanity--P40_R384_1GPU:
+    <<: *L1_TEST
+    <<: *P40_R384_1GPU
+
+L2_bench_alexnet--P40_R384_1GPU:
+    <<: *L2_CNN_BENCHMARK
+    <<: *P40_R384_1GPU
+
+L2_bench_googlenet--P40_R384_1GPU:
+    <<: *L2_CNN_BENCHMARK
+    <<: *P40_R384_1GPU
+
+L2_bench_inception_v3--P40_R384_1GPU:
+    <<: *L2_CNN_BENCHMARK
+    <<: *P40_R384_1GPU
+
+L2_bench_inception_v4--P40_R384_1GPU:
+    <<: *L2_CNN_BENCHMARK
+    <<: *P40_R384_1GPU
+
+L2_bench_inception_resnet_v2--P40_R384_1GPU:
+    <<: *L2_CNN_BENCHMARK
+    <<: *P40_R384_1GPU
+
+L2_bench_overfeat--P40_R384_1GPU:
+    <<: *L2_CNN_BENCHMARK
+    <<: *P40_R384_1GPU
+
+L2_bench_resnet50--P40_R384_1GPU:
+    <<: *L2_CNN_BENCHMARK
+    <<: *P40_R384_1GPU
+
+L2_bench_resnet101--P40_R384_1GPU:
+    <<: *L2_CNN_BENCHMARK
+    <<: *P40_R384_1GPU
+
+L2_bench_resnet152--P40_R384_1GPU:
+    <<: *L2_CNN_BENCHMARK
+    <<: *P40_R384_1GPU
+
+L2_bench_vgg11--P40_R384_1GPU:
+    <<: *L2_CNN_BENCHMARK
+    <<: *P40_R384_1GPU
+
+L2_bench_vgg16--P40_R384_1GPU:
+    <<: *L2_CNN_BENCHMARK
+    <<: *P40_R384_1GPU
+
+L2_bench_vgg19--P40_R384_1GPU:
+    <<: *L2_CNN_BENCHMARK
+    <<: *P40_R384_1GPU
+############################
+
 L1_word2vec--P40_R384_1GPU:
     <<: *L1_TEST
     <<: *P40_R384_1GPU
@@ -671,6 +900,63 @@ L0_tftrt--M40_R384_1GPU:
     <<: *L0_TEST
     <<: *M40_R384_1GPU
 
+####  NVIDIA CNN TESTS  ####
+L0_resnet_sanity--M40_R384_1GPU:
+    <<: *L0_TEST
+    <<: *M40_R384_1GPU
+
+L1_cnn_sanity--M40_R384_1GPU:
+    <<: *L1_TEST
+    <<: *M40_R384_1GPU
+
+L2_bench_alexnet--M40_R384_1GPU:
+    <<: *L2_CNN_BENCHMARK
+    <<: *M40_R384_1GPU
+
+L2_bench_googlenet--M40_R384_1GPU:
+    <<: *L2_CNN_BENCHMARK
+    <<: *M40_R384_1GPU
+
+L2_bench_inception_v3--M40_R384_1GPU:
+    <<: *L2_CNN_BENCHMARK
+    <<: *M40_R384_1GPU
+
+L2_bench_inception_v4--M40_R384_1GPU:
+    <<: *L2_CNN_BENCHMARK
+    <<: *M40_R384_1GPU
+
+L2_bench_inception_resnet_v2--M40_R384_1GPU:
+    <<: *L2_CNN_BENCHMARK
+    <<: *M40_R384_1GPU
+
+L2_bench_overfeat--M40_R384_1GPU:
+    <<: *L2_CNN_BENCHMARK
+    <<: *M40_R384_1GPU
+
+L2_bench_resnet50--M40_R384_1GPU:
+    <<: *L2_CNN_BENCHMARK
+    <<: *M40_R384_1GPU
+
+L2_bench_resnet101--M40_R384_1GPU:
+    <<: *L2_CNN_BENCHMARK
+    <<: *M40_R384_1GPU
+
+L2_bench_resnet152--M40_R384_1GPU:
+    <<: *L2_CNN_BENCHMARK
+    <<: *M40_R384_1GPU
+
+L2_bench_vgg11--M40_R384_1GPU:
+    <<: *L2_CNN_BENCHMARK
+    <<: *M40_R384_1GPU
+
+L2_bench_vgg16--M40_R384_1GPU:
+    <<: *L2_CNN_BENCHMARK
+    <<: *M40_R384_1GPU
+
+L2_bench_vgg19--M40_R384_1GPU:
+    <<: *L2_CNN_BENCHMARK
+    <<: *M40_R384_1GPU
+############################
 
 L1_word2vec--M40_R384_1GPU:
     <<: *L1_TEST
@@ -732,6 +1018,10 @@ L0_convnet_benchmarks_vgga--GV100_R390_1GPU:
       TEST_SCRIPT: "./test-vgga.sh"
 
 L0_tftrt--GV100_R390_1GPU:
+    <<: *L0_TEST
+    <<: *GV100_R390_1GPU
+
+L0_resnet_sanity--GV100_R390_1GPU:
     <<: *L0_TEST
     <<: *GV100_R390_1GPU
 

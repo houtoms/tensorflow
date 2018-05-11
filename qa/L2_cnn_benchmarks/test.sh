@@ -5,6 +5,6 @@
 set -e
 nvidia-smi
 export SKIP_NVIDIA_SMI=1
-for NET in test-*.sh; do
+for NET in L2_bench_*.sh; do
     ./$NET
 done

@@ -14,8 +14,8 @@ DATA="--data_dir=/data/imagenet/train-val-tfrecord-480"
 get_PERF() {
     PRECISION=$1
     
-    mpiexec --allow-run-as-root -np $GPUS python -u \
-        /tf/nvidia-examples/cnn/resnet.py \
+    mpiexec --bind-to socket --allow-run-as-root -np $GPUS python -u \
+        /opt/tensorflow/nvidia-examples/cnn/resnet.py \
         --layers=50 \
         --num_iter=101 \
         --iter_unit=batch \

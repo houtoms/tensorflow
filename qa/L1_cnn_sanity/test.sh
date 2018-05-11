@@ -30,8 +30,8 @@ NETWORKS=("alexnet.py" \
 
 get_PERF() {
     SCRIPT="$1"
-    mpiexec --allow-run-as-root -np $GPUS python -u \
-        /tf/nvidia-examples/cnn/$SCRIPT \
+    mpiexec --bind-to socket --allow-run-as-root -np $GPUS python -u \
+        /opt/tensorflow/nvidia-examples/cnn/$SCRIPT \
         --num_iter=101 \
         --iter_unit=batch \
         --display_every=50 \
