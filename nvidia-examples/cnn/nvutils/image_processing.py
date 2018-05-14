@@ -44,34 +44,27 @@ def _decode_jpeg(imgdata, channels=3):
                                 dct_method='INTEGER_FAST')
 
 def _crop_and_resize_image(image, original_bbox, height, width, rank=0, distort=False):
-    with tf.name_scope('crop_and_resize'):
-        # Evaluation is done on a center-crop of this ratio
-        eval_crop_ratio = 0.8
-        if distort:
-            # Note: Only the aspect ratio of this really matters, because we
-            #       only use the normalized bbox returned by
-            #       tf.image.sample_distorted_bounding_box.
-            initial_shape = [int(round(height / eval_crop_ratio)),
-                             int(round(width  / eval_crop_ratio)),
-                             3]
-            bbox_begin, bbox_size, bbox = \
-                tf.image.sample_distorted_bounding_box(
-                    initial_shape,
-                    bounding_boxes=tf.zeros(shape=[1,0,4]), # No bounding boxes
-                    min_object_covered=0.25,
-                    aspect_ratio_range=[0.8, 1.25],
-                    area_range=[0.25, 1.0],
-                    max_attempts=100,
-                    seed=11 * rank, # Need to set for deterministic results
-                    use_image_if_no_bounding_boxes=True)
-            bbox = bbox[0,0] # Remove batch, box_idx dims
+    with tf.name_scope('random_crop_and_resize'):
+        if not distort:
+            image = tf.image.central_crop(image, 224./256.)
         else:
-            # Central crop
-            ratio_y = ratio_x = eval_crop_ratio
-            bbox = tf.constant([0.5 * (1 - ratio_y), 0.5 * (1 - ratio_x),
-                                0.5 * (1 + ratio_y), 0.5 * (1 + ratio_x)])
-        image = tf.image.crop_and_resize(
-            image[None,:,:,:], bbox[None,:], [0], [height, width])[0]
+            bbox_begin, bbox_size, distorted_bbox = tf.image.sample_distorted_bounding_box(
+                tf.shape(image),
+                bounding_boxes=original_bbox,
+                min_object_covered=0.1,
+                aspect_ratio_range=[0.8, 1.25],
+                area_range=[0.1, 1.0],
+                max_attempts=100,
+                use_image_if_no_bounding_boxes=True)
+            # Crop the image to the distorted bounding box
+            image = tf.slice(image, bbox_begin, bbox_size)
+        # Resize to the desired output size
+        image = tf.image.resize_images(
+            image,
+            [height, width],
+            tf.image.ResizeMethod.BILINEAR,
+            align_corners=False)
+        image.set_shape([height, width, 3])
         image = tf.clip_by_value(image, 0., 255.)
         image = tf.cast(image, tf.uint8)
         return image
