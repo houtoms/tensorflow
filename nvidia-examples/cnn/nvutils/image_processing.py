@@ -107,6 +107,22 @@ def _parse_and_preprocess_image_record(record, counter, height, width, seed,
         #    tf.summary.image('flipped_image', tf.expand_dims(image, 0))
         return image, label
 
+# Synthetic images are generated once, and the same batch is repeated again and
+# again. The H2D copy is also repeated.
+def fake_image_set(batch_size, height, width):
+    data_shape = [batch_size, height, width, 3] # 3 channels
+    images = tf.truncated_normal(
+                 data_shape, dtype=tf.float32, stddev=1, name='fake_images')
+    images = tf.cast(images, tf.uint8)
+    labels = tf.random_uniform(
+                 [batch_size], minval=0, maxval=1000-1, dtype=tf.int32,
+                 name='fake_labels')
+    images = tf.contrib.framework.local_variable(images, name='images')
+    labels = tf.contrib.framework.local_variable(labels, name='labels')
+    ds = tf.data.Dataset.from_tensor_slices(([images], [labels]))
+    ds = ds.repeat()
+    return ds
+
 def image_set(filenames, batch_size, height, width,
                  training=False, rank=0, nranks=1, num_threads=10, nsummary=10):
     shuffle_buffer_size = 10000

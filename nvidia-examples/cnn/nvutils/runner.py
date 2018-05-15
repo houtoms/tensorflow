@@ -189,13 +189,14 @@ def train(infer_func, params):
 
     log_dir  = None if log_dir  == "" else log_dir
     data_dir = None if data_dir == "" else data_dir
-    if data_dir is None:
-        raise ValueError("data_dir must be specified")
 
-    filename_pattern = os.path.join(data_dir, '%s-*')
-    train_filenames = sorted(tf.gfile.Glob(filename_pattern % 'train'))
-    num_training_samples = _get_num_records(train_filenames)
     global_batch_size = batch_size * hvd.size()
+    if data_dir is not None:
+        filename_pattern = os.path.join(data_dir, '%s-*')
+        train_filenames = sorted(tf.gfile.Glob(filename_pattern % 'train'))
+        num_training_samples = _get_num_records(train_filenames)
+    else:
+        num_training_samples = global_batch_size
 
     if iter_unit.lower() == 'epoch':
         nstep = num_training_samples * num_iter // global_batch_size
@@ -249,16 +250,22 @@ def train(infer_func, params):
             _LogSessionRunHook(global_batch_size,
                                num_training_samples,
                                display_every))
+
+    if data_dir is not None:
+        input_func = lambda: nvutils.image_set(
+            train_filenames, batch_size, image_height, image_width,
+            training=True, num_threads=num_preproc_threads)
+    else:
+        input_func = lambda: nvutils.fake_image_set(
+            batch_size, image_height, image_width)
+
     try:
         classifier.train(
-           input_fn=lambda: nvutils.image_set(
-                train_filenames, batch_size, image_height, image_width,
-                training=True, num_threads=num_preproc_threads),
+            input_fn=input_func,
             max_steps=nstep,
             hooks=training_hooks)
     except KeyboardInterrupt:
         print("Keyboard interrupt")
-
 
 def validate(infer_func, params):
     image_width = params['image_width']

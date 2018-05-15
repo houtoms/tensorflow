@@ -26,7 +26,7 @@ default_args = {
     'image_height' : 299,
     'image_format' : 'channels_first',
     'batch_size' : 256,
-    'data_dir' : nvutils.RequireInCmdline,
+    'data_dir' : None,
     'log_dir' : None,
     'precision' : 'fp16',
     'momentum' : 0.9,
@@ -126,6 +126,6 @@ def inception_resnet_v2(inputs, training):
 
 nvutils.train(inception_resnet_v2, args)
 
-if args['log_dir'] is not None:
+if args['log_dir'] is not None and args['data_dir'] is not None:
     nvutils.validate(inception_resnet_v2, args)
 

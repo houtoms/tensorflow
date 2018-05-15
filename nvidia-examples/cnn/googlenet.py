@@ -26,7 +26,7 @@ default_args = {
     'image_height' : 224,
     'image_format' : 'channels_first',
     'batch_size' : 256,
-    'data_dir' : nvutils.RequireInCmdline,
+    'data_dir' : None,
     'log_dir' : None,
     'precision' : 'fp16',
     'momentum' : 0.9,
@@ -78,6 +78,6 @@ def googlenet(inputs, training=False):
 
 nvutils.train(googlenet, args)
 
-if args['log_dir'] is not None:
+if args['log_dir'] is not None and args['data_dir'] is not None:
     nvutils.validate(googlenet, args)
 
