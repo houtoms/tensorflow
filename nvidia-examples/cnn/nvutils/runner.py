@@ -18,7 +18,6 @@ from __future__ import print_function
 from builtins import range
 import nvutils
 import tensorflow as tf
-import numpy as np
 from tensorflow.python.ops import data_flow_ops
 import horovod.tensorflow as hvd
 import os
@@ -101,8 +100,8 @@ def _cnn_model_function(features, labels, mode, params):
             gpucopy_op, (inputs, labels) = _stage([inputs, labels])
     with tf.device(device):
         inputs = tf.cast(inputs, model_dtype)
-        imagenet_mean = np.array([121, 115, 100], dtype=np.float32)
-        imagenet_std  = np.array([ 70,  68,  71], dtype=np.float32)
+        imagenet_mean = tf.constant([121, 115, 100], dtype=model_dtype)
+        imagenet_std  = tf.constant([70, 68, 71], dtype=model_dtype)
         inputs = tf.subtract(inputs, imagenet_mean)
         inputs = tf.multiply(inputs, 1. / imagenet_std)
         if model_format == 'channels_first':

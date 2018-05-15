@@ -26,7 +26,6 @@ from .cmdline import RequireInCmdline
 from .cmdline import parse_cmdline
 import os, sys, random
 import tensorflow as tf
-import numpy as np
 import horovod.tensorflow as hvd
 
 def init(): 
@@ -40,5 +39,4 @@ def init():
     hvd.init()
 
     random.seed(5 * (1 + hvd.rank()))
-    np.random.seed(7 * (1 + hvd.rank()))
     tf.set_random_seed(31 * (1 + hvd.rank()))
