@@ -17,7 +17,7 @@ get_PERF() {
     mpiexec --bind-to socket --allow-run-as-root -np $GPUS python -u \
         /opt/tensorflow/nvidia-examples/cnn/resnet.py \
         --layers=50 \
-        --num_iter=101 \
+        --num_iter=100 \
         --iter_unit=batch \
         --display_every=50 \
         $DATA \

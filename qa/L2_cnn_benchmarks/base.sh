@@ -58,7 +58,7 @@ function run_config {
                     $CNN_SCRIPT \
                     $DATA_FLAG \
                     --precision=$M \
-                    --num_iter=$((RUN_TO+1)) \
+                    --num_iter=$RUN_TO \
                     --iter_unit=batch \
                     --display_every=$WARMUP \
                     --batch=$BATCH > "$TMPFILE"
@@ -68,7 +68,7 @@ function run_config {
                     $CNN_SCRIPT \
                     $DATA_FLAG \
                     --precision=$M \
-                    --num_iter=$((RUN_TO+1)) \
+                    --num_iter=$RUN_TO \
                     --iter_unit=batch \
                     --display_every=$WARMUP \
                     --batch=$BATCH >> "$TMPFILE" 2>&1
