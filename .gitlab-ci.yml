@@ -443,6 +443,10 @@ L2_bench_resnet152--P100_R384_4GPU:
     <<: *L2_CNN_BENCHMARK
     <<: *P100_R384_4GPU
 
+L2_bench_resnext50--P100_R384_4GPU:
+    <<: *L2_CNN_BENCHMARK
+    <<: *P100_R384_4GPU
+
 L2_bench_vgg11--P100_R384_4GPU:
     <<: *L2_CNN_BENCHMARK
     <<: *P100_R384_4GPU
@@ -576,6 +580,10 @@ L2_bench_resnet101--V100_R384_4GPU:
     <<: *V100_R384_4GPU
 
 L2_bench_resnet152--V100_R384_4GPU:
+    <<: *L2_CNN_BENCHMARK
+    <<: *V100_R384_4GPU
+
+L2_bench_resnext50--V100_R384_4GPU:
     <<: *L2_CNN_BENCHMARK
     <<: *V100_R384_4GPU
 
@@ -715,6 +723,10 @@ L2_bench_resnet152--py2--V100_R384_4GPU:
     <<: *L2_CNN_BENCHMARK
     <<: *V100_R384_4GPU
 
+L2_bench_resnext50--py2--V100_R384_4GPU:
+    <<: *L2_CNN_BENCHMARK
+    <<: *V100_R384_4GPU
+
 L2_bench_vgg11--py2--V100_R384_4GPU:
     <<: *L2_CNN_BENCHMARK
     <<: *V100_R384_4GPU
@@ -847,6 +859,10 @@ L2_bench_resnet152--P40_R384_1GPU:
     <<: *L2_CNN_BENCHMARK
     <<: *P40_R384_1GPU
 
+L2_bench_resnext50--P40_R384_1GPU:
+    <<: *L2_CNN_BENCHMARK
+    <<: *P40_R384_1GPU
+
 L2_bench_vgg11--P40_R384_1GPU:
     <<: *L2_CNN_BENCHMARK
     <<: *P40_R384_1GPU
@@ -964,6 +980,10 @@ L2_bench_resnet101--M40_R384_1GPU:
     <<: *M40_R384_1GPU
 
 L2_bench_resnet152--M40_R384_1GPU:
+    <<: *L2_CNN_BENCHMARK
+    <<: *M40_R384_1GPU
+
+L2_bench_resnext50--M40_R384_1GPU:
     <<: *L2_CNN_BENCHMARK
     <<: *M40_R384_1GPU
 

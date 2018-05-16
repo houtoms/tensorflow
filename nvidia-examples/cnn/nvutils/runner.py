@@ -146,14 +146,13 @@ def _cnn_model_function(features, labels, mode, params):
         opt = hvd.DistributedOptimizer(opt)
         opt = nvutils.LarcOptimizer(opt, learning_rate, larc_eta, clip=larc_mode)
         opt = nvutils.LossScalingOptimizer(opt, scale=loss_scale)
+        gate_gradients = (tf.train.Optimizer.GATE_OP if deterministic else
+                          tf.train.Optimizer.GATE_NONE)
+        train_op = opt.minimize(
+            loss, global_step=tf.train.get_global_step(),
+            gate_gradients=gate_gradients)
         update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS) or []
-        with tf.control_dependencies(update_ops):
-            gate_gradients = (tf.train.Optimizer.GATE_OP if deterministic else
-                              tf.train.Optimizer.GATE_NONE)
-            train_op = opt.minimize(
-                loss, global_step=tf.train.get_global_step(),
-                gate_gradients=gate_gradients)
-        train_op = tf.group(preload_op, gpucopy_op, train_op)#, update_ops)
+        train_op = tf.group(preload_op, gpucopy_op, train_op, update_ops)
         return tf.estimator.EstimatorSpec(mode, loss=loss, train_op=train_op)
 
 def _get_num_records(filenames):

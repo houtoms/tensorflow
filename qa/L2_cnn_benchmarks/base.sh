@@ -63,7 +63,8 @@ function run_config {
                     --display_every=$WARMUP \
                     --batch=$BATCH > "$TMPFILE"
                 echo "==================================================" >> "$TMPFILE"
-             
+            
+                SECONDS=0
                 mpiexec --allow-run-as-root --bind-to socket -np $G python -u \
                     $CNN_SCRIPT \
                     $DATA_FLAG \
@@ -72,6 +73,7 @@ function run_config {
                     --iter_unit=batch \
                     --display_every=$WARMUP \
                     --batch=$BATCH >> "$TMPFILE" 2>&1
+                WALLTIME=$SECONDS
 
                 if [[ $? -ne 0 ]]; then
                     cat "$TMPFILE"
@@ -95,7 +97,7 @@ function run_config {
                 fi
                 rm -f "$TMPFILE"
 
-                printf "%4s %4s %5d %4d %11.3f img/sec\n" $D $M $BATCH $G $PERF
+                printf "%4s %4s %5d %4d %9.3f %8d\n" $D $M $BATCH $G $PERF $WALLTIME
             done
         done
     done
@@ -232,7 +234,7 @@ if [[ "$SKIP_NVIDIA_SMI" -eq 0 ]]; then
 fi
 echo '--------------------------------------------------------------------------------'
 
-printf "%4s %4s %5s %4s %11s\n" DATA MATH BATCH GPUs PERFORMANCE
+printf "%4s %4s %5s %4s %9s %8s\n" DATA MATH BATCH GPUs IMG/SEC WALLSECS
 
 for i in "${!BATCHES[@]}"; do
   run_config "$CNN_SCRIPT" "${BATCHES[$i]}" "${MATHS[$i]}" "${DATAS[$i]}" "${DEVS[$i]}"
