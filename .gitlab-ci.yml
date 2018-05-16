@@ -254,6 +254,12 @@ py3-stage:
     - R384
     - 4GPU
 
+.V100_R384_8GPU: &V100_R384_8GPU
+    tags:
+    - V100
+    - R384
+    - 8GPU
+
 .P40_R384_1GPU: &P40_R384_1GPU
     tags:
     - P40
@@ -262,11 +268,27 @@ py3-stage:
     only:
     - /^.*-devel$/
 
+.P40_R384_2GPU: &P40_R384_2GPU
+    tags:
+    - P40
+    - R384
+    - 2GPU
+    only:
+    - /^.*-devel$/
+
 .M40_R384_1GPU: &M40_R384_1GPU
     tags:
     - M40
     - R384
     - 1GPU
+    only:
+    - /^.*-devel$/
+
+.M40_R384_2GPU: &M40_R384_2GPU
+    tags:
+    - M40
+    - R384
+    - 2GPU
     only:
     - /^.*-devel$/
 
@@ -842,13 +864,13 @@ L1_word2vec--P40_R384_1GPU:
     <<: *L1_TEST
     <<: *P40_R384_1GPU
 
-L1_self_test--P40_R384_1GPU:
+L1_self_test--P40_R384_2GPU:
     <<: *L1_TEST
-    <<: *P40_R384_1GPU
+    <<: *P40_R384_2GPU
 
-L1_self_test_xla--P40_R384_1GPU:
+L1_self_test_xla--P40_R384_2GPU:
     <<: *L1_TEST
-    <<: *P40_R384_1GPU
+    <<: *P40_R384_2GPU
 
 L2_models_cifar10--P40_R384_1GPU:
     <<: *L2_TEST
@@ -962,13 +984,13 @@ L1_word2vec--M40_R384_1GPU:
     <<: *L1_TEST
     <<: *M40_R384_1GPU
 
-L1_self_test--M40_R384_1GPU:
+L1_self_test--M40_R384_2GPU:
     <<: *L1_TEST
-    <<: *M40_R384_1GPU
+    <<: *M40_R384_2GPU
 
-L1_self_test_xla--M40_R384_1GPU:
+L1_self_test_xla--M40_R384_2GPU:
     <<: *L1_TEST
-    <<: *M40_R384_1GPU
+    <<: *M40_R384_2GPU
 
 L2_models_cifar10--M40_R384_1GPU:
     <<: *L2_TEST
