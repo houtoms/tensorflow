@@ -39,7 +39,6 @@ default_args = {
     'num_iter' : 90,
     'checkpoint_secs' : None,
     'display_every' : 10,
-    'deterministic' : False,
     'iter_unit' : 'epoch'
 }
 

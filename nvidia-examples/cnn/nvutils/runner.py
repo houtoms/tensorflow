@@ -183,8 +183,14 @@ def train(infer_func, params):
     num_iter = params['num_iter']
     checkpoint_secs = params['checkpoint_secs']
     display_every = params['display_every']
-    deterministic = params['deterministic']
     iter_unit = params['iter_unit']
+
+    # Determinism is not fully supported by all TF ops.
+    # Disabling until remaining wrinkles can be ironed out.
+    deterministic = False
+    if deterministic:
+        tf.set_random_seed(2 * (1 + hvd.rank()))
+        random.seed(3 * (1 + hvd.rank()))
 
     log_dir  = None if log_dir  == "" else log_dir
     data_dir = None if data_dir == "" else data_dir
@@ -234,7 +240,7 @@ def train(infer_func, params):
             'n_classes':     1000,
         },
         config=tf.estimator.RunConfig(
-            tf_random_seed=31 * (1 + hvd.rank()),
+            tf_random_seed=2 * (1 + hvd.rank()) if deterministic else None,
             session_config=config,
             save_checkpoints_secs=checkpoint_secs if hvd.rank() == 0 else None,
             save_checkpoints_steps=nstep,
@@ -253,7 +259,8 @@ def train(infer_func, params):
     if data_dir is not None:
         input_func = lambda: nvutils.image_set(
             train_filenames, batch_size, image_height, image_width,
-            training=True, num_threads=num_preproc_threads)
+            training=True, deterministic=deterministic,
+            num_threads=num_preproc_threads)
     else:
         input_func = lambda: nvutils.fake_image_set(
             batch_size, image_height, image_width)
@@ -284,8 +291,15 @@ def validate(infer_func, params):
     num_iter = params['num_iter']
     checkpoint_secs = params['checkpoint_secs']
     display_every = params['display_every']
-    deterministic = params['deterministic']
     iter_unit = params['iter_unit']
+
+    deterministic = False
+    # Determinism is not fully supported by all TF ops.
+    # Disabling until remaining wrinkles can be ironed out.
+    deterministic = False
+    if deterministic:
+        tf.set_random_seed(2 * (1 + hvd.rank()))
+        random.seed(3 * (1 + hvd.rank()))
 
     log_dir  = None if log_dir  == "" else log_dir
     data_dir = None if data_dir == "" else data_dir
@@ -324,11 +338,13 @@ def validate(infer_func, params):
             'n_classes':     1000,
         },
         config=tf.estimator.RunConfig(
-            tf_random_seed=31 * (1 + hvd.rank()),
+            tf_random_seed=2 * (1 + hvd.rank()) if deterministic else None,
             session_config=config,
             save_checkpoints_secs=None,
             save_checkpoints_steps=None,
             keep_checkpoint_every_n_hours=3))
+
+    num_preproc_threads = 10 if not deterministic else 1
 
     if hvd.rank() == 0:
         print("Evaluating")
@@ -336,7 +352,8 @@ def validate(infer_func, params):
             eval_result = classifier.evaluate(
                 input_fn=lambda: nvutils.image_set(
                     eval_filenames, batch_size, image_height, image_width,
-                    training=False))
+                    training=False, deterministic=deterministic,
+                    num_threads=num_preproc_threads))
             print('Top-1 accuracy:', eval_result['accuracy']*100, '%')
         except KeyboardInterrupt:
             print("Keyboard interrupt")

@@ -82,11 +82,6 @@ def parse_cmdline(init_vals, custom_parser=None):
                    default=_default(init_vals, 'precision'),
                    required=_required(init_vals, 'precision'),
                    help="""Select single or half precision arithmetic.""")
-    _add_bool_argument(p, '--deterministic',
-                       default=_default(init_vals, 'deterministic'),
-                       required=_required(init_vals, 'deterministic'),
-                       help="""Attempt to run deterministic calculation
-                       (at the cost of some performance).""")
 
     FLAGS, unknown_args = p.parse_known_args()
     if len(unknown_args) > 0:
@@ -109,8 +104,6 @@ def parse_cmdline(init_vals, custom_parser=None):
     del FLAGS.display_every
     vals['precision'] = FLAGS.precision
     del FLAGS.precision
-    vals['deterministic'] = FLAGS.deterministic
-    del FLAGS.deterministic
 
     return vals, FLAGS
 

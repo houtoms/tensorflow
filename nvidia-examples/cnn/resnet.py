@@ -41,7 +41,6 @@ default_args = {
     'iter_unit' : 'epoch',
     'checkpoint_secs' : None,
     'display_every' : 10,
-    'deterministic' : False,
 }
 
 formatter = argparse.ArgumentDefaultsHelpFormatter

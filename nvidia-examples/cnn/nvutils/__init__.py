@@ -37,6 +37,3 @@ def init():
     print('PY', sys.version)
     print('TF', tf.__version__)
     hvd.init()
-
-    random.seed(5 * (1 + hvd.rank()))
-    tf.set_random_seed(31 * (1 + hvd.rank()))
