@@ -127,11 +127,15 @@ def _cnn_model_function(features, labels, mode, params):
         reg_losses = tf.get_collection(tf.GraphKeys.REGULARIZATION_LOSSES)
         loss = tf.add_n([loss] + reg_losses, name='total_loss')
         with tf.device(None): # Allow fallback to CPU if no GPU support for these ops
-            accuracy = tf.metrics.accuracy(
+            top1_accuracy = tf.metrics.accuracy(
                 labels=labels, predictions=predicted_classes)
-            tf.summary.scalar('accuracy', accuracy[1])
+            top5_accuracy = tf.metrics.mean(tf.nn.in_top_k(
+                predictions=logits, targets=labels, k=5))
+            tf.summary.scalar('top1_accuracy', top1_accuracy[1])
+            tf.summary.scalar('top5_accuracy', top5_accuracy[1])
         if mode == tf.estimator.ModeKeys.EVAL:
-            metrics = {'accuracy': accuracy}
+            metrics = {'top1_accuracy': top1_accuracy,
+                       'top5_accuracy': top5_accuracy}
             return tf.estimator.EstimatorSpec(
                 mode, loss=loss, eval_metric_ops=metrics)
         assert(mode == tf.estimator.ModeKeys.TRAIN)
@@ -354,6 +358,7 @@ def validate(infer_func, params):
                     eval_filenames, batch_size, image_height, image_width,
                     training=False, deterministic=deterministic,
                     num_threads=num_preproc_threads))
-            print('Top-1 accuracy:', eval_result['accuracy']*100, '%')
+            print('Top-1 accuracy:', eval_result['top1_accuracy']*100, '%')
+            print('Top-5 accuracy:', eval_result['top5_accuracy']*100, '%')
         except KeyboardInterrupt:
             print("Keyboard interrupt")
