@@ -25,21 +25,21 @@ default_args = {
     'image_width' : 299,
     'image_height' : 299,
     'image_format' : 'channels_first',
-    'batch_size' : 256,
+    'batch_size' : 128,
     'data_dir' : None,
     'log_dir' : None,
     'precision' : 'fp16',
     'momentum' : 0.9,
-    'learning_rate_init' : 0.2,
+    'learning_rate_init' : 1.0,
     'learning_rate_power' : 2.0,
     'weight_decay' : 1e-4,
-    'loss_scale' : 128.0,
+    'loss_scale' : 2048.0,
     'larc_eta' : 0.003,
     'larc_mode' : 'clip',
     'num_iter' : 90,
+    'iter_unit' : 'epoch',
     'checkpoint_secs' : None,
     'display_every' : 10,
-    'iter_unit' : 'epoch'
 }
 
 args, _ = nvutils.parse_cmdline(default_args)

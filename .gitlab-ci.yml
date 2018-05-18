@@ -336,6 +336,12 @@ py3-stage:
       TEST_WORK_DIR: "/opt/tensorflow/qa/L2_cnn_benchmarks"
       TEST_SCRIPT: "./${CI_JOB_NAME}.sh"
 ##
+.L3_cnn_convergence: &L3_CNN_CONVERGENCE
+    <<: *L3_TEST
+    variable:
+      TEST_WORK_DIR: "/opt/tensorflow/qa/L3_cnn_convergence"
+      TEST_SCRIPT: "./${CI_JOB_NAME}.sh"
+##
 ############################################################
 
 L0_verify_sig:
@@ -598,6 +604,11 @@ L2_bench_vgg16--V100_R384_4GPU:
 L2_bench_vgg19--V100_R384_4GPU:
     <<: *L2_CNN_BENCHMARK
     <<: *V100_R384_4GPU
+
+L3_converge_resnet50--V100_R384_8GPU:
+    <<: *L3_CNN_CONVERGENCE
+    <<: *V100_R384_8GPU
+
 ############################
 
 L1_word2vec--V100_R384_1GPU:
