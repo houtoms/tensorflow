@@ -62,11 +62,12 @@ def resnet_bottleneck_v1(builder, inputs, depth, depth_bottleneck, stride,
             else:
                 shortcut = builder.max_pooling2d(x, 1, stride)
         else:
-            shortcut = builder.conv2d_linear(x, depth, 1, stride, 'SAME')
+            shortcut_depth = depth_bottleneck if basic else depth
+            shortcut = builder.conv2d_linear(x, shortcut_depth, 1, stride, 'SAME')
         if basic:
             x = builder.pad2d(x, 1)
             x = builder.conv2d(       x, depth_bottleneck, 3, stride, 'VALID')
-            x = builder.conv2d_linear(x, depth,            3, 1,      'SAME')
+            x = builder.conv2d_linear(x, depth_bottleneck, 3, 1,      'SAME')
         else:
             x = builder.conv2d(       x, depth_bottleneck, 1, stride, 'SAME')
             x = builder.conv2d(       x, depth_bottleneck, 3, 1,      'SAME')
