@@ -609,6 +609,10 @@ L3_converge_resnet50--V100_R384_8GPU:
     <<: *L3_CNN_CONVERGENCE
     <<: *V100_R384_8GPU
 
+L3_converge_inception_v3--V100_R384_8GPU:
+    <<: *L3_CNN_CONVERGENCE
+    <<: *V100_R384_8GPU
+
 ############################
 
 L1_word2vec--V100_R384_1GPU:
