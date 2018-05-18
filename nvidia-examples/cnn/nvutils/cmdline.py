@@ -14,6 +14,7 @@
 # limitations under the License.
 # ==============================================================================
 
+import horovod.tensorflow as hvd
 import argparse
 
 def _add_bool_argument(cmdline, shortname, longname=None, default=False,
@@ -88,6 +89,12 @@ def parse_cmdline(init_vals, custom_parser=None):
         for bad_arg in unknown_args:
             print("ERROR: Unknown command line arg: %s" % bad_arg)
         raise ValueError("Invalid command line arg(s)")
+
+    if hvd.rank() == 0:
+        print("Script arguments:")
+        for flag, val in vars(FLAGS).items():
+            if val is not None:
+                print("  --{} {}".format(flag, val))
    
     vals = init_vals
     vals['data_dir'] = FLAGS.data_dir
