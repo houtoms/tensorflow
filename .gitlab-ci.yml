@@ -338,7 +338,7 @@ py3-stage:
 ##
 .L3_cnn_convergence: &L3_CNN_CONVERGENCE
     <<: *L3_TEST
-    variable:
+    variables:
       TEST_WORK_DIR: "/opt/tensorflow/qa/L3_cnn_convergence"
       TEST_SCRIPT: "./${CI_JOB_NAME}.sh"
 ##
