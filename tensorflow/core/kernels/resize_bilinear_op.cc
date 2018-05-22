@@ -70,7 +70,7 @@ namespace functor {
 template <typename T>
 struct ResizeBilinear<CPUDevice, T> {
   void operator()(const CPUDevice& d, typename TTypes<T, 4>::ConstTensor images,
-                  const float height_scale, const float width_scale,
+                  const double height_scale, const double width_scale,
                   typename TTypes<float, 4>::Tensor output) {
     const int batch_size = images.dimension(0);
     const int64 in_height = images.dimension(1);

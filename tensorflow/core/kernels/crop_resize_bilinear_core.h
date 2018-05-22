@@ -28,17 +28,17 @@ struct CachedInterpolation {
 
 inline bool compute_single_interpolation_weight(
                 const int in_size,
-                const float out2in_scale,
-                const float out2in_start,
+                const double out2in_scale,
+                const double out2in_start,
                 const bool clip,
 		const int i,
                 int& lower,
 		int& upper,
 		float& lerp) {
-  const float in = i * out2in_scale + out2in_start;
-  lower = (int)floorf(in);
-  upper = (int)ceilf(in);
-  lerp = in - lower;
+  const double in = i * out2in_scale + out2in_start;
+  lower = (int)floor(in);
+  upper = (int)ceil(in);
+  lerp = (float)(in - (double)lower);
   if (clip) {
     if (lower < 0) lower = 0;
     else if (lower >= in_size) lower = in_size - 1;
@@ -57,8 +57,8 @@ inline bool compute_interpolation_weights(
                 const int min_i,
                 const int max_i,
 		const int in_size,
-		const float out2in_scale,
-                const float out2in_start,
+		const double out2in_scale,
+                const double out2in_start,
                 const bool clip,
 		CachedInterpolation* interpolation) {
   bool rval = true;
@@ -79,7 +79,7 @@ inline bool compute_interpolation_weights(
 inline void compute_interpolation_weights(
                 const int out_size,
                 const int in_size,
-                const float out2in_scale,
+                const double out2in_scale,
                 CachedInterpolation* interpolation) {
   interpolation[out_size].lower = 0;
   interpolation[out_size].upper = 0;
@@ -97,16 +97,20 @@ inline void compute_interpolation_weights(
 inline bool compute_minmax_indexes(
 		const int out_size,
                 const int in_size,
-                const float out2in_scale,
-                const float out2in_start,
+                const double out2in_scale,
+                const double out2in_start,
 		int& min_i,
 		int& max_i) {
+  min_i = out_size;
+  max_i = -1;
   int lower, upper;
   float lerp;
-  min_i = out_size;
-  while (min_i > 0 && compute_single_interpolation_weight(in_size,out2in_scale,out2in_start,false,min_i-1,lower,upper,lerp)) --min_i;
-  max_i = -1;
-  while (max_i < out_size-1 && compute_single_interpolation_weight(in_size,out2in_scale,out2in_start,false,max_i+1,lower,upper,lerp)) ++max_i;
+  for (int i = 0;  i < out_size;  ++i) {
+    if (compute_single_interpolation_weight(in_size,out2in_scale,out2in_start,false,i,lower,upper,lerp)) {
+      if (i < min_i) min_i = i;
+      if (i > max_i) max_i = i;
+    }
+  }
   return (min_i <= max_i) ? true : false;
 }
 /**
@@ -122,8 +126,8 @@ inline bool compute_interpolation_weights(
 		int& min_i,
 		int& max_i,
 		CachedInterpolation*& interpolation) {
-  float out2in_start = (float)(in_size-1) * x1;
-  float out2in_scale = out_size > 1 ? (x2-x1) * (float)(in_size-1) / (float)(out_size-1) : 0.0f;
+  double out2in_start = (double)(in_size-1) * (double)x1;
+  double out2in_scale = out_size > 1 ? (double)(x2-x1) * (double)(in_size-1) / (double)(out_size-1) : 0.0;
   if (compute_minmax_indexes(out_size,in_size,out2in_scale,out2in_start,min_i,max_i)) {
     interpolation = new CachedInterpolation[max_i-min_i+1];
     bool all_inputs_ok = compute_interpolation_weights(min_i,max_i,in_size,out2in_scale,out2in_start,false,interpolation);
@@ -193,7 +197,7 @@ void crop_resize_single_image(
   if (min_ix > 0) {
     for (int iy = min_iy;  iy <= max_iy;  ++iy) {
       float* p = output + out_row_size * (int64)iy;
-      for (int ix = 0;  ix < min_ix;  ++ix) {
+      for (int ix = 0;  ix < min_ix*channels;  ++ix) {
         p[ix] = extrapolated_value;
       }
     }
@@ -202,7 +206,7 @@ void crop_resize_single_image(
   if (max_ix < out_width-1) {
     for (int iy = min_iy;  iy <= max_iy;  ++iy) {
       float* p = output + out_row_size * (int64)iy;
-      for (int ix = max_ix+1;  ix < out_width;  ++ix) {
+      for (int ix = (max_ix+1)*channels;  ix < out_width*channels;  ++ix) {
         p[ix] = extrapolated_value;
       }
     }
@@ -399,27 +403,26 @@ void crop_resize_image(
     typename TTypes<float, 4>::Tensor output) TF_ATTRIBUTE_NOINLINE;
 template <typename T>
 void crop_resize_image(typename TTypes<T, 4>::ConstTensor images,
-                  const int batch_size, const int64 in_height,
-                  const int64 in_width, const int64 out_height,
-                  const int64 out_width, const int channels,
-                  const std::vector<CachedInterpolation>& xs,
-                  const std::vector<CachedInterpolation>& ys,
-                  typename TTypes<float, 4>::Tensor output) {
+    const int batch_size, const int64 in_height,
+    const int64 in_width, const int64 out_height,
+    const int64 out_width, const int channels,
+    const std::vector<CachedInterpolation>& xs,
+    const std::vector<CachedInterpolation>& ys,
+    typename TTypes<float, 4>::Tensor output) {
   const int64 in_row_size = in_width * channels;
   const int64 in_batch_num_values = in_height * in_row_size;
   const int64 out_row_size = out_width * channels;
   const int64 out_batch_num_values = out_row_size * out_height;
-  
+
   for (int b = 0; b < batch_size; ++b) {
     crop_resize_single_image(
-      images.data() + (int64)b * in_batch_num_values,
-      in_height,in_width,out_height,out_width,channels,
-      0,out_width-1,xs.data(),
-      0,out_height-1,ys.data(),
-      0.0f,
-      output.data() + (int64)b * out_batch_num_values);
+	images.data() + (int64)b * in_batch_num_values,
+	in_height,in_width,out_height,out_width,channels,
+	0,out_width-1,xs.data(),
+	0,out_height-1,ys.data(),
+	0.0f,
+	output.data() + (int64)b * out_batch_num_values);
   }
 }
-
 }  // namespace
 #endif
