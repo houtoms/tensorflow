@@ -37,12 +37,13 @@ limitations under the License.
 
 namespace tensorflow {
 
-// CalculateResizeScale determines the float scaling factor.
-inline float CalculateResizeScale(int64 in_size, int64 out_size,
+// CalculateResizeScale determines the scaling factor.
+// Need to use double to avoid round off errors for large x,y coordinates.
+inline double CalculateResizeScale(int64 in_size, int64 out_size,
                                   bool align_corners) {
   return (align_corners && out_size > 1)
-             ? (in_size - 1) / static_cast<float>(out_size - 1)
-             : in_size / static_cast<float>(out_size);
+             ? ((double)(in_size - 1) / (double)(out_size - 1))
+             : ((double)in_size / (double)(out_size));
 }
 
 struct ImageResizerState {
@@ -121,8 +122,8 @@ struct ImageResizerState {
   int64 in_height;
   int64 in_width;
   int64 channels;
-  float height_scale;
-  float width_scale;
+  double height_scale;
+  double width_scale;
   Tensor* output = nullptr;
 
  private:
