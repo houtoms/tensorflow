@@ -14,6 +14,7 @@
 # ==============================================================================
 
 import tensorflow as tf
+import horovod.tensorflow as hvd
 import sys
 from tensorflow.contrib.data.python.ops import interleave_ops
 from tensorflow.contrib.data.python.ops import batching
@@ -45,27 +46,29 @@ def _decode_jpeg(imgdata, channels=3):
 
 def _crop_and_resize_image(image, original_bbox, height, width, deterministic=False, distort=False):
     with tf.name_scope('random_crop_and_resize'):
-        if not distort:
-            image = tf.image.central_crop(image, 224./256.)
+        eval_crop_ratio = 0.8
+        if distort:
+            initial_shape = [int(round(height / eval_crop_ratio)),
+                             int(round(width  / eval_crop_ratio)),
+                             3]
+            bbox_begin, bbox_size, bbox = \
+                tf.image.sample_distorted_bounding_box(
+                    initial_shape,
+                    bounding_boxes=tf.zeros(shape=[1,0,4]), # No bounding boxes
+                    min_object_covered=0.1,
+                    aspect_ratio_range=[0.8, 1.25],
+                    area_range=[0.1, 1.0],
+                    max_attempts=100,
+                    seed=7 * (1+hvd.rank()) if deterministic else 0,
+                    use_image_if_no_bounding_boxes=True)
+            bbox = bbox[0,0] # Remove batch, box_idx dims
         else:
-            bbox_begin, bbox_size, distorted_bbox = tf.image.sample_distorted_bounding_box(
-                tf.shape(image),
-                bounding_boxes=original_bbox,
-                min_object_covered=0.1,
-                aspect_ratio_range=[0.8, 1.25],
-                area_range=[0.1, 1.0],
-                max_attempts=100,
-                use_image_if_no_bounding_boxes=True,
-                seed=7 * (1 + hvd.rank()) if deterministic else None)
-            # Crop the image to the distorted bounding box
-            image = tf.slice(image, bbox_begin, bbox_size)
-        # Resize to the desired output size
-        image = tf.image.resize_images(
-            image,
-            [height, width],
-            tf.image.ResizeMethod.BILINEAR,
-            align_corners=False)
-        image.set_shape([height, width, 3])
+            # Central crop
+            ratio_y = ratio_x = eval_crop_ratio
+            bbox = tf.constant([0.5 * (1 - ratio_y), 0.5 * (1 - ratio_x),
+                                0.5 * (1 + ratio_y), 0.5 * (1 + ratio_x)])
+        image = tf.image.crop_and_resize(
+            image[None,:,:,:], bbox[None,:], [0], [height, width])[0]
         image = tf.clip_by_value(image, 0., 255.)
         image = tf.cast(image, tf.uint8)
         return image
@@ -131,7 +134,7 @@ def image_set(filenames, batch_size, height, width, training=False,
     num_readers = 1
     ds = tf.data.Dataset.from_tensor_slices(filenames)
     if training:
-        #ds = ds.shard(nvd.size(), hvd.rank())
+        ds = ds.shard(hvd.size(), hvd.rank())
         ds = ds.repeat()
         ds = ds.shuffle(shuffle_buffer_size, seed=5 * (1 + hvd.rank()) if deterministic else None)
     ds = ds.interleave(
@@ -152,7 +155,8 @@ def image_set_new(filenames, batch_size, height, width,
                      num_threads=10, nsummary=10,
                      cache_data=False, num_splits=1):
     ds = tf.data.TFRecordDataset.list_files(filenames)
-    #ds = ds.shard(hvd.size(), hvd.rank()) # HACK TESTING
+    if training:
+        ds = ds.shard(hvd.size(), hvd.rank()) # HACK TESTING
     ds = ds.shuffle(buffer_size=10000, seed=5 * (1 + hvd.rank()) if deterministic else None)
     ds = ds.apply(interleave_ops.parallel_interleave(
         tf.data.TFRecordDataset, cycle_length=10))
