@@ -82,7 +82,7 @@ function run_config {
                     exit 1
                 fi
 
-                local PERF=$(cat "$TMPFILE" | awk "
+                local PERF=$(cat "$TMPFILE" | grep "^ *[0-9]\+ " | awk "
                     {
                         if (\$1 == $((WARMUP*2))) {start=1};
                         if (start == 1) {sum += \$3; count+=1}
