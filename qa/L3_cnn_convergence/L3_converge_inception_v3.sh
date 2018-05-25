@@ -14,20 +14,20 @@ function CLEAN_AND_EXIT {
     exit $1
 }
 
+SECONDS=0
 mpiexec --allow-run-as-root --bind-to socket -np 8 python -u \
     /opt/tensorflow/nvidia-examples/cnn/inception_v3.py \
     --data_dir=/data/imagenet/train-val-tfrecord-480 \
-    --log_dir=$OUT 2>&1 | tee $LOG
-RET=$?
+    --log_dir=$OUT --display_every=1000 2>&1 | tee $LOG
+RET=${PIPESTATUS[0]}
 echo "Training ran in $SECONDS seconds"
 if [[ $RET -ne 0 ]]; then
     echo "Error in training script."
     CLEAN_AND_EXIT 2
 fi
 
-# TODO fill in correct values below
 MIN_TOP1=77.0
-MIN_TOP5=92.0
+MIN_TOP5=93.0
 
 TOP1=$(grep "^Top-1" $LOG | awk '{print $3}')
 TOP5=$(grep "^Top-5" $LOG | awk '{print $3}')

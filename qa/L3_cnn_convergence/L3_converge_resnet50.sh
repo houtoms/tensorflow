@@ -14,12 +14,12 @@ function CLEAN_AND_EXIT {
     exit $1
 }
 
-SECONDS=9
+SECONDS=0
 mpiexec --allow-run-as-root --bind-to socket -np 8 python -u \
     /opt/tensorflow/nvidia-examples/cnn/resnet.py --layers=50 \
     --data_dir=/data/imagenet/train-val-tfrecord-480 \
-    --log_dir=$OUT 2>&1 | tee $LOG
-RET=$?
+    --log_dir=$OUT --display_every=1000 2>&1 | tee $LOG
+RET=${PIPESTATUS[0]}
 echo "Training ran in $SECONDS seconds"
 if [[ $RET -ne 0 ]]; then
     echo "Error in training script."
