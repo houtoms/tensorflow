@@ -44,10 +44,10 @@ def _decode_jpeg(imgdata, channels=3):
                                 fancy_upscaling=False,
                                 dct_method='INTEGER_FAST')
 
-def _crop_and_resize_image(image, original_bbox, height, width, deterministic=False, distort=False):
+def _crop_and_resize_image(image, original_bbox, height, width, deterministic=False, random_crop=False):
     with tf.name_scope('random_crop_and_resize'):
         eval_crop_ratio = 0.8
-        if distort:
+        if random_crop:
             initial_shape = [int(round(height / eval_crop_ratio)),
                              int(round(width  / eval_crop_ratio)),
                              3]
@@ -69,8 +69,6 @@ def _crop_and_resize_image(image, original_bbox, height, width, deterministic=Fa
                                 0.5 * (1 + ratio_y), 0.5 * (1 + ratio_x)])
         image = tf.image.crop_and_resize(
             image[None,:,:,:], bbox[None,:], [0], [height, width])[0]
-        image = tf.clip_by_value(image, 0., 255.)
-        image = tf.cast(image, tf.uint8)
         return image
 
 def _distort_image_color(image, order=0):
@@ -91,23 +89,30 @@ def _distort_image_color(image, order=0):
         return image
 
 def _parse_and_preprocess_image_record(record, counter, height, width,
-                                      deterministic=False, distort=False,
-                                      nsummary=10):
+                                       deterministic=False, random_crop=False,
+                                       distort_color=False, nsummary=10):
     imgdata, label, bbox, text = _deserialize_image_record(record)
     label -= 1 # Change to 0-based (don't use background class)
     with tf.name_scope('preprocess_train'):
         try:    image = _decode_jpeg(imgdata, channels=3)
         except: image = tf.image.decode_png(imgdata, channels=3)
+
         # TODO: Work out a not-awful way to do this with counter being a Tensor
         #if counter < nsummary:
         #    image_with_bbox = tf.image.draw_bounding_boxes(
         #        tf.expand_dims(tf.to_float(image), 0), bbox)
         #    tf.summary.image('original_image_and_bbox', image_with_bbox)
-        image = _crop_and_resize_image(image, bbox, height, width, deterministic, distort)
+        image = _crop_and_resize_image(image, bbox, height, width, deterministic, random_crop)
         #if counter < nsummary:
         #    tf.summary.image('cropped_resized_image', tf.expand_dims(image, 0))
-        if distort:
-            image = tf.image.random_flip_left_right(image, seed=11 * (1 + hvd.rank()) if deterministic else None)
+
+        # image comes out of crop as float32, which is what distort_color expects
+        if distort_color:
+            image = _distort_image_color(image)
+        image = tf.cast(image, tf.uint8)
+        if random_crop:
+            image = tf.image.random_flip_left_right(image,
+                        seed=11 * (1 + hvd.rank()) if deterministic else None)
         #if counter < nsummary:
         #    tf.summary.image('flipped_image', tf.expand_dims(image, 0))
         return image, label
@@ -129,35 +134,41 @@ def fake_image_set(batch_size, height, width):
     return ds
 
 def image_set(filenames, batch_size, height, width, training=False,
-              num_threads=10, nsummary=10, deterministic=False):
+              distort_color=False, num_threads=10, nsummary=10,
+              deterministic=False):
     shuffle_buffer_size = 10000
     num_readers = 1
     ds = tf.data.Dataset.from_tensor_slices(filenames)
     if training:
         ds = ds.shard(hvd.size(), hvd.rank())
         ds = ds.repeat()
-        ds = ds.shuffle(shuffle_buffer_size, seed=5 * (1 + hvd.rank()) if deterministic else None)
+        ds = ds.shuffle(shuffle_buffer_size,
+                 seed=5 * (1 + hvd.rank()) if deterministic else None)
     ds = ds.interleave(
         tf.data.TFRecordDataset, cycle_length=num_readers, block_length=1)
     counter = tf.data.Dataset.range(sys.maxsize)
     ds = tf.data.Dataset.zip((ds, counter))
     preproc_func = lambda record, counter_: _parse_and_preprocess_image_record(
         record, counter_, height, width, deterministic=deterministic,
-        distort=training, nsummary=nsummary if training else 0)
+        random_crop=training, distort_color=distort_color,
+        nsummary=nsummary if training else 0)
     ds = ds.map(preproc_func, num_parallel_calls=num_threads)
     if training:
-        ds = ds.shuffle(shuffle_buffer_size, seed=13 * (1 + hvd.rank()) if deterministic else None)
+        ds = ds.shuffle(shuffle_buffer_size,
+                 seed=13 * (1 + hvd.rank()) if deterministic else None)
     ds = ds.batch(batch_size)
     return ds
 
 def image_set_new(filenames, batch_size, height, width,
-                     training=False, deterministic=False,
-                     num_threads=10, nsummary=10,
-                     cache_data=False, num_splits=1):
+                  training=False, distort_color=False,
+                  deterministic=False,
+                  num_threads=10, nsummary=10,
+                  cache_data=False, num_splits=1):
     ds = tf.data.TFRecordDataset.list_files(filenames)
     if training:
         ds = ds.shard(hvd.size(), hvd.rank()) # HACK TESTING
-    ds = ds.shuffle(buffer_size=10000, seed=5 * (1 + hvd.rank()) if deterministic else None)
+    ds = ds.shuffle(buffer_size=10000,
+             seed=5 * (1 + hvd.rank()) if deterministic else None)
     ds = ds.apply(interleave_ops.parallel_interleave(
         tf.data.TFRecordDataset, cycle_length=10))
     if cache_data:
@@ -167,11 +178,13 @@ def image_set_new(filenames, batch_size, height, width,
     ds = tf.data.Dataset.zip((ds, counter))
     ds = ds.prefetch(buffer_size=batch_size)
     if training:
-        ds = ds.shuffle(buffer_size=10000, seed=13 * (1 + hvd.rank()) if deterministic else None)
+        ds = ds.shuffle(buffer_size=10000,
+                 seed=13 * (1 + hvd.rank()) if deterministic else None)
     ds = ds.repeat()
     preproc_func = lambda record, counter_: _parse_and_preprocess_image_record(
         record, counter_, height, width, deterministic,
-        distort=training, nsummary=nsummary if training else 0)
+        random_crop=training, distort_color=distort_color,
+        nsummary=nsummary if training else 0)
     assert(batch_size % num_splits == 0)
     ds = ds.apply(
         batching.map_and_batch(

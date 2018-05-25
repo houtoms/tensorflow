@@ -26,6 +26,7 @@ default_args = {
     'image_width' : 224,
     'image_height' : 224,
     'image_format' : 'channels_first',
+    'distort_color' : False,
     'batch_size' : 256,
     'data_dir' : None,
     'log_dir' : None,

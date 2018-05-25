@@ -174,6 +174,7 @@ def train(infer_func, params):
     image_height = params['image_height']
     image_format = params['image_format']
     batch_size = params['batch_size']
+    distort_color = params['distort_color']
     data_dir = params['data_dir']
     log_dir = params['log_dir']
     precision = params['precision']
@@ -263,8 +264,8 @@ def train(infer_func, params):
     if data_dir is not None:
         input_func = lambda: nvutils.image_set(
             train_filenames, batch_size, image_height, image_width,
-            training=True, deterministic=deterministic,
-            num_threads=num_preproc_threads)
+            training=True, distort_color=distort_color,
+            deterministic=deterministic, num_threads=num_preproc_threads)
     else:
         input_func = lambda: nvutils.fake_image_set(
             batch_size, image_height, image_width)
@@ -356,7 +357,8 @@ def validate(infer_func, params):
             eval_result = classifier.evaluate(
                 input_fn=lambda: nvutils.image_set(
                     eval_filenames, batch_size, image_height, image_width,
-                    training=False, deterministic=deterministic,
+                    training=False, distort_color=False,
+                    deterministic=deterministic,
                     num_threads=num_preproc_threads))
             print('Top-1 accuracy:', eval_result['top1_accuracy']*100, '%')
             print('Top-5 accuracy:', eval_result['top5_accuracy']*100, '%')
