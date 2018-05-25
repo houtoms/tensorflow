@@ -27,6 +27,7 @@ NETWORKS=("alexnet.py" \
           )
           # Do not test resnext or xception until performant
           # grouped convs are available.
+set +x
 
 get_PERF() {
     SCRIPT="$1"
@@ -41,7 +42,7 @@ get_PERF() {
     
     if [[ $? -ne 0 ]]; then
         cat log.tmp
-        echo TRAINING SCRIPT FAILED
+        echo TRAINING SCRIPT FAILED FOR $SCRIPT
         exit 1
     fi
     
@@ -49,7 +50,7 @@ get_PERF() {
 
     if [[ -z "$PERF" ]]; then
         cat log.tmp
-        echo UNEXPECTED END OF LOG
+        echo UNEXPECTED END OF LOG FOR $SCRIPT
         exit 1
     fi
 }

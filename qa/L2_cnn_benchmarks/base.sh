@@ -97,7 +97,7 @@ function run_config {
                 fi
                 rm -f "$TMPFILE"
 
-                printf "%4s %4s %5d %4d %9.3f %8d\n" $D $M $BATCH $G $PERF $WALLTIME
+                printf "%-30s %4s %4s %5d %4d %9.3f %8d\n" "${CNN_SCRIPT##*/}" $D $M $BATCH $G $PERF $WALLTIME
             done
         done
     done
@@ -219,26 +219,26 @@ if [[ -z "$CNN_SCRIPT" ]]; then
     exit 1
 fi
 
-
-echo '--------------------------------------------------------------------------------'
-echo Benchmarking $CNN_SCRIPT
-echo TensorFlow Container ${NVIDIA_TENSORFLOW_VERSION:-N/A}
-echo Container Build ID ${NVIDIA_BUILD_ID:-N/A}
-if [[ "$USING_DATA_DIR" -eq 1 ]]; then
-    echo Data from $DATA_DIR
-fi
-sed -n 's/^model name\s*:\s*\([^\s].*\)$/\1/p' /proc/cpuinfo | head -n 1
-echo Uptime: $(uptime)
-if [[ "$SKIP_NVIDIA_SMI" -eq 0 ]]; then
+if [[ "$SKIP_HEADER" -eq 0 ]]; then
+    echo '--------------------------------------------------------------------------------'
+    echo TensorFlow Container ${NVIDIA_TENSORFLOW_VERSION:-N/A}
+    echo Container Build ID ${NVIDIA_BUILD_ID:-N/A}
+    if [[ "$USING_DATA_DIR" -eq 1 ]]; then
+        echo Data from $DATA_DIR
+    fi
+    sed -n 's/^model name\s*:\s*\([^\s].*\)$/\1/p' /proc/cpuinfo | head -n 1
+    echo Uptime: $(uptime)
     nvidia-smi
+    echo '--------------------------------------------------------------------------------'
+    printf "%-30s %4s %4s %5s %4s %9s %8s\n" NETWORK DATA MATH BATCH GPUs IMG/SEC WALLSECS
 fi
-echo '--------------------------------------------------------------------------------'
 
-printf "%4s %4s %5s %4s %9s %8s\n" DATA MATH BATCH GPUs IMG/SEC WALLSECS
 
 for i in "${!BATCHES[@]}"; do
   run_config "$CNN_SCRIPT" "${BATCHES[$i]}" "${MATHS[$i]}" "${DATAS[$i]}" "${DEVS[$i]}"
 done
 
-echo All tests complete.
+if [[ "$SKIP_HEADER" -eq 0 ]]; then
+    echo All tests complete.
+fi
 exit 0
