@@ -2155,7 +2155,7 @@ tensorflow::Status ConvertConcat(Converter& ctx,
 #if NV_TENSORRT_MAJOR == 3
   if (index != 1) {
     output_tensor = ctx.TransposeTensor(output_tensor, permutation_order);
-    TFTRT_RETURN_ERROR_IF_NULLPTR(tensor_i, node_def.name());
+    TFTRT_RETURN_ERROR_IF_NULLPTR(output_tensor, node_def.name());
   }
 #endif
   outputs->push_back(TRT_TensorOrWeights(output_tensor));
