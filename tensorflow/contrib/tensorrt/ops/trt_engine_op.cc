@@ -31,8 +31,13 @@ REGISTER_OP("TRTEngineOp")
     .Attr("serialized_engine: string")
     .Attr("input_nodes: list(string)")
     .Attr("output_nodes: list(string)")
+#if NV_TENSORRT_MAJOR == 3
     .Attr("InT: list({float32})")
     .Attr("OutT: list({float32})")
+#else
+    .Attr("InT: list({float32, int32})")
+    .Attr("OutT: list({float32, int32})")
+#endif
     .Input("in_tensor: InT")
     .Output("out_tensor: OutT")
     .SetShapeFn(shape_inference::TRTEngineOpShapeInference);

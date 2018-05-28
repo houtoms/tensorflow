@@ -90,6 +90,11 @@ void TRTEngineOp::Compute(OpKernelContext* context) {
       case nvinfer1::DataType::kFLOAT:
         buffers[binding_index] = (void*)(input_tensor.flat<float>().data());
         break;
+#if NV_TENSORRT_MAJOR > 3
+      case nvinfer1::DataType::kINT32:
+        buffers[binding_index] = (void*)(input_tensor.flat<int>().data());
+        break;
+#endif
       case nvinfer1::DataType::kHALF:
         LOG(FATAL) << "half size is not supported yet!";
         break;
@@ -126,6 +131,12 @@ void TRTEngineOp::Compute(OpKernelContext* context) {
         buffers[binding_index] =
             reinterpret_cast<void*>(output_tensor->flat<float>().data());
         break;
+#if NV_TENSORRT_MAJOR > 3
+      case nvinfer1::DataType::kINT32:
+        buffers[binding_index] =
+            reinterpret_cast<void*>(output_tensor->flat<float>().data());
+        break;
+#endif
       case nvinfer1::DataType::kHALF:
         LOG(FATAL) << "half size is not supported yet!";
         break;

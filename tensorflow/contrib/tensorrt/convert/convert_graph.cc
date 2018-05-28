@@ -64,7 +64,6 @@ bool IsTensorRTCandidate(const tensorflow::Node* node) {
       "Add",
       "Mul",
       "Sub",
-      "Rsqrt",
       "Pad",
       "Mean",
       "AvgPool",
@@ -72,6 +71,30 @@ bool IsTensorRTCandidate(const tensorflow::Node* node) {
       "DepthwiseConv2dNative",
       "FusedBatchNorm",
       "FusedBatchNormV2",
+      "Div",
+      "RealDiv",
+      "Rsqrt",
+      "Reciprocal",
+      "Exp",
+      "Log",
+      "Sqrt",
+      "Abs",
+      "Neg",
+#if NV_TENSORRT_MAJOR > 3
+      // TODO(jie): enable squeeze after fixing INT8 wiring
+      // "Squeeze",
+      "MatMul",
+      "BatchMatMul",
+      "Softmax",
+      "Minimum",
+      "Maximum",
+      "TopKV2",
+      "GatherV2",
+      "Sum",
+      "Prod",
+      "Max",
+      "Min",
+#endif
       // TODO(ben,jie): ...
   };
   // LINT.ThenChange(//tensorflow/contrib/tensorrt/convert/convert_nodes.h)
@@ -238,14 +261,27 @@ tensorflow::Status ConvertSubGraphToTensorRT(ConvertGraphParams* params) {
   // AddNode does not wire edges.
   // Re-map incoming edges to use the new TRT node instead of the orig subgraph
   std::map<std::pair<int, int>, int> subgraph_edge_to_input_map;
+  std::set<std::pair<int, int> > inserted_input;
+  int port = 0;
   for (size_t i = 0; i < params->subgraph_inputs.size(); ++i) {
-    subgraph_edge_to_input_map.insert({params->subgraph_inputs.at(i), i});
+    if (inserted_input.count(params->subgraph_inputs.at(i)) == 0) {
+      inserted_input.insert(params->subgraph_inputs.at(i));
+      subgraph_edge_to_input_map.insert({params->subgraph_inputs.at(i), port++});
+    }
   }
+  VLOG(2) << "old wiring edges: " << trt_node->in_edges().size();
+  for (const tensorflow::Edge* edge : trt_node->in_edges()) {
+    VLOG(2) << edge->src()->name() << " port: " << edge->src_output();
+  }
+  std::set<int> port_list;
   for (const tensorflow::Edge* edge : params->subgraph_incoming_edges) {
     std::pair<int, int> old_src = {edge->src()->id(), edge->src_output()};
     int new_src_output = subgraph_edge_to_input_map.at(old_src);
-    params->graph.AddEdge(edge->src(), edge->src_output(), trt_node,
-                          new_src_output);
+    if (port_list.count(new_src_output)==0) {
+      port_list.insert(new_src_output);
+      params->graph.AddEdge(edge->src(), edge->src_output(), trt_node,
+                            new_src_output);
+    }
     params->graph.RemoveEdge(edge);
   }
 
