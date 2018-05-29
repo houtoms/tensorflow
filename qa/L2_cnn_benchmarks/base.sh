@@ -1,6 +1,6 @@
 #!/bin/bash
 
-DATA_DIR="/data/imagenet/train-val-tfrecord-480"
+DATA_DIR="${DATA_DIR:-/data/imagenet/train-val-tfrecord-480}"
 USING_DATA_DIR=0
 WARMUP=50
 RUN_TO=300 #Best if multiple of WARMUP
@@ -38,7 +38,6 @@ function run_config {
     local MATH="$3"
     local DATA="$4"
     local GPUS="$5"
-    local TMPFILE="$(mktemp tmp.XXXXXX)"
     if [[ $? -ne 0 ]]; then
         echo Failed to create temp file for stdout.
         exit 1
@@ -54,6 +53,14 @@ function run_config {
         for M in $MATH; do
             for G in $GPUS; do
                 if [[ "$G" -gt "$MAX_GPUS" ]]; then continue; fi
+
+                BASE_NAME="$(echo "${CNN_SCRIPT##*/}" | sed -e 's/ //g' -e 's/-layers=//g' -e 's/.py\(-\|$\)/\1/g')"
+                if [[ -n "$LOG_DIR" ]]; then
+                    local TMPFILE="$LOG_DIR/${BASE_NAME}_${D}_${M}_${BATCH}x${G}.log"
+                else
+                    local TMPFILE="$(mktemp tmp.XXXXXX)"
+                fi
+
                 echo mpiexec --bind-to socket --allow-run-as-root -np $G python -u \
                     $CNN_SCRIPT \
                     $DATA_FLAG \
@@ -76,28 +83,38 @@ function run_config {
                 WALLTIME=$SECONDS
 
                 if [[ $? -ne 0 ]]; then
-                    cat "$TMPFILE"
-                    echo TRAINING SCRIPT FAILED
-                    rm -f "$TMPFILE"
-                    exit 1
+                    if [[ -z "$LOG_DIR" ]]; then
+                        cat "$TMPFILE"
+                        echo TRAINING SCRIPT FAILED
+                        rm -f "$TMPFILE"
+                        exit 1
+                    fi
+                    local PERF="FAIL"
+                else
+                    local PERF=$(cat "$TMPFILE" | grep "^ *[0-9]\+ " | awk "
+                        {
+                            if (\$1 == $((WARMUP*2))) {start=1};
+                            if (start == 1) {sum += \$3; count+=1}
+                        }
+                        END {if (count == $((RUN_TO/WARMUP-1))) {print sum/count}}")
+
+                    if [[ -z "$PERF" ]]; then
+                        if [[ -z "$LOG_DIR" ]]; then
+                            cat "$TMPFILE"
+                            echo UNEXPECTED END OF LOG
+                            rm -f "$TMPFILE"
+                            exit 1
+                        fi
+                        PERF="FAIL"
+                    fi
                 fi
+                [[ -z "$LOG_DIR" ]] && rm -f "$TMPFILE"
 
-                local PERF=$(cat "$TMPFILE" | grep "^ *[0-9]\+ " | awk "
-                    {
-                        if (\$1 == $((WARMUP*2))) {start=1};
-                        if (start == 1) {sum += \$3; count+=1}
-                    }
-                    END {if (count == $((RUN_TO/WARMUP-1))) {print sum/count}}")
-
-                if [[ -z "$PERF" ]]; then
-                    cat "$TMPFILE"
-                    echo UNEXPECTED END OF LOG
-                    rm -f "$TMPFILE"
-                    exit 1
+                if [[ "$PERF" == "FAIL" ]]; then
+                    printf "%-30s %4s %4s %5d %4d %9s %8d\n" "$BASE_NAME" $D $M $BATCH $G $PERF $WALLTIME
+                else
+                    printf "%-30s %4s %4s %5d %4d %9.3f %8d\n" "$BASE_NAME" $D $M $BATCH $G $PERF $WALLTIME
                 fi
-                rm -f "$TMPFILE"
-
-                printf "%-30s %4s %4s %5d %4d %9.3f %8d\n" "${CNN_SCRIPT##*/}" $D $M $BATCH $G $PERF $WALLTIME
             done
         done
     done
@@ -238,7 +255,7 @@ for i in "${!BATCHES[@]}"; do
   run_config "$CNN_SCRIPT" "${BATCHES[$i]}" "${MATHS[$i]}" "${DATAS[$i]}" "${DEVS[$i]}"
 done
 
-if [[ "$SKIP_HEADER" -eq 0 ]]; then
+if [[ "$SKIP_FOOTER" -eq 0 ]]; then
     echo All tests complete.
 fi
 exit 0
