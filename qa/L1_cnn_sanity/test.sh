@@ -25,8 +25,6 @@ NETWORKS=("alexnet.py" \
           "vgg.py --layers=16" \
           "vgg.py --layers=19" \
           )
-          # Do not test resnext or xception until performant
-          # grouped convs are available.
 set +x
 
 get_PERF() {
