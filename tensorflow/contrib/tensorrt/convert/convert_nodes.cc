@@ -47,19 +47,25 @@ limitations under the License.
 #include "tensorrt/include/NvInfer.h"
 
 #define TFTRT_RETURN_ERROR_IF_FALSE(ptr, node) \
+do \
 { if (ptr==false) { \
     return tensorflow::errors::Internal(string("TFTRT::") + __FUNCTION__ + "failed to add TRT layer, at: " + node); \
-  } }
+  } \
+} while(0)
 
 #define TFTRT_RETURN_ERROR_IF_NULLPTR(ptr, node) \
+do \
 { if (ptr==nullptr) { \
     return tensorflow::errors::Internal(string("TFTRT::") + __FUNCTION__ + "failed to add TRT layer, at: " + node); \
-  } }
+  } \
+} while(0)
 
 #define TF_RETURN_IF_OK(status) \
+do \
 { if (status.ok()) { \
     return tensorflow::Status::OK(); \
-  } }
+  } \
+} while(0)
 
 //  Check if the types are equal. Cast to int first so that failure log message
 //  would work!
