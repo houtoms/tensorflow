@@ -140,14 +140,6 @@ bool TensorRTGetBroadcastShape(const nvinfer1::Dims& operand_l, const bool opera
   std::memcpy(l_s + max_d - operand_l.nbDims, operand_l.d,  operand_l.nbDims*element_size);
   std::memcpy(r_s + max_d - operand_r.nbDims, operand_r.d,  operand_r.nbDims*element_size);
 
-  if (true) {
-    std::printf("  l_d: %d from %d, l_r: %d from %d\n", l_d, operand_l.nbDims,r_d, operand_r.nbDims);
-    //for (int i=max_d-1; i >= 0; i--) {
-    for (int i=max_nb_dims-1; i >= 0; i--) {
-      std::printf("    iter: %d, l: %d from %d, r:%d from %d\n", i, l_s[i], operand_l.d[i], r_s[i], operand_r.d[i]);
-    }
-    std::printf("  tensor_l: %d, tensor_r: %d\n", operand_l_is_tensor, operand_r_is_tensor);
-  }
   // set -1 for batch dimension, since batch size is not supposed to be broadcasted
   if (operand_l_is_tensor) {
     if (max_d != l_d) { // if broadcast beyond batch dimension, fail
@@ -174,11 +166,6 @@ bool TensorRTGetBroadcastShape(const nvinfer1::Dims& operand_l, const bool opera
   std::memcpy(operand_l_new_shape->d, l_s+1, (max_d-1)*element_size);
   operand_r_new_shape->nbDims = max_d -1;
   std::memcpy(operand_r_new_shape->d, r_s+1, (max_d-1)*element_size);
-  if (true) {
-    for (int i=max_d-2; i >= 0; i--) {
-      std::printf("    iter: %d, l: %d, r:%d\n", i, operand_l_new_shape->d[i], operand_r_new_shape->d[i]);
-    }
-  }
   return true;
 }
 
@@ -2333,13 +2320,7 @@ tensorflow::Status ConvertMatMulHelper(Converter& ctx,
   output_dim.nbDims = 1;
   TFTRT_RETURN_ERROR_IF_FALSE(PrepareTensorForShape(ctx, TRT_TensorOrWeights(output_tensor), &temp_tensor, output_dim), node_name);
   output_tensor = const_cast<nvinfer1::ITensor*>(temp_tensor);
-  {
-    printf("output tensor: \n");
-    auto dims = output_tensor->getDimensions();
-    for (int i=dims.nbDims-1; i >= 0; i--) {
-      std::printf("    iter: %d, l: %d\n", i, dims.d[i]);
-    }
-  }
+
   outputs->push_back(TRT_TensorOrWeights(output_tensor));
   return tensorflow::Status::OK();
 }
