@@ -83,7 +83,7 @@ RUN pip install --no-cache-dir --upgrade \
         numpy==1.11.0 \
         pexpect \
         psutil \
-        nltk>=3.2.3 \
+        nltk==3.2.5 \
         future \
         mock
 
