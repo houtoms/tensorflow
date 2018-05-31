@@ -493,7 +493,7 @@ def set_cc_opt_flags(environ_cp):
   cc_opt_flags = get_from_env_or_user_or_default(environ_cp, 'CC_OPT_FLAGS',
                                                  question, default_cc_opt_flags)
   for opt in cc_opt_flags.split():
-    write_to_bazelrc('build:opt --copt=%s' % opt)
+    write_to_bazelrc('build --copt=%s' % opt)
   # It should be safe on the same build host.
   if not is_ppc64le() and not is_windows():
     write_to_bazelrc('build:opt --host_copt=-march=native')
