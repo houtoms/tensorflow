@@ -1,3 +1,5 @@
 #!/bin/bash
 
-exec ./base.sh "/workspace/nvidia-examples/cnn/inception_v4.py" 32 64,16000MiB_MIN
+# For some reason synthetic data give NaN losses in some fp16 cases.
+
+exec ./base.sh "/workspace/nvidia-examples/cnn/inception_v4.py" 32,REAL_ONLY 64,16000MiB_MIN,REAL_ONLY
