@@ -234,10 +234,10 @@ def train(infer_func, params):
             'format':        image_format,
             'dtype' : tf.float16 if precision == 'fp16' else tf.float32,
             'momentum' : momentum,
-            'learning_rate_init' : learning_rate_init if data_dir is not None else 1.0e-7,
+            'learning_rate_init' : learning_rate_init,
             'learning_rate_power' : learning_rate_power,
             'decay_steps' : decay_steps,
-            'weight_decay' : weight_decay if data_dir is not None else 1.0e-7,
+            'weight_decay' : weight_decay,
             'loss_scale' : loss_scale,
             'larc_eta' : larc_eta,
             'larc_mode' : larc_mode,
@@ -298,7 +298,6 @@ def validate(infer_func, params):
     display_every = params['display_every']
     iter_unit = params['iter_unit']
 
-    deterministic = False
     # Determinism is not fully supported by all TF ops.
     # Disabling until remaining wrinkles can be ironed out.
     deterministic = False

@@ -122,7 +122,9 @@ def _parse_and_preprocess_image_record(record, counter, height, width,
 def fake_image_set(batch_size, height, width):
     data_shape = [batch_size, height, width, 3] # 3 channels
     images = tf.truncated_normal(
-                 data_shape, dtype=tf.float32, stddev=1, name='fake_images')
+                 data_shape, dtype=tf.float32, mean=112, stddev=70,
+                 name='fake_images')
+    images = tf.clip_by_value(images, 0.0, 255.0)
     images = tf.cast(images, tf.uint8)
     labels = tf.random_uniform(
                  [batch_size], minval=0, maxval=1000-1, dtype=tf.int32,
