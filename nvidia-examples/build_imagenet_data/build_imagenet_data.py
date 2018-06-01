@@ -1,5 +1,5 @@
-#!/usr/bin/python
-# Copyright 2016 Google Inc and 2017 NVIDIA Corporation. All Rights Reserved.
+#!/usr/bin/env python
+# Copyright 2016 Google Inc. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,27 +13,31 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-"""Converts image data to TFRecords file format with Example protos.
+"""Converts ImageNet data to TFRecords file format with Example protos.
 
-The image data set is expected to reside in JPEG files located in the
+The raw ImageNet data set is expected to reside in JPEG files located in the
 following directory structure.
 
-  data_dir/label_0/image0.jpeg
-  data_dir/label_0/image1.jpg
-  ...
-  data_dir/label_1/weird-image.jpeg
-  data_dir/label_1/my-image.jpeg
+  data_dir/n01440764/ILSVRC2012_val_00000293.JPEG
+  data_dir/n01440764/ILSVRC2012_val_00000543.JPEG
   ...
 
-where the sub-directory is the unique label associated with these images.
+where 'n01440764' is the unique synset label associated with
+these images.
+
+The training data set consists of 1000 sub-directories (i.e. labels)
+each containing 1200 JPEG images for a total of 1.2M JPEG images.
+
+The evaluation data set consists of 1000 sub-directories (i.e. labels)
+each containing 50 JPEG images for a total of 50K JPEG images.
 
 This TensorFlow script converts the training and evaluation data into
-a sharded data set consisting of TFRecord files
+a sharded data set consisting of 1024 and 128 TFRecord files, respectively.
 
   train_directory/train-00000-of-01024
   train_directory/train-00001-of-01024
   ...
-  train_directory/train-00127-of-01024
+  train_directory/train-01023-of-01024
 
 and
 
@@ -42,26 +46,42 @@ and
   ...
   validation_directory/validation-00127-of-00128
 
-where we have selected 1024 and 128 shards for each data set. Each record
-within the TFRecord file is a serialized Example proto. The Example proto
-contains the following fields:
+Each validation TFRecord file contains ~390 records. Each training TFREcord
+file contains ~1250 records. Each record within the TFRecord file is a
+serialized Example proto. The Example proto contains the following fields:
 
   image/encoded: string containing JPEG encoded image in RGB colorspace
   image/height: integer, image height in pixels
   image/width: integer, image width in pixels
   image/colorspace: string, specifying the colorspace, always 'RGB'
   image/channels: integer, specifying the number of channels, always 3
-  image/format: string, specifying the format, always'JPEG'
+  image/format: string, specifying the format, always 'JPEG'
 
   image/filename: string containing the basename of the image file
             e.g. 'n01440764_10026.JPEG' or 'ILSVRC2012_val_00000293.JPEG'
   image/class/label: integer specifying the index in a classification layer.
-    The label ranges from [0, num_labels] where 0 is unused and left as
-    the background class.
+    The label ranges from [1, 1000] where 0 is not used.
+  image/class/synset: string specifying the unique ID of the label,
+    e.g. 'n01440764'
   image/class/text: string specifying the human-readable version of the label
-    e.g. 'dog'
+    e.g. 'red fox, Vulpes vulpes'
 
-If you data set involves bounding boxes, please look at build_imagenet_data.py.
+  image/object/bbox/xmin: list of integers specifying the 0+ human annotated
+    bounding boxes
+  image/object/bbox/xmax: list of integers specifying the 0+ human annotated
+    bounding boxes
+  image/object/bbox/ymin: list of integers specifying the 0+ human annotated
+    bounding boxes
+  image/object/bbox/ymax: list of integers specifying the 0+ human annotated
+    bounding boxes
+  image/object/bbox/label: integer specifying the index in a classification
+    layer. The label ranges from [1, 1000] where 0 is not used. Note this is
+    always identical to the image label.
+
+Note that the length of xmin is identical to the length of xmax, ymin and ymax
+for each example.
+
+Running this script using 16 threads may take around ~2.5 hours on an HP Z420.
 """
 from __future__ import absolute_import
 from __future__ import division
@@ -73,8 +93,8 @@ import random
 import sys
 import threading
 
-
 import numpy as np
+import six
 import tensorflow as tf
 
 tf.app.flags.DEFINE_string('train_directory', '/tmp/',
@@ -89,30 +109,62 @@ tf.app.flags.DEFINE_integer('train_shards', 1024,
 tf.app.flags.DEFINE_integer('validation_shards', 128,
                             'Number of shards in validation TFRecord files.')
 
-tf.app.flags.DEFINE_integer('num_threads', 4,
+tf.app.flags.DEFINE_integer('num_threads', 8,
                             'Number of threads to preprocess the images.')
 
-tf.app.flags.DEFINE_boolean('resize_images', True,
-                            'resize images to uniform size while creating protobufs')
-tf.app.flags.DEFINE_integer('new_height', 352, 
-                            'height after resizing')
-tf.app.flags.DEFINE_integer('new_width', 352,
-                            'width after resizing')
-tf.app.flags.DEFINE_integer('jpeg_q', 90,
-                            'JPEG Q factor (from 0 to 100)')
+tf.app.flags.DEFINE_integer('image_size', 0,
+                            'Resize images to this size on the shortest side (0 to disable). See also --image_stretch.')
+tf.app.flags.DEFINE_integer('image_stretch', 0,
+                            '[bool] Stretch images instead of maintaining aspect ratio when resizing with --image_size.')
+tf.app.flags.DEFINE_integer('image_quality', 0,
+                            'Re-encode images as JPEGs with this quality factor (0 to disable).')
+tf.app.flags.DEFINE_integer('image_allow_upscale', 0,
+                            '[bool] Allow images to be upscaled to image_size if they are smaller.')
 
 # The labels file contains a list of valid labels are held in this file.
 # Assumes that the file contains entries as such:
-#   dog
-#   cat
-#   flower
-# where each line corresponds to a label. We map each label contained in
-# the file to an integer corresponding to the line number starting from 0.
-tf.app.flags.DEFINE_string('labels_file', '', 'Labels file')
+#   n01440764
+#   n01443537
+#   n01484850
+# where each line corresponds to a label expressed as a synset. We map
+# each synset contained in the file to an integer (based on the alphabetical
+# ordering). See below for details.
+tf.app.flags.DEFINE_string('labels_file',
+                           'imagenet_lsvrc_2015_synsets.txt',
+                           'Labels file')
 
+# This file containing mapping from synset to human-readable label.
+# Assumes each line of the file looks like:
+#
+#   n02119247    black fox
+#   n02119359    silver fox
+#   n02119477    red fox, Vulpes fulva
+#
+# where each line corresponds to a unique mapping. Note that each line is
+# formatted as <synset>\t<human readable label>.
+tf.app.flags.DEFINE_string('imagenet_metadata_file',
+                           'imagenet_metadata.txt',
+                           'ImageNet metadata file')
+
+# This file is the output of process_bounding_box.py
+# Assumes each line of the file looks like:
+#
+#   n00007846_64193.JPEG,0.0060,0.2620,0.7545,0.9940
+#
+# where each line corresponds to one bounding box annotation associated
+# with an image. Each line can be parsed as:
+#
+#   <JPEG file name>, <xmin>, <ymin>, <xmax>, <ymax>
+#
+# Note that there might exist mulitple bounding box annotations associated
+# with an image file.
+tf.app.flags.DEFINE_string('bounding_box_file',
+                           './imagenet_2012_bounding_boxes.csv',
+                           'Bounding box file')
 
 FLAGS = tf.app.flags.FLAGS
 
+thread_shutdown_event = threading.Event()
 
 def _int64_feature(value):
   """Wrapper for inserting int64 features into Example proto."""
@@ -121,24 +173,47 @@ def _int64_feature(value):
   return tf.train.Feature(int64_list=tf.train.Int64List(value=value))
 
 
+def _float_feature(value):
+  """Wrapper for inserting float features into Example proto."""
+  if not isinstance(value, list):
+    value = [value]
+  return tf.train.Feature(float_list=tf.train.FloatList(value=value))
+
+
 def _bytes_feature(value):
   """Wrapper for inserting bytes features into Example proto."""
+  if not isinstance(value, six.binary_type):
+    value = value.encode('utf-8')
   return tf.train.Feature(bytes_list=tf.train.BytesList(value=[value]))
 
 
-def _convert_to_example(filename, image_buffer, label, text, height, width):
+def _convert_to_example(filename, image_buffer, label, synset, human, bbox,
+                        height, width):
   """Build an Example proto for an example.
 
   Args:
     filename: string, path to an image file, e.g., '/path/to/example.JPG'
     image_buffer: string, JPEG encoding of RGB image
     label: integer, identifier for the ground truth for the network
-    text: string, unique human-readable, e.g. 'dog'
+    synset: string, unique WordNet ID specifying the label, e.g., 'n02323233'
+    human: string, human-readable label, e.g., 'red fox, Vulpes vulpes'
+    bbox: list of bounding boxes; each box is a list of integers
+      specifying [xmin, ymin, xmax, ymax]. All boxes are assumed to belong to
+      the same label as the image label.
     height: integer, image height in pixels
     width: integer, image width in pixels
   Returns:
     Example proto
   """
+  xmin = []
+  ymin = []
+  xmax = []
+  ymax = []
+  for b in bbox:
+    assert len(b) == 4
+    # pylint: disable=expression-not-assigned
+    [l.append(point) for l, point in zip([xmin, ymin, xmax, ymax], b)]
+    # pylint: enable=expression-not-assigned
 
   colorspace = 'RGB'
   channels = 3
@@ -147,20 +222,26 @@ def _convert_to_example(filename, image_buffer, label, text, height, width):
   example = tf.train.Example(features=tf.train.Features(feature={
       'image/height': _int64_feature(height),
       'image/width': _int64_feature(width),
-      'image/colorspace': _bytes_feature(tf.compat.as_bytes(colorspace)),
+      'image/colorspace': _bytes_feature(colorspace),
       'image/channels': _int64_feature(channels),
       'image/class/label': _int64_feature(label),
-      'image/class/text': _bytes_feature(tf.compat.as_bytes(text)),
-      'image/format': _bytes_feature(tf.compat.as_bytes(image_format)),
-      'image/filename': _bytes_feature(tf.compat.as_bytes(os.path.basename(filename))),
-      'image/encoded': _bytes_feature(tf.compat.as_bytes(image_buffer))}))
+      'image/class/synset': _bytes_feature(synset),
+      'image/class/text': _bytes_feature(human),
+      'image/object/bbox/xmin': _float_feature(xmin),
+      'image/object/bbox/xmax': _float_feature(xmax),
+      'image/object/bbox/ymin': _float_feature(ymin),
+      'image/object/bbox/ymax': _float_feature(ymax),
+      'image/object/bbox/label': _int64_feature([label] * len(xmin)),
+      'image/format': _bytes_feature(image_format),
+      'image/filename': _bytes_feature(os.path.basename(filename)),
+      'image/encoded': _bytes_feature(image_buffer)}))
   return example
 
 
 class ImageCoder(object):
   """Helper class that provides TensorFlow image coding utilities."""
 
-  def __init__(self):
+  def __init__(self, quality=0, size=0, stretch=False, upscale=False):
     # Create a single Session to run all image coding calls.
     self._sess = tf.Session()
 
@@ -169,34 +250,79 @@ class ImageCoder(object):
     image = tf.image.decode_png(self._png_data, channels=3)
     self._png_to_jpeg = tf.image.encode_jpeg(image, format='rgb', quality=100)
 
+    # Initializes function that converts CMYK JPEG data to RGB JPEG data.
+    self._cmyk_data = tf.placeholder(dtype=tf.string)
+    image = tf.image.decode_jpeg(self._cmyk_data, channels=0)
+    self._cmyk_to_rgb = tf.image.encode_jpeg(image, format='rgb', quality=100)
+
     # Initializes function that decodes RGB JPEG data.
     self._decode_jpeg_data = tf.placeholder(dtype=tf.string)
     self._decode_jpeg = tf.image.decode_jpeg(self._decode_jpeg_data, channels=3)
 
-    # Resize
-    self._resize = tf.expand_dims(self._decode_jpeg, 0)
-    self._resize = tf.image.resize_bilinear(self._resize, [FLAGS.new_height, FLAGS.new_width])
-    self._resize = tf.squeeze(self._resize)
-    self._resize = tf.cast(self._resize, tf.uint8)
-
-    self._new_jpeg = tf.image.encode_jpeg(self._resize, format='rgb', quality=FLAGS.jpeg_q,
-      progressive=False, optimize_size=True, chroma_downsampling=True)
+    self._recoded_jpeg, self._resized_image = self._build_recode_jpeg(
+        quality, size, stretch, upscale)
+    self._resized_image_shape = tf.shape(self._resized_image)
 
   def png_to_jpeg(self, image_data):
     return self._sess.run(self._png_to_jpeg,
                           feed_dict={self._png_data: image_data})
 
-  def decode_jpeg(self, image_data):
-    if FLAGS.resize_images:
-      image = self._resize
-      image, img_buffer = self._sess.run([self._resize, self._new_jpeg], feed_dict={self._decode_jpeg_data: image_data})
-    else:
-      image = self._sess.run(self._decode_jpeg, feed_dict={self._decode_jpeg_data: image_data})
-      img_buffer = image_data
-    assert len(image.shape) == 3
-    assert image.shape[2] == 3
-    return image, img_buffer
+  def cmyk_to_rgb(self, image_data):
+    return self._sess.run(self._cmyk_to_rgb,
+                          feed_dict={self._cmyk_data: image_data})
 
+  #def decode_jpeg(self, image_data):
+  #  image = self._sess.run(self._decode_jpeg,
+  #                         feed_dict={self._decode_jpeg_data: image_data})
+  #  assert len(image.shape) == 3
+  #  assert image.shape[2] == 3
+  #  return image
+
+  def _build_recode_jpeg(self, quality, size, stretch, upscale):
+    encoded_jpeg = self._decode_jpeg_data
+    image = self._decode_jpeg
+    if size:
+      if stretch:
+        # Stretch to a fixed square
+        new_height, new_width = size, size
+      else:
+        # Preserve aspect ratio and only resize if shorter side > size
+        shape = tf.shape(image)
+        h, w = tf.to_float(shape[0]), tf.to_float(shape[1])
+        min_side = tf.minimum(h, w)
+        if not upscale:
+            scale = float(size) / min_side
+            scale = tf.minimum(scale, 1.0) # Shrink only
+        else:
+            max_size = min_size = size
+            dnscale = tf.minimum(float(max_size) / min_side, 1.0)
+            upscale = tf.maximum(float(min_size) / min_side, 1.0)
+            scale = dnscale * upscale
+        new_height = tf.cast(scale * h, tf.int32)
+        new_width  = tf.cast(scale * w, tf.int32)
+      resized_float = tf.image.resize_images(
+          images = image,
+          size = [new_height, new_width],
+          method = tf.image.ResizeMethod.BILINEAR,
+          align_corners = False)
+      resized_uint8 = tf.cast(resized_float, tf.uint8)
+      image = resized_uint8
+    if size or quality:
+      encoded_jpeg = tf.image.encode_jpeg(
+          image,
+          format='rgb',
+          quality=quality,
+          progressive=False,
+          optimize_size=True,
+          chroma_downsampling=True,
+          density_unit='in')
+    return encoded_jpeg, image
+
+  def recode_jpeg(self, image_data):
+    encoded_jpeg, image_shape = self._sess.run(
+        [self._recoded_jpeg, self._resized_image_shape],
+        feed_dict={self._decode_jpeg_data: image_data})
+    return encoded_jpeg, image_shape
 
 def _is_png(filename):
   """Determine if a file contains a PNG format image.
@@ -207,7 +333,34 @@ def _is_png(filename):
   Returns:
     boolean indicating if the image is a PNG.
   """
-  return '.png' in filename
+  # File list from:
+  # https://groups.google.com/forum/embed/?place=forum/torch7#!topic/torch7/fOSTXHIESSU
+  return 'n02105855_2933.JPEG' in filename
+
+
+def _is_cmyk(filename):
+  """Determine if file contains a CMYK JPEG format image.
+
+  Args:
+    filename: string, path of the image file.
+
+  Returns:
+    boolean indicating if the image is a JPEG encoded with CMYK color space.
+  """
+  # File list from:
+  # https://github.com/cytsai/ilsvrc-cmyk-image-list
+  blacklist = ['n01739381_1309.JPEG', 'n02077923_14822.JPEG',
+               'n02447366_23489.JPEG', 'n02492035_15739.JPEG',
+               'n02747177_10752.JPEG', 'n03018349_4028.JPEG',
+               'n03062245_4620.JPEG', 'n03347037_9675.JPEG',
+               'n03467068_12171.JPEG', 'n03529860_11437.JPEG',
+               'n03544143_17228.JPEG', 'n03633091_5218.JPEG',
+               'n03710637_5125.JPEG', 'n03961711_5286.JPEG',
+               'n04033995_2932.JPEG', 'n04258138_17003.JPEG',
+               'n04264628_27969.JPEG', 'n04336792_7448.JPEG',
+               'n04371774_5854.JPEG', 'n04596742_4225.JPEG',
+               'n07583066_647.JPEG', 'n13037406_4650.JPEG']
+  return filename.split('/')[-1] in blacklist
 
 
 def _process_image(filename, coder):
@@ -222,28 +375,35 @@ def _process_image(filename, coder):
     width: integer, image width in pixels.
   """
   # Read the image file.
-  with tf.gfile.FastGFile(filename, 'r') as f:
+  with tf.gfile.FastGFile(filename, 'rb') as f:
     image_data = f.read()
 
-  # Convert any PNG to JPEG's for consistency.
+  # Clean the dirty data.
   if _is_png(filename):
+    # 1 image is a PNG.
     print('Converting PNG to JPEG for %s' % filename)
     image_data = coder.png_to_jpeg(image_data)
+  elif _is_cmyk(filename):
+    # 22 JPEG images are in CMYK colorspace.
+    print('Converting CMYK to RGB for %s' % filename)
+    image_data = coder.cmyk_to_rgb(image_data)
 
-  # Decode the RGB JPEG.
-  image, image_data = coder.decode_jpeg(image_data)
+  # Recode the RGB JPEG.
+  image_data, image_shape = coder.recode_jpeg(image_data)
+
+  image_data = six.binary_type(image_data)
 
   # Check that image converted to RGB
-  assert len(image.shape) == 3
-  height = image.shape[0]
-  width = image.shape[1]
-  assert image.shape[2] == 3
+  assert len(image_shape) == 3
+  height = image_shape[0]
+  width = image_shape[1]
+  assert image_shape[2] == 3
 
-  return image, image_data, height, width
+  return image_data, height, width
 
 
 def _process_image_files_batch(coder, thread_index, ranges, name, filenames,
-                               texts, labels, num_shards):
+                               synsets, labels, humans, bboxes, num_shards):
   """Processes and saves list of images as TFRecord in 1 thread.
 
   Args:
@@ -253,8 +413,12 @@ def _process_image_files_batch(coder, thread_index, ranges, name, filenames,
       analyze in parallel.
     name: string, unique identifier specifying the data set
     filenames: list of strings; each string is a path to an image file
-    texts: list of strings; each string is human readable, e.g. 'dog'
+    synsets: list of strings; each string is a unique WordNet ID
     labels: list of integer; each integer identifies the ground truth
+    humans: list of strings; each string is a human-readable label
+    bboxes: list of bounding boxes for each image. Note that each entry in this
+      list might contain from 0+ entries corresponding to the number of bounding
+      box annotations for the image.
     num_shards: integer number of shards for this data set.
   """
   # Each thread produces N shards where N = int(num_shards / num_threads).
@@ -271,6 +435,8 @@ def _process_image_files_batch(coder, thread_index, ranges, name, filenames,
 
   counter = 0
   for s in range(num_shards_per_batch):
+    if thread_shutdown_event.is_set():
+      break
     # Generate a sharded version of the file name, e.g. 'train-00002-of-00010'
     shard = thread_index * num_shards_per_batch + s
     output_filename = '%s-%.5d-of-%.5d' % (name, shard, num_shards)
@@ -280,14 +446,19 @@ def _process_image_files_batch(coder, thread_index, ranges, name, filenames,
     shard_counter = 0
     files_in_shard = np.arange(shard_ranges[s], shard_ranges[s + 1], dtype=int)
     for i in files_in_shard:
+      if thread_shutdown_event.is_set():
+          break
       filename = filenames[i]
       label = labels[i]
-      text = texts[i]
+      synset = synsets[i]
+      human = humans[i]
+      bbox = bboxes[i]
 
-      decoded, image_buffer, height, width = _process_image(filename, coder)
+      image_buffer, height, width = _process_image(filename, coder)
 
       example = _convert_to_example(filename, image_buffer, label,
-                                    text, height, width)
+                                    synset, human, bbox,
+                                    height, width)
       writer.write(example.SerializeToString())
       shard_counter += 1
       counter += 1
@@ -307,24 +478,32 @@ def _process_image_files_batch(coder, thread_index, ranges, name, filenames,
   sys.stdout.flush()
 
 
-def _process_image_files(name, filenames, texts, labels, num_shards):
+def _process_image_files(name, filenames, synsets, labels, humans,
+                         bboxes, num_shards):
   """Process and save list of images as TFRecord of Example protos.
 
   Args:
     name: string, unique identifier specifying the data set
     filenames: list of strings; each string is a path to an image file
-    texts: list of strings; each string is human readable, e.g. 'dog'
+    synsets: list of strings; each string is a unique WordNet ID
     labels: list of integer; each integer identifies the ground truth
+    humans: list of strings; each string is a human-readable label
+    bboxes: list of bounding boxes for each image. Note that each entry in this
+      list might contain from 0+ entries corresponding to the number of bounding
+      box annotations for the image.
     num_shards: integer number of shards for this data set.
   """
-  assert len(filenames) == len(texts)
+  assert len(filenames) == len(synsets)
   assert len(filenames) == len(labels)
+  assert len(filenames) == len(humans)
+  assert len(filenames) == len(bboxes)
 
   # Break all images into batches with a [ranges[i][0], ranges[i][1]].
   spacing = np.linspace(0, len(filenames), FLAGS.num_threads + 1).astype(np.int)
   ranges = []
+  threads = []
   for i in range(len(spacing) - 1):
-    ranges.append([spacing[i], spacing[i+1]])
+    ranges.append([spacing[i], spacing[i + 1]])
 
   # Launch a thread for each batch.
   print('Launching %d threads for spacings: %s' % (FLAGS.num_threads, ranges))
@@ -334,18 +513,34 @@ def _process_image_files(name, filenames, texts, labels, num_shards):
   coord = tf.train.Coordinator()
 
   # Create a generic TensorFlow-based utility for converting all image codings.
-  coder = ImageCoder()
+  if name == 'train':
+      coder = ImageCoder(quality=FLAGS.image_quality,
+                         size=FLAGS.image_size,
+                         stretch=FLAGS.image_stretch,
+                         upscale=FLAGS.image_allow_upscale)
+  else:
+      coder = ImageCoder()
 
+  thread_shutdown_event.clear()
   threads = []
   for thread_index in range(len(ranges)):
     args = (coder, thread_index, ranges, name, filenames,
-            texts, labels, num_shards)
+            synsets, labels, humans, bboxes, num_shards)
     t = threading.Thread(target=_process_image_files_batch, args=args)
     t.start()
     threads.append(t)
 
   # Wait for all the threads to terminate.
-  coord.join(threads)
+  try:
+      coord.join(threads)
+  except KeyboardInterrupt:
+      print("**** Keyboard Interrupt ****")
+      thread_shutdown_event.set()
+      sys.stdout.flush()
+      return
+  except:
+      thread_shutdown_event.set()
+      raise
   print('%s: Finished writing all %d images in data set.' %
         (datetime.now(), len(filenames)))
   sys.stdout.flush()
@@ -357,53 +552,57 @@ def _find_image_files(data_dir, labels_file):
   Args:
     data_dir: string, path to the root directory of images.
 
-      Assumes that the image data set resides in JPEG files located in
+      Assumes that the ImageNet data set resides in JPEG files located in
       the following directory structure.
 
-        data_dir/dog/another-image.JPEG
-        data_dir/dog/my-image.jpg
+        data_dir/n01440764/ILSVRC2012_val_00000293.JPEG
+        data_dir/n01440764/ILSVRC2012_val_00000543.JPEG
 
-      where 'dog' is the label associated with these images.
+      where 'n01440764' is the unique synset label associated with these images.
 
     labels_file: string, path to the labels file.
 
       The list of valid labels are held in this file. Assumes that the file
       contains entries as such:
-        dog
-        cat
-        flower
-      where each line corresponds to a label. We map each label contained in
-      the file to an integer starting with the integer 0 corresponding to the
-      label contained in the first line.
+        n01440764
+        n01443537
+        n01484850
+      where each line corresponds to a label expressed as a synset. We map
+      each synset contained in the file to an integer (based on the alphabetical
+      ordering) starting with the integer 1 corresponding to the synset
+      contained in the first line.
+
+      The reason we start the integer labels at 1 is to reserve label 0 as an
+      unused background class.
 
   Returns:
     filenames: list of strings; each string is a path to an image file.
-    texts: list of strings; each string is the class, e.g. 'dog'
+    synsets: list of strings; each string is a unique WordNet ID.
     labels: list of integer; each integer identifies the ground truth.
   """
   print('Determining list of input files and labels from %s.' % data_dir)
-  unique_labels = [l.strip() for l in tf.gfile.FastGFile(
-      labels_file, 'r').readlines()]
+  challenge_synsets = [l.strip() for l in
+                       tf.gfile.FastGFile(labels_file, 'r').readlines()]
 
   labels = []
   filenames = []
-  texts = []
+  synsets = []
 
   # Leave label index 0 empty as a background class.
   label_index = 1
 
   # Construct the list of JPEG files and labels.
-  for text in unique_labels:
-    jpeg_file_path = '%s/%s/*' % (data_dir, text)
+  for synset in challenge_synsets:
+    jpeg_file_path = '%s/%s/*.JPEG' % (data_dir, synset)
     matching_files = tf.gfile.Glob(jpeg_file_path)
 
     labels.extend([label_index] * len(matching_files))
-    texts.extend([text] * len(matching_files))
+    synsets.extend([synset] * len(matching_files))
     filenames.extend(matching_files)
 
     if not label_index % 100:
       print('Finished finding files in %d of %d classes.' % (
-          label_index, len(labels)))
+          label_index, len(challenge_synsets)))
     label_index += 1
 
   # Shuffle the ordering of all image files in order to guarantee
@@ -414,25 +613,156 @@ def _find_image_files(data_dir, labels_file):
   random.shuffle(shuffled_index)
 
   filenames = [filenames[i] for i in shuffled_index]
-  texts = [texts[i] for i in shuffled_index]
+  synsets = [synsets[i] for i in shuffled_index]
   labels = [labels[i] for i in shuffled_index]
 
   print('Found %d JPEG files across %d labels inside %s.' %
-        (len(filenames), len(unique_labels), data_dir))
-  return filenames, texts, labels
+        (len(filenames), len(challenge_synsets), data_dir))
+  return filenames, synsets, labels
 
 
-def _process_dataset(name, directory, num_shards, labels_file):
+def _find_human_readable_labels(synsets, synset_to_human):
+  """Build a list of human-readable labels.
+
+  Args:
+    synsets: list of strings; each string is a unique WordNet ID.
+    synset_to_human: dict of synset to human labels, e.g.,
+      'n02119022' --> 'red fox, Vulpes vulpes'
+
+  Returns:
+    List of human-readable strings corresponding to each synset.
+  """
+  humans = []
+  for s in synsets:
+    assert s in synset_to_human, ('Failed to find: %s' % s)
+    humans.append(synset_to_human[s])
+  return humans
+
+
+def _find_image_bounding_boxes(filenames, image_to_bboxes):
+  """Find the bounding boxes for a given image file.
+
+  Args:
+    filenames: list of strings; each string is a path to an image file.
+    image_to_bboxes: dictionary mapping image file names to a list of
+      bounding boxes. This list contains 0+ bounding boxes.
+  Returns:
+    List of bounding boxes for each image. Note that each entry in this
+    list might contain from 0+ entries corresponding to the number of bounding
+    box annotations for the image.
+  """
+  num_image_bbox = 0
+  bboxes = []
+  for f in filenames:
+    basename = os.path.basename(f)
+    if basename in image_to_bboxes:
+      bboxes.append(image_to_bboxes[basename])
+      num_image_bbox += 1
+    else:
+      bboxes.append([])
+  print('Found %d images with bboxes out of %d images' % (
+      num_image_bbox, len(filenames)))
+  return bboxes
+
+
+def _process_dataset(name, directory, num_shards, synset_to_human,
+                     image_to_bboxes):
   """Process a complete data set and save it as a TFRecord.
 
   Args:
     name: string, unique identifier specifying the data set.
     directory: string, root path to the data set.
     num_shards: integer number of shards for this data set.
-    labels_file: string, path to the labels file.
+    synset_to_human: dict of synset to human labels, e.g.,
+      'n02119022' --> 'red fox, Vulpes vulpes'
+    image_to_bboxes: dictionary mapping image file names to a list of
+      bounding boxes. This list contains 0+ bounding boxes.
   """
-  filenames, texts, labels = _find_image_files(directory, labels_file)
-  _process_image_files(name, filenames, texts, labels, num_shards)
+  filenames, synsets, labels = _find_image_files(directory, FLAGS.labels_file)
+  humans = _find_human_readable_labels(synsets, synset_to_human)
+  bboxes = _find_image_bounding_boxes(filenames, image_to_bboxes)
+  _process_image_files(name, filenames, synsets, labels,
+                       humans, bboxes, num_shards)
+
+
+def _build_synset_lookup(imagenet_metadata_file):
+  """Build lookup for synset to human-readable label.
+
+  Args:
+    imagenet_metadata_file: string, path to file containing mapping from
+      synset to human-readable label.
+
+      Assumes each line of the file looks like:
+
+        n02119247    black fox
+        n02119359    silver fox
+        n02119477    red fox, Vulpes fulva
+
+      where each line corresponds to a unique mapping. Note that each line is
+      formatted as <synset>\t<human readable label>.
+
+  Returns:
+    Dictionary of synset to human labels, such as:
+      'n02119022' --> 'red fox, Vulpes vulpes'
+  """
+  lines = tf.gfile.FastGFile(imagenet_metadata_file, 'r').readlines()
+  synset_to_human = {}
+  for l in lines:
+    if l:
+      parts = l.strip().split('\t')
+      assert len(parts) == 2
+      synset = parts[0]
+      human = parts[1]
+      synset_to_human[synset] = human
+  return synset_to_human
+
+
+def _build_bounding_box_lookup(bounding_box_file):
+  """Build a lookup from image file to bounding boxes.
+
+  Args:
+    bounding_box_file: string, path to file with bounding boxes annotations.
+
+      Assumes each line of the file looks like:
+
+        n00007846_64193.JPEG,0.0060,0.2620,0.7545,0.9940
+
+      where each line corresponds to one bounding box annotation associated
+      with an image. Each line can be parsed as:
+
+        <JPEG file name>, <xmin>, <ymin>, <xmax>, <ymax>
+
+      Note that there might exist mulitple bounding box annotations associated
+      with an image file. This file is the output of process_bounding_boxes.py.
+
+  Returns:
+    Dictionary mapping image file names to a list of bounding boxes. This list
+    contains 0+ bounding boxes.
+  """
+  lines = tf.gfile.FastGFile(bounding_box_file, 'r').readlines()
+  images_to_bboxes = {}
+  num_bbox = 0
+  num_image = 0
+  for l in lines:
+    if l:
+      parts = l.split(',')
+      assert len(parts) == 5, ('Failed to parse: %s' % l)
+      filename = parts[0]
+      xmin = float(parts[1])
+      ymin = float(parts[2])
+      xmax = float(parts[3])
+      ymax = float(parts[4])
+      box = [xmin, ymin, xmax, ymax]
+
+      if filename not in images_to_bboxes:
+        images_to_bboxes[filename] = []
+        num_image += 1
+      images_to_bboxes[filename].append(box)
+      num_bbox += 1
+
+  print('Successfully read %d bounding boxes '
+        'across %d images.' % (num_bbox, num_image))
+  return images_to_bboxes
 
 
 def main(unused_argv):
@@ -443,13 +773,16 @@ def main(unused_argv):
       'FLAGS.validation_shards')
   print('Saving results to %s' % FLAGS.output_directory)
 
+  # Build a map from synset to human-readable label.
+  synset_to_human = _build_synset_lookup(FLAGS.imagenet_metadata_file)
+  image_to_bboxes = _build_bounding_box_lookup(FLAGS.bounding_box_file)
+
   # Run it!
   _process_dataset('validation', FLAGS.validation_directory,
-                   FLAGS.validation_shards, FLAGS.labels_file)
-  _process_dataset('train', FLAGS.train_directory,
-                   FLAGS.train_shards, FLAGS.labels_file)
+                   FLAGS.validation_shards, synset_to_human, image_to_bboxes)
+  _process_dataset('train', FLAGS.train_directory, FLAGS.train_shards,
+                   synset_to_human, image_to_bboxes)
 
 
 if __name__ == '__main__':
   tf.app.run()
-
