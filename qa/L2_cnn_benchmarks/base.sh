@@ -60,10 +60,12 @@ function run_config {
                 else
                     local TMPFILE="$(mktemp tmp.XXXXXX)"
                 fi
+                local TMP_DIR="$(mktemp -d dir.XXXXXX)"
 
                 echo mpiexec --bind-to socket --allow-run-as-root -np $G python -u \
                     $CNN_SCRIPT \
                     $DATA_FLAG \
+                    --log_dir="$TMP_DIR" \
                     --precision=$M \
                     --num_iter=$RUN_TO \
                     --iter_unit=batch \
@@ -75,6 +77,7 @@ function run_config {
                 mpiexec --allow-run-as-root --bind-to socket -np $G python -u \
                     $CNN_SCRIPT \
                     $DATA_FLAG \
+                    --log_dir="$TMP_DIR" \
                     --precision=$M \
                     --num_iter=$RUN_TO \
                     --iter_unit=batch \
@@ -87,6 +90,7 @@ function run_config {
                         cat "$TMPFILE"
                         echo TRAINING SCRIPT FAILED
                         rm -f "$TMPFILE"
+                        rm -rf "$TMP_DIR"
                         exit 1
                     fi
                     local PERF="FAIL"
@@ -103,12 +107,14 @@ function run_config {
                             cat "$TMPFILE"
                             echo UNEXPECTED END OF LOG
                             rm -f "$TMPFILE"
+                            rm -rf "$TMP_DIR"
                             exit 1
                         fi
                         PERF="FAIL"
                     fi
                 fi
                 [[ -z "$LOG_DIR" ]] && rm -f "$TMPFILE"
+                rm -rf "$TMP_DIR"
 
                 if [[ "$PERF" == "FAIL" ]]; then
                     printf "%-30s %4s %4s %5d %4d %9s %8d\n" "$BASE_NAME" $D $M $BATCH $G $PERF $WALLTIME

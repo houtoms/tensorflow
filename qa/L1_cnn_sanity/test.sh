@@ -29,16 +29,20 @@ set +x
 
 get_PERF() {
     SCRIPT="$1"
+    local TMP_DIR="$(mktemp -d tmp.XXXXXX)"
     mpiexec --bind-to socket --allow-run-as-root -np $GPUS python -u \
         /opt/tensorflow/nvidia-examples/cnn/$SCRIPT \
         --num_iter=100 \
         --iter_unit=batch \
         --display_every=50 \
         $DATA \
+        --log_dir="$TMP_DIR" \
         --batch=$BATCH_SIZE \
         --precision=$PRECISION &> log.tmp
+    RET=$?
+    rm -rf "$TMP_DIR"
     
-    if [[ $? -ne 0 ]]; then
+    if [[ $RET -ne 0 ]]; then
         cat log.tmp
         echo TRAINING SCRIPT FAILED FOR $SCRIPT
         exit 1
@@ -51,6 +55,7 @@ get_PERF() {
         echo UNEXPECTED END OF LOG FOR $SCRIPT
         exit 1
     fi
+    rm log.tmp
 }
 
 for net in "${NETWORKS[@]}"; do
