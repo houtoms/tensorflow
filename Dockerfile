@@ -176,6 +176,16 @@ RUN chmod -R a+w /workspace
 COPY nvidia_entrypoint.sh /usr/local/bin
 ENTRYPOINT ["/usr/local/bin/nvidia_entrypoint.sh"]
 
+### PATCH for 18.06 -- inject updated Acknowledgements.txt from TRT 4.0.1.4
+### for TRT license compliance w/ 4.0.1.3.  In 18.07 we'll move up to the actual
+### 4.0.1.4 build so that we no longer need this patch.
+RUN mkdir -p /tmp/trt4014 && \
+    cd /tmp/trt4014 && \
+    wget -qO libnvinfer.deb "http://cuda-repo/release-candidates/Libraries/TensorRT/v4.0/4.0.1.4-GA-cl-24282003/CUDA9.0-r384/Ubuntu16_04-x64/deb/libnvinfer4_4.1.2-1+cuda9.0_amd64.deb" && \
+    ar -x libnvinfer.deb && tar -xf data.tar.xz && \
+    cp usr/share/doc/tensorrt/Acknowledgements.txt /usr/share/doc/tensorrt/Acknowledgements.txt && \
+    cd /tmp && rm -rf trt4014
+
 ARG NVIDIA_BUILD_ID
 ENV NVIDIA_BUILD_ID ${NVIDIA_BUILD_ID:-<unknown>}
 LABEL com.nvidia.build.id="${NVIDIA_BUILD_ID}"
