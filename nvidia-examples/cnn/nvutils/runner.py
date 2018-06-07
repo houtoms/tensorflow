@@ -248,7 +248,7 @@ def train(infer_func, params):
             tf_random_seed=2 * (1 + hvd.rank()) if deterministic else None,
             session_config=config,
             save_checkpoints_secs=checkpoint_secs if hvd.rank() == 0 else None,
-            save_checkpoints_steps=nstep,
+            save_checkpoints_steps=nstep if hvd.rank() == 0 else None,
             keep_checkpoint_every_n_hours=3))
 
     print("Training")
