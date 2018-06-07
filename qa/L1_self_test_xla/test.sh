@@ -1,5 +1,8 @@
 #!/bin/bash
 
+set -e
+set -o pipefail
+
 nvidia-smi
 cd /opt/tensorflow
 PYVER=$(python -c 'import sys; print("{}.{}".format(sys.version_info[0], sys.version_info[1]))')

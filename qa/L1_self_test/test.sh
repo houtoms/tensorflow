@@ -1,6 +1,7 @@
 #!/bin/bash
 
 set -e
+set -o pipefail
 
 nvidia-smi
 cd /opt/tensorflow
@@ -38,7 +39,6 @@ NUM_GPUS=`nvidia-smi -L | wc -l` && \
               //tensorflow/... \
               //tensorflow/contrib/tensorrt/... \
               //tensorflow/contrib/cudnn_rnn:cudnn_rnn_ops_test \
-              //tensorflow/contrib/cudnn_rnn:cudnn_rnn_ops_test_cc \
               `# These are tested in serial below` \
               -//tensorflow/python:localhost_cluster_performance_test \
               -//tensorflow/core/debug:grpc_session_debug_test \
