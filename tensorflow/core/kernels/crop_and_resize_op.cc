@@ -196,8 +196,6 @@ class CropAndResizeOp : public AsyncOpKernel {
   float extrapolation_value_;
 };
 
-#include "tensorflow/core/kernels/crop_resize_bilinear_core.h"
-
 // Partial specialization of CropAndResize functor for a CPUDevice.
 namespace functor {
 template <typename T>
@@ -230,47 +228,76 @@ struct CropAndResize<CPUDevice, T> {
           continue;
         }
 
-	CachedInterpolation *interp_x=0l, *interp_y=0l;
-	int min_ix, max_ix, min_iy, max_iy;
-        compute_interpolation_weights(crop_width,image_width,x1,x2,min_ix,max_ix,interp_x);
-        compute_interpolation_weights(crop_height,image_height,y1,y2,min_iy,max_iy,interp_y);
+        const float height_scale =
+            (crop_height > 1)
+                ? (y2 - y1) * (image_height - 1) / (crop_height - 1)
+                : 0;
+        const float width_scale =
+            (crop_width > 1) ? (x2 - x1) * (image_width - 1) / (crop_width - 1)
+                             : 0;
 
-        // multiply by depth to avoid multiplication in resize_single_image.
-        for (int i = min_ix;  i <= max_ix;  ++i) {
-          interp_x[i-min_ix].lower *= depth;
-          interp_x[i-min_ix].upper *= depth;
+        for (int y = 0; y < crop_height; ++y) {
+          const float in_y = (crop_height > 1)
+                                 ? y1 * (image_height - 1) + y * height_scale
+                                 : 0.5 * (y1 + y2) * (image_height - 1);
+          if (in_y < 0 || in_y > image_height - 1) {
+            for (int x = 0; x < crop_width; ++x) {
+              for (int d = 0; d < depth; ++d) {
+                crops(b, y, x, d) = extrapolation_value;
+              }
+            }
+            continue;
+          }
+          const int top_y_index = floorf(in_y);
+          const int bottom_y_index = ceilf(in_y);
+          const float y_lerp = in_y - top_y_index;
+
+          for (int x = 0; x < crop_width; ++x) {
+            const float in_x = (crop_width > 1)
+                                   ? x1 * (image_width - 1) + x * width_scale
+                                   : 0.5 * (x1 + x2) * (image_width - 1);
+            if (in_x < 0 || in_x > image_width - 1) {
+              for (int d = 0; d < depth; ++d) {
+                crops(b, y, x, d) = extrapolation_value;
+              }
+              continue;
+            }
+            const int left_x_index = floorf(in_x);
+            const int right_x_index = ceilf(in_x);
+            const float x_lerp = in_x - left_x_index;
+
+            for (int d = 0; d < depth; ++d) {
+              const float top_left(static_cast<float>(
+                  image(b_in, top_y_index, left_x_index, d)));
+              const float top_right(static_cast<float>(
+                  image(b_in, top_y_index, right_x_index, d)));
+              const float bottom_left(static_cast<float>(
+                  image(b_in, bottom_y_index, left_x_index, d)));
+              const float bottom_right(static_cast<float>(
+                  image(b_in, bottom_y_index, right_x_index, d)));
+              const float top = top_left + (top_right - top_left) * x_lerp;
+              const float bottom =
+                  bottom_left + (bottom_right - bottom_left) * x_lerp;
+              crops(b, y, x, d) = top + (bottom - top) * y_lerp;
+            }
+          }
         }
-
-        crop_resize_single_image(
-          image.data() + (int64)b_in * (int64)image_height * (int64)image_width * (int64)depth,
-          image_height,image_width,crop_height,crop_width,depth,
-          min_ix,max_ix,interp_x,
-          min_iy,max_iy,interp_y,
-          extrapolation_value,
-          crops.data() + (int64)b_in * (int64)crop_height * (int64)crop_width * (int64)depth);
-
-	delete [] interp_y;
-	delete [] interp_x;
       }
     };
 
-    if (num_boxes < 5) {
-      CropAndResizePerBox(0,num_boxes);
-    } else {
-      // A rough estimation of the cost for each cropped box.
-      const double cost_per_pixel =
-          depth * (Eigen::TensorOpCost::AddCost<float>() * 6 +
-                   Eigen::TensorOpCost::MulCost<float>() * 3 +
-                   Eigen::TensorOpCost::CastCost<T, float>() * 4) +
-          (Eigen::TensorOpCost::AddCost<float>() * 2 +
-           Eigen::TensorOpCost::AddCost<float>() * 3);
-      const double cost_per_box = crop_height * crop_width * cost_per_pixel;
+    // A rough estimation of the cost for each cropped box.
+    const double cost_per_pixel =
+        depth * (Eigen::TensorOpCost::AddCost<float>() * 6 +
+                 Eigen::TensorOpCost::MulCost<float>() * 3 +
+                 Eigen::TensorOpCost::CastCost<T, float>() * 4) +
+        (Eigen::TensorOpCost::AddCost<float>() * 2 +
+         Eigen::TensorOpCost::AddCost<float>() * 3);
+    const double cost_per_box = crop_height * crop_width * cost_per_pixel;
 
-      const DeviceBase::CpuWorkerThreads& worker_threads =
-          *(context->device()->tensorflow_cpu_worker_threads());
-      Shard(worker_threads.num_threads, worker_threads.workers, num_boxes,
-            cost_per_box, CropAndResizePerBox);
-    }
+    const DeviceBase::CpuWorkerThreads& worker_threads =
+        *(context->device()->tensorflow_cpu_worker_threads());
+    Shard(worker_threads.num_threads, worker_threads.workers, num_boxes,
+          cost_per_box, CropAndResizePerBox);
 
     return true;
   }
