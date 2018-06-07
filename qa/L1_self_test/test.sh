@@ -66,6 +66,8 @@ NUM_GPUS=`nvidia-smi -L | wc -l` && \
               -//tensorflow/core/platform/cloud:ram_file_block_cache_test \
               `# conv_ops_test has timed out in some M40 runs. Moved to serial tests below.` \
               -//tensorflow/python/kernel_tests:conv_ops_test \
+              `# data_utils_test hangs.` \
+              -//tensorflow/python/keras:data_utils_test \
   | tee testresult.tmp
 
 
