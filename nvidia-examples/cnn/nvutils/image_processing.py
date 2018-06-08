@@ -48,12 +48,9 @@ def _crop_and_resize_image(image, original_bbox, height, width, deterministic=Fa
     with tf.name_scope('random_crop_and_resize'):
         eval_crop_ratio = 0.8
         if random_crop:
-            initial_shape = [int(round(height / eval_crop_ratio)),
-                             int(round(width  / eval_crop_ratio)),
-                             3]
             bbox_begin, bbox_size, bbox = \
                 tf.image.sample_distorted_bounding_box(
-                    initial_shape,
+                    tf.shape(image),
                     bounding_boxes=tf.zeros(shape=[1,0,4]), # No bounding boxes
                     min_object_covered=0.1,
                     aspect_ratio_range=[0.8, 1.25],
