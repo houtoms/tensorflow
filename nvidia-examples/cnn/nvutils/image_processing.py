@@ -61,14 +61,16 @@ def _crop_and_resize_image(image, original_bbox, height, width, deterministic=Fa
                     max_attempts=100,
                     seed=7 * (1+hvd.rank()) if deterministic else 0,
                     use_image_if_no_bounding_boxes=True)
-            bbox = bbox[0,0] # Remove batch, box_idx dims
+            image = tf.slice(image, bbox_begin, bbox_size)
         else:
             # Central crop
-            ratio_y = ratio_x = eval_crop_ratio
-            bbox = tf.constant([0.5 * (1 - ratio_y), 0.5 * (1 - ratio_x),
-                                0.5 * (1 + ratio_y), 0.5 * (1 + ratio_x)])
-        image = tf.image.crop_and_resize(
-            image[None,:,:,:], bbox[None,:], [0], [height, width])[0]
+            image = tf.image.central_crop(image, eval_crop_ratio)
+        image = tf.image.resize_images(
+            image,
+            [height, width],
+            tf.image.ResizeMethod.BILINEAR,
+            align_corners=False)
+        image.set_shape([height, width, 3])
         return image
 
 def _distort_image_color(image, order=0):
