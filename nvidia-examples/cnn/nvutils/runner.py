@@ -25,6 +25,7 @@ import sys
 import time
 import argparse
 import random
+import numpy as np
 
 def _stage(tensors):
     """Stages the given tensors in a StagingArea for asynchronous put/get.
@@ -86,13 +87,14 @@ def _cnn_model_function(features, labels, mode, params):
     larc_mode     = params['larc_mode']
     deterministic = params['deterministic']
     num_classes   = params['n_classes']
+    use_dali      = params['use_dali']
 
     device        = '/gpu:0'
     labels = tf.reshape(labels, (-1,)) # Squash unnecessary unary dim
     inputs = features # TODO: Should be using feature columns?
     is_training = (mode == tf.estimator.ModeKeys.TRAIN)
 
-    if is_training:
+    if is_training and not use_dali:
         with tf.device('/cpu:0'):
             # Stage inputs on the host
             preload_op, (inputs, labels) = _stage([inputs, labels])
@@ -101,10 +103,11 @@ def _cnn_model_function(features, labels, mode, params):
             gpucopy_op, (inputs, labels) = _stage([inputs, labels])
     with tf.device(device):
         inputs = tf.cast(inputs, model_dtype)
-        imagenet_mean = tf.constant([121, 115, 100], dtype=model_dtype)
-        imagenet_std  = tf.constant([70, 68, 71], dtype=model_dtype)
-        inputs = tf.subtract(inputs, imagenet_mean)
-        inputs = tf.multiply(inputs, 1. / imagenet_std)
+        if not use_dali:
+            imagenet_mean = tf.constant([121, 115, 100], dtype=model_dtype)
+            imagenet_std  = tf.constant([70, 68, 71], dtype=model_dtype)
+            inputs = tf.subtract(inputs, imagenet_mean)
+            inputs = tf.multiply(inputs, 1. / imagenet_std)
         if model_format == 'channels_first':
             inputs = tf.transpose(inputs, [0,3,1,2])
         with nvutils.fp32_trainable_vars(
@@ -156,7 +159,10 @@ def _cnn_model_function(features, labels, mode, params):
             loss, global_step=tf.train.get_global_step(),
             gate_gradients=gate_gradients)
         update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS) or []
-        train_op = tf.group(preload_op, gpucopy_op, train_op, update_ops)
+        if use_dali:
+            train_op = tf.group(train_op, update_ops)
+        else:
+            train_op = tf.group(preload_op, gpucopy_op, train_op, update_ops)
         return tf.estimator.EstimatorSpec(mode, loss=loss, train_op=train_op)
 
 def _get_num_records(filenames):
@@ -176,6 +182,7 @@ def train(infer_func, params):
     batch_size = params['batch_size']
     distort_color = params['distort_color']
     data_dir = params['data_dir']
+    data_idx_dir = params['data_idx_dir']
     log_dir = params['log_dir']
     precision = params['precision']
     momentum = params['momentum']
@@ -189,6 +196,7 @@ def train(infer_func, params):
     checkpoint_secs = params['checkpoint_secs']
     display_every = params['display_every']
     iter_unit = params['iter_unit']
+    use_dali = params['use_dali']
 
     # Determinism is not fully supported by all TF ops.
     # Disabling until remaining wrinkles can be ironed out.
@@ -196,9 +204,11 @@ def train(infer_func, params):
     if deterministic:
         tf.set_random_seed(2 * (1 + hvd.rank()))
         random.seed(3 * (1 + hvd.rank()))
+        np.random.seed(2)
 
     log_dir  = None if log_dir  == "" else log_dir
     data_dir = None if data_dir == "" else data_dir
+    data_idx_dir = None if data_idx_dir == "" else data_idx_dir
 
     global_batch_size = batch_size * hvd.size()
     if data_dir is not None:
@@ -207,6 +217,10 @@ def train(infer_func, params):
         num_training_samples = _get_num_records(train_filenames)
     else:
         num_training_samples = global_batch_size
+    train_idx_filenames = None
+    if data_idx_dir is not None:
+        filename_pattern = os.path.join(data_idx_dir, '%s-*')
+        train_idx_filenames = sorted(tf.gfile.Glob(filename_pattern % 'train'))
 
     if iter_unit.lower() == 'epoch':
         nstep = num_training_samples * num_iter // global_batch_size
@@ -219,7 +233,8 @@ def train(infer_func, params):
     nstep_per_epoch = num_training_samples // global_batch_size
 
     # Horovod: pin GPU to be used to process local rank (one GPU per process)
-    config = tf.ConfigProto()
+    gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=0.7)
+    config = tf.ConfigProto(gpu_options=gpu_options)
     #config.gpu_options.allow_growth = True
     config.gpu_options.visible_device_list = str(hvd.local_rank())
     config.gpu_options.force_gpu_compatible = True # Force pinned memory
@@ -243,6 +258,7 @@ def train(infer_func, params):
             'larc_mode' : larc_mode,
             'deterministic' : deterministic,
             'n_classes':     1000,
+            'use_dali': use_dali,
         },
         config=tf.estimator.RunConfig(
             tf_random_seed=2 * (1 + hvd.rank()) if deterministic else None,
@@ -252,7 +268,13 @@ def train(infer_func, params):
             keep_checkpoint_every_n_hours=3))
 
     print("Training")
-    num_preproc_threads = 10 if not deterministic else 1
+    if not deterministic and not use_dali:
+        num_preproc_threads = 10
+    elif not deterministic and use_dali:
+        num_preproc_threads = 2 
+    elif deterministic:
+        num_preproc_threads = 1 
+
     training_hooks = [hvd.BroadcastGlobalVariablesHook(0),
                       _PrefillStagingAreasHook()]
     if hvd.rank() == 0:
@@ -265,7 +287,8 @@ def train(infer_func, params):
         input_func = lambda: nvutils.image_set(
             train_filenames, batch_size, image_height, image_width,
             training=True, distort_color=distort_color,
-            deterministic=deterministic, num_threads=num_preproc_threads)
+            deterministic=deterministic, num_threads=num_preproc_threads,
+            use_dali=use_dali, idx_filenames=train_idx_filenames)
     else:
         input_func = lambda: nvutils.fake_image_set(
             batch_size, image_height, image_width)
@@ -297,6 +320,7 @@ def validate(infer_func, params):
     checkpoint_secs = params['checkpoint_secs']
     display_every = params['display_every']
     iter_unit = params['iter_unit']
+    use_dali = params['use_dali']
 
     # Determinism is not fully supported by all TF ops.
     # Disabling until remaining wrinkles can be ironed out.
@@ -304,6 +328,7 @@ def validate(infer_func, params):
     if deterministic:
         tf.set_random_seed(2 * (1 + hvd.rank()))
         random.seed(3 * (1 + hvd.rank()))
+        np.random.seed(2)
 
     log_dir  = None if log_dir  == "" else log_dir
     data_dir = None if data_dir == "" else data_dir
@@ -340,6 +365,7 @@ def validate(infer_func, params):
             'larc_mode' : larc_mode,
             'deterministic' : deterministic,
             'n_classes':     1000,
+            'use_dali': False,
         },
         config=tf.estimator.RunConfig(
             tf_random_seed=2 * (1 + hvd.rank()) if deterministic else None,
@@ -348,7 +374,12 @@ def validate(infer_func, params):
             save_checkpoints_steps=None,
             keep_checkpoint_every_n_hours=3))
 
-    num_preproc_threads = 10 if not deterministic else 1
+    if not deterministic and not use_dali:
+        num_preproc_threads = 10
+    elif not deterministic and use_dali:
+        num_preproc_threads = 2 
+    elif deterministic:
+        num_preproc_threads = 1 
 
     if hvd.rank() == 0:
         print("Evaluating")

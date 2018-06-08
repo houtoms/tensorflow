@@ -56,6 +56,12 @@ def parse_cmdline(init_vals, custom_parser=None):
                    help="""Path to dataset in TFRecord format
                    (aka Example protobufs). Files should be
                    named 'train-*' and 'validation-*'.""")
+    p.add_argument('--data_idx_dir',
+                   default=_default(init_vals, 'data_idx_dir'),
+                   required=_required(init_vals, 'data_idx_dir'),
+                   help="""Path to index files of TFRecord dataset
+                   Files should be named 'train-*.idx' and
+                   'validation-*.idx'.""")
     p.add_argument('-b', '--batch_size', type=int,
                    default=_default(init_vals, 'batch_size'),
                    required=_required(init_vals, 'batch_size'),
@@ -83,6 +89,9 @@ def parse_cmdline(init_vals, custom_parser=None):
                    default=_default(init_vals, 'precision'),
                    required=_required(init_vals, 'precision'),
                    help="""Select single or half precision arithmetic.""")
+    p.add_argument('--use_dali', action='store_true',
+                   default=False,
+                   help="""Use DALI for input pipeline""")
 
     FLAGS, unknown_args = p.parse_known_args()
     if len(unknown_args) > 0:
@@ -99,6 +108,8 @@ def parse_cmdline(init_vals, custom_parser=None):
     vals = init_vals
     vals['data_dir'] = FLAGS.data_dir
     del FLAGS.data_dir
+    vals['data_idx_dir'] = FLAGS.data_idx_dir
+    del FLAGS.data_idx_dir
     vals['batch_size'] = FLAGS.batch_size
     del FLAGS.batch_size
     vals['num_iter'] = FLAGS.num_iter
@@ -111,6 +122,8 @@ def parse_cmdline(init_vals, custom_parser=None):
     del FLAGS.display_every
     vals['precision'] = FLAGS.precision
     del FLAGS.precision
+    vals['use_dali'] = FLAGS.use_dali
+    del FLAGS.use_dali
 
     return vals, FLAGS
 
