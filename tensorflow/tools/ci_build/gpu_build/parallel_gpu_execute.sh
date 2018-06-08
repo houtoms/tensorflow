@@ -35,7 +35,7 @@ elif [[ ${BASH_VER_MAJOR} -eq 4 ]] && [[ ${BASH_VER_MINOR} -lt 2 ]]; then
   exit 1
 fi
 
-TF_GPU_COUNT=${TF_GPU_COUNT:-8}
+TF_GPU_COUNT=${TF_GPU_COUNT:-16}
 
 for i in `seq 0 $((TF_GPU_COUNT-1))`; do
   exec {lock_fd}>/var/lock/gpulock$i || exit 1
