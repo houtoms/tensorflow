@@ -224,7 +224,7 @@ def train(infer_func, params):
     config.gpu_options.visible_device_list = str(hvd.local_rank())
     config.gpu_options.force_gpu_compatible = True # Force pinned memory
     config.intra_op_parallelism_threads = 1 # Avoid pool of Eigen threads
-    config.inter_op_parallelism_threads = 40 // hvd.size() - 2 # HACK TESTING
+    config.inter_op_parallelism_threads = max(2, 40//hvd.size()-2)
 
     classifier = tf.estimator.Estimator(
         model_fn=_cnn_model_function,
