@@ -86,4 +86,4 @@ bazel test    --config=cuda -c opt --verbose_failures --local_test_jobs=1 \
               //tensorflow/core/platform/cloud:ram_file_block_cache_test \
   | tee -a testresult.tmp
 
-grep "test\.log" testresult.tmp | /opt/tensorflow/qa/show_testlogs
+{ grep "test\.log" testresult.tmp || true; } | /opt/tensorflow/qa/show_testlogs
