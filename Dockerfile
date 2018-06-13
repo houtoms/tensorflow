@@ -111,8 +111,8 @@ RUN BAZEL_VERSION=0.11.0 && \
     rm -rf /bazel
 
 # TensorRT
-RUN wget -qO libnvinfer.deb "http://cuda-repo/release-candidates/Libraries/TensorRT/v4.0/4.0.1.4-GA-cl-24282003/CUDA9.0-r384/Ubuntu16_04-x64/deb/libnvinfer4_4.1.2-1+cuda9.0_amd64.deb" && \
-    wget -qO libnvinfer-dev.deb "http://cuda-repo/release-candidates/Libraries/TensorRT/v4.0/4.0.1.4-GA-cl-24282003/CUDA9.0-r384/Ubuntu16_04-x64/deb/libnvinfer-dev_4.1.2-1+cuda9.0_amd64.deb" && \
+RUN wget -qO libnvinfer.deb "http://cuda-repo/release-candidates/Libraries/TensorRT/v4.0/4.0.1.6-GA-cl-24324298/CUDA9.0-r384/Ubuntu16_04-x64/deb/libnvinfer4_4.1.2-1+cuda9.0_amd64.deb" && \
+    wget -qO libnvinfer-dev.deb "http://cuda-repo/release-candidates/Libraries/TensorRT/v4.0/4.0.1.6-GA-cl-24324298/CUDA9.0-r384/Ubuntu16_04-x64/deb/libnvinfer-dev_4.1.2-1+cuda9.0_amd64.deb" && \
     dpkg -i libnvinfer.deb && \
     dpkg -i libnvinfer-dev.deb && \
     rm /usr/lib/x86_64-linux-gnu/libnvcaffe_parser.a \
