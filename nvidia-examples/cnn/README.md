@@ -14,9 +14,10 @@ concert with MPI. To train resnet-50 using 8 V100 GPUs, for example on DGX-1,
 use the following command.
 
 ```
-$ mpiexec --allow-run-as-root -np 8 python resnet.py --layers=50
-                                                     --data_dir=/data/imagenet
-                                                     --precision=fp16
+$ mpiexec --allow-run-as-root --bind-to socket -np 8 python resnet.py \
+                                                     --layers=50 \
+                                                     --data_dir=/data/imagenet \
+                                                     --precision=fp16 \
                                                      --log_dir=/output/resnet50
 ```
 
