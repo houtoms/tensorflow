@@ -120,6 +120,8 @@ tf.app.flags.DEFINE_integer('image_quality', 0,
                             'Re-encode images as JPEGs with this quality factor (0 to disable).')
 tf.app.flags.DEFINE_integer('image_allow_upscale', 0,
                             '[bool] Allow images to be upscaled to image_size if they are smaller.')
+tf.app.flags.DEFINE_integer('force', 0,
+                            '[bool] Allow existing files to be overwritten.')
 
 # The labels file contains a list of valid labels are held in this file.
 # Assumes that the file contains entries as such:
@@ -185,7 +187,6 @@ def _bytes_feature(value):
   if not isinstance(value, six.binary_type):
     value = value.encode('utf-8')
   return tf.train.Feature(bytes_list=tf.train.BytesList(value=[value]))
-
 
 def _convert_to_example(filename, image_buffer, label, synset, human, bbox,
                         height, width):
@@ -401,7 +402,6 @@ def _process_image(filename, coder):
 
   return image_data, height, width
 
-
 def _process_image_files_batch(coder, thread_index, ranges, name, filenames,
                                synsets, labels, humans, bboxes, num_shards):
   """Processes and saves list of images as TFRecord in 1 thread.
@@ -441,10 +441,18 @@ def _process_image_files_batch(coder, thread_index, ranges, name, filenames,
     shard = thread_index * num_shards_per_batch + s
     output_filename = '%s-%.5d-of-%.5d' % (name, shard, num_shards)
     output_file = os.path.join(FLAGS.output_directory, output_filename)
+    files_in_shard = np.arange(shard_ranges[s], shard_ranges[s + 1], dtype=int)
+    if (os.path.exists(output_file) and
+        os.path.getsize(output_file) > 0 and
+        not FLAGS.force):
+      counter += len(files_in_shard)
+      print('%s [thread %d]: Skipping existing file %s (processed %d of %d images in thread batch).' %
+          (datetime.now(), thread_index, output_file,
+           counter, num_files_in_thread))
+      continue
     writer = tf.python_io.TFRecordWriter(output_file)
 
     shard_counter = 0
-    files_in_shard = np.arange(shard_ranges[s], shard_ranges[s + 1], dtype=int)
     for i in files_in_shard:
       if thread_shutdown_event.is_set():
           break

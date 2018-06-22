@@ -31,6 +31,10 @@ load, parse, and preprocess these datasets as part of a training script.
 ILSVRC2012_img_train.tar, place them into <DATA_DIR>/raw-data/ before running
 the script to avoid them being re-downloaded.
 
+**Note:** By default, the script will skip any tfrecord files that already
+exist in the output directory. If bad or partial files are present, please
+delete them before running the script.
+
 ### Resizing an existing TFRecord dataset
 
 1. Run the script, once for each subset:
