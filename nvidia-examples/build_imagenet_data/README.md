@@ -48,15 +48,16 @@ delete them before running the script.
 
 ## Image size and quality
 
-By default, the scripts will resize images so that they are 480 pixels on the
-shortest side (maintaining aspect ratio) and have a JPEG quality factor of 90.
-These parameters can be changed by modifying the flags at the bottom of
+By default, the scripts will shrink images so that they are at most 480 pixels
+on the shortest side (maintaining aspect ratio) and have a JPEG quality factor
+of 85. These parameters can be changed by modifying the flags at the bottom of
 download_and_preprocess_imagenet.sh, or by passing --size=XX and --quality=XX
 to the tfrecord_image_resizer.py script. A setting of size=0 will keep the
 images at their original sizes.
 
 In general, larger images and higher quality factors may improve training
-accuracy, but this comes at the cost of slowing down the input pipeline.
+accuracy, but this comes at the cost of a larger dataset and slower input
+pipeline.
 
 ## Troubleshooting
 

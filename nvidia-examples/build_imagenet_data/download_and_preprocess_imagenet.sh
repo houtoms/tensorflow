@@ -106,5 +106,4 @@ set -x
   --labels_file="${LABELS_FILE}" \
   --bounding_box_file="${BOUNDING_BOX_FILE}" \
   --image_size=480 \
-  --image_quality=90 \
-  --image_allow_upscale=1
+  --image_quality=85

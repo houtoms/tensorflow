@@ -109,7 +109,7 @@ def resize_example(example):
           shape = tf.shape(decoded)
           h, w = tf.to_float(shape[0]), tf.to_float(shape[1])
           min_side = tf.minimum(h, w)
-          if FLAGS.no_upscale:
+          if not FLAGS.allow_upscale:
               scale = float(FLAGS.size) / min_side
               scale = tf.minimum(scale, 1.0) # Shrink only
           else:
@@ -177,10 +177,10 @@ if __name__ == "__main__":
     cmdline.add_argument('-f', '--force', action="store_true", help="Overwrite existing files")
     cmdline.add_argument('-s', '--subset_name', default='train')
     cmdline.add_argument('-R', '--stretch', action="store_true", help="Stretch to square instead of maintaining aspect ratio")
-    cmdline.add_argument('-U', '--no_upscale', action="store_true", help="Never upscale images, only shrink")
+    cmdline.add_argument('-U', '--allow_upscale', action="store_true", help="Allow images to be upscaled as well as shrunk")
     cmdline.add_argument('-d', '--dataset_name', default=None)
     cmdline.add_argument('-r', '--size', default=480, type=int, help="Desired length of shortest side")
-    cmdline.add_argument('-Q', '--quality', default=90, type=int, help="JPEG quality factor")
+    cmdline.add_argument('-Q', '--quality', default=85, type=int, help="JPEG quality factor")
     cmdline.add_argument('--start_offset', default=0, type=int, help="No. files to skip at the beginning")
     cmdline.add_argument('--num_preprocess_threads', default=0, type=int,
                          help="""Number of preprocessing threads.""")
