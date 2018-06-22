@@ -7,83 +7,33 @@
 #	4) Install the tensorflow package with pip
 
 #TODO automatically input the options for the configuration script:
-#Location of python: (default)
-Result="/usr/bin/python\n"
-#Desired python library: (default)
-R2="/usr/local/lib/python2.7/dist-packages\n"
-Result=$Result$R2
-#Jemalloc: (No) 
-R2="n\n"
-Result=$Resulti$R2
-#Google cloud platform support: (no)
-Result=$Result$R2
-#Hadoop: (no)
-Result=$Result$R2
-#Amazon S3: (no)
-Result=$Result$R2
-#Apache Kafka: (no)
-Result=$Result$R2
-#XLA JIT: (no)
-Result=$Result$R2
-#GDR: (no)
-Result=$Result$R2
-#VERBS: (no)
-Result=$Result$R2
-#OpenCL SYCL: (no)
-Result=$Result$R2
-#CUDA: (yes)
-R2="y\n"
-Result=$Result$R2
-#CUDA version: (9)
-R2="9\n"
-Result=$Result$R2
-#cuda toolkit location: (default)
-R2="\n"
-Result=$Result$R2
-#cuDNN version: (default)
-Result=$Result$R2
-#cuDNN location: (default)
-Result=$Result$R2
-#TensorRT support: (yes)
-R2="y\n"
-Result=$Result$R2
-#TensorRT location: (default)
-R2="\n"
-Result=$Result$R2
-#NCCL version:  (for now, default) 
-Result=$Result$R2
-#cuda compute capability: (6.2)
-R2="6.2\n"
-Result=$Result$R2
-#clang: (no)
-R2="n\n"
-Result=$Result$R2
-#specify gcc: (default)
-R2="\n"
-Result=$Result$R2
-#MPI support: (no)
-R2="n\n"
-Result=$Result$R2
-#optimization flags: (default)
-R2="\n"
-Result=$Result$R2
-#interactively configure workspace for Android: (no)
-R2="n\n"
-Result=$Result$R2
-
-
+export PYTHON_BIN_PATH="/usr/bin/python"
+export PYTHON_LIB_PATH="/usr/local/lib/python2.7/dist-packages"
+export TF_NEED_OPENCL_SYCL="0"
+export TF_NEED_CUDA="1"
+export CUDA_TOOLKIT_PATH="/usr/local/cuda"
+export TF_CUDA_VERSION="9.0"
+export CUDNN_INSTALL_PATH="/usr/local/cuda-9.0"
+export TF_CUDNN_VERSION="7"
+export TF_NEED_TENSORRT="1"
+export TENSORRT_INSTALL_PATH="/usr/lib/aarch64-linux-gnu"
+export TF_TENSORRT_VERSION="4.0.4"
+export TF_NCCL_VERSION="1"
+export TF_CUDA_COMPUTE_CAPABILITIES="6.2"
+export TF_CUDA_CLANG="0"
+export GCC_HOST_COMPILER_PATH="/usr/bin/gcc"
 
 #Result="\n\nn\nn\nn\nn\nn\nn\nn\nn\nn\ny\n9\n\n\n\ny\n\n\n6.2\nn\n\nn\n\nn\n"
-#echo $Result
-echo -e $Result | ../configure
+#echo -e $Result | ../configure
 
+echo "" | ../configure
 
 
 
 bazel build --config=opt --config=cuda ../tensorflow/tools/pip_package/build_pip_package
 #TODO check result of build command, if the build failed throw error
 
-#bash ../tensorflow/tools/pip_package/build_pip_package.sh /tmp/tensorflow_pkg
+bash ../tensorflow/tools/pip_package/build_pip_package.sh /tmp/tensorflow_pkg
 
 
 #TODO check if tensorflow is installed, act based thereon
