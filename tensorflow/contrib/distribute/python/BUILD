@@ -371,7 +371,7 @@ py_library(
     srcs = ["cross_tower_utils.py"],
     srcs_version = "PY2AND3",
     deps = [
-        "//tensorflow/contrib/nccl:nccl_py",
+#        "//tensorflow/contrib/nccl:nccl_py",
         "//tensorflow/python:array_ops",
         "//tensorflow/python:framework_ops",
         "//tensorflow/python:math_ops",

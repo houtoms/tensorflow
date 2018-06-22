@@ -143,7 +143,7 @@ filegroup(
         "@kafka//:LICENSE",
         "@libxsmm_archive//:LICENSE",
         "@lmdb//:LICENSE",
-        "@local_config_nccl//:LICENSE",
+#        "@local_config_nccl//:LICENSE",
         "@local_config_sycl//sycl:LICENSE.text",
         "@grpc//third_party/nanopb:LICENSE.txt",
         "@grpc//third_party/address_sorting:LICENSE",

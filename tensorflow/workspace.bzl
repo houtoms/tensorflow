@@ -2,7 +2,7 @@
 
 load("//third_party/gpus:cuda_configure.bzl", "cuda_configure")
 load("//third_party/tensorrt:tensorrt_configure.bzl", "tensorrt_configure")
-load("//third_party:nccl/nccl_configure.bzl", "nccl_configure")
+#load("//third_party:nccl/nccl_configure.bzl", "nccl_configure")
 load("//third_party/mkl:build_defs.bzl", "mkl_repository")
 load("//third_party/git:git_configure.bzl", "git_configure")
 load("//third_party/py:python_configure.bzl", "python_configure")
@@ -32,7 +32,7 @@ def tf_workspace(path_prefix="", tf_repo_name=""):
   cc_download_clang_toolchain(name="local_config_download_clang")
   cuda_configure(name="local_config_cuda")
   tensorrt_configure(name="local_config_tensorrt")
-  nccl_configure(name="local_config_nccl")
+#  nccl_configure(name="local_config_nccl")
   git_configure(name="local_config_git")
   sycl_configure(name="local_config_sycl")
   python_configure(name="local_config_python")
@@ -523,16 +523,16 @@ def tf_workspace(path_prefix="", tf_repo_name=""):
       build_file = clean_dep("//third_party:snappy.BUILD"),
   )
 
-  tf_http_archive(
-      name = "nccl_archive",
-      urls = [
-          "https://mirror.bazel.build/github.com/nvidia/nccl/archive/03d856977ecbaac87e598c0c4bafca96761b9ac7.tar.gz",
-          "https://github.com/nvidia/nccl/archive/03d856977ecbaac87e598c0c4bafca96761b9ac7.tar.gz",
-      ],
-      sha256 = "2ca86fb6179ecbff789cc67c836139c1bbc0324ed8c04643405a30bf26325176",
-      strip_prefix = "nccl-03d856977ecbaac87e598c0c4bafca96761b9ac7",
-      build_file = clean_dep("//third_party:nccl/nccl_archive.BUILD"),
-  )
+#  tf_http_archive(
+#      name = "nccl_archive",
+#      urls = [
+#          "https://mirror.bazel.build/github.com/nvidia/nccl/archive/03d856977ecbaac87e598c0c4bafca96761b9ac7.tar.gz",
+#          "https://github.com/nvidia/nccl/archive/03d856977ecbaac87e598c0c4bafca96761b9ac7.tar.gz",
+#      ],
+#      sha256 = "2ca86fb6179ecbff789cc67c836139c1bbc0324ed8c04643405a30bf26325176",
+#      strip_prefix = "nccl-03d856977ecbaac87e598c0c4bafca96761b9ac7",
+#      build_file = clean_dep("//third_party:nccl/nccl_archive.BUILD"),
+#  )
 
   tf_http_archive(
       name = "kafka",
