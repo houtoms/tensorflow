@@ -380,7 +380,7 @@ def set_build_var(environ_cp, var_name, query_item, option_name,
       # options and not to set build configs through environment variables.
       write_to_bazelrc('build:%s --define %s=true'
                        % (bazel_config_name, option_name))
-    else
+    else:
       write_to_bazelrc('build --define %s=true' % option_name)
 
 
