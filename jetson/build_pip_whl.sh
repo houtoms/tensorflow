@@ -9,6 +9,7 @@
 #TODO automatically input the options for the configuration script:
 export PYTHON_BIN_PATH="/usr/bin/python"
 export PYTHON_LIB_PATH="/usr/local/lib/python2.7/dist-packages"
+export TF_NEED_S3="0"
 export TF_NEED_OPENCL_SYCL="0"
 export TF_NEED_CUDA="1"
 export CUDA_TOOLKIT_PATH="/usr/local/cuda"
@@ -30,10 +31,10 @@ echo "" | ../configure
 
 
 
-bazel build --config=opt --config=cuda ../tensorflow/tools/pip_package/build_pip_package
+#bazel build --config=opt --config=cuda ../tensorflow/tools/pip_package/build_pip_package
 #TODO check result of build command, if the build failed throw error
 
-bash ../tensorflow/tools/pip_package/build_pip_package.sh /tmp/tensorflow_pkg
+#bash ../tensorflow/tools/pip_package/build_pip_package.sh /tmp/tensorflow_pkg
 
 
 #TODO check if tensorflow is installed, act based thereon
