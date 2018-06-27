@@ -23,6 +23,9 @@ tensorflow/tools/ci_build/install/install_auditwheel.sh
 
 export LD_LIBRARY_PATH=/usr/local/cuda/extras/CUPTI/lib64:$LD_LIBRARY_PATH
 
+set +e
+FAILS=0
+
 # Note: //tensorflow/python/debug:debugger_cli_common_test fails when run as root due to a file permissions issue.
 # Note: //tensorflow/contrib/tensor_forest:scatter_add_ndim_op_test fails for an unknown reason with "Create kernel failed: Invalid argument: AttrValue must not have reference type value of float_ref".
 # Note: //tensorflow/contrib/distributions:mvn_full_covariance_test fails due to assert_equal being used to check symmetry of the result of a matmul.
@@ -70,6 +73,8 @@ NUM_GPUS=`nvidia-smi -L | wc -l` && \
               -//tensorflow/python/keras:data_utils_test \
   | tee testresult.tmp
 
+FAILS=$((FAILS+$?))
+
 
 # Note: The first two tests were observed to fail intermittently with error
 #       "address already in use" when run as part of the above command
@@ -86,4 +91,9 @@ bazel test    --config=cuda -c opt --verbose_failures --local_test_jobs=1 \
               //tensorflow/core/platform/cloud:ram_file_block_cache_test \
   | tee -a testresult.tmp
 
+FAILS=$((FAILS+$?))
+
+set -e
 { grep "test\.log" testresult.tmp || true; } | /opt/tensorflow/qa/show_testlogs
+
+exit $FAILS
