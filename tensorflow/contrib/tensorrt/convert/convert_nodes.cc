@@ -1089,6 +1089,11 @@ tensorflow::Status ConvertConv2DHelper(
   VLOG(2) << "groups count: " << num_groups;
 
   TRT_ShapedWeights weights_rsck = inputs.at(1).weights();
+
+  if (weights_rsck.shape_.nbDims != 4) {
+    return tensorflow::errors::Internal("Conv2D expects kernel of dimension 4, at: " + node_def.name());
+  }
+
   if (ctx.isFP16()) {
     weights_rsck = ConvertFP32ToFP16(ctx, inputs.at(1).weights());
   }
@@ -1511,22 +1516,14 @@ tensorflow::Status ConvertConst(Converter& ctx,
       VLOG(2) << "dimensions: " << tensor.dims();
       VLOG(2) << "size: " << weights_tensor.float_val_size();
       scalar_shape = GetTensorShape(tensor);
-      for (int i = 0; i < scalar_shape.nbDims; i++)
+      for (int i = 0; i < scalar_shape.nbDims; i++) 
         VLOG(2) << scalar_shape.d[i];
-      if (GetShapeSize(scalar_shape) != weights_tensor.float_val_size()) {
-        if (weights_tensor.float_val_size() == 1 ||
-            scalar_shape.d[0] == weights_tensor.float_val_size()) {
-          scalar_shape.nbDims = 1;
-          // no dimension provided. flatten it
-          scalar_shape.d[0] = weights_tensor.float_val_size();
-          scalar_shape.type[0] = nvinfer1::DimensionType::kSPATIAL;
-        } else {
-          LOG(WARNING) << "Broadcast on weights only supports kCHANNEL and"
-                       << " kUNIFORM, at: " << node_def.name();
-          string err_str("Broadcast method is not supported for '");
-          StrAppend(&err_str, node_def.name(), "' of type ", node_def.op());
-          return tensorflow::errors::InvalidArgument(err_str);
-        }
+      if (GetShapeSize(scalar_shape) != weights_tensor.float_val_size() && weights_tensor.float_val_size() != 1) {
+        LOG(WARNING) << "Broadcast on weights only supports kCHANNEL and"
+                     << " kUNIFORM, at: " << node_def.name();
+        string err_str("Broadcast method is not supported for '");
+        StrAppend(&err_str, node_def.name(), "' of type ", node_def.op());
+        return tensorflow::errors::InvalidArgument(err_str);
       }
     } else {
       VLOG(2) << "Dimensions: " << tensor.dims();
@@ -1536,18 +1533,21 @@ tensorflow::Status ConvertConst(Converter& ctx,
       scalar_shape.type[0] = nvinfer1::DimensionType::kSPATIAL;
       for (int i = 1; i < nvinfer1::Dims::MAX_DIMS; i++) {
         scalar_shape.d[i] = 0;
-        scalar_shape.type[i] = nvinfer1::DimensionType::kSPATIAL;
       }
     }
     size_t len_data = tensorflow::DataTypeSize(dtype);
     for (int i = 0; i < scalar_shape.nbDims; i++) len_data *= scalar_shape.d[i];
     ctx.weight_store()->store_.push_back(std::vector<uint8_t>(len_data));
     void* dst = static_cast<void*>(&(ctx.weight_store()->store_.back()[0]));
-    std::vector<float> tensor_data(
-        weights_tensor.float_val().begin(),
-        weights_tensor.float_val()
-            .end());  //  make a local copy first to flatten
-    memcpy(dst, tensor_data.data(), len_data);  // store into weight store
+    if (weights_tensor.float_val_size()==1) {
+      std::fill_n((float*) dst, GetShapeSize(scalar_shape), *weights_tensor.float_val().begin());
+    } else {
+      std::vector<float> tensor_data(
+          weights_tensor.float_val().begin(),
+          weights_tensor.float_val().end());  //  make a local copy first to flatten
+                                            //  doesn't have to be contigous
+      memcpy(dst, tensor_data.data(), len_data);  // store into weight store
+    }
     weights = TRT_ShapedWeights(dtype, dst, scalar_shape);
   } else if (!weights_tensor.int_val().empty()) {
     VLOG(2) << "int!!!" << node_def.name();
@@ -1555,20 +1555,12 @@ tensorflow::Status ConvertConst(Converter& ctx,
     if (tensor.dims() > 0) {
       VLOG(2) << "dimensions: " << tensor.dims();
       scalar_shape = GetTensorShape(tensor);
-      if (GetShapeSize(scalar_shape) != weights_tensor.int_val_size()) {
-        if (weights_tensor.int_val_size() == 1 ||
-            scalar_shape.d[0] == weights_tensor.int_val_size()) {
-          scalar_shape.nbDims = 1;
-          // no dimension provided. flatten it
-          scalar_shape.d[0] = weights_tensor.int_val_size();
-          scalar_shape.type[0] = nvinfer1::DimensionType::kSPATIAL;
-        } else {
-          LOG(WARNING) << "Broadcast on weights only supports kCHANNEL and"
-                       << " kUNIFORM, at: " << node_def.name();
-          string err_str("Broadcast method is not supported for '");
-          StrAppend(&err_str, node_def.name(), "' of type ", node_def.op());
-          return tensorflow::errors::InvalidArgument(err_str);
-        }
+      if (GetShapeSize(scalar_shape) != weights_tensor.int_val_size() && weights_tensor.int_val_size() != 1) {
+        LOG(WARNING) << "Broadcast on weights only supports kCHANNEL and"
+                     << " kUNIFORM, at: " << node_def.name();
+        string err_str("Broadcast method is not supported for '");
+        StrAppend(&err_str, node_def.name(), "' of type ", node_def.op());
+        return tensorflow::errors::InvalidArgument(err_str);
       }
     } else {
       VLOG(2) << "dimensions: " << tensor.dims();
@@ -1588,11 +1580,16 @@ tensorflow::Status ConvertConst(Converter& ctx,
     len_data = std::max(len_data, len_tensor);
     ctx.weight_store()->store_.push_back(std::vector<uint8_t>(len_data));
     void* dst = static_cast<void*>(&(ctx.weight_store()->store_.back()[0]));
-    std::vector<int32> tensor_data(
-        weights_tensor.int_val().begin(),
-        weights_tensor.int_val().end());  //  make a local copy first to flatten
-                                          //  doesn't have to be contigous
-    memcpy(dst, tensor_data.data(), len_tensor);  // store into weight store
+    if (weights_tensor.int_val_size()==1) {
+      int val = *weights_tensor.int_val().begin();
+      std::fill_n((int*) dst, GetShapeSize(scalar_shape), val);
+    } else {
+      std::vector<int32> tensor_data(
+          weights_tensor.int_val().begin(),
+          weights_tensor.int_val().end());  //  make a local copy first to flatten
+                                            //  doesn't have to be contigous
+      memcpy(dst, tensor_data.data(), len_tensor);  // store into weight store
+    }
     weights = TRT_ShapedWeights(dtype, dst, scalar_shape);
   } else if (!weights_tensor.tensor_content().empty()) {
     //  obsolete method.
