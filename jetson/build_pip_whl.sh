@@ -31,14 +31,14 @@ echo "" | ../configure
 
 
 
-#bazel build --config=opt --config=cuda ../tensorflow/tools/pip_package/build_pip_package
+bazel build --config=opt --config=cuda ../tensorflow/tools/pip_package/build_pip_package
 #TODO check result of build command, if the build failed throw error
 
-#bash ../tensorflow/tools/pip_package/build_pip_package.sh /tmp/tensorflow_pkg
+bash ../tensorflow/tools/pip_package/build_pip_package.sh /tmp/tensorflow_pkg
 
 
 #TODO check if tensorflow is installed, act based thereon
-#sudo -H pip install /tmp/tensorflow_pkg/*
+sudo -H pip install /tmp/tensorflow_pkg/*
 
 
 

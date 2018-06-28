@@ -54,6 +54,18 @@ else
   echo "y" | sudo pip install numpy
 fi
 
-#Check 
+#Check for enum34
+if pip list | grep enum34 2>/dev/null; then
+  echo "enum34 is installed"
+else
+  echo "enum34 is not installed.  Installing now."
+  echo "y" | sudo pip install enum34
+fi
 
-
+#Check for mock
+if pip list | grep mock 2>/dev/null; then
+  echo "mock is installed"
+else
+  echo "mock is not installed.  Installing now."
+  echo "y" | sudo pip install mock
+fi
