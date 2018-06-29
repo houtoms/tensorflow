@@ -297,7 +297,7 @@ PERFTOOLS_GPUTOOLS_CUBLAS_WRAP(cublasSetMathMode)
 
 // TODO(benbarsdell): Change this to the version in which cublasGemmBatchedEx is
 // officially available
-#if ( !defined(__arm__) && CUDA_VERSION >= 9000) || CUDA_VERSION >= 9010
+#if ( !defined(__aarch64__) && CUDA_VERSION >= 9000) || CUDA_VERSION >= 9010
 PERFTOOLS_GPUTOOLS_CUBLAS_WRAP(cublasGemmBatchedEx)
 PERFTOOLS_GPUTOOLS_CUBLAS_WRAP(cublasGemmStridedBatchedEx)
 #endif
@@ -2513,7 +2513,7 @@ port::Status CUDABlas::DoBlasGemmBatchedInternalV2(
 // Use batched gemm ex only with cuda 9.1
 // TODO(benbarsdell): Change this to the version in which cublasGemmBatchedEx is
 // officially available
-#if ( !defined(__arm__) && CUDA_VERSION >= 9000) || CUDA_VERSION >= 9010
+#if ( !defined(__aarch64__) && CUDA_VERSION >= 9000) || CUDA_VERSION >= 9010
   int cc_major, cc_minor;
   if (stream->parent()->GetDeviceDescription().cuda_compute_capability(
           &cc_major, &cc_minor) &&
