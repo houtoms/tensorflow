@@ -81,7 +81,8 @@ RUN curl -O https://bootstrap.pypa.io/get-pip.py && \
 # nltk version specified per OpenSeq2Seq requirements
 RUN pip install --no-cache-dir --upgrade \
                 --extra-index-url https://developer.download.nvidia.com/compute/redist \
-        nvidia-dali \
+                --extra-index-url http://sqrl/dldata/pip-simple --trusted-host sqrl \
+        nvidia-dali==0.1.1 \
         numpy==1.11.0 \
         pexpect \
         psutil \
