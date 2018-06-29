@@ -48,6 +48,7 @@ before_script:
               ".git*\n"
               ".dockerignore\n"
               "RapidSSL_TLS_RSA_CA_G1.crt\n"
+              "jetson\n"
               "qa" > .dockerignore
     - docker pull "${BASE_IMAGE_NAME}" || true
     - docker build --pull
@@ -82,6 +83,7 @@ py3-base:
               "COPY .gitlab-ci.yml /opt/${CI_PROJECT_NAME}/\n"
               "COPY .git/ /opt/${CI_PROJECT_NAME}/.git/\n"
               "COPY RapidSSL_TLS_RSA_CA_G1.crt /usr/local/share/ca-certificates/\n"
+              "COPY jetson/   /opt/${CI_PROJECT_NAME}/jetson/\n"
               "COPY qa/   /opt/${CI_PROJECT_NAME}/qa/\n"
               "RUN update-ca-certificates\n"
         > Dockerfile.${CI_PROJECT_NAME}.${CI_COMMIT_REF_NAME}
