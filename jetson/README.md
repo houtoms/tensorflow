@@ -1,7 +1,15 @@
-In order to access this repository, the user must add the valid CA certificate for the gitlab-dl.nvidia.com registry.
-Running these two commands on a newly flashed Jetson should successfully update access permissions:
+# Jetson Build Scripts
 
-$:cat <<EOF | sudo tee /usr/local/share/ca-certificates/RapidSSL_TLS_RSA_CA_G1.crt
+This directory provides scripts to build TensorFlow on a Jetson with a fresh
+Jetpack SDK image installed.
+
+## Prerequisites
+
+In order to access this repository, the user must add the CA certificate for
+gitlab-dl.nvidia.com. Running the following commands will accomplish this.
+
+```
+cat <<EOF | sudo tee /usr/local/share/ca-certificates/RapidSSL_TLS_RSA_CA_G1.crt
 -----BEGIN CERTIFICATE-----
 MIIEszCCA5ugAwIBAgIQCyWUIs7ZgSoVoE6ZUooO+jANBgkqhkiG9w0BAQsFADBh
 MQswCQYDVQQGEwJVUzEVMBMGA1UEChMMRGlnaUNlcnQgSW5jMRkwFwYDVQQLExB3
@@ -31,4 +39,28 @@ zP3pGJ9FCbMHmMLLyuBd+uCWvVcF2ogYAawufChS/PT61D9rqzPRS5I2uqa3tmIT
 8o34/m8Fxw==
 -----END CERTIFICATE-----
 EOF
-$:sudo update-ca-certificates
+
+sudo update-ca-certificates
+```
+
+## Build Instructions
+
+Clone the TF repository and checkout the appropriate release branch. Branches
+are named by two-digit year and month in which they will be released.
+
+```
+git clone https://gitlab-dl.nvidia.com/dgx/tensorflow -b <YY>.<MM>-devel
+```
+
+The installation script will install all dependencies, compile TF from sources,
+assemble a `whl` installer, and install the TF package. The destination of the
+final `whl` can be customized by exporting the environment variable
+FINAL_WHL_BUILD_PATH. The default is `/tmp/tensorflow_pkg`.
+
+```
+tensorflow/jetson/build_pip_whl.sh
+```
+
+## Test Instructions
+
+TBD

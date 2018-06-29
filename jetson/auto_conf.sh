@@ -1,5 +1,8 @@
 #!/bin/bash
 
+set -o pipefail
+set -e
+
 #This script sets Tensorflow's configuration options and runs the configure script
 export PYTHON_BIN_PATH="/usr/bin/python"
 export PYTHON_LIB_PATH="/usr/local/lib/python2.7/dist-packages"

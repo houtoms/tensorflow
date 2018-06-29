@@ -1,6 +1,8 @@
 #!/bin/bash
 
-#TODO Ask user if the packages should be installed
+set -o pipefail
+set -e
+
 #Check if base system packages are installed
 if sudo dpkg -V build-essential 2>/dev/null; then
   echo "build-essential package is installed."
