@@ -1,6 +1,6 @@
 #!/bin/bash
 
-exec ./base.sh "/workspace/nvidia-examples/cnn/resnet.py --layers=50"
+exec ./base.sh "/workspace/nvidia-examples/cnn/resnet.py --layers=50" \
     32 \
     64 \
     128:12000:fp16 \
