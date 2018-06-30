@@ -94,8 +94,9 @@ RUN pip install --no-cache-dir --upgrade \
 RUN pip install --no-cache-dir --upgrade \
         resampy \
         python_speech_features \
-        pandas \
+        pandas==0.23.0 \
         six \
+        mpi4py \
         tqdm
 
 # Set up Bazel.
