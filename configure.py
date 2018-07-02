@@ -1163,7 +1163,7 @@ def set_tf_nccl_install_path(environ_cp):
     if is_windows():
       nccl_lib_path = 'lib/x64/nccl.lib'
     elif is_linux():
-      nccl_lib_path = 'lib/libnccl.so.%s' % tf_nccl_version
+      nccl_lib_path = 'lib/x86_64-linux-gnu/libnccl.so.%s' % tf_nccl_version
     elif is_macos():
       nccl_lib_path = 'lib/libnccl.%s.dylib' % tf_nccl_version
 
