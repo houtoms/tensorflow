@@ -35,7 +35,10 @@ NUM_GPUS=`nvidia-smi -L | wc -l` && \
               -- \
               //tensorflow/compiler/... \
               -//tensorflow/compiler/xla/tests:local_client_execute_test_gpu \
-  | tee testresult.tmp && { grep "test\.log" testresult.tmp || true; } \
-  | /opt/tensorflow/qa/show_testlogs
+  | tee testresult.tmp
+RESULT=$?
 
-exit $?
+set -e
+{ grep "test\.log" testresult.tmp || true; } | /opt/tensorflow/qa/show_testlogs
+
+exit $RESULT
