@@ -375,13 +375,7 @@ def set_build_var(environ_cp, var_name, query_item, option_name,
   var = str(int(get_var(environ_cp, var_name, query_item, enabled_by_default)))
   environ_cp[var_name] = var
   if var == '1':
-    if bazel_config_name is not None:
-      # TODO(mikecase): Migrate all users of configure.py to use --config Bazel
-      # options and not to set build configs through environment variables.
-      write_to_bazelrc('build:%s --define %s=true'
-                       % (bazel_config_name, option_name))
-    else:
-      write_to_bazelrc('build --define %s=true' % option_name)
+    write_to_bazelrc('build --define %s=true' % option_name)
 
 
 def set_action_env_var(environ_cp,
@@ -1163,7 +1157,7 @@ def set_tf_nccl_install_path(environ_cp):
     if is_windows():
       nccl_lib_path = 'lib/x64/nccl.lib'
     elif is_linux():
-      nccl_lib_path = 'lib/libnccl.so.%s' % tf_nccl_version
+      nccl_lib_path = 'lib/x86_64-linux-gnu/libnccl.so.%s' % tf_nccl_version
     elif is_macos():
       nccl_lib_path = 'lib/libnccl.%s.dylib' % tf_nccl_version
 
