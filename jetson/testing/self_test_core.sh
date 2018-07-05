@@ -1,6 +1,6 @@
 #!/bin/bash
 
-CURRENT_DIR=i`pwd`
+CURRENT_DIR=`pwd`
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd $SCRIPT_DIR
