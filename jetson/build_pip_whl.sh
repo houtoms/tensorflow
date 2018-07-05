@@ -29,5 +29,5 @@ bash tensorflow/tools/pip_package/build_pip_package.sh $FINAL_WHL_BUILD_PATH
 cd jetson/
 
 #Install the Tensorflow package
-sudo -H pip install /tmp/tensorflow_pkg/*
+sudo -H pip install $FINAL_WHL_BUILD_PATH/*
 

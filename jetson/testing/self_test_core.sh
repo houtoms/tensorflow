@@ -1,6 +1,6 @@
 #!/bin/bash
 
-CURRENT_DIR=pwd
+CURRENT_DIR=i`pwd`
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd $SCRIPT_DIR
@@ -17,7 +17,7 @@ bazel test  --config=cuda -c opt --verbose_failures --local_test_jobs=1 \
 		--build_tests_only \
 		-- \
 		//tensorflow/core/debug:grpc_session_debug_test \
-		//tensorflow/core/distributed_runtime/rpc:grpc_session_test_gpu 
+		//tensorflow/core/distributed_runtime/rpc:grpc_session_test_gpu \
 		//tensorflow/core/distributed_runtime:cluster_function_library_runtime_test \
 		//tensorflow/core/platform/cloud:ram_file_block_cache_test \
 	| tee testresult.tmp 
