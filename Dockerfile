@@ -114,6 +114,17 @@ RUN BAZEL_VERSION=0.11.0 && \
     bash ./bazel-$BAZEL_VERSION-installer-linux-x86_64.sh && \
     rm -rf /bazel
 
+# TensorRT
+RUN wget -qO libnvinfer.deb "http://cuda-repo/release-candidates/Libraries/TensorRT/cuda10-testing/20180606/libnvinfer4_4.1.0-1+cuda10.0_amd64.deb" && \
+    wget -qO libnvinfer-dev.deb "http://cuda-repo/release-candidates/Libraries/TensorRT/cuda10-testing/20180606/libnvinfer-dev_4.1.0-1+cuda10.0_amd64.deb" && \
+    dpkg -i libnvinfer.deb && \
+    dpkg -i libnvinfer-dev.deb && \
+    rm /usr/lib/x86_64-linux-gnu/libnvcaffe_parser.a \
+       /usr/lib/x86_64-linux-gnu/libnvparsers.a \
+       /usr/lib/x86_64-linux-gnu/libnvinfer_plugin.a \
+       /usr/lib/x86_64-linux-gnu/libnvinfer.a \
+       libnvinfer.deb libnvinfer-dev.deb
+
 # Download and build TensorFlow.
 WORKDIR /opt/tensorflow
 COPY . .
@@ -123,7 +134,7 @@ RUN mkdir -p /workspace/nvidia-examples && \
      ln -s /opt/tensorflow/nvidia-examples/* /workspace/nvidia-examples/
 
 ENV CUDA_TOOLKIT_PATH /usr/local/cuda
-ENV TF_CUDA_VERSION "9.0"
+ENV TF_CUDA_VERSION "10.0"
 ENV TF_CUDNN_VERSION "7"
 ENV CUDNN_INSTALL_PATH /usr/lib/x86_64-linux-gnu
 ENV TF_NEED_CUDA 1
