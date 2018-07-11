@@ -19,7 +19,7 @@ RUN wget -q -O - http://content.mellanox.com/ofed/MLNX_OFED-${MOFED_VERSION}/MLN
 
 ENV LD_LIBRARY_PATH /usr/local/cuda/extras/CUPTI/lib64:${LD_LIBRARY_PATH}
 
-ENV TENSORFLOW_VERSION 1.8.0+
+ENV TENSORFLOW_VERSION 1.9.0+
 LABEL com.nvidia.tensorflow.version="${TENSORFLOW_VERSION}"
 ENV NVIDIA_TENSORFLOW_VERSION 18.08
 

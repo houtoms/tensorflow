@@ -13,6 +13,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
+// Added a comment to force a commit
 // See docs in ../ops/image_ops.cc
 #define EIGEN_USE_THREADS
 
@@ -69,8 +70,8 @@ namespace functor {
 template <typename T>
 struct ResizeBilinear<CPUDevice, T> {
   void operator()(const CPUDevice& d, typename TTypes<T, 4>::ConstTensor images,
-      const float height_scale, const float width_scale,
-      typename TTypes<float, 4>::Tensor output) {
+                  const float height_scale, const float width_scale,
+                  typename TTypes<float, 4>::Tensor output) {
     const int batch_size = images.dimension(0);
     const int64 in_height = images.dimension(1);
     const int64 in_width = images.dimension(2);
@@ -95,7 +96,7 @@ struct ResizeBilinear<CPUDevice, T> {
 
     // Compute the cached interpolation weights on the x and y dimensions.
     compute_interpolation_weights(out_height, in_height, height_scale,
-	ys.data());
+                                  ys.data());
     compute_interpolation_weights(out_width, in_width, width_scale, xs.data());
 
     // Scale x interpolation weights to avoid a multiplication during iteration.
@@ -106,12 +107,12 @@ struct ResizeBilinear<CPUDevice, T> {
 
     for (int b = 0; b < batch_size; ++b) {
       crop_resize_single_image(
-	  images.data() + (int64)b * in_batch_num_values,
-	  in_height,in_width,out_height,out_width,channels,
-	  0,out_width-1,xs.data(),
-	  0,out_height-1,ys.data(),
-	  0.0f,false,false,
-	  output.data() + (int64)b * out_batch_num_values);
+        images.data() + (int64)b * in_batch_num_values,
+	in_height,in_width,out_height,out_width,channels,
+	0,out_width-1,xs.data(),
+	0,out_height-1,ys.data(),
+	0.0f,false,false,
+	output.data() + (int64)b * out_batch_num_values);
     }
   }
 };

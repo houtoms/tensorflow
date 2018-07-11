@@ -589,7 +589,7 @@ class Conv2DTest(test.TestCase):
       values.append(_GetVal(data_format, use_gpu))
 
     for i in range(1, len(values)):
-      self.assertAllClose(values[0], values[i], rtol=1e-3, atol=1e-4)
+      self.assertAllClose(values[0], values[i], rtol=1e-4, atol=1e-4)
 
   @test_util.run_in_graph_and_eager_modes()
   def testConv2D2x2Depth1ValidBackpropInput(self):
@@ -1182,7 +1182,7 @@ class Conv2DTest(test.TestCase):
           err = np.fabs(jacob_t - reference_jacob_t).max()
 
         print("conv_2d gradient error = ", err)
-        self.assertLess(err, 0.0021)
+        self.assertLess(err, 0.002)
 
   def testInputGradientValidPaddingStrideOne(self):
     for (data_format, use_gpu) in GetTestConfigs():
