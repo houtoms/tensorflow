@@ -19,7 +19,7 @@ RUN wget -q -O - http://content.mellanox.com/ofed/MLNX_OFED-${MOFED_VERSION}/MLN
 
 ENV LD_LIBRARY_PATH /usr/local/cuda/extras/CUPTI/lib64:${LD_LIBRARY_PATH}
 
-ENV TENSORFLOW_VERSION 1.8.0+
+ENV TENSORFLOW_VERSION 1.9.0+
 LABEL com.nvidia.tensorflow.version="${TENSORFLOW_VERSION}"
 ENV NVIDIA_TENSORFLOW_VERSION 18.08
 
@@ -152,10 +152,8 @@ ENV HOROVOD_GPU_ALLREDUCE NCCL
 ENV HOROVOD_NCCL_INCLUDE /usr/include
 ENV HOROVOD_NCCL_LIB /usr/lib/x86_64-linux-gnu
 ENV HOROVOD_NCCL_LINK SHARED
-RUN git clone https://github.com/uber/horovod.git /horovod && \
+RUN git clone https://github.com/uber/horovod.git -b v0.13.8 /horovod && \
     cd /horovod && \
-    git checkout 85882b0b04afe207ae9d5b91cc1eef726dea0083 && \
-    git apply /opt/tensorflow/horovod_shared_lib.patch && \
     ln -s /usr/local/cuda/lib64/stubs/libcuda.so ./libcuda.so.1 && \
     export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$PWD && \
     python setup.py install && \

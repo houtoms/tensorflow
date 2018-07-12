@@ -493,10 +493,6 @@ def set_cc_opt_flags(environ_cp):
   if not is_ppc64le() and not is_windows():
     write_to_bazelrc('build:opt --host_copt=-march=native')
   write_to_bazelrc('build:opt --define with_default_optimizations=true')
-  # TODO(mikecase): Remove these default defines once we are able to get
-  # TF Lite targets building without them.
-  write_to_bazelrc('build --copt=-DGEMMLOWP_ALLOW_SLOW_SCALAR_FALLBACK')
-  write_to_bazelrc('build --host_copt=-DGEMMLOWP_ALLOW_SLOW_SCALAR_FALLBACK')
 
 def set_tf_cuda_clang(environ_cp):
   """set TF_CUDA_CLANG action_env.
@@ -972,35 +968,6 @@ def set_tf_cudnn_version(environ_cp):
   write_action_env_to_bazelrc('TF_CUDNN_VERSION', tf_cudnn_version)
 
 
-def is_cuda_compatible(lib, cuda_ver, cudnn_ver):
-  """Check the compatibility between given library and cudnn/cudart libraries."""
-  ldd_bin = which('ldd') or '/usr/bin/ldd'
-  ldd_out = run_shell([ldd_bin, lib], True)
-  ldd_out = ldd_out.split(os.linesep)
-  cudnn_pattern = re.compile('.*libcudnn.so\\.?(.*) =>.*$')
-  cuda_pattern = re.compile('.*libcudart.so\\.?(.*) =>.*$')
-  cudnn = None
-  cudart = None
-  cudnn_ok = True  # assume no cudnn dependency by default
-  cuda_ok = True  # assume no cuda dependency by default
-  for line in ldd_out:
-    if 'libcudnn.so' in line:
-      cudnn = cudnn_pattern.search(line)
-      cudnn_ok = False
-    elif 'libcudart.so' in line:
-      cudart = cuda_pattern.search(line)
-      cuda_ok = False
-  if cudnn and len(cudnn.group(1)):
-    cudnn = convert_version_to_int(cudnn.group(1))
-  if cudart and len(cudart.group(1)):
-    cudart = convert_version_to_int(cudart.group(1))
-  if cudnn is not None:
-    cudnn_ok = (cudnn == cudnn_ver)
-  if cudart is not None:
-    cuda_ok = (cudart == cuda_ver)
-  return cudnn_ok and cuda_ok
-
-
 def set_tf_tensorrt_install_path(environ_cp):
   """Set TENSORRT_INSTALL_PATH and TF_TENSORRT_VERSION.
 
@@ -1017,8 +984,8 @@ def set_tf_tensorrt_install_path(environ_cp):
     raise ValueError('Currently TensorRT is only supported on Linux platform.')
 
   # Ask user whether to add TensorRT support.
-  if str(int(get_var(environ_cp, 'TF_NEED_TENSORRT', 'TensorRT',
-                     False))) != '1':
+  if str(int(get_var(
+      environ_cp, 'TF_NEED_TENSORRT', 'TensorRT', False))) != '1':
     return
 
   for _ in range(_DEFAULT_PROMPT_ASK_ATTEMPTS):
@@ -1031,29 +998,47 @@ def set_tf_tensorrt_install_path(environ_cp):
 
     # Result returned from "read" will be used unexpanded. That make "~"
     # unusable. Going through one more level of expansion to handle that.
-    trt_install_path = os.path.realpath(os.path.expanduser(trt_install_path))
+    trt_install_path = os.path.realpath(
+        os.path.expanduser(trt_install_path))
 
     def find_libs(search_path):
       """Search for libnvinfer.so in "search_path"."""
       fl = set()
       if os.path.exists(search_path) and os.path.isdir(search_path):
-        fl.update([
-            os.path.realpath(os.path.join(search_path, x))
-            for x in os.listdir(search_path)
-            if 'libnvinfer.so' in x
-        ])
+        fl.update([os.path.realpath(os.path.join(search_path, x))
+                   for x in os.listdir(search_path) if 'libnvinfer.so' in x])
       return fl
 
     possible_files = find_libs(trt_install_path)
     possible_files.update(find_libs(os.path.join(trt_install_path, 'lib')))
     possible_files.update(find_libs(os.path.join(trt_install_path, 'lib64')))
+
+    def is_compatible(tensorrt_lib, cuda_ver, cudnn_ver):
+      """Check the compatibility between tensorrt and cudnn/cudart libraries."""
+      ldd_bin = which('ldd') or '/usr/bin/ldd'
+      ldd_out = run_shell([ldd_bin, tensorrt_lib]).split(os.linesep)
+      cudnn_pattern = re.compile('.*libcudnn.so\\.?(.*) =>.*$')
+      cuda_pattern = re.compile('.*libcudart.so\\.?(.*) =>.*$')
+      cudnn = None
+      cudart = None
+      for line in ldd_out:
+        if 'libcudnn.so' in line:
+          cudnn = cudnn_pattern.search(line)
+        elif 'libcudart.so' in line:
+          cudart = cuda_pattern.search(line)
+      if cudnn and len(cudnn.group(1)):
+        cudnn = convert_version_to_int(cudnn.group(1))
+      if cudart and len(cudart.group(1)):
+        cudart = convert_version_to_int(cudart.group(1))
+      return (cudnn == cudnn_ver) and (cudart == cuda_ver)
+
     cuda_ver = convert_version_to_int(environ_cp['TF_CUDA_VERSION'])
     cudnn_ver = convert_version_to_int(environ_cp['TF_CUDNN_VERSION'])
     nvinfer_pattern = re.compile('.*libnvinfer.so.?(.*)$')
     highest_ver = [0, None, None]
 
     for lib_file in possible_files:
-      if is_cuda_compatible(lib_file, cuda_ver, cudnn_ver):
+      if is_compatible(lib_file, cuda_ver, cudnn_ver):
         matches = nvinfer_pattern.search(lib_file)
         if len(matches.groups()) == 0:
           continue
@@ -1069,13 +1054,12 @@ def set_tf_tensorrt_install_path(environ_cp):
     # Try another alternative from ldconfig.
     ldconfig_bin = which('ldconfig') or '/sbin/ldconfig'
     ldconfig_output = run_shell([ldconfig_bin, '-p'])
-    search_result = re.search('.*libnvinfer.so\\.?([0-9.]*).* => (.*)',
-                              ldconfig_output)
+    search_result = re.search(
+        '.*libnvinfer.so\\.?([0-9.]*).* => (.*)', ldconfig_output)
     if search_result:
       libnvinfer_path_from_ldconfig = search_result.group(2)
       if os.path.exists(libnvinfer_path_from_ldconfig):
-        if is_cuda_compatible(libnvinfer_path_from_ldconfig, cuda_ver,
-                              cudnn_ver):
+        if is_compatible(libnvinfer_path_from_ldconfig, cuda_ver, cudnn_ver):
           trt_install_path = os.path.dirname(libnvinfer_path_from_ldconfig)
           tf_tensorrt_version = search_result.group(1)
           break
@@ -1234,7 +1218,7 @@ def set_tf_cuda_compute_capabilities(environ_cp):
     # Check whether all capabilities from the input is valid
     all_valid = True
     # Remove all whitespace characters before splitting the string
-    # that users may insert by accident, as this will result in error
+    # that users may insert by accident, as this will result in error 
     tf_cuda_compute_capabilities = ''.join(tf_cuda_compute_capabilities.split())
     for compute_capability in tf_cuda_compute_capabilities.split(','):
       m = re.match('[0-9]+.[0-9]+', compute_capability)
@@ -1438,6 +1422,10 @@ def set_grpc_build_flags():
   write_to_bazelrc('build --define grpc_no_ares=true')
 
 
+def set_build_strip_flag():
+  write_to_bazelrc('build --strip=always')
+
+
 def set_windows_build_flags():
   if is_windows():
     # The non-monolithic build is not supported yet
@@ -1560,6 +1548,7 @@ def main():
 
   set_grpc_build_flags()
   set_cc_opt_flags(environ_cp)
+  set_build_strip_flag()
   set_windows_build_flags()
 
   if workspace_has_any_android_rule():
