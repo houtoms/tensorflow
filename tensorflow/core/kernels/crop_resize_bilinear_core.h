@@ -16,7 +16,8 @@ limitations under the License.
 #ifndef TENSORFLOW_CORE_KERNELS_CROP_RESIZE_BILINEAR_CORE_H_
 #define TENSORFLOW_CORE_KERNELS_CROP_RESIZE_BILINEAR_CORE_H_
 
-namespace ::tensorflow::internal {
+namespace tensorflow {
+namespace internal {
 // Compute the interpolation indices only once.
 struct CachedInterpolation {
   int lower;  // Lower source index used in the interpolation
@@ -459,5 +460,6 @@ void crop_resize_single_image(const T* image, const int64 in_height,
     }
   }
 }
-}  // namespace ::tensorflow::internal
+}  // namespace internal
+}  // namespace tensorflow
 #endif // TENSORFLOW_CORE_KERNELS_CROP_RESIZE_BILINEAR_CORE_H_
