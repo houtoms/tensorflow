@@ -31,21 +31,21 @@ inline bool compute_single_interpolation_weight(
     const int in_size, const float out2in_scale, const float out2in_start,
     const bool clip, const int i, int* lower, int* upper, float* lerp) {
   const float in = i * out2in_scale + out2in_start;
-  lower = (int)floor(in);
-  upper = (int)ceil(in);
-  lerp = (float)(in - (float)lower);
+  *lower = (int)floor(in);
+  *upper = (int)ceil(in);
+  *lerp = (float)(in - (float)*lower);
   if (clip) {
-    if (lower < 0)
-      lower = 0;
-    else if (lower >= in_size)
-      lower = in_size - 1;
-    if (upper < 0)
-      upper = 0;
-    else if (upper >= in_size)
-      upper = in_size - 1;
+    if (*lower < 0)
+      *lower = 0;
+    else if (*lower >= in_size)
+      *lower = in_size - 1;
+    if (*upper < 0)
+      *upper = 0;
+    else if (*upper >= in_size)
+      *upper = in_size - 1;
     return true;
   } else {
-    return (lower >= 0 && upper < in_size) ? true : false;
+    return (*lower >= 0 && *upper < in_size) ? true : false;
   }
 }
 /**

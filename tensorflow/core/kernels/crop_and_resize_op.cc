@@ -43,6 +43,10 @@ limitations under the License.
 using stream_executor::cuda::ScopedActivateExecutorContext;
 #endif  // GOOGLE_CUDA
 
+using ::tensorflow::internal::CachedInterpolation;
+using ::tensorflow::internal::compute_interpolation_weights;
+using ::tensorflow::internal::crop_resize_single_image;
+
 namespace tensorflow {
 namespace {
 

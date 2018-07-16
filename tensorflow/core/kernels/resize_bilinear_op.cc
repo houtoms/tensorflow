@@ -31,6 +31,10 @@ limitations under the License.
 #include "tensorflow/core/platform/logging.h"
 #include "third_party/eigen3/unsupported/Eigen/CXX11/Tensor"
 
+using ::tensorflow::internal::CachedInterpolation;
+using ::tensorflow::internal::compute_interpolation_weights;
+using ::tensorflow::internal::crop_resize_single_image;
+
 namespace tensorflow {
 
 typedef Eigen::ThreadPoolDevice CPUDevice;
