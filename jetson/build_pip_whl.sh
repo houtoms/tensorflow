@@ -14,10 +14,21 @@ set -e
 sudo nvpmodel -m 0
 
 #Create a swap file for use in tensorflow compilation
-sudo fallocate -l 4G /tf_swapfile
-sudo chmod 600 /tf_swapfile
-sudo mkswap /tf_swapfile
-sudo swapon /tf_swapfile
+JETSON_SWAPFILE=${JETSON_SWAPFILE:-/tf_swapfile}
+if [ -f $JETSON_SWAPFILE ]; then
+  echo "Swap File already exists.  Enabling now."
+  if swapon --show | grep $JETSON_SWAPFILE 2>/dev/null; then
+    echo "Swapfile already enabled."
+  else
+    sudo swapon $JETSON_SWAPFILE
+    echo "Swapfile now enabled."
+  fi
+else
+  sudo fallocate -l 4G $JETSON_SWAPFILE
+  sudo chmod 600 $JETSON_SWAPFILE
+  sudo mkswap $JETSON_SWAPFILE
+  sudo swapon $JETSON_SWAPFILE
+fi
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd $SCRIPT_DIR
@@ -43,13 +54,13 @@ sudo -H pip install $FINAL_WHL_BUILD_PATH/*
 TF_BUILD_TIME=$SECONDS
 
 #Remove Swapfile 
-sudo swapoff /tf_swapfile
-sudo rm /tf_swapfile
+sudo swapoff $JETSON_SWAPFILE
+sudo rm $JETSON_SWAPFILE
 
 #Set NvpModel mode back to ARM cores only
 sudo nvpmodel -m 3
 
 #Print Total Build Time
-echo $TF_BUILD_TIME
+echo "Tensorflow Build Time: $TF_BUILD_TIME"
 
 
