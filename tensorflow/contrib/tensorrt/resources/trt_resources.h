@@ -65,7 +65,7 @@ class TRTCalibrationResource : public tensorflow::ResourceBase {
   nvinfer1::IBuilder* builder_;
   nvinfer1::INetworkDefinition* network_;
   nvinfer1::ICudaEngine* engine_;
-  std::shared_ptr<nvinfer1::IGpuAllocator> allocator_;
+  std::shared_ptr<TRTBaseAllocator> allocator_;
   tensorflow::tensorrt::Logger* logger_;
   // TODO(sami): Use threadpool threads!
   std::thread* thr_;

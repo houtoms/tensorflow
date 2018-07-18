@@ -177,7 +177,7 @@ struct ConvertGraphParams {
       const tensorflow::grappler::GraphProperties& current_graph_properties,
       std::unordered_map<string, std::pair<int, string>>* output_edges,
       int engine_precision_mode, const string& device_name,
-      std::shared_ptr<nvinfer1::IGpuAllocator> allocator, int cuda_gpu_id)
+      std::shared_ptr<TRTBaseAllocator> allocator, int cuda_gpu_id)
       : graph(inp_graph),
         output_names(output_node_names),
         subgraph_node_ids(subgraph_node_id_numbers),
@@ -198,7 +198,7 @@ struct ConvertGraphParams {
   std::unordered_map<string, std::pair<int, string>>* output_edge_map;
   int precision_mode;
   string device_name_;
-  std::shared_ptr<nvinfer1::IGpuAllocator> allocator_;
+  std::shared_ptr<TRTBaseAllocator> allocator_;
   int cuda_gpu_id_;
   std::vector<std::pair<int, int>> subgraph_inputs;
   std::vector<std::pair<int, int>> subgraph_outputs;
@@ -471,7 +471,7 @@ tensorflow::Status ConvertAfterShapes(
             << " : " << oss.str();
     auto target_device =
         name_to_device_map.find(segment_nodes_and_device.second);
-    std::shared_ptr<nvinfer1::IGpuAllocator> allocator(0);
+    std::shared_ptr<TRTBaseAllocator> allocator(0);
 
     int cuda_device_id = 0;
     if (target_device != name_to_device_map.end()) {

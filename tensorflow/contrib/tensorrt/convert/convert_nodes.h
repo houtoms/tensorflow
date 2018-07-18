@@ -49,7 +49,7 @@ struct SubGraphParams {
       std::unordered_map<string, std::pair<int, string>>* output_edges,
       tensorflow::NodeDef* constructed_trt_node,
       int engine_precision_mode = FP32MODE, const string& device_name = "",
-      std::shared_ptr<nvinfer1::IGpuAllocator> allocator = nullptr,
+      std::shared_ptr<TRTBaseAllocator> allocator = nullptr,
       int cuda_gpu_id = 0)
       : graph(inp_graph),
         subgraph_node_ids(subgraph_node_id_numbers),
@@ -76,7 +76,7 @@ struct SubGraphParams {
   tensorflow::NodeDef* trt_node;
   const int precision_mode;
   const string device_name_;
-  std::shared_ptr<nvinfer1::IGpuAllocator> allocator_;
+  std::shared_ptr<TRTBaseAllocator> allocator_;
   const int cuda_gpu_id_;
 };
 

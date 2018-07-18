@@ -54,7 +54,7 @@ class TRTEngineOp : public OpKernel {
 
   std::vector<string> input_nodes_;
   std::vector<string> output_nodes_;
-  std::shared_ptr<nvinfer1::IGpuAllocator> allocator_;
+  std::shared_ptr<TRTBaseAllocator> allocator_;
   string serialized_engine_;
 };
 

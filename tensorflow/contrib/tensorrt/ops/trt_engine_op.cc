@@ -34,8 +34,9 @@ REGISTER_OP("TRTEngineOp")
     .Attr("InT: list({float32})")
     .Attr("OutT: list({float32})")
     .Input("in_tensor: InT")
-    .Output("out_tensor: OutT")
-    .SetShapeFn(shape_inference::TRTEngineOpShapeInference);
+    .Output("out_tensor: OutT");
+    // TODO(sami) the new shape inference is not working
+    //.SetShapeFn(shape_inference::TRTEngineOpShapeInference);
 
 }  // namespace tensorflow
 
