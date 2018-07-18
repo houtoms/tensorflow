@@ -29,6 +29,11 @@ libjpegturbo_copts = select({
     ],
 }) + select({
     ":armeabi-v7a": [
+        "-march=armv7-a",
+        "-mfloat-abi=softfp",
+        "-fprefetch-loop-arrays",
+    ],
+    ":android_arm": [
         "-D__ARM_NEON__",
         "-march=armv7-a",
         "-mfloat-abi=softfp",
@@ -524,6 +529,14 @@ config_setting(
 config_setting(
     name = "android",
     values = {"crosstool_top": "//external:android/crosstool"},
+)
+
+config_setting(
+    name = "android_arm",
+    values = {
+        "crosstool_top": "//external:android/crosstool",
+        "cpu": "armeabi-v7a",
+    },
 )
 
 config_setting(
