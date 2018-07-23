@@ -4,8 +4,15 @@ set -o pipefail
 set -e
 
 #This script sets Tensorflow's configuration options and runs the configure script
-export PYTHON_BIN_PATH="/usr/bin/python"
-export PYTHON_LIB_PATH="/usr/local/lib/python2.7/dist-packages"
+
+TF_PYVER=${TF_PYVER:-"2.7"}
+if [ $TF_PYVER != "2.7" ] && [ $TF_PYVER != "3.5" ]; then
+  echo "Python version must be either 2.7 or 3.5.  Exiting now."
+  exit 1
+fi
+
+export PYTHON_BIN_PATH="/usr/bin/python$TF_PYVER"
+export PYTHON_LIB_PATH="/usr/local/lib/python$TF_PYVER/dist-packages"
 export TF_NEED_S3="0"
 export TF_NEED_OPENCL_SYCL="0"
 export TF_NEED_CUDA="1"
