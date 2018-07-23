@@ -3036,23 +3036,35 @@ tensorflow::Status ConvertSubgraph(
     VLOG(2) << "Accessing output index of: " << output_idx
             << ", at node: " << node_name
             << " with output entry from shape_map: " << op_info_vec.size();
-    // TODO(ben,jie): update TRT input format/dimension
-    nvinfer1::DimsCHW input_dim_pseudo_chw;
-    for (int i = 0; i < 3; i++) input_dim_pseudo_chw.d[i] = 1;
 
-    // TODO(jie): TRT 3.x only support 4 dimensional input tensor.
-    //            update the code once TRT 4.0 comes out.
+#if NV_TENSORRT_MAJOR == 3
+    nvinfer1::DimsCHW input_dim;
+    // TRT 3.x only support 4 dimensional input tensor.
     if (op_info.shape().dim_size() != 4) {
       string err_str = "Require 4 dimensional input.";
       StrAppend(&err_str, " Got ", op_info.shape().dim_size(), " ",
                 shape_inference_node_name);
       return tensorflow::errors::Unimplemented(err_str);
     }
+    for (int i = 0; i < 3; i++) input_dim.d[i] = 1;
+#elif NV_TENSORRT_MAJOR > 3
+    nvinfer1::Dims input_dim;
+    // TRT 3.x only support 4 dimensional input tensor.
+    if (op_info.shape().dim_size() > 8) {
+      string err_str = "Cannot handle tensor with rank > 8 ";
+      StrAppend(&err_str, " Got ", op_info.shape().dim_size(), " ",
+                shape_inference_node_name);
+      return tensorflow::errors::Unimplemented(err_str);
+    }
+    input_dim.nbDims = op_info.shape().dim_size() - 1;
+#endif
+    // TODO(ben,jie): update TRT input format/dimension
+
 
     for (int i = 1; i < op_info.shape().dim_size(); i++) {
       VLOG(2) << "dimension: " << i
               << " , size: " << op_info.shape().dim(i).size();
-      input_dim_pseudo_chw.d[i - 1] = op_info.shape().dim(i).size();
+      input_dim.d[i - 1] = op_info.shape().dim(i).size();
     }
 
     // TODO(ben,jie): proper way to restore input tensor name?
@@ -3065,7 +3077,7 @@ tensorflow::Status ConvertSubgraph(
     input_names->push_back(input_tensor_name);
     input_dtypes->push_back(tf_dtype);
     nvinfer1::ITensor* input_tensor = converter.network()->addInput(
-        input_tensor_name.c_str(), dtype, input_dim_pseudo_chw);
+        input_tensor_name.c_str(), dtype, input_dim);
 
     if (!input_tensor)
       return tensorflow::errors::InvalidArgument(
