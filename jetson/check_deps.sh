@@ -28,7 +28,6 @@ else
 fi
 
 if [ $TF_PYVER == "2.7" ];  then
-  echo "2.7"
   if sudo dpkg -V python-pip 2>/dev/null; then
     echo "Python-pip package is installed."
   else
@@ -40,7 +39,6 @@ else
     echo "Python version must be either 2.7 or 3.5.  Exiting now."
     exit 1
   else  
-    echo "3.5"
     #For python 3
     if sudo dpkg -V python3-pip 2>/dev/null; then
       echo "Python3-pip package is installed."

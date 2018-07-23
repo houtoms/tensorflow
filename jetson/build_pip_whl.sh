@@ -33,6 +33,8 @@ fi
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd $SCRIPT_DIR
 
+TF_PYVER=${TF_PYVER:-"2.7"}
+
 SECONDS=0
 #Install required dependencies
 sudo -H bash check_deps.sh
@@ -50,7 +52,16 @@ bash tensorflow/tools/pip_package/build_pip_package.sh $FINAL_WHL_BUILD_PATH
 cd jetson/
 
 #Install the Tensorflow package
-sudo -H pip install $FINAL_WHL_BUILD_PATH/*
+if [ $TF_PYVER == "2.7" ];  then
+  sudo -H pip install $FINAL_WHL_BUILD_PATH/*
+else 
+  if [ $TF_PYVER != "3.5" ]; then
+    echo "Python version must be either 2.7 or 3.5.  Exiting now."
+    exit 1
+  else
+    sudo -H pip3 install $FINAL_WHL_BUILD_PATH/*
+  fi
+fi
 TF_BUILD_TIME=$SECONDS
 
 #Remove Swapfile 
