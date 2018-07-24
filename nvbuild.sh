@@ -63,7 +63,7 @@ if [[ $NOCLEAN -eq 0 ]]; then
   bazel clean --expunge
   rm -rf /root/.cache/bazel
   rm .tf_configure.bazelrc .bazelrc
-  if [[ "$LIBCUA_FOUND" -eq 0 ]]; then
+  if [[ "$LIBCUDA_FOUND" -eq 0 ]]; then
     rm /usr/local/cuda/lib64/stubs/libcuda.so.1
   fi
 fi
