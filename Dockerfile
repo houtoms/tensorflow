@@ -1,4 +1,4 @@
-FROM gitlab-dl.nvidia.com:5005/dgx/cuda:9.0-cudnn7.1-devel-ubuntu16.04--18.08
+FROM gitlab-dl.nvidia.com:5005/dgx/cuda:9.0-cudnn7.2-devel-ubuntu16.04--18.08
 
 ################################################################################
 # TODO: REMOVE THESE LINES ONCE BASE CONTIANER INTEGRATES MOFED USERSPACE DRIVER
