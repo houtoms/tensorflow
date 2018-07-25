@@ -5,51 +5,24 @@ set -e
 
 TF_PYVER=${TF_PYVER:-"2.7"}
 
-#Check if base system packages are installed
-if sudo dpkg -V build-essential 2>/dev/null; then
-  echo "build-essential package is installed."
-else
-  echo "build-essential package is not installed.  Installing now."
-  echo "y" | sudo apt-get install build-essential
-fi  
+#Install base system packages (Likely can be assumed)
+sudo apt-get install -y build-essential openjdk-8-jdk zip python-pip python3-pip
+pip install virtualenv && mv /usr/local/bin/virtualenv /usr/local/bin/virtualenv2
+pip3 install virtualenv && mv /usr/local/bin/virtualenv /usr/local/bin/virtualenv3
 
-if sudo dpkg -V openjdk-8-jdk 2>/dev/null; then
-  echo "OpenJDK-8-jdk package is installed."
-else
-  echo "OpenJDK-8-jdk package is not installed.  Installing now."
-  echo "y" | sudo apt-get install openjdk-8-jdk
-fi
 
-if sudo dpkg -V zip 2>/dev/null; then
-  echo "zip package is installed."
-else
-  echo "zip package is not installed.  Installing now."
-  echo "y" | sudo apt-get install zip
-fi
-
+#Install virtualenv, then the relevant pip packages
 if [ $TF_PYVER == "2.7" ];  then
-  if sudo dpkg -V python-pip 2>/dev/null; then
-    echo "Python-pip package is installed."
-  else
-    echo "Python-pip package is not installed.  Installing now."
-    echo "y" | sudo apt-get install python-pip
-  fi
+  python2 -m virtualenv2 tf_env
 else
-  if [ $TF_PYVER != "3.5" ]; then
-    echo "Python version must be either 2.7 or 3.5.  Exiting now."
-    exit 1
-  else  
-    #For python 3
-    if sudo dpkg -V python3-pip 2>/dev/null; then
-      echo "Python3-pip package is installed."
-    else
-      echo "Python3-pip package is not installed.  Installing now."
-      echo "y" | sudo apt-get install python3-pip
-    fi
-  fi
+  #For python 3; Assuming python version is one of the two options
+  python3 -m virtualenv3 tf_env
 fi
 
-#Check to see if bazel is installed
+#Activate the virtual environment; from here on, python refers to the desired version
+source tf_env/bin/activate
+
+#Check to see if bazel is installed TODO: Update
 if command -v bazel 2>/dev/null; then
   echo "Bazel is installed."
 else 
@@ -64,51 +37,7 @@ else
   cd $curDir
 fi
 
+#Install required pip packages
+pip install -y numpy enum34 mock
 
-if [ $TF_PYVER == "2.7" ]; then
-  #Check to see if numpy is installed
-  if pip list | grep numpy 2>/dev/null; then
-    echo "numpy is installed"
-  else
-    echo "numpy is not installed.  Installing now."
-    echo "y" | sudo pip install numpy
-  fi
 
-  #Check for enum34
-  if pip list | grep enum34 2>/dev/null; then
-    echo "enum34 is installed"
-  else
-    echo "enum34 is not installed.  Installing now."
-    echo "y" | sudo pip install enum34
-  fi
-
-  #Check for mock
-  if pip list | grep mock 2>/dev/null; then
-    echo "mock is installed"
-  else
-    echo "mock is not installed.  Installing now."
-    echo "y" | sudo pip install mock
-  fi
-else
-  #Python 3 versions of required packages
-  if pip3 list | grep numpy 2>/dev/null; then
-    echo "numpy is installed"
-  else
-    echo "numpy is not installed.  Installing now."
-    echo "y" | sudo pip3 install numpy
-  fi
-  
-  if pip3 list | grep enum34 2>/dev/null; then
-    echo "enum34 is installed"
-  else
-    echo "enum34 is not installed.  Installing now."
-    echo "y" | sudo pip3 install enum34
-  fi
-
-  if pip3 list | grep mock 2>/dev/null; then
-    echo "mock is installed"
-  else
-    echo "mock is not installed.  Installing now."
-    echo "y" | sudo pip3 install mock
-  fi
-fi
