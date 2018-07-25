@@ -17,7 +17,28 @@ cd $SCRIPT_DIR
 
 SECONDS=0
 #Install required dependencies
-bash check_deps.sh
+
+TF_PYVER=${TF_PYVER:-"2"}
+
+
+#Install virtualenv
+python${TF_PYVER} -m virtualenv tf_env
+
+#Activate the virtual environment; from here on, python refers to the desired version
+source tf_env/bin/activate
+
+#Install bazel
+mkdir -p ~/Bazel
+pushd ~/Bazel
+wget https://github.com/bazelbuild/bazel/releases/download/0.13.0/bazel-0.13.0-dist.zip
+unzip bazel-0.13.0-dist.zip
+bash compile.sh
+popd
+
+
+#Install required pip packages
+pip install -y numpy enum34 mock
+
 
 #Set configuration options and run configure script
 bash auto_conf.sh
