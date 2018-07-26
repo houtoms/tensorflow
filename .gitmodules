@@ -9,3 +9,6 @@
 [submodule "nvidia-examples/OpenSeq2Seq"]
 	path = nvidia-examples/OpenSeq2Seq
 	url = https://github.com/NVIDIA/OpenSeq2Seq
+[submodule "third_party/horovod"]
+	path = third_party/horovod
+	url = git@gitlab-dl.nvidia.com:nluehr/horovod.git

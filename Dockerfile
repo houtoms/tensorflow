@@ -151,12 +151,10 @@ ENV HOROVOD_GPU_ALLREDUCE NCCL
 ENV HOROVOD_NCCL_INCLUDE /usr/include
 ENV HOROVOD_NCCL_LIB /usr/lib/x86_64-linux-gnu
 ENV HOROVOD_NCCL_LINK SHARED
-RUN git clone https://github.com/uber/horovod.git -b v0.13.8 /horovod && \
-    cd /horovod && \
+RUN cd /opt/tensorflow/third_party/horovod && \
     ln -s /usr/local/cuda/lib64/stubs/libcuda.so ./libcuda.so.1 && \
     export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$PWD && \
-    python setup.py install && \
-    rm -rf /horovod
+    python setup.py install
 
 WORKDIR /workspace
 COPY NVREADME.md README.md
