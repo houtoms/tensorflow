@@ -35,6 +35,7 @@ NUM_GPUS=`nvidia-smi -L | wc -l` && \
               -- \
               //tensorflow/compiler/... \
               -//tensorflow/compiler/xla/tests:local_client_execute_test_gpu \
+              -//tensorflow/compiler/xla/python:xla_client_test \
   | tee testresult.tmp
 RESULT=$?
 
