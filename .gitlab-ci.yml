@@ -364,6 +364,10 @@ L0_models_alexnet--P100_R384_4GPU:
     <<: *L0_TEST
     <<: *P100_R384_4GPU
 
+L0_horovod_self_test--P100_R384_4GPU:
+    <<: *L0_TEST
+    <<: *P100_R384_4GPU
+
 L0_models_imagenet--P100_R384_4GPU:
     <<: *L0_TEST
     <<: *P100_R384_4GPU
@@ -499,6 +503,10 @@ L2_models_cifar10--P100_R384_4GPU:
 L0_models_alexnet--V100_R384_1GPU:
     <<: *L0_TEST
     <<: *V100_R384_1GPU
+
+L0_horovod_self_test--V100_R384_4GPU:
+    <<: *L0_TEST
+    <<: *V100_R384_4GPU
 
 L0_models_imagenet--V100_R384_1GPU:
     <<: *L0_TEST
@@ -645,6 +653,10 @@ L0_models_alexnet--py2--V100_R384_1GPU:
     <<: *L0_TEST
     <<: *V100_R384_1GPU
 
+L0_horovod_self_test--py2--V100_R384_4GPU:
+    <<: *L0_TEST
+    <<: *P100_R384_4GPU
+
 L0_models_imagenet--py2--V100_R384_1GPU:
     <<: *L0_TEST
     <<: *V100_R384_1GPU
@@ -777,6 +789,10 @@ L0_models_alexnet--P40_R384_1GPU:
     <<: *L0_TEST
     <<: *P40_R384_1GPU
 
+L0_horovod_self_test--P40_R384_2GPU:
+    <<: *L0_TEST
+    <<: *P40_R384_2GPU
+
 L0_models_imagenet--P40_R384_1GPU:
     <<: *L0_TEST
     <<: *P40_R384_1GPU
@@ -900,6 +916,10 @@ L2_models_cifar10--P40_R384_1GPU:
 L0_models_alexnet--M40_R384_1GPU:
     <<: *L0_TEST
     <<: *M40_R384_1GPU
+
+L0_horovod_self_test--M40_R384_2GPU:
+    <<: *L0_TEST
+    <<: *M40_R384_2GPU
 
 L0_models_imagenet--M40_R384_1GPU:
     <<: *L0_TEST
