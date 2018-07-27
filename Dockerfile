@@ -90,6 +90,8 @@ RUN pip install --no-cache-dir --upgrade \
         future \
         mock
 
+
+
 # other OpenSeq2Seq dependencies
 RUN pip install --no-cache-dir --upgrade \
         resampy \
@@ -97,7 +99,9 @@ RUN pip install --no-cache-dir --upgrade \
         pandas==0.23.0 \
         six \
         mpi4py \
-        tqdm
+        librosa \
+        matplotlib \
+        joblib==0.11
 
 # Set up Bazel.
 # Running bazel inside a `docker build` command causes trouble, cf:
