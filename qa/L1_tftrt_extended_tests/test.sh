@@ -1,9 +1,18 @@
 #!/bin/bash
 
-PYTHONPATH=$PYTHONPATH:$PWD/../third_party/tensorflow_models/research/slim:$PWD/../third_party/tensorflow_models/research/
 
 cd tf_trt_models
 
+git clone https://github.com/tensorflow/models.git
+
+pushd models/research
+sed '87s/^/\/\//' object_detection/protos/ssd.proto
+protoc object_detection/protos/*.proto --python_out=.
+sudo python setup.py install
+pushd slim
+sudo python setup.py install
+popd
+popd
 
 set -e
 
