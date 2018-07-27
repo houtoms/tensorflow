@@ -43,7 +43,7 @@ if USE_TRT == 1:
         outputs=output_names,
         max_batch_size=32,
         max_workspace_size_bytes=1 << 25,
-        precision_mode='FP16',
+        precision_mode='FP32',
         minimum_segment_size=50
     )
 
