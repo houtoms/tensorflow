@@ -924,9 +924,9 @@ L1_cnn_sanity--P40_R384_1GPU:
     <<: *L1_TEST
     <<: *P40_R384_1GPU
 
-L1_tftrt_extended_tests--P40_R384_1GPU:
+L1_tftrt_extended_tests--P100_R384_1GPU:
     <<: *L1_TEST
-    <<: *P40_R384_1GPU
+    <<: *P100_R384_1GPU
 
 L2_bench_alexnet--P40_R384_1GPU:
     <<: *L2_CNN_BENCHMARK
