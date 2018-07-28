@@ -2,4 +2,4 @@
 
 set -e
 
-python /opt/tensorflow/tensorflow/contrib/tensorrt/test/test_tftrt.py
+python ../../tensorflow/contrib/tensorrt/test/test_tftrt.py

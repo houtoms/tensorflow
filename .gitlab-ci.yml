@@ -22,8 +22,11 @@ stages:
     - test
     - staging
 
+#############################
+####### Docker builds #######
+#############################
 before_script:
-    - echo "${CI_BUILD_NAME}" | grep -Eq "(^|-)py2($|-)" && export PYVER=2.7 || export PYVER=3.5   && echo "${PYVER}"
+    - echo "${CI_JOB_NAME}" | grep -Eq "(^|-)py2($|-)" && export PYVER=2.7 || export PYVER=3.5   && echo "${PYVER}"
     - export NV_DOCKER_ARGS="curl -s http://localhost:3476/docker/cli?dev=${RUNNER_GPUS//,/+}"     && echo "${NV_DOCKER_ARGS}"
     - export RELEASE_BRANCH_NAME=${CI_COMMIT_REF_NAME%%-devel}                                     && echo "${RELEASE_BRANCH_NAME}"
     - export IMAGE_NAME_ROOT="${CI_REGISTRY_IMAGE}:${RELEASE_BRANCH_NAME}-py${PYVER%.*}"           && echo "${IMAGE_NAME_PREFIX}"
@@ -36,7 +39,6 @@ before_script:
     - export ORIGIN1="${CI_REPOSITORY_URL##*@}"
     - export ORIGIN_SSH=git@${ORIGIN1/\//:}                                                        && echo "${ORIGIN_SSH}"
     - export ORIGIN_HTTPS=https://${ORIGIN1}                                                       && echo "${ORIGIN_HTTPS}"
-    - docker login -u gitlab-ci-token -p "${CI_JOB_TOKEN}" "${CI_REGISTRY}"
 
 .base_template : &BASE
     variables:
@@ -44,6 +46,7 @@ before_script:
       GIT_SUBMODULE_STRATEGY: recursive
       GET_SOURCES_ATTEMPTS: 3
     script:
+    - docker login -u gitlab-ci-token -p "${CI_JOB_TOKEN}" "${CI_REGISTRY}"
     - echo -e "Dockerfile*\n"
               ".git*\n"
               ".dockerignore\n"
@@ -61,6 +64,7 @@ before_script:
     - docker push "${BASE_IMAGE_NAME_VERSIONED}"
     except:
     - tags
+    - schedules
 
 py2-base:
     stage: build base
@@ -76,6 +80,7 @@ py3-base:
       GIT_SUBMODULE_STRATEGY: recursive
       GET_SOURCES_ATTEMPTS: 3
     script:
+    - docker login -u gitlab-ci-token -p "${CI_JOB_TOKEN}" "${CI_REGISTRY}"
     - echo -e "FROM ${BASE_IMAGE_NAME_VERSIONED}\n"
               "COPY Dockerfile* /opt/${CI_PROJECT_NAME}/\n"
               "COPY .gitignore /opt/${CI_PROJECT_NAME}/\n"
@@ -94,6 +99,7 @@ py3-base:
     - docker push "${DEVEL_IMAGE_NAME_VERSIONED}"
     except:
     - tags
+    - schedules
 
 py2-devel:
     stage: build devel
@@ -110,15 +116,15 @@ digits:
       GIT_SUBMODULE_STRATEGY: none
       GET_SOURCES_ATTEMPTS: 3
     script:
-    - export REPO="${ORIGIN1/${CI_PROJECT_NAME}/${CI_BUILD_NAME}}"
-    - export REPO_SSH="${ORIGIN_SSH/${CI_PROJECT_NAME}/${CI_BUILD_NAME}}"
+    - export REPO="${ORIGIN1/${CI_PROJECT_NAME}/${CI_JOB_NAME}}"
+    - export REPO_SSH="${ORIGIN_SSH/${CI_PROJECT_NAME}/${CI_JOB_NAME}}"
     - mkdir triggers
     - cd triggers
     - git config --global user.name "gitlab-runner"
     - git config --global user.email "gitlab-runner@${REPO%%/*}"
     - git config --global push.default simple
-    - git clone ${REPO_SSH} --branch ${CI_BUILD_REF_NAME} ${CI_BUILD_NAME}
-    - cd ${CI_BUILD_NAME}
+    - git clone ${REPO_SSH} --branch ${CI_BUILD_REF_NAME} ${CI_JOB_NAME}
+    - cd ${CI_JOB_NAME}
     - git submodule sync
     - git submodule update --init -- ${CI_PROJECT_NAME} || true
     - cd ${CI_PROJECT_NAME}
@@ -133,6 +139,7 @@ digits:
     - /^.*-devel$/
     except:
     - tags
+    - schedules
     allow_failure: true
 
 .stage_template : &STAGE
@@ -142,6 +149,7 @@ digits:
       GIT_SUBMODULE_STRATEGY: recursive
       GET_SOURCES_ATTEMPTS: 3
     script:
+    - docker login -u gitlab-ci-token -p "${CI_JOB_TOKEN}" "${CI_REGISTRY}"
     # push a xx.yy-stage tag that records the commit we staged from
     - git remote set-url origin ${ORIGIN_SSH}
     - git push --delete origin refs/tags/${CI_COMMIT_REF_NAME/%-devel/-stage}
@@ -160,6 +168,7 @@ digits:
     - /^.*-devel$/
     except:
     - tags
+    - schedules
     when: manual
 
 py2-stage:
@@ -176,7 +185,8 @@ py3-stage:
       TEST_WORK_DIR: "/opt/${CI_PROJECT_NAME}/qa/${CI_JOB_NAME}/"
       TEST_SCRIPT: "./test.sh"
     script:
-    - export RUNNER="${CI_BUILD_NAME##*--}"
+    - docker login -u gitlab-ci-token -p "${CI_JOB_TOKEN}" "${CI_REGISTRY}"
+    - export RUNNER="${CI_JOB_NAME##*--}"
     - export TEST_WORK_DIR="${TEST_WORK_DIR%%--*}"
     - export TEST_SCRIPT="${TEST_SCRIPT/--$RUNNER.sh/.sh}"
     - export TEST_SCRIPT="${TEST_SCRIPT/--py[23].sh/.sh}"
@@ -200,16 +210,19 @@ py3-stage:
     - must_specify_runner
     except:
     - tags
+    - schedules
     allow_failure: false
 
 .manual_test_trigger: &MANUAL_TEST_TRIGGER
     stage: trigger
     script:
+    - docker login -u gitlab-ci-token -p "${CI_JOB_TOKEN}" "${CI_REGISTRY}"
     - export SCOPE1=${CI_JOB_NAME%% tests}; export SCOPE=${SCOPE1##Run all }
     - docker pull ${CI_REGISTRY}/devops/scripts:nvdl_nightly_test_scheduler
     - docker run --rm ${CI_REGISTRY}/devops/scripts:nvdl_nightly_test_scheduler ${CI_PIPELINE_ID} ${CI_PROJECT_PATH} ${SCOPE}
     except:
     - tags
+    - schedules
     when: manual
 
 .L0_test: &L0_TEST
@@ -303,6 +316,71 @@ py3-stage:
     - 1GPU
     only:
     - /^.*-devel$/
+
+.TX2: &TX2
+    tags:
+    - TX2
+
+############################
+####### Wheel builds #######
+############################
+
+.base_template_wheel_metal: &BASE_WHEEL_METAL
+    variables:
+      GIT_STRATEGY: fetch
+      GIT_SUBMODULE_STRATEGY: recursive
+      GET_SOURCES_ATTEMPTS: 3
+    script:
+    - export TARGET=${TARGET:-$(echo ${CI_JOB_NAME} | cut -d - -f 1)}
+    - ./${TARGET}/build_pip_whl.sh
+    artifacts:
+      name: "${CI_JOB_NAME}"
+      paths:
+      - wheelhouse/*.whl
+      expire_in: 1 month
+    only:
+    - schedules
+
+jetson-build-py2-wheel:
+    stage: build base
+    <<: *BASE_WHEEL_METAL
+    <<: *TX2
+
+jetson-build-py3-wheel:
+    stage: build base
+    <<: *BASE_WHEEL_METAL
+    <<: *TX2
+
+.test_template_wheel_metal: &TEST_TEMPLATE_WHEEL_METAL
+    variables:
+      GIT_STRATEGY: fetch
+      GIT_SUBMODULE_STRATEGY: recursive
+      GET_SOURCES_ATTEMPTS: 3
+      TEST_WORK_DIR: "./qa/${CI_JOB_NAME}/"
+      TEST_SCRIPT: "./test.sh"
+    script:
+    - export RUNNER="${CI_JOB_NAME##*--}"
+    - export TEST_WORK_DIR="${TEST_WORK_DIR%%--*}"
+    - export TEST_SCRIPT="${TEST_SCRIPT/--$RUNNER.sh/.sh}"
+    - export TEST_SCRIPT="${TEST_SCRIPT/--py[23].sh/.sh}"
+    - export PIP_PACKAGE_NAME="${CI_PROJECT_NAME}-gpu"
+    - set -x &&
+      python${PYVER} -m virtualenv ./tf_env &&
+      source ./tf_env/bin/activate &&
+      pip install --find-links=file://$PWD/wheelhouse ${PIP_PACKAGE_NAME} &&
+      cd ${TEST_WORK_DIR} &&
+      exec bash -ex ${TEST_SCRIPT} || RV=$?;
+      set +x;
+      exit ${RV:-0}
+    tags:
+    - must_specify_runner
+    only:
+    - schedules
+    allow_failure: false
+
+.nightly_test: &NIGHTLY_TEST
+    stage: test
+    <<: *TEST_TEMPLATE_WHEEL_METAL
 
 ######################################################
 ##
@@ -537,7 +615,7 @@ L0_convnet_benchmarks_overfeat--V100_R384_1GPU:
       TEST_WORK_DIR: "/opt/tensorflow/qa/L0_convnet_benchmarks"
       TEST_SCRIPT: "./test-overfeat.sh"
 
-L0_convnet_benchmarks_vgga--1100_R384_1GPU:
+L0_convnet_benchmarks_vgga--V100_R384_1GPU:
     <<: *L0_TEST
     <<: *V100_R384_1GPU
     variables:
@@ -1086,3 +1164,65 @@ L0_resnet_sanity--GV100_R390_1GPU:
     <<: *L0_TEST
     <<: *GV100_R390_1GPU
 
+
+#### TX2 ####
+
+L0_models_alexnet--py3--TX2:
+    <<: *NIGHTLY_TEST
+    <<: *TX2
+
+L0_models_imagenet--py3--TX2:
+    <<: *NIGHTLY_TEST
+    <<: *TX2
+
+L0_models_mnist--py3--TX2:
+    <<: *NIGHTLY_TEST
+    <<: *TX2
+
+L0_convnet_benchmarks_alexnet--py3--TX2:
+    <<: *NIGHTLY_TEST
+    <<: *TX2
+    variables:
+      TEST_WORK_DIR: "./qa/L0_convnet_benchmarks"
+      TEST_SCRIPT: "./test-alexnet.sh"
+
+L0_convnet_benchmarks_googlenet--py3--TX2:
+    <<: *NIGHTLY_TEST
+    <<: *TX2
+    variables:
+      TEST_WORK_DIR: "./qa/L0_convnet_benchmarks"
+      TEST_SCRIPT: "./test-googlenet.sh"
+
+L0_convnet_benchmarks_overfeat--py3--TX2:
+    <<: *NIGHTLY_TEST
+    <<: *TX2
+    variables:
+      TEST_WORK_DIR: "./qa/L0_convnet_benchmarks"
+      TEST_SCRIPT: "./test-overfeat.sh"
+
+L0_convnet_benchmarks_vgga--py3--TX2:
+    <<: *NIGHTLY_TEST
+    <<: *TX2
+    variables:
+      TEST_WORK_DIR: "./qa/L0_convnet_benchmarks"
+      TEST_SCRIPT: "./test-vgga.sh"
+
+L0_tftrt--py3--TX2:
+    <<: *NIGHTLY_TEST
+    <<: *TX2
+
+L0_models_alexnet--py2--TX2:
+    <<: *NIGHTLY_TEST
+    <<: *TX2
+
+L0_models_imagenet--py2--TX2:
+    <<: *NIGHTLY_TEST
+    <<: *TX2
+
+L0_models_mnist--py2--TX2:
+    <<: *NIGHTLY_TEST
+    <<: *TX2
+
+L0_tftrt--py2--TX2:
+    <<: *NIGHTLY_TEST
+    <<: *TX2

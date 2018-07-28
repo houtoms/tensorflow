@@ -3,27 +3,31 @@
 set -e
 set -o pipefail
 
-nvidia-smi
-cd /opt/tensorflow
-PYVER=$(python -c 'import sys; print("{}.{}".format(sys.version_info[0], sys.version_info[1]))')
-./nvbuild.sh --configonly --python$PYVER
-
-tensorflow/tools/ci_build/install/install_bootstrap_deb_packages.sh
-tensorflow/tools/ci_build/install/install_deb_packages.sh
-add-apt-repository -y ppa:openjdk-r/ppa && \
-  add-apt-repository -y ppa:george-edison55/cmake-3.x
-
-if [[ "${PYVER%.*}" == "3" ]]; then
-  tensorflow/tools/ci_build/install/install_python${PYVER}_pip_packages.sh
+NATIVE_ARCH=`uname -m`
+if [ ${NATIVE_ARCH} == 'aarch64' ]; then
+  NUM_GPUS=1
+  pushd ../../jetson
+  bash auto_conf.sh
+  popd
 else
-  tensorflow/tools/ci_build/install/install_pip_packages.sh
-fi
-tensorflow/tools/ci_build/install/install_proto3.sh
-tensorflow/tools/ci_build/install/install_auditwheel.sh
+  cd ../../
+  PYVER=$(python -c 'import sys; print("{}.{}".format(sys.version_info[0], sys.version_info[1]))')
+  ./nvbuild.sh --configonly --python$PYVER
+  NUM_GPUS=`nvidia-smi -L | wc -l`
+
+  tensorflow/tools/ci_build/install/install_bootstrap_deb_packages.sh
+  tensorflow/tools/ci_build/install/install_deb_packages.sh
+  add-apt-repository -y ppa:openjdk-r/ppa && \
+    add-apt-repository -y ppa:george-edison55/cmake-3.x
+  if [[ "${PYVER%.*}" == "3" ]]; then
+    tensorflow/tools/ci_build/install/install_python${PYVER}_pip_packages.sh
+    tensorflow/tools/ci_build/install/install_pip_packages.sh
+  fi
+  tensorflow/tools/ci_build/install/install_proto3.sh
+  tensorflow/tools/ci_build/install/install_auditwheel.sh
+fi #aarch64 check
 
 export LD_LIBRARY_PATH=/usr/local/cuda/extras/CUPTI/lib64:$LD_LIBRARY_PATH
-
-set +e
 FAILS=0
 
 # Note: //tensorflow/python/debug:debugger_cli_common_test fails when run as root due to a file permissions issue.
@@ -33,8 +37,7 @@ FAILS=0
 # Note: cluster_function_library_runtime_test fails intermitently when run in
 #       with 'status: Unavailable: Endpoint read failed'
 #       or 'UnknownError: Could not start gRPC server
-NUM_GPUS=`nvidia-smi -L | wc -l` && \
-  bazel test  --config=cuda -c opt --verbose_failures --local_test_jobs=$NUM_GPUS \
+bazel test --config=cuda -c opt --verbose_failures --local_test_jobs=$NUM_GPUS \
               --run_under=//tensorflow/tools/ci_build/gpu_build:parallel_gpu_execute \
               --test_tag_filters=-no_gpu,-benchmark-test --cache_test_results=no \
               --build_tests_only \
@@ -71,7 +74,7 @@ NUM_GPUS=`nvidia-smi -L | wc -l` && \
               -//tensorflow/python/kernel_tests:conv_ops_test \
               `# data_utils_test hangs.` \
               -//tensorflow/python/keras:data_utils_test \
-  | tee testresult.tmp
+| tee testresult.tmp
 
 FAILS=$((FAILS+$?))
 
@@ -94,6 +97,6 @@ bazel test    --config=cuda -c opt --verbose_failures --local_test_jobs=1 \
 FAILS=$((FAILS+$?))
 
 set -e
-{ grep "test\.log" testresult.tmp || true; } | /opt/tensorflow/qa/show_testlogs
+{ grep "test\.log" testresult.tmp || true; } | ../show_testlogs
 
 exit $FAILS
