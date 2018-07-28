@@ -229,7 +229,8 @@ headers = (list(find_files('*.h', 'tensorflow/core')) +
 
 setup(
     name=project_name,
-    version=_VERSION.replace('-', ''),
+    version=_VERSION.replace('-', '')+"+nv"+os.getenv('RELEASE_BRANCH_NAME', ""),
+    build_tag=os.getenv('CI_PIPELINE_ID', ""),
     description=DOCLINES[0],
     long_description='\n'.join(DOCLINES[2:]),
     url='https://www.tensorflow.org/',

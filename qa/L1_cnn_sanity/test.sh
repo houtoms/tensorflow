@@ -3,11 +3,15 @@
 echo '--------------------------------------------------------------------------------'
 echo TensorFlow Container $NVIDIA_TENSORFLOW_VERSION
 echo Container Build ID $NVIDIA_BUILD_ID
-nvidia-smi
 echo Uptime: $(uptime)
 echo '--------------------------------------------------------------------------------'
 
-GPUS=$(nvidia-smi -L | wc -l)
+NATIVE_ARCH=`uname -m`
+if [ ${NATIVE_ARCH} == 'aarch64' ]; then
+  GPUS=1
+else
+  GPUS=$(nvidia-smi -L | wc -l)
+fi
 BATCH_SIZE=32
 PRECISION="fp32"
 DATA="--data_dir=/data/imagenet/train-val-tfrecord-480"
@@ -31,7 +35,7 @@ get_PERF() {
     SCRIPT="$1"
     local TMP_DIR="$(mktemp -d tmp.XXXXXX)"
     mpiexec --bind-to socket --allow-run-as-root -np $GPUS python -u \
-        /opt/tensorflow/nvidia-examples/cnn/$SCRIPT \
+        ../../nvidia-examples/cnn/$SCRIPT \
         --num_iter=100 \
         --iter_unit=batch \
         --display_every=50 \

@@ -3,7 +3,7 @@
 set -e
 set -o pipefail
 
-cd /opt/tensorflow/nvidia-examples/OpenSeq2Seq
+cd ../../nvidia-examples/OpenSeq2Seq
 ./create_toy_data.sh
 python run.py --config_file=example_configs/text2text/toy-reversal/nmt-reversal-RR.py --mode=train_eval | tee nmt-reversal.out
 
