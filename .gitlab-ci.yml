@@ -1211,6 +1211,14 @@ L0_tftrt--py3--TX2:
     <<: *NIGHTLY_TEST
     <<: *TX2
 
+L1_self_test--py3--TX2:
+    <<: *NIGHTLY_TEST
+    <<: *TX2
+
+L1_self_test_xla--py3--TX2:
+    <<: *NIGHTLY_TEST
+    <<: *TX2
+
 L0_models_alexnet--py2--TX2:
     <<: *NIGHTLY_TEST
     <<: *TX2
