@@ -21,6 +21,7 @@ else
     add-apt-repository -y ppa:george-edison55/cmake-3.x
   if [[ "${PYVER%.*}" == "3" ]]; then
     tensorflow/tools/ci_build/install/install_python${PYVER}_pip_packages.sh
+  else
     tensorflow/tools/ci_build/install/install_pip_packages.sh
   fi
   tensorflow/tools/ci_build/install/install_proto3.sh
