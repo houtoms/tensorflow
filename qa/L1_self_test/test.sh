@@ -3,14 +3,13 @@
 set -e
 set -o pipefail
 
+cd ../../
+
 NATIVE_ARCH=`uname -m`
 if [ ${NATIVE_ARCH} == 'aarch64' ]; then
   NUM_GPUS=1
-  pushd ../../jetson
-  bash auto_conf.sh
-  popd
+  bash ./jetson/auto_conf.sh
 else
-  cd ../../
   PYVER=$(python -c 'import sys; print("{}.{}".format(sys.version_info[0], sys.version_info[1]))')
   ./nvbuild.sh --configonly --python$PYVER
   NUM_GPUS=`nvidia-smi -L | wc -l`
@@ -29,6 +28,8 @@ else
 fi #aarch64 check
 
 export LD_LIBRARY_PATH=/usr/local/cuda/extras/CUPTI/lib64:$LD_LIBRARY_PATH
+
+set +e
 FAILS=0
 
 # Note: //tensorflow/python/debug:debugger_cli_common_test fails when run as root due to a file permissions issue.
@@ -98,6 +99,6 @@ bazel test    --config=cuda -c opt --verbose_failures --local_test_jobs=1 \
 FAILS=$((FAILS+$?))
 
 set -e
-{ grep "test\.log" testresult.tmp || true; } | ../show_testlogs
+{ grep "test\.log" testresult.tmp || true; } | ./qa/show_testlogs
 
 exit $FAILS
