@@ -2,8 +2,8 @@
 
 
 #apt-get install libfreetype6-dev
-apt-get install pkg-config
-apt-get install libpng12-dev
+#apt-get install pkg-config
+#apt-get install libpng12-dev
 
 cd tf_trt_models
 
