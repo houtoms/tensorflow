@@ -1,7 +1,7 @@
 #!/bin/bash
 
 
-apt-get install libfreetype6-dev
+#apt-get install libfreetype6-dev
 apt-get install pkg-config
 apt-get install libpng12-dev
 
