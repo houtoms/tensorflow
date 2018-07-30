@@ -1,23 +1,15 @@
 #!/bin/bash
 
 
-#apt-get install libfreetype6-dev
-#apt-get install pkg-config
-#apt-get install libpng12-dev
-
-
-apt-get install libprotobuf-dev
-apt-get install protobuf-compiler
-pip install protobuf
 
 cd tf_trt_models
-git clone https://github.com/tensorflow/models.git
+ln -sf ../../third_party/tensorflow_models models
 pushd models/research
 sed -i '87s/^/\/\//' object_detection/protos/ssd.proto
 protoc object_detection/protos/*.proto --python_out=.
-sudo python setup.py install
+python setup.py install
 pushd slim
-sudo python setup.py install
+python setup.py install
 popd
 popd
 

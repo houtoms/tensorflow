@@ -68,7 +68,13 @@ else:
 
 
 print(MODEL)
-for batch_size in [1, 32]:
+
+batches = [1, 32]
+if MODEL == 'resnet_v2_101':
+    batches = [1, 16]    
+
+
+for batch_size in batches:
     filenames = tf.placeholder(tf.string, shape=[None])
     dataset = tf.data.TFRecordDataset(filenames)
     dataset = dataset.map(preproc_func)
