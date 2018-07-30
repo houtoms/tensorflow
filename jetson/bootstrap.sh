@@ -18,7 +18,7 @@ fi
 systemctl disable ondemand nvpmodel
 
 # Install base system packages
-apt-get update && apt-get install -y build-essential openjdk-8-jdk zip python-pip python3-pip
+apt-get update && apt-get install -y build-essential openjdk-8-jdk zip python-pip python3-pip libfreetype6-dev libpng12-dev
 pip install virtualenv
 pip3 install virtualenv
 
@@ -31,6 +31,15 @@ unzip bazel-${BAZEL_VERSION}-dist.zip
 bash compile.sh
 cp output/bazel /usr/local/bin/bazel
 popd
+
+# Install protobuf compiler
+PROTOBUF_VERSION=3.4.0 && \
+  curl -L https://github.com/google/protobuf/releases/download/v${PROTOBUF_VERSION}/protobuf-all-${PROTOBUF_VERSION}.tar.gz | tar -xzf - && \
+  cd /protobuf-${PROTOBUF_VERSION} && \
+  ./autogen.sh && \
+  ./configure CXXFLAGS="-fPIC" --prefix=/usr/local --disable-shared 2>&1 > /dev/null && \
+  make -j"$(grep ^processor /proc/cpuinfo | wc -l)" install 2>&1 > /dev/null && \
+  rm -rf /protobuf-${PROTOBUF_VERSION}
 
 #Exit script if not CI
 CI_BOOTSTRAP=${CI_BOOTSTRAP:-1}
