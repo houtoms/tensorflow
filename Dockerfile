@@ -155,10 +155,12 @@ ENV HOROVOD_GPU_ALLREDUCE NCCL
 ENV HOROVOD_NCCL_INCLUDE /usr/include
 ENV HOROVOD_NCCL_LIB /usr/lib/x86_64-linux-gnu
 ENV HOROVOD_NCCL_LINK SHARED
+ENV HOROVOD_WITHOUT_PYTORCH 1
 RUN cd /opt/tensorflow/third_party/horovod && \
     ln -s /usr/local/cuda/lib64/stubs/libcuda.so ./libcuda.so.1 && \
     export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$PWD && \
-    python setup.py install
+    python setup.py install && \
+    python setup.py clean
 
 WORKDIR /workspace
 COPY NVREADME.md README.md
