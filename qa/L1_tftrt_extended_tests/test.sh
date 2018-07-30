@@ -6,9 +6,9 @@
 #apt-get install libpng12-dev
 
 
-pip install protobuf
 apt-get install libprotobuf-dev
 apt-get install protobuf-compiler
+pip install protobuf
 
 cd tf_trt_models
 git clone https://github.com/tensorflow/models.git
@@ -29,12 +29,20 @@ set -e
 ###################### TF_TRT INFERENCE TESTS #####################
 
 
+
+python tf_trt_inference_test.py --model resnet_v1_50 --num_classes 1000 --use_trt 1 
+rm -r data
+
+python tf_trt_inference_test.py --model resnet_v1_101 --num_classes 1000 --use_trt 1 
+rm -r data
+
+
+
 python tf_trt_inference_test.py --model mobilenet_v1_0p25_128 --num_classes 1001 --use_trt 1 
 rm -r data
 
 python tf_trt_inference_test.py --model mobilenet_v1_0p5_160 --num_classes 1001 --use_trt 1
 rm -r data
-
 
 
 
@@ -52,19 +60,16 @@ rm -r data
 
 
 
-
-python tf_trt_inference_test.py --model resnet_v1_50 --num_classes 1001 --use_trt 1 
-rm -r data
-
-python tf_trt_inference_test.py --model resnet_v1_101 --num_classes 1001 --use_trt 1 
-rm -r data
-
-python tf_trt_inference_test.py --model resnet_v1_152 --num_classes 1001 --use_trt 1 
-rm -r data
-
-
-
 #################### TENSORFLOW INFERENCE TESTS ########################
+
+
+
+python tf_trt_inference_test.py --model resnet_v1_50 --num_classes 1000 --use_trt 0 
+rm -r data
+
+python tf_trt_inference_test.py --model resnet_v1_101 --num_classes 1000 --use_trt 0 
+rm -r data
+
 
 
 python tf_trt_inference_test.py --model mobilenet_v1_0p25_128 --num_classes 1001 --use_trt 0 
@@ -72,7 +77,6 @@ rm -r data
 
 python tf_trt_inference_test.py --model mobilenet_v1_0p5_160 --num_classes 1001 --use_trt 0
 rm -r data
-
 
 
 
@@ -91,12 +95,4 @@ rm -r data
 
 
 
-python tf_trt_inference_test.py --model resnet_v1_50 --num_classes 1001 --use_trt 0 
-rm -r data
-
-python tf_trt_inference_test.py --model resnet_v1_101 --num_classes 1001 --use_trt 0 
-rm -r data
-
-python tf_trt_inference_test.py --model resnet_v1_152 --num_classes 1001 --use_trt 0 
-rm -r data
 
