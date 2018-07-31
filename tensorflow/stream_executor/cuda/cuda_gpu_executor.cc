@@ -1016,7 +1016,7 @@ static const UnqueryableDeviceParams kAllUnqueryableDeviceParams[] = {
         32,         // blocks_per_core_limit
         64 * 1024,  // registers_per_core_limit
         255,        // registers_per_thread_limit
-        2,          // warp_alloc_granularity
+        4,          // warp_alloc_granularity
         256,        // register_alloc_granularity
         256,        // shared_memory_alloc_granularity
     },
@@ -1044,6 +1044,24 @@ static const UnqueryableDeviceParams kAllUnqueryableDeviceParams[] = {
     {
         7, 0,       // compute capability (7.0)
         32,         // blocks_per_core_limit
+        64 * 1024,  // registers_per_core_limit
+        255,        // registers_per_thread_limit
+        2,          // warp_alloc_granularity
+        256,        // register_alloc_granularity
+        256,        // shared_memory_alloc_granularity
+    },
+    {
+        7, 3,       // compute capability (7.3)
+        16,         // blocks_per_core_limit
+        64 * 1024,  // registers_per_core_limit
+        255,        // registers_per_thread_limit
+        2,          // warp_alloc_granularity
+        256,        // register_alloc_granularity
+        256,        // shared_memory_alloc_granularity
+    },
+    {
+        7, 5,       // compute capability (7.3)
+        16,         // blocks_per_core_limit
         64 * 1024,  // registers_per_core_limit
         255,        // registers_per_thread_limit
         2,          // warp_alloc_granularity

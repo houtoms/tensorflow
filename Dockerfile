@@ -1,4 +1,5 @@
-FROM gitlab-dl.nvidia.com:5005/dgx/cuda:9.0-cudnn7.2-devel-ubuntu16.04--18.08
+FROM gitlab-dl.nvidia.com:5005/dgx/cuda:10.0-cudnn7.2-devel-ubuntu16.04-cuda10.0--18.08
+#FROM gitlab-dl.nvidia.com:5005/dgx/cuda:10.0-cudnn7.2-devel-ubuntu16.04--18.09
 
 ################################################################################
 # TODO: REMOVE THESE LINES ONCE BASE CONTIANER INTEGRATES MOFED USERSPACE DRIVER
@@ -127,11 +128,11 @@ RUN mkdir -p /workspace/nvidia-examples && \
      ln -s /opt/tensorflow/nvidia-examples/* /workspace/nvidia-examples/
 
 ENV CUDA_TOOLKIT_PATH /usr/local/cuda
-ENV TF_CUDA_VERSION "9.0"
+ENV TF_CUDA_VERSION "10.0"
 ENV TF_CUDNN_VERSION "7"
 ENV CUDNN_INSTALL_PATH /usr/lib/x86_64-linux-gnu
 ENV TF_NEED_CUDA 1
-ENV TF_CUDA_COMPUTE_CAPABILITIES "5.2,6.0,6.1,7.0"
+ENV TF_CUDA_COMPUTE_CAPABILITIES "5.2,6.0,6.1,7.0,7.3,7.5"
 ENV TF_NEED_HDFS 0
 ENV TF_ENABLE_XLA 1
 ENV TF_NEED_TENSORRT 1

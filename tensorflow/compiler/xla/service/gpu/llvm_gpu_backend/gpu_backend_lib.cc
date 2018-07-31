@@ -126,8 +126,9 @@ static string GetSmName(std::pair<int, int> compute_capability) {
                                                            {{6, 0}, 60},
                                                            {{6, 1}, 61},
                                                            {{6, 2}, 62},
-                    // TODO: Change this to 70 once LLVM NVPTX supports it
-                                                           {{7, 0}, 60}});
+                                                           {{7, 0}, 70},
+                                                           {{7, 3}, 70},
+                                                           {{7, 5}, 70}});
   int sm_version = 30;
   auto it = m->find(compute_capability);
   if (it != m->end()) {
