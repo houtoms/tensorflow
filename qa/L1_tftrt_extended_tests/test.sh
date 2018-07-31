@@ -1,5 +1,24 @@
 #!/bin/bash
 
+NATIVE_ARCH=`uname -m`
+if [ ${NATIVE_ARCH} == 'x86_64' ]; then
+  # if running on x86 rather than aarch64 then presumably we're in a container
+  # need to install various deps here
+
+  # Libraries
+  apt-get update && apt-get install -y libfreetype6-dev libpng12-dev libjpeg8-dev
+
+  # Protobuf compiler
+  pushd /
+  PROTOBUF_VERSION=3.4.0 && \
+    curl -L https://github.com/google/protobuf/releases/download/v${PROTOBUF_VERSION}/protobuf-all-${PROTOBUF_VERSION}.tar.gz | tar -xzf - && \
+    cd /protobuf-${PROTOBUF_VERSION} && \
+    ./autogen.sh && \
+    ./configure CXXFLAGS="-fPIC" --prefix=/usr/local --disable-shared 2>&1 > /dev/null && \
+    make -j"$(grep ^processor /proc/cpuinfo | wc -l)" install 2>&1 > /dev/null && \
+    rm -rf /protobuf-${PROTOBUF_VERSION}
+  popd
+fi
 
 
 cd tf_trt_models

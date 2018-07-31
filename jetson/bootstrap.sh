@@ -18,7 +18,7 @@ fi
 systemctl disable ondemand nvpmodel
 
 # Install base system packages
-apt-get update && apt-get install -y build-essential openjdk-8-jdk zip python-pip python3-pip libfreetype6-dev libpng12-dev
+apt-get update && apt-get install -y build-essential openjdk-8-jdk zip python-pip python3-pip libfreetype6-dev libpng12-dev libjpeg8-dev
 pip install virtualenv
 pip3 install virtualenv
 
