@@ -161,7 +161,8 @@ RUN cd /opt/tensorflow/third_party/horovod && \
     ln -s /usr/local/cuda/lib64/stubs/libcuda.so ./libcuda.so.1 && \
     export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$PWD && \
     python setup.py install && \
-    python setup.py clean
+    python setup.py clean && \
+    rm ./libcuda.so.1
 
 WORKDIR /workspace
 COPY NVREADME.md README.md
