@@ -169,6 +169,13 @@ COPY NVREADME.md README.md
 COPY docker-examples docker-examples
 RUN chmod -R a+w /workspace
 
+# Temporary fix for compatability lib issues
+RUN mkdir /usr/local/compat && \
+    chmod +w /usr/local/compat && \
+    rm -f /etc/ld.so.conf.d/00-cuda-compat-10-0.conf && \
+    ldconfig
+ENV LD_LIBRARY_PATH /usr/local/compat/lib:${LD_LIBRARY_PATH}
+
 COPY nvidia_entrypoint.sh /usr/local/bin
 ENTRYPOINT ["/usr/local/bin/nvidia_entrypoint.sh"]
 
@@ -177,3 +184,4 @@ ENV NVIDIA_BUILD_ID ${NVIDIA_BUILD_ID:-<unknown>}
 LABEL com.nvidia.build.id="${NVIDIA_BUILD_ID}"
 ARG NVIDIA_BUILD_REF
 LABEL com.nvidia.build.ref="${NVIDIA_BUILD_REF}"
+
