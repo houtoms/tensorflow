@@ -47,6 +47,7 @@ if USE_TRT == 1:
         minimum_segment_size=50
     )
 
+num_nodes = len(frozen_graph.node)
 
 tf_config = tf.ConfigProto()
 tf_config.gpu_options.allow_growth = True
@@ -68,6 +69,7 @@ else:
 
 
 print(MODEL)
+print("num_nodes = {}".format(num_nodes))
 
 batches = [1, 32]
 if MODEL == 'resnet_v2_101':
