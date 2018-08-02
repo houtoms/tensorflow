@@ -81,6 +81,14 @@ rm -r data
 
 
 
+python tf_trt_inference_test.py --model vgg_16 --num_classes 1000 --use_trt 1
+rm -r data
+
+python tf_trt_inference_test.py --model vgg_19 --num_classes 1000 --use_trt 1
+rm -r data
+
+
+
 #################### TENSORFLOW INFERENCE TESTS ########################
 
 
@@ -126,5 +134,8 @@ rm -r data
 
 
 
+python tf_trt_inference_test.py --model vgg_16 --num_classes 1000 --use_trt 0
+rm -r data
 
-
+python tf_trt_inference_test.py --model vgg_19 --num_classes 1000 --use_trt 0
+rm -r data
