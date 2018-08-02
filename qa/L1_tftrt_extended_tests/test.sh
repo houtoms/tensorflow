@@ -47,6 +47,8 @@ rm -r data
 python tf_trt_inference_test.py --model resnet_v1_101 --num_classes 1000 --use_trt 1 
 rm -r data
 
+python tf_trt_inference_test.py --model resnet_v2_50 --num_classes 1001 --use_trt 1
+rm -r data
 
 
 python tf_trt_inference_test.py --model mobilenet_v1_0p25_128 --num_classes 1001 --use_trt 1 
@@ -55,6 +57,14 @@ rm -r data
 python tf_trt_inference_test.py --model mobilenet_v1_0p5_160 --num_classes 1001 --use_trt 1
 rm -r data
 
+python tf_trt_inference_test.py --model mobilenet_v1_1p0_224 --num_classes 1001 --use_trt 1
+rm -r data
+
+python tf_trt_inference_test.py --model mobilenet_v2_1p0_224 --num_classes 1001 --use_trt 1
+rm -r data
+
+python tf_trt_inference_test.py --model mobilenet_v2_1p4_224 --num_classes 1001 --use_trt 1
+rm -r data
 
 
 python tf_trt_inference_test.py --model inception_v1 --use_trt 1
@@ -81,12 +91,23 @@ rm -r data
 python tf_trt_inference_test.py --model resnet_v1_101 --num_classes 1000 --use_trt 0 
 rm -r data
 
+python tf_trt_inference_test.py --model resnet_v2_50 --num_classes 1001 --use_trt 0
+rm -r data
 
 
 python tf_trt_inference_test.py --model mobilenet_v1_0p25_128 --num_classes 1001 --use_trt 0 
 rm -r data
 
 python tf_trt_inference_test.py --model mobilenet_v1_0p5_160 --num_classes 1001 --use_trt 0
+rm -r data
+
+python tf_trt_inference_test.py --model mobilenet_v1_1p0_224 --num_classes 1001 --use_trt 0
+rm -r data
+
+python tf_trt_inference_test.py --model mobilenet_v2_1p0_224 --num_classes 1001 --use_trt 0
+rm -r data
+
+python tf_trt_inference_test.py --model mobilenet_v2_1p4_224 --num_classes 1001 --use_trt 0
 rm -r data
 
 

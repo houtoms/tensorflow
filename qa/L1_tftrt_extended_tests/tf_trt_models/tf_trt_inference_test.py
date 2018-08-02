@@ -137,7 +137,7 @@ for batch_size in batches:
 
         if MODEL == 'inception_v4':
             if abs(result - 0.794921875) > TOLERANCE:
-				print("FAIL")
+                print("FAIL")
                 #exit(1)
             else:
                 print("PASS")
