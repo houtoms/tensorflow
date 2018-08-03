@@ -80,42 +80,42 @@ for batch_size in batches:
     filenames = tf.placeholder(tf.string, shape=[None])
     dataset = tf.data.TFRecordDataset(filenames)
     dataset = dataset.map(preproc_func)
-    dataset = dataset.repeat()
+    dataset = dataset.repeat(count=1)
     dataset = dataset.batch(batch_size)
 
     iterator = dataset.make_initializable_iterator()
     next_element = iterator.get_next()
 
-
-    val_filenames = [os.getcwd() + '/dataset/validation-00001-of-00128']
+    val_filenames = tf.gfile.Glob('/data/imagenet/train-val-tfrecord-480/validation*')
 
     output = tf_sess.run(iterator.initializer, feed_dict={filenames: val_filenames})
 
-    correct_numb = 0
-    
-    corr = []
-    out = []
+    accuracies = []
 
     start = time.time()
-    for i in range(int((1023 + batch_size)/batch_size)):
-        
-        n = tf_sess.run(next_element)
-        x = n[0]
-        value = tf_sess.run(tf_output, feed_dict={tf_input: x})
-		
 
-        for j in range(batch_size):
-            corr.append(n[1][j])
-            out.append(value[j])
-            if (np.argmax(value[j]) - (NUM_CLASSES-1000)) == n[1][j]:
-                correct_numb += 1
+    i = 0
+    while True:
+        i = i + 1
+        try:
+            n = tf_sess.run(next_element)
+            x = n[0]
+            value = tf_sess.run(tf_output, feed_dict={tf_input: x})
+        except tf.errors.OutOfRangeError:
+            break
+
+        accuracies.append(
+            sum(np.argmax(value, axis=1) - (NUM_CLASSES - 1000) == n[1].squeeze()) / \
+            n[1].shape[0])
+        if i % 100 == 0:
+            print("iter {}, accuracy {}".format(i, accuracies[-1]))
+
     t = time.time() - start
     
-    print("MODEL")
     if DET_MODE == 0:
-        print("for batch_size = " + str( batch_size) + " accuracy = " + str(float(correct_numb)/1024.0))
+        result = np.array(accuracies).mean()
+        print("for batch_size = " + str( batch_size) + " accuracy = " + str(result))
         print("time = " + str(t))
-        result = float(correct_numb)/1024.0
         if MODEL == 'inception_v1':
             if abs(result - 0.72265625) > TOLERANCE:
                 print("FAIL")
@@ -248,6 +248,7 @@ for batch_size in batches:
                 print("PASS")
 
     else:
+        corr = []
         out = np.stack(out, axis=0)
         out = out.flatten()
         with open('dataset/cpures.pickle', 'rb') as handle:
