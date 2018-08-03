@@ -9,6 +9,8 @@ import nets.mobilenet.mobilenet_v2
 import nets.resnet_v1
 import nets.resnet_v2
 import nets.vgg
+import nets.nasnet
+import nets.nasnet.nasnet
 
 import os
 import subprocess
@@ -153,6 +155,16 @@ NETS = {
            299, 299, _preprocess_inception, tf.nn.softmax,
            'http://download.tensorflow.org/models/resnet_v2_152_2017_04_14.tar.gz',
            'resnet_v2_152.ckpt', 1001),
+    'nasnet_mobile':
+    NetDef(nets.nasnet.nasnet.build_nasnet_mobile, nets.nasnet.nasnet.nasnet_mobile_arg_scope,
+           224, 224, _preprocess_inception, tf.nn.softmax,
+           'https://storage.googleapis.com/download.tensorflow.org/models/nasnet-a_mobile_04_10_2017.tar.gz',
+           'model.ckpt', 1001),
+    'nasnet_large':
+    NetDef(nets.nasnet.nasnet.build_nasnet_large, nets.nasnet.nasnet.nasnet_large_arg_scope,
+           331, 331, _preprocess_inception, tf.nn.softmax,
+           'https://storage.googleapis.com/download.tensorflow.org/models/nasnet-a_large_04_10_2017.tar.gz',
+           'model.ckpt', 1001),
 }
 
 

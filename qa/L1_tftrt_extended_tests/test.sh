@@ -89,6 +89,14 @@ rm -r data
 
 
 
+python tf_trt_inference_test.py --model nasnet_mobile --num_classes 1001 --use_trt 1
+rm -r data
+
+python tf_trt_inference_test.py --model nasnet_large --num_classes 1001 --use_trt 1
+rm -r data
+
+
+
 #################### TENSORFLOW INFERENCE TESTS ########################
 
 
@@ -138,4 +146,12 @@ python tf_trt_inference_test.py --model vgg_16 --num_classes 1000 --use_trt 0
 rm -r data
 
 python tf_trt_inference_test.py --model vgg_19 --num_classes 1000 --use_trt 0
+rm -r data
+
+
+
+python tf_trt_inference_test.py --model nasnet_mobile --num_classes 1001 --use_trt 0
+rm -r data
+
+python tf_trt_inference_test.py --model nasnet_large --num_classes 1001 --use_trt 0
 rm -r data

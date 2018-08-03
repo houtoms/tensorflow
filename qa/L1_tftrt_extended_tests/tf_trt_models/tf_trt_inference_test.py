@@ -198,6 +198,55 @@ for batch_size in batches:
             else:
                 print("PASS")
 
+        if MODEL == 'mobilenet_v1_1p0_224':
+            if abs(result - 0.7021484375) > TOLERANCE:
+                print("FAIL")
+                exit(1)
+            else:
+                print("PASS")
+
+        if MODEL == 'mobilenet_v2_1p0_224':
+            if abs(result - 0.7158203125) > TOLERANCE:
+                print("FAIL")
+                exit(1)
+            else:
+                print("PASS")
+        
+        if MODEL == 'mobilenet_v2_1p4_224':
+            if abs(result - 0.7705078125) > TOLERANCE:
+                print("FAIL")
+                exit(1)
+            else:
+                print("PASS")
+
+        if MODEL == 'vgg_16':
+            if abs(result - 0.689453125) > TOLERANCE:
+                print("FAIL")
+                exit(1)
+            else:
+                print("PASS")
+
+        if MODEL == 'vgg_19':
+            if abs(result - 0.701171875) > TOLERANCE:
+                print("FAIL")
+                exit(1)
+            else:
+                print("PASS")
+
+        if MODEL == 'nasnet_mobile':
+            if abs(result - 0.7373046875) > TOLERANCE:
+                print("FAIL")
+                exit(1)
+            else:
+                print("PASS")
+
+        if MODEL == 'nasnet_large':
+            if abs(result - 0.8251953125) > TOLERANCE:
+                print("FAIL")
+                exit(1)
+            else:
+                print("PASS")
+
     else:
         out = np.stack(out, axis=0)
         out = out.flatten()
