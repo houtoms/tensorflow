@@ -9,7 +9,7 @@ import tensorflow as tf
 import tensorflow.contrib.tensorrt as trt
 import numpy as np
 from tf_trt_models.classification import download_classification_checkpoint, build_classification_graph
-from tf_trt_models.detection import download_detection_model, build_detection_graph
+#from tf_trt_models.detection import download_detection_model, build_detection_graph
 
 
 parser = argparse.ArgumentParser(description='choose model')
@@ -195,6 +195,55 @@ for batch_size in batches:
         if MODEL == 'mobilenet_v1_0p5_160':
             if abs(result - 0.580078125) > TOLERANCE:
                 print("FAIL")
+            else:
+                print("PASS")
+
+        if MODEL == 'mobilenet_v1_1p0_224':
+            if abs(result - 0.7021484375) > TOLERANCE:
+                print("FAIL")
+                exit(1)
+            else:
+                print("PASS")
+
+        if MODEL == 'mobilenet_v2_1p0_224':
+            if abs(result - 0.7158203125) > TOLERANCE:
+                print("FAIL")
+                exit(1)
+            else:
+                print("PASS")
+        
+        if MODEL == 'mobilenet_v2_1p4_224':
+            if abs(result - 0.7705078125) > TOLERANCE:
+                print("FAIL")
+                exit(1)
+            else:
+                print("PASS")
+
+        if MODEL == 'vgg_16':
+            if abs(result - 0.689453125) > TOLERANCE:
+                print("FAIL")
+                exit(1)
+            else:
+                print("PASS")
+
+        if MODEL == 'vgg_19':
+            if abs(result - 0.701171875) > TOLERANCE:
+                print("FAIL")
+                exit(1)
+            else:
+                print("PASS")
+
+        if MODEL == 'nasnet_mobile':
+            if abs(result - 0.7373046875) > TOLERANCE:
+                print("FAIL")
+                exit(1)
+            else:
+                print("PASS")
+
+        if MODEL == 'nasnet_large':
+            if abs(result - 0.8251953125) > TOLERANCE:
+                print("FAIL")
+                exit(1)
             else:
                 print("PASS")
 
