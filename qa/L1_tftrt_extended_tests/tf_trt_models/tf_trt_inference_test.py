@@ -9,7 +9,7 @@ import tensorflow as tf
 import tensorflow.contrib.tensorrt as trt
 import numpy as np
 from tf_trt_models.classification import download_classification_checkpoint, build_classification_graph
-#from tf_trt_models.detection import download_detection_model, build_detection_graph
+from tf_trt_models.detection import download_detection_model, build_detection_graph
 
 
 parser = argparse.ArgumentParser(description='choose model')
