@@ -11,6 +11,7 @@ import nets.resnet_v2
 import nets.vgg
 import nets.nasnet
 import nets.nasnet.nasnet
+import models.official.resnet.imagenet_main
 
 import os
 import subprocess
@@ -21,7 +22,7 @@ import tensorflow.contrib.slim as slim
 
 NetDef = namedtuple('NetDef', ['model', 'arg_scope', 'input_width',
                     'input_height', 'preprocess', 'postprocess', 'url', 'checkpoint_name',
-                    'num_classes'])
+                    'num_classes', 'slim'])
 
 
 def _mobilenet_v1_1p0_224(*args, **kwargs):
@@ -68,103 +69,103 @@ NETS = {
            nets.mobilenet_v1.mobilenet_v1_arg_scope, 128, 128,
            _preprocess_inception, tf.nn.softmax,
            'http://download.tensorflow.org/models/mobilenet_v1_2018_02_22/mobilenet_v1_0.25_128.tgz',
-           'mobilenet_v1_0.25_128.ckpt', 1001),
+           'mobilenet_v1_0.25_128.ckpt', 1001, True),
     'mobilenet_v1_0p5_160':
     NetDef(_mobilenet_v1_0p5_160, nets.mobilenet_v1.mobilenet_v1_arg_scope,
            160, 160, _preprocess_inception, tf.nn.softmax,
            'http://download.tensorflow.org/models/mobilenet_v1_2018_02_22/mobilenet_v1_0.5_160.tgz',
-           'mobilenet_v1_0.5_160.ckpt', 1001),
+           'mobilenet_v1_0.5_160.ckpt', 1001, True),
     'mobilenet_v1_1p0_224':
     NetDef(_mobilenet_v1_1p0_224, nets.mobilenet_v1.mobilenet_v1_arg_scope,
            224, 224, _preprocess_inception, tf.nn.softmax,
            'http://download.tensorflow.org/models/mobilenet_v1_2018_02_22/mobilenet_v1_1.0_224.tgz',
-           'mobilenet_v1_1.0_224.ckpt', 1001),
+           'mobilenet_v1_1.0_224.ckpt', 1001, True),
     'mobilenet_v2_1p0_224':
     NetDef(_mobilenet_v2_1p0_224, _mobilenet_v2_arg_scope,
            224, 224, _preprocess_inception, tf.nn.softmax,
            'https://storage.googleapis.com/mobilenet_v2/checkpoints/mobilenet_v2_1.0_224.tgz',
-           'mobilenet_v2_1.0_224.ckpt', 1001),
+           'mobilenet_v2_1.0_224.ckpt', 1001, True),
     'mobilenet_v2_1p4_224':
     NetDef(nets.mobilenet.mobilenet_v2.mobilenet_v2_140, _mobilenet_v2_arg_scope,
            224, 224, _preprocess_inception, tf.nn.softmax,
            'https://storage.googleapis.com/mobilenet_v2/checkpoints/mobilenet_v2_1.4_224.tgz',
-           'mobilenet_v2_1.4_224.ckpt', 1001),
+           'mobilenet_v2_1.4_224.ckpt', 1001, True),
     'vgg_16':
     NetDef(nets.vgg.vgg_16, nets.vgg.vgg_arg_scope, 224, 224,
            _preprocess_vgg, tf.nn.softmax,
            'http://download.tensorflow.org/models/vgg_16_2016_08_28.tar.gz',
-           'vgg_16.ckpt', 1000),
+           'vgg_16.ckpt', 1000, True),
     'vgg_19':
     NetDef(nets.vgg.vgg_19, nets.vgg.vgg_arg_scope, 224, 224,
            _preprocess_vgg, tf.nn.softmax,
            'http://download.tensorflow.org/models/vgg_19_2016_08_28.tar.gz',
-           'vgg_19.ckpt', 1000),
+           'vgg_19.ckpt', 1000, True),
     'inception_v1':
     NetDef(nets.inception.inception_v1, nets.inception.inception_v1_arg_scope,
            224, 224, _preprocess_inception, tf.nn.softmax,
            'http://download.tensorflow.org/models/inception_v1_2016_08_28.tar.gz',
-           'inception_v1.ckpt', 1001),
+           'inception_v1.ckpt', 1001, True),
     'inception_v2':
     NetDef(nets.inception.inception_v2, nets.inception.inception_v2_arg_scope,
            224, 224, _preprocess_inception, tf.nn.softmax,
            'http://download.tensorflow.org/models/inception_v2_2016_08_28.tar.gz',
-           'inception_v2.ckpt', 1001),
+           'inception_v2.ckpt', 1001, True),
     'inception_v3':
     NetDef(nets.inception.inception_v3, nets.inception.inception_v3_arg_scope,
            299, 299, _preprocess_inception, tf.nn.softmax,
            'http://download.tensorflow.org/models/inception_v3_2016_08_28.tar.gz',
-           'inception_v3.ckpt', 1001),
+           'inception_v3.ckpt', 1001, True),
     'inception_v4':
     NetDef(nets.inception.inception_v4, nets.inception.inception_v4_arg_scope,
            299, 299, _preprocess_inception, tf.nn.softmax,
            'http://download.tensorflow.org/models/inception_v4_2016_09_09.tar.gz',
-           'inception_v4.ckpt', 1001),
+           'inception_v4.ckpt', 1001, True),
     'inception_resnet_v2':
     NetDef(nets.inception.inception_resnet_v2,
            nets.inception.inception_resnet_v2_arg_scope, 299, 299,
            _preprocess_inception, tf.nn.softmax,
            'http://download.tensorflow.org/models/inception_resnet_v2_2016_08_30.tar.gz',
-           'inception_resnet_v2_2016_08_30.ckpt', 1001),
+           'inception_resnet_v2_2016_08_30.ckpt', 1001, True),
     'resnet_v1_50':
-    NetDef(nets.resnet_v1.resnet_v1_50, nets.resnet_v1.resnet_arg_scope,
+    NetDef(models.official.resnet.imagenet_main.ImagenetModel(resnet_size=50, resnet_version=1, num_classes=1001, data_format='channels_last'), None,
            224, 224, _preprocess_vgg, tf.nn.softmax,
-           'http://download.tensorflow.org/models/resnet_v1_50_2016_08_28.tar.gz',
-           'resnet_v1_50.ckpt', 1000),
+           'http://download.tensorflow.org/models/official/20180601_resnet_v1_imagenet_checkpoint.tar.gz',
+           os.path.join('20180601_resnet_v1_imagenet_checkpoint', 'model.ckpt-257706'), 1001, False),
     'resnet_v1_101':
     NetDef(nets.resnet_v1.resnet_v1_101, nets.resnet_v1.resnet_arg_scope,
            224, 224, _preprocess_vgg, tf.nn.softmax,
            'http://download.tensorflow.org/models/resnet_v1_101_2016_08_28.tar.gz',
-           'resnet_v1_101.ckpt', 1000),
+           'resnet_v1_101.ckpt', 1000, True),
     'resnet_v1_152':
     NetDef(nets.resnet_v1.resnet_v1_152, nets.resnet_v1.resnet_arg_scope,
            224, 224, _preprocess_vgg, tf.nn.softmax,
            'http://download.tensorflow.org/models/resnet_v1_152_2016_08_28.tar.gz',
-           'resnet_v1_152.ckpt', 1000),
+           'resnet_v1_152.ckpt', 1000, True),
     'resnet_v2_50':
-    NetDef(nets.resnet_v2.resnet_v2_50, nets.resnet_v2.resnet_arg_scope,
-           299, 299, _preprocess_inception, tf.nn.softmax,
-           'http://download.tensorflow.org/models/resnet_v2_50_2017_04_14.tar.gz',
-           'resnet_v2_50.ckpt', 1001),
+    NetDef(models.official.resnet.imagenet_main.ImagenetModel(resnet_size=50, resnet_version=2, num_classes=1001, data_format='channels_last'), None,
+           224, 224, _preprocess_vgg, tf.nn.softmax,
+           'http://download.tensorflow.org/models/official/20180601_resnet_v2_imagenet_checkpoint.tar.gz',
+           os.path.join('20180601_resnet_v2_imagenet_checkpoint', 'model.ckpt-258931'), 1001, False),
     'resnet_v2_101':
     NetDef(nets.resnet_v2.resnet_v2_101, nets.resnet_v2.resnet_arg_scope,
            299, 299, _preprocess_inception, tf.nn.softmax,
            'http://download.tensorflow.org/models/resnet_v2_101_2017_04_14.tar.gz',
-           'resnet_v2_101.ckpt', 1001),
+           'resnet_v2_101.ckpt', 1001, True),
     'resnet_v2_152':
     NetDef(nets.resnet_v2.resnet_v2_152, nets.resnet_v2.resnet_arg_scope,
            299, 299, _preprocess_inception, tf.nn.softmax,
            'http://download.tensorflow.org/models/resnet_v2_152_2017_04_14.tar.gz',
-           'resnet_v2_152.ckpt', 1001),
+           'resnet_v2_152.ckpt', 1001, True),
     'nasnet_mobile':
     NetDef(nets.nasnet.nasnet.build_nasnet_mobile, nets.nasnet.nasnet.nasnet_mobile_arg_scope,
            224, 224, _preprocess_inception, tf.nn.softmax,
            'https://storage.googleapis.com/download.tensorflow.org/models/nasnet-a_mobile_04_10_2017.tar.gz',
-           'model.ckpt', 1001),
+           'model.ckpt', 1001, True),
     'nasnet_large':
     NetDef(nets.nasnet.nasnet.build_nasnet_large, nets.nasnet.nasnet.nasnet_large_arg_scope,
            331, 331, _preprocess_inception, tf.nn.softmax,
            'https://storage.googleapis.com/download.tensorflow.org/models/nasnet-a_large_04_10_2017.tar.gz',
-           'model.ckpt', 1001),
+           'model.ckpt', 1001, True),
 }
 
 
@@ -240,9 +241,14 @@ def build_classification_graph(model, checkpoint, num_classes):
                     name=input_name)
             tf_preprocessed = net.preprocess(tf_input)
 
-            with slim.arg_scope(net.arg_scope()):
-                tf_net, tf_end_points = net.model(tf_preprocessed, is_training=False,
-                    num_classes=num_classes)
+            if net.slim:
+                # TF Slim Model
+                with slim.arg_scope(net.arg_scope()):
+                    tf_net, tf_end_points = net.model(tf_preprocessed, is_training=False,
+                        num_classes=num_classes)
+            else:
+                # TF Official Model
+                tf_net = net.model(tf_preprocessed, training=False)
 
             tf_output = net.postprocess(tf_net, name=output_name)
 

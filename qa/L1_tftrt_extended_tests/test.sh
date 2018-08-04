@@ -32,6 +32,11 @@ python setup.py install
 popd
 popd
 
+# Setup for TF models/official
+# https://github.com/tensorflow/models/tree/master/official
+CURRENT_PATH=$(pwd)
+export PYTHONPATH="$PYTHONPATH:$CURRENT_PATH/models"
+
 
 set -e
 
@@ -41,10 +46,7 @@ set -e
 
 
 
-python tf_trt_inference_test.py --model resnet_v1_50 --num_classes 1000 --use_trt 1 
-rm -r data
-
-python tf_trt_inference_test.py --model resnet_v1_101 --num_classes 1000 --use_trt 1 
+python tf_trt_inference_test.py --model resnet_v1_50 --num_classes 1001 --use_trt 1
 rm -r data
 
 python tf_trt_inference_test.py --model resnet_v2_50 --num_classes 1001 --use_trt 1
@@ -101,10 +103,7 @@ rm -r data
 
 
 
-python tf_trt_inference_test.py --model resnet_v1_50 --num_classes 1000 --use_trt 0 
-rm -r data
-
-python tf_trt_inference_test.py --model resnet_v1_101 --num_classes 1000 --use_trt 0 
+python tf_trt_inference_test.py --model resnet_v1_50 --num_classes 1001 --use_trt 0
 rm -r data
 
 python tf_trt_inference_test.py --model resnet_v2_50 --num_classes 1001 --use_trt 0
