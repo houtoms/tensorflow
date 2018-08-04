@@ -8,7 +8,7 @@ import urllib
 import tensorflow as tf
 import tensorflow.contrib.tensorrt as trt
 import numpy as np
-from tf_trt_models.classification import download_classification_checkpoint, build_classification_graph
+from tf_trt_models.classification import download_classification_checkpoint, build_classification_graph, NETS
 from tf_trt_models.detection import download_detection_model, build_detection_graph
 
 
@@ -63,9 +63,9 @@ height = tf_input.shape.as_list()[1]
 width = tf_input.shape.as_list()[2]
 
 if DET_MODE == 1:
-    preproc_func = lambda record: image_processing._parse_and_preprocess_image_record(record, 0, 300, 300)
+    preproc_func = lambda record: image_processing._parse_and_preprocess_image_record(record, 0, 300, 300, preprocessing_fn=NETS[MODEL].preprocess)
 else:
-    preproc_func = lambda record: image_processing._parse_and_preprocess_image_record(record, 0, height, width)
+    preproc_func = lambda record: image_processing._parse_and_preprocess_image_record(record, 0, height, width, preprocessing_fn=NETS[MODEL].preprocess)
 
 
 print(MODEL)
@@ -166,7 +166,7 @@ for batch_size in batches:
                 print("PASS")
 
         if MODEL == 'resnet_v1_50':
-            if abs(result - 0.775390625) > TOLERANCE:
+            if abs(result - 0.78125) > TOLERANCE:
                 print("FAIL")
                 exit(1)
             else:
