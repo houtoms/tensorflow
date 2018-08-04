@@ -87,30 +87,33 @@ def _distort_image_color(image, order=0):
         return image
 
 def _parse_and_preprocess_image_record(record, counter, height, width,
-                                       deterministic=False, random_crop=False,
-                                       distort_color=False, nsummary=10):
+                                       deterministic=False, is_training=False,
+                                       distort_color=False, nsummary=10, preprocessing_fn=None):
     imgdata, label, bbox, text = _deserialize_image_record(record)
     label -= 1 # Change to 0-based (don't use background class)
     with tf.name_scope('preprocess_train'):
         try:    image = _decode_jpeg(imgdata, channels=3)
         except: image = tf.image.decode_png(imgdata, channels=3)
 
+        # Using TF slim preprocessing
+        # TODO: maybe use inception_preprocessing.process_image as default if preprocessing is None 
+        image = preprocessing_fn(image, height, width, is_training=is_training)
         # TODO: Work out a not-awful way to do this with counter being a Tensor
         #if counter < nsummary:
         #    image_with_bbox = tf.image.draw_bounding_boxes(
         #        tf.expand_dims(tf.to_float(image), 0), bbox)
         #    tf.summary.image('original_image_and_bbox', image_with_bbox)
-        image = _crop_and_resize_image(image, bbox, height, width, deterministic, random_crop)
+        #image = _crop_and_resize_image(image, bbox, height, width, deterministic, random_crop)
         #if counter < nsummary:
         #    tf.summary.image('cropped_resized_image', tf.expand_dims(image, 0))
 
         # image comes out of crop as float32, which is what distort_color expects
-        if distort_color:
-            image = _distort_image_color(image)
-        image = tf.cast(image, tf.uint8)
-        if random_crop:
-            image = tf.image.random_flip_left_right(image,
-                        seed=11 * (1 + 0) if deterministic else None)
+        #if distort_color:
+        #    image = _distort_image_color(image)
+        #image = tf.cast(image, tf.uint8)
+        #if random_crop:
+        #    image = tf.image.random_flip_left_right(image,
+        #                seed=11 * (1 + 0) if deterministic else None)
         #if counter < nsummary:
         #    tf.summary.image('flipped_image', tf.expand_dims(image, 0))
         return image, label
@@ -135,7 +138,7 @@ def fake_image_set(batch_size, height, width):
 
 def image_set(filenames, batch_size, height, width, training=False,
               distort_color=False, num_threads=10, nsummary=10,
-              deterministic=False):
+              deterministic=False, preprocessing_fn=None):
     shuffle_buffer_size = 10000
     num_readers = 1
     ds = tf.data.Dataset.from_tensor_slices(filenames)
@@ -150,8 +153,8 @@ def image_set(filenames, batch_size, height, width, training=False,
     ds = tf.data.Dataset.zip((ds, counter))
     preproc_func = lambda record, counter_: _parse_and_preprocess_image_record(
         record, counter_, height, width, deterministic=deterministic,
-        random_crop=training, distort_color=distort_color,
-        nsummary=nsummary if training else 0)
+        is_training=training, distort_color=distort_color,
+        nsummary=nsummary if training else 0, preprocessing_fn=preprocessing_fn)
     ds = ds.map(preproc_func, num_parallel_calls=num_threads)
     if training:
         ds = ds.shuffle(shuffle_buffer_size,
