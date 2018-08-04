@@ -145,7 +145,7 @@ for batch_size in batches:
                 print("PASS")
 
         if MODEL == 'resnet_v2_50':
-            if abs(result - 0.783203125) > TOLERANCE:
+            if abs(result - 0.775390625) > TOLERANCE:
                 print("FAIL")
                 exit(1)
             else:
@@ -166,7 +166,7 @@ for batch_size in batches:
                 print("PASS")
 
         if MODEL == 'resnet_v1_50':
-            if abs(result - 0.7451171875) > TOLERANCE:
+            if abs(result - 0.775390625) > TOLERANCE:
                 print("FAIL")
                 exit(1)
             else:
