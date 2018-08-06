@@ -1,5 +1,4 @@
-FROM gitlab-dl.nvidia.com:5005/dgx/cuda:10.0-cudnn7.2-devel-ubuntu16.04-cuda10.0--18.08
-#FROM gitlab-dl.nvidia.com:5005/dgx/cuda:10.0-cudnn7.2-devel-ubuntu16.04--18.09
+FROM gitlab-dl.nvidia.com:5005/dgx/cuda:10.0-devel-ubuntu16.04--18.09
 
 ################################################################################
 # TODO: REMOVE THESE LINES ONCE BASE CONTIANER INTEGRATES MOFED USERSPACE DRIVER
@@ -168,13 +167,6 @@ WORKDIR /workspace
 COPY NVREADME.md README.md
 COPY docker-examples docker-examples
 RUN chmod -R a+w /workspace
-
-# Temporary fix for compatability lib issues
-RUN mkdir /usr/local/compat && \
-    chmod +w /usr/local/compat && \
-    rm -f /etc/ld.so.conf.d/00-cuda-compat-10-0.conf && \
-    ldconfig
-ENV LD_LIBRARY_PATH /usr/local/compat/lib:${LD_LIBRARY_PATH}
 
 COPY nvidia_entrypoint.sh /usr/local/bin
 ENTRYPOINT ["/usr/local/bin/nvidia_entrypoint.sh"]

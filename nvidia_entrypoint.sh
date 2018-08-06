@@ -25,8 +25,8 @@ else
   DRIVER_VERSION=$(sed -n 's/^NVRM.*Kernel Module *\([0-9.]*\).*$/\1/p' /proc/driver/nvidia/version)
   if [[ ! "$DRIVER_VERSION" =~ ^[0-9]*.[0-9]*$ ]]; then
     echo "Failed to detect NVIDIA driver version."
-  elif [[ "${DRIVER_VERSION%.*}" == "384" ]]; then
-    ln -s /usr/local/cuda-10.0/compat /usr/local/compat/lib
+  elif [[ "${DRIVER_VERSION%.*}" -lt "410" ]]; then
+    echo "Legacy NVIDIA Driver detected.  ${_CUDA_COMPAT_STATUS}"
   fi
 fi
 
