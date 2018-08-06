@@ -438,6 +438,10 @@ L0_tensorboard:
 
 #### P100_R384_4GPU ####
 
+L0_compat_lib--P100_R384_4GPU:
+    <<: *L0_TEST
+    <<: *P100_R384_4GPU
+
 L0_models_alexnet--P100_R384_4GPU:
     <<: *L0_TEST
     <<: *P100_R384_4GPU
@@ -585,6 +589,10 @@ L2_models_cifar10--P100_R384_4GPU:
     <<: *P100_R384_4GPU
 
 #### V100_R384_4GPU Python 3 ####
+
+L0_compat_lib--V100_R384_4GPU:
+    <<: *L0_TEST
+    <<: *V100_R384_4GPU
 
 L0_models_alexnet--V100_R384_1GPU:
     <<: *L0_TEST
