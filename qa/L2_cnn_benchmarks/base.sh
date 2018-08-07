@@ -167,7 +167,11 @@ while [[ $# -gt 0 ]]; do
         FILTERS=${CONFIG#$BATCH}
         MATH="fp16 fp32"
         DATA="real fake"
-        GPUS="1 $MAX_GPUS"
+        if [[ "$MAX_GPUS" -gt 1 ]]; then
+            GPUS="1 $MAX_GPUS"
+        else
+            GPUS=1
+        fi
         MIN_MiB=-1
         MAX_MiB=-1
 

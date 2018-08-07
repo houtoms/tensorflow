@@ -57,8 +57,8 @@ class _LogSessionRunHook(tf.train.SessionRunHook):
     def before_run(self, run_context):
         self.t0 = time.time()
         return tf.train.SessionRunArgs(
-            fetches=[tf.train.get_global_step(),
-                     'loss:0', 'total_loss:0', 'learning_rate:0'])
+            fetches=['step_update:0', 'loss:0', 'total_loss:0',
+                     'learning_rate:0'])
     def after_run(self, run_context, run_values):
         self.elapsed_secs += time.time() - self.t0
         self.count += 1
@@ -157,7 +157,7 @@ def _cnn_model_function(features, labels, mode, params):
                           tf.train.Optimizer.GATE_NONE)
         train_op = opt.minimize(
             loss, global_step=tf.train.get_global_step(),
-            gate_gradients=gate_gradients)
+            gate_gradients=gate_gradients, name='step_update')
         update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS) or []
         if use_dali:
             train_op = tf.group(train_op, update_ops)
