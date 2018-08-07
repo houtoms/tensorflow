@@ -3,7 +3,7 @@
 ######################################################
 
 variables:
-    EXTRA_DOCKER_RUN_ARGS: "--shm-size=1G --ulimit memlock=-1 --ulimit stack=$$((1024*65536)) -e BASH_ENV=/etc/bash.bashrc"
+    EXTRA_DOCKER_RUN_ARGS: "--shm-size=1G --ulimit memlock=-1 --ulimit stack=$$((1024*65536))"
     DATADIR: /raid/dldata
 
     # the following will be overridden by jobs of the pipeline that actually need to check out the sources
