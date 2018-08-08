@@ -64,16 +64,14 @@ def run(model, use_trt, data_dir, batch_size, num_iterations):
     logger = LoggerHook()
     estimator = tf.estimator.Estimator(model_fn=model_fn)
     results = estimator.evaluate(eval_input_fn, steps=num_iterations, hooks=[logger])
+    
     # Gather additional results
-    results['model'] = model
-    results['total_time'] = sum(logger.iter_times)
-    results['images_per_sec'] = int(round(len(logger.iter_times) * batch_size / sum(logger.iter_times)))
-    results['99th_percentile'] = np.sort(logger.iter_times)[int(0.99 * len(logger.iter_times)) - 1] * 1000
-    results['num_nodes'] = len(frozen_graph.node)
-    del results['global_step']
-    del results['loss']
-    print(results)
-    print(results, file=sys.stderr)
+    print("model: " + model)
+    print("total_time: %.1f" % sum(logger.iter_times))
+    print("images_per_sec: %d" % int(round(len(logger.iter_times) * batch_size / sum(logger.iter_times))))
+    print("99th_percentile: %.1f" % (np.sort(logger.iter_times)[int(0.99 * len(logger.iter_times)) - 1] * 1000))
+    print("num_nodes: %d" % len(frozen_graph.node))
+    print("accuracy: %.4f" % results['accuracy'])
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='choose model')
