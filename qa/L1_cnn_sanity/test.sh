@@ -36,7 +36,7 @@ get_PERF() {
     local TMP_DIR="$(mktemp -d tmp.XXXXXX)"
     mpiexec --bind-to socket --allow-run-as-root -np $GPUS python -u \
         ../../nvidia-examples/cnn/$SCRIPT \
-        --num_iter=100 \
+        --num_iter=101 \
         --iter_unit=batch \
         --display_every=50 \
         $DATA \
@@ -66,7 +66,7 @@ for net in "${NETWORKS[@]}"; do
     get_PERF "$net"
     name=$(echo $net | sed 's/.py --layers=//')
     name=${name%.py}
-    echo "${name} $PERF img/sec with $GPUs GPUs * $BATCH_SIZE img/gpu"
+    echo "${name} $PERF img/sec with $GPUS GPUs * $BATCH_SIZE img/gpu"
 done
 echo All tests pass.
 exit 0

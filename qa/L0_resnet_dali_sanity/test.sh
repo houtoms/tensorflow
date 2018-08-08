@@ -23,7 +23,7 @@ get_PERF() {
         ../../nvidia-examples/cnn/resnet.py \
         --use_dali \
         --layers=50 \
-        --num_iter=100 \
+        --num_iter=101 \
         --iter_unit=batch \
         --display_every=50 \
         $DATA \

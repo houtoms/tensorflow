@@ -67,7 +67,7 @@ function run_config {
                     $DATA_FLAG \
                     --log_dir="$TMP_DIR" \
                     --precision=$M \
-                    --num_iter=$RUN_TO \
+                    --num_iter=$((RUN_TO+1)) \
                     --iter_unit=batch \
                     --display_every=$WARMUP \
                     --batch=$BATCH > "$TMPFILE"
@@ -79,7 +79,7 @@ function run_config {
                     $DATA_FLAG \
                     --log_dir="$TMP_DIR" \
                     --precision=$M \
-                    --num_iter=$RUN_TO \
+                    --num_iter=$((RUN_TO+1)) \
                     --iter_unit=batch \
                     --display_every=$WARMUP \
                     --batch=$BATCH >> "$TMPFILE" 2>&1
