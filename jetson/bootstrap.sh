@@ -32,14 +32,6 @@ bash compile.sh
 cp output/bazel /usr/local/bin/bazel
 popd
 
-# Install protobuf compiler
-PROTOBUF_VERSION=3.4.0 && \
-  curl -L https://github.com/google/protobuf/releases/download/v${PROTOBUF_VERSION}/protobuf-all-${PROTOBUF_VERSION}.tar.gz | tar -xzf - && \
-  cd /protobuf-${PROTOBUF_VERSION} && \
-  ./autogen.sh && \
-  ./configure CXXFLAGS="-fPIC" --prefix=/usr/local --disable-shared 2>&1 > /dev/null && \
-  make -j"$(grep ^processor /proc/cpuinfo | wc -l)" install 2>&1 > /dev/null && \
-  rm -rf /protobuf-${PROTOBUF_VERSION}
 
 #Exit script if not CI
 CI_BOOTSTRAP=${CI_BOOTSTRAP:-1}
@@ -50,6 +42,17 @@ fi
 # Install golang
 apt-get install -y curl wget apt-transport-https
 curl -L https://storage.googleapis.com/golang/go1.10.2.linux-arm64.tar.gz | tar -C /usr/local -xzf -
+
+# Install protobuf compiler
+PROTOBUF_VERSION=3.4.0 && \
+wget https://github.com/google/protobuf/archive/v${PROTOBUF_VERSION}.tar.gz && \
+tar -xzf v${PROTOBUF_VERSION}.tar.gz && \
+cd protobuf-${PROTOBUF_VERSION} && \
+./autogen.sh && \
+./configure CXXFLAGS="-fPIC" --prefix=/usr/local --disable-shared 2>&1 > /dev/null && \
+make -j"$(grep ^processor /proc/cpuinfo | wc -l)" install 2>&1 > /dev/null && \
+rm -rf /protobuf-${PROTOBUF_VERSION}
+
 
 # Install gitlab-ci-multi-runner
 export GOPATH=$HOME/Go
