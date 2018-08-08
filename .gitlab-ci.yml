@@ -66,10 +66,6 @@ before_script:
     - tags
     - schedules
 
-py2-base:
-    stage: build base
-    <<: *BASE
-
 py3-base:
     stage: build base
     <<: *BASE
@@ -100,10 +96,6 @@ py3-base:
     except:
     - tags
     - schedules
-
-py2-devel:
-    stage: build devel
-    <<: *DEVEL
 
 py3-devel:
     stage: build devel
@@ -170,10 +162,6 @@ digits:
     - tags
     - schedules
     when: manual
-
-py2-stage:
-    stage: staging
-    <<: *STAGE
 
 py3-stage:
     stage: staging
@@ -494,10 +482,6 @@ L0_tftrt--P100_R384_4GPU:
     <<: *L0_TEST
     <<: *P100_R384_4GPU
 
-L1_tftrt_extended_tests--py2--P100_R384_4GPU:
-    <<: *L1_TEST
-    <<: *P100_R384_4GPU
-
 ####  NVIDIA CNN TESTS  ####
 L0_resnet_sanity--P100_R384_4GPU:
     <<: *L0_TEST
@@ -745,149 +729,6 @@ L2_models_cifar10--V100_R384_4GPU:
     <<: *L2_TEST
     <<: *V100_R384_4GPU
 
-#### V100_R384_4GPU Python 2 ####
-
-L0_models_alexnet--py2--V100_R384_1GPU:
-    <<: *L0_TEST
-    <<: *V100_R384_1GPU
-
-L0_horovod_self_test--py2--V100_R384_4GPU:
-    <<: *L0_TEST
-    <<: *P100_R384_4GPU
-
-L0_models_imagenet--py2--V100_R384_1GPU:
-    <<: *L0_TEST
-    <<: *V100_R384_1GPU
-
-L0_models_mnist--py2--V100_R384_1GPU:
-    <<: *L0_TEST
-    <<: *V100_R384_1GPU
-
-L0_convnet_benchmarks_alexnet--py2--V100_R384_1GPU:
-    <<: *L0_TEST
-    <<: *V100_R384_1GPU
-    variables:
-      TEST_WORK_DIR: "/opt/tensorflow/qa/L0_convnet_benchmarks"
-      TEST_SCRIPT: "./test-alexnet.sh"
-
-L0_convnet_benchmarks_googlenet--py2--V100_R384_1GPU:
-    <<: *L0_TEST
-    <<: *V100_R384_1GPU
-    variables:
-      TEST_WORK_DIR: "/opt/tensorflow/qa/L0_convnet_benchmarks"
-      TEST_SCRIPT: "./test-googlenet.sh"
-
-L0_convnet_benchmarks_overfeat--py2--V100_R384_1GPU:
-    <<: *L0_TEST
-    <<: *V100_R384_1GPU
-    variables:
-      TEST_WORK_DIR: "/opt/tensorflow/qa/L0_convnet_benchmarks"
-      TEST_SCRIPT: "./test-overfeat.sh"
-
-L0_convnet_benchmarks_vgga--py2--V100_R384_1GPU:
-    <<: *L0_TEST
-    <<: *V100_R384_1GPU
-    variables:
-      TEST_WORK_DIR: "/opt/tensorflow/qa/L0_convnet_benchmarks"
-      TEST_SCRIPT: "./test-vgga.sh"
-
-L0_seq2seq--py2--V100_R384_1GPU:
-    <<: *L0_TEST
-    <<: *V100_R384_1GPU
-
-L0_tftrt--py2--V100_R384_1GPU:
-    <<: *L0_TEST
-    <<: *V100_R384_1GPU
-
-L1_tftrt_extended_tests--py2--V100_R384_4GPU:
-    <<: *L1_TEST
-    <<: *V100_R384_4GPU
-
-####  NVIDIA CNN TESTS  ####
-L0_resnet_sanity--py2--V100_R384_4GPU:
-    <<: *L0_TEST
-    <<: *V100_R384_4GPU
-
-L0_resnet_dali_sanity--py2--V100_R384_4GPU:
-    <<: *L0_TEST
-    <<: *V100_R384_4GPU
-
-L1_cnn_sanity--py2--V100_R384_4GPU:
-    <<: *L1_TEST
-    <<: *V100_R384_4GPU
-
-L2_bench_alexnet--py2--V100_R384_4GPU:
-    <<: *L2_CNN_BENCHMARK
-    <<: *V100_R384_4GPU
-
-L2_bench_googlenet--py2--V100_R384_4GPU:
-    <<: *L2_CNN_BENCHMARK
-    <<: *V100_R384_4GPU
-
-L2_bench_inception_v3--py2--V100_R384_4GPU:
-    <<: *L2_CNN_BENCHMARK
-    <<: *V100_R384_4GPU
-
-L2_bench_inception_v4--py2--V100_R384_4GPU:
-    <<: *L2_CNN_BENCHMARK
-    <<: *V100_R384_4GPU
-
-L2_bench_inception_resnet_v2--py2--V100_R384_4GPU:
-    <<: *L2_CNN_BENCHMARK
-    <<: *V100_R384_4GPU
-
-L2_bench_overfeat--py2--V100_R384_4GPU:
-    <<: *L2_CNN_BENCHMARK
-    <<: *V100_R384_4GPU
-
-L2_bench_resnet50--py2--V100_R384_4GPU:
-    <<: *L2_CNN_BENCHMARK
-    <<: *V100_R384_4GPU
-
-L2_bench_resnet101--py2--V100_R384_4GPU:
-    <<: *L2_CNN_BENCHMARK
-    <<: *V100_R384_4GPU
-
-L2_bench_resnet152--py2--V100_R384_4GPU:
-    <<: *L2_CNN_BENCHMARK
-    <<: *V100_R384_4GPU
-
-L2_bench_vgg11--py2--V100_R384_4GPU:
-    <<: *L2_CNN_BENCHMARK
-    <<: *V100_R384_4GPU
-
-L2_bench_vgg16--py2--V100_R384_4GPU:
-    <<: *L2_CNN_BENCHMARK
-    <<: *V100_R384_4GPU
-
-L2_bench_vgg19--py2--V100_R384_4GPU:
-    <<: *L2_CNN_BENCHMARK
-    <<: *V100_R384_4GPU
-############################
-
-L1_word2vec--py2--V100_R384_1GPU:
-    <<: *L1_TEST
-    <<: *V100_R384_1GPU
-
-L1_self_test--py2--V100_R384_4GPU:
-    <<: *L1_TEST
-    <<: *V100_R384_4GPU
-
-L1_self_test_xla--py2--V100_R384_4GPU:
-    <<: *L1_TEST
-    <<: *V100_R384_4GPU
-
-L1_nccl_test--py2--V100_R384_4GPU:
-    <<: *L1_TEST
-    <<: *V100_R384_4GPU
-
-L1_seq2seq--py2--V100_R384_4GPU:
-    <<: *L1_TEST
-    <<: *V100_R384_4GPU
-
-L2_models_cifar10--py2--V100_R384_4GPU:
-    <<: *L2_TEST
-    <<: *V100_R384_4GPU
 
 #### P40_R384_1GPU ####
 
