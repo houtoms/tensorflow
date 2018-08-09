@@ -62,7 +62,7 @@ TRTDeviceAllocator::TRTDeviceAllocator(tensorflow::Allocator* allocator)
 }
 
 void TRTDeviceAllocator::free(void* memory) {
-  VLOG(2) << "Deallocating " << memory;
+  VLOG(2) << "Deallocating @ " << memory;
   // allocated memory adjusted for alignment, restore the original pointer
   auto alloc_mem = mem_map_.find(memory);
   if (alloc_mem != mem_map_.end()) {
