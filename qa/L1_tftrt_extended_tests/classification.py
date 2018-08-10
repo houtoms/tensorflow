@@ -2,7 +2,6 @@
 import os
 import subprocess
 import tensorflow as tf
-import tensorflow.contrib.tensorrt as trt
 import nets.nets_factory
 import tensorflow.contrib.slim as slim
 import official.resnet.imagenet_main
@@ -93,34 +92,6 @@ NETS = {
         checkpoint_name='inception_v4.ckpt',
         input_size=299),
 }
-
-def get_frozen_graph(model, use_trt=False, batch_size=32, mode='classification'):
-    """Uses the model definitions in NETS to build a frozen GraphDef
-
-    model: string, the model name (see NETS table)
-    use_trt: bool, if true, use TensorRT
-    batch_size: int, batch size for TensorRT optimizations
-    mode: string, whether the model is for classification or detection
-    returns: tensorflow.GraphDef, the TensorRT compatible frozen graph
-    """
-    # Build graph and load weights
-    if mode == 'classification':
-        frozen_graph = build_classification_graph(model)
-    #elif mode == 'detection':
-    #    frozen_graph = build_detection_graph(model)
-
-    # Convert to TensorRT graph
-    if use_trt:
-        frozen_graph = trt.create_inference_graph(
-            input_graph_def=frozen_graph,
-            outputs=['logits', 'classes'],
-            max_batch_size=batch_size,
-            max_workspace_size_bytes=1 << 25,
-            precision_mode='FP32',
-            minimum_segment_size=50
-        )
-
-    return frozen_graph
 
 def _deserialize_image_record(record):
     feature_map = {
