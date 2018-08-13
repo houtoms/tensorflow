@@ -2630,7 +2630,8 @@ bool CudnnSupport::GetConvolveBackwardDataAlgorithms(
     CUDNN_CONVOLUTION_BWD_DATA_ALGO_1,
     CUDNN_CONVOLUTION_BWD_DATA_ALGO_FFT,
     CUDNN_CONVOLUTION_BWD_DATA_ALGO_FFT_TILING,
-    CUDNN_CONVOLUTION_BWD_DATA_ALGO_WINOGRAD,
+    // TODO(nluehr) Enable ALGO_WINOGRAD after bug 2327424 is fixed.
+    // CUDNN_CONVOLUTION_BWD_DATA_ALGO_WINOGRAD,
       // clang-format on
   };
   if (CudnnEnvVar<WinogradNonfused>::IsEnabled() && with_winograd_nonfused) {
