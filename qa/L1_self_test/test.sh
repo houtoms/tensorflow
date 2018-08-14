@@ -76,6 +76,8 @@ bazel test --config=cuda -c opt --verbose_failures --local_test_jobs=$NUM_GPUS \
               -//tensorflow/python/kernel_tests:conv_ops_test \
               `# data_utils_test hangs.` \
               -//tensorflow/python/keras:data_utils_test \
+              `# contrib distributions is deprecated/unmaintained.` \
+              -//tensorflow/contrib/distributions/python/kernel_tests/util:correlation_matrix_volumes_test \
 | tee testresult.tmp
 
 FAILS=$((FAILS+$?))
