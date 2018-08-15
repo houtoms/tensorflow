@@ -6,7 +6,7 @@ set -v
 ###################### TF_TRT INFERENCE TESTS #####################
 
 OUTPUT_PATH=$PWD
-pushd ../../nvidia-examples/tftrt_inference
+pushd ../../nvidia-examples/tftrt/scripts
 bash requirement.sh
 export PYTHONPATH=$PYTHONPATH:$PWD/models
 models=( mobilenet_v1 mobilenet_v2 nasnet_large nasnet_mobile resnet_v1_50 resnet_v2_50 vgg_16 vgg_19 inception_v3 inception_v4 )

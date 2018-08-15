@@ -6,8 +6,7 @@ set -v
 ###################### TF_TRT INT8 INFERENCE TESTS #####################
 
 OUTPUT_PATH=$PWD
-pushd ../../nvidia-examples/tftrt_inference
-
+pushd ../../nvidia-examples/tftrt/scripts
 bash requirement.sh
 export PYTHONPATH=$PYTHONPATH:$PWD/models
 

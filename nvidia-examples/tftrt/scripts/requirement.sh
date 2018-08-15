@@ -5,7 +5,7 @@ set -v
 
 # Setup for TF research/slim
 # https://github.com/tensorflow/models/tree/master/research/slim
-ln -sf ../../qa/third_party/tensorflow_models models
+ln -sf ../../../qa/third_party/tensorflow_models models
 pushd models/research/slim
 python setup.py install
 

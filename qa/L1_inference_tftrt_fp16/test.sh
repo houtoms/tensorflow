@@ -6,7 +6,7 @@ set -v
 ###################### TF_TRT FP16 INFERENCE TESTS #####################
 
 OUTPUT_PATH=$PATH
-pushd ../../nvidia-examples/tftrt_inference/
+pushd ../../nvidia-examples/tftrt/scripts
 bash requirement.sh
 export PYTHONPATH=$PYTHONPATH:$PWD/models
 
