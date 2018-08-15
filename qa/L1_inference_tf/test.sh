@@ -1,4 +1,8 @@
 #!/bin/bash
+
+set -e
+set -v
+
 #################### TENSORFLOW INFERENCE TESTS ########################
 OUTPUT_PATH=$PWD
 pushd ../../nvidia-examples/tftrt_inference

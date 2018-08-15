@@ -1,5 +1,8 @@
 #!/bin/bash
 
+set -e
+set -v
+
 ###################### TF_TRT INFERENCE TESTS #####################
 
 OUTPUT_PATH=$PWD

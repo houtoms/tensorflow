@@ -1,5 +1,7 @@
 #!/bin/bash
+
 set -e
+set -v
 
 # Setup for TF research/slim
 # https://github.com/tensorflow/models/tree/master/research/slim

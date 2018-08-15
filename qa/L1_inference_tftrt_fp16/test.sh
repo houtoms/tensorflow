@@ -1,5 +1,8 @@
 #!/bin/bash
 
+set -e
+set -v
+
 ###################### TF_TRT FP16 INFERENCE TESTS #####################
 
 OUTPUT_PATH=$PATH
@@ -15,4 +18,3 @@ do
   python check_accuracy.py --tolerance 0.01 --model $i --input $OUTPUT_PATH/output_tftrt_fp16_$i
 done
 popd
-
