@@ -9,8 +9,11 @@ from classification import build_classification_graph, get_preprocess_fn
 
 class LoggerHook(tf.train.SessionRunHook):
     """Logs runtime of each iteration"""
-    def __init__(self):
+    def __init__(self, global_batch_size, num_records, display_every=100):
         self.iter_times = []
+        self.display_every = display_every
+        self.num_steps = (num_records + global_batch_size - 1) / global_batch_size
+        self.batch_size = global_batch_size
 
     def begin(self):
         self.start_time = time.time()
@@ -20,8 +23,12 @@ class LoggerHook(tf.train.SessionRunHook):
         duration = current_time - self.start_time
         self.start_time = current_time
         self.iter_times.append(duration)
+        count = len(self.iter_times)
+        if count % self.display_every == 0:
+            print("step %d/%d, time(ms)=%.1f, images/sec=%.1f" % \
+            (count, self.num_steps, duration, self.batch_size*count/sum(self.iter_times)))
 
-def run(frozen_graph, model, data_dir, batch_size, num_iterations):
+def run(frozen_graph, model, data_dir, batch_size, num_iterations, display_every):
     """Evaluates a frozen graph
     
     This function evaluates a graph on the ImageNet validation set.
@@ -48,6 +55,14 @@ def run(frozen_graph, model, data_dir, batch_size, num_iterations):
     # Create the dataset
     preprocess_fn = get_preprocess_fn(model)
     validation_files = tf.gfile.Glob(os.path.join(data_dir, 'validation*'))
+
+    def get_tf_records_count(files):
+        num_records = 0
+        for fn in files:
+            for record in tf.python_io.tf_record_iterator(fn):
+                num_records += 1
+        return num_records
+
     # Define the dataset input function for tf.estimator.Estimator
     def eval_input_fn():
         dataset = tf.data.TFRecordDataset(validation_files)
@@ -59,7 +74,7 @@ def run(frozen_graph, model, data_dir, batch_size, num_iterations):
         return features, labels
 
     # Evaluate model
-    logger = LoggerHook()
+    logger = LoggerHook(display_every=display_every, global_batch_size=batch_size, num_records=get_tf_records_count(validation_files))
     estimator = tf.estimator.Estimator(model_fn=model_fn, config=tf.estimator.RunConfig(session_config=tf.ConfigProto(gpu_options=tf.GPUOptions(per_process_gpu_memory_fraction=0.25))))
     results = estimator.evaluate(eval_input_fn, steps=num_iterations, hooks=[logger])
     
@@ -122,6 +137,7 @@ if __name__ == '__main__':
     parser.add_argument('--mode', type=str, choices=['classification', 'detection'], default='classification', help='Whether the model will be used for classification or object detection.')
     parser.add_argument('--batch_size', type=int, default=32, help='Number of images per batch.')
     parser.add_argument('--num_iterations', type=int, default=None, help='How many iterations(batches) to evaluate. If not supplied, the whole set will be evaluated.')
+    parser.add_argument('--display_every', type=int, default=100)
     args = parser.parse_args()
 
     if args.mode == 'detection':
@@ -133,7 +149,7 @@ if __name__ == '__main__':
     # Retreive graph using NETS table in graph.py
     frozen_graph = get_frozen_graph(model=args.model, use_trt=args.use_trt, precision=args.precision, batch_size=args.batch_size, calib_data_dir=args.calib_data_dir)
     # Evaluate model
-    results = run(frozen_graph, model=args.model, data_dir=args.data_dir, batch_size=args.batch_size, num_iterations=args.num_iterations)
+    results = run(frozen_graph, model=args.model, data_dir=args.data_dir, batch_size=args.batch_size, num_iterations=args.num_iterations, display_every=args.display_every)
     # Display results
     print('model: %s' % results['model'])
     print('accuracy: %.3f' % results['accuracy'])
