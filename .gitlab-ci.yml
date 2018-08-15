@@ -482,9 +482,14 @@ L0_tftrt--P100_R384_4GPU:
     <<: *L0_TEST
     <<: *P100_R384_4GPU
 
-L1_tftrt_extended_tests--P100_R384_4GPU:
+L1_inference_tf--P100_R384_4GPU:
     <<: *L1_TEST
     <<: *P100_R384_4GPU
+
+L1_inference_tftrt--P100_R384_4GPU:
+    <<: *L1_TEST
+    <<: *P100_R384_4GPU
+
 
 ####  NVIDIA CNN TESTS  ####
 L0_resnet_sanity--P100_R384_4GPU:
@@ -634,7 +639,19 @@ L0_tftrt--V100_R384_1GPU:
     <<: *L0_TEST
     <<: *V100_R384_1GPU
 
-L1_tftrt_extended_tests--V100_R384_1GPU:
+L1_inference_tf--V100_R384_1GPU:
+    <<: *L1_TEST
+    <<: *V100_R384_1GPU
+
+L1_inference_tftrt--V100_R384_1GPU:
+    <<: *L1_TEST
+    <<: *V100_R384_1GPU
+
+L1_inference_tftrt_fp16--V100_R384_1GPU:
+    <<: *L1_TEST
+    <<: *V100_R384_1GPU
+
+L1_inference_tftrt_int8--V100_R384_1GPU:
     <<: *L1_TEST
     <<: *V100_R384_1GPU
 
@@ -1124,6 +1141,14 @@ L0_tftrt--py2--TX2:
     <<: *NIGHTLY_TEST
     <<: *TX2
 
-L1_tftrt_extended_tests--py2--TX2:
+L1_inference_tf--py2--TX2:
+    <<: *NIGHTLY_TEST
+    <<: *TX2
+
+L1_inference_tftrt--py2--TX2:
+    <<: *NIGHTLY_TEST
+    <<: *TX2
+
+L1_inference_tftrt_fp16--py2--TX2:
     <<: *NIGHTLY_TEST
     <<: *TX2
