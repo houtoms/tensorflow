@@ -10,7 +10,6 @@ pushd $MODELS/research/slim
 python setup.py install
 popd
 
-###################### TF_TRT INT8 INFERENCE TESTS #####################
 OUTPUT_PATH=$PWD
 pushd ../../nvidia-examples/tftrt/scripts
 
@@ -26,7 +25,9 @@ models=(
   inception_v4 )
 for i in "${models[@]}"
 do
-  python -u inference.py --model $i --use_trt --precision int8 2>&1 | tee $OUTPUT_PATH/output_tftrt_fp16_$i
-  python check_accuracy.py --tolerance 0.04 --model $i --input $OUTPUT_PATH/output_tftrt_fp16_$i
+  echo "Testing $i..."
+  python -u inference.py --batch_size 1 --model $i --use_trt --precision int8 2>&1 | tee $OUTPUT_PATH/output_tftrt_int8_$i
+  python -u check_accuracy.py --tolerance 0.04 --input $OUTPUT_PATH/output_tftrt_int8_$i
+  echo "DONE testing $i"
 done
 popd
