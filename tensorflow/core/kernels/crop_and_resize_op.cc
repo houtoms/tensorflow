@@ -22,6 +22,7 @@ limitations under the License.
 #include <functional>
 #include <string>
 
+#include "third_party/eigen3/unsupported/Eigen/CXX11/Tensor"
 #include "tensorflow/core/framework/register_types.h"
 #include "tensorflow/core/framework/tensor.h"
 #include "tensorflow/core/framework/tensor_shape.h"
@@ -33,7 +34,6 @@ limitations under the License.
 #include "tensorflow/core/platform/logging.h"
 #include "tensorflow/core/platform/types.h"
 #include "tensorflow/core/util/work_sharder.h"
-#include "third_party/eigen3/unsupported/Eigen/CXX11/Tensor"
 
 #if GOOGLE_CUDA
 #include "tensorflow/core/common_runtime/gpu/gpu_event_mgr.h"
@@ -42,10 +42,6 @@ limitations under the License.
 
 using stream_executor::cuda::ScopedActivateExecutorContext;
 #endif  // GOOGLE_CUDA
-
-using ::tensorflow::internal::CachedInterpolation;
-using ::tensorflow::internal::compute_interpolation_weights;
-using ::tensorflow::internal::crop_resize_single_image;
 
 namespace tensorflow {
 namespace {
@@ -233,73 +229,73 @@ struct CropAndResize<CPUDevice, T> {
           continue;
         }
 
-        const float height_scale =
-            (crop_height > 1)
-                ? (y2 - y1) * (image_height - 1) / (crop_height - 1)
-                : 0;
-        const float width_scale =
-            (crop_width > 1) ? (x2 - x1) * (image_width - 1) / (crop_width - 1)
-                             : 0;
+	if (method_name == "bilinear") {
+	  CachedInterpolation *interp_x = 0l, *interp_y = 0l;
+	  int min_ix, max_ix, min_iy, max_iy;
+	  compute_interpolation_weights(crop_width, image_width, x1, x2,
+	      min_ix, max_ix, interp_x);
+	  compute_interpolation_weights(crop_height, image_height, y1, y2,
+	      min_iy, max_iy, interp_y);
 
-        for (int y = 0; y < crop_height; ++y) {
-          const float in_y = (crop_height > 1)
-                                 ? y1 * (image_height - 1) + y * height_scale
-                                 : 0.5 * (y1 + y2) * (image_height - 1);
-          if (in_y < 0 || in_y > image_height - 1) {
-            for (int x = 0; x < crop_width; ++x) {
-              for (int d = 0; d < depth; ++d) {
-                crops(b, y, x, d) = extrapolation_value;
-              }
-            }
-            continue;
-          }
-          if (method_name == "bilinear") {
-            CachedInterpolation *interp_x = 0l, *interp_y = 0l;
-            int min_ix, max_ix, min_iy, max_iy;
-            compute_interpolation_weights(crop_width, image_width, x1, x2,
-                                          min_ix, max_ix, interp_x);
-            compute_interpolation_weights(crop_height, image_height, y1, y2,
-                                          min_iy, max_iy, interp_y);
+	  // multiply by depth to avoid multiplication in resize_single_image.
+	  for (int i = min_ix; i <= max_ix; ++i) {
+	    interp_x[i - min_ix].lower *= depth;
+	    interp_x[i - min_ix].upper *= depth;
+	  }
 
-            // multiply by depth to avoid multiplication in resize_single_image.
-            for (int i = min_ix; i <= max_ix; ++i) {
-              interp_x[i - min_ix].lower *= depth;
-              interp_x[i - min_ix].upper *= depth;
-            }
+	  crop_resize_single_image_common<T, float>(
+	      image.data() +
+	      (int64)b_in * (int64)image_height * (int64)image_width *
+	      (int64)depth,
+	      image_height, image_width, crop_height, crop_width, depth,
+	      min_ix, max_ix, interp_x, min_iy, max_iy, interp_y,
+	      extrapolation_value, false, false,
+	      crops.data() +
+	      (int64)b * (int64)crop_height * (int64)crop_width *
+	      (int64)depth);
 
-            crop_resize_single_image<T, float>(
-                image.data() +
-                    (int64)b_in * (int64)image_height * (int64)image_width *
-                        (int64)depth,
-                image_height, image_width, crop_height, crop_width, depth,
-                min_ix, max_ix, interp_x, min_iy, max_iy, interp_y,
-                extrapolation_value, false, false,
-                crops.data() +
-                    (int64)b * (int64)crop_height * (int64)crop_width *
-                        (int64)depth);
+	  delete[] interp_y;
+	  delete[] interp_x;
+	} else {  // method == "nearest"
+	  const float height_scale =
+	    (crop_height > 1)
+	    ? (y2 - y1) * (image_height - 1) / (crop_height - 1)
+	    : 0;
+	  const float width_scale =
+	    (crop_width > 1) ? (x2 - x1) * (image_width - 1) / (crop_width - 1)
+	    : 0;
 
-            delete[] interp_y;
-            delete[] interp_x;
-          } else {  // method == "nearest"
-            for (int x = 0; x < crop_width; ++x) {
-              const float in_x = (crop_width > 1)
-                                     ? x1 * (image_width - 1) + x * width_scale
-                                     : 0.5 * (x1 + x2) * (image_width - 1);
-              if (in_x < 0 || in_x > image_width - 1) {
-                for (int d = 0; d < depth; ++d) {
-                  crops(b, y, x, d) = extrapolation_value;
-                }
-                continue;
-              }
-              const int closest_x_index = roundf(in_x);
-              const int closest_y_index = roundf(in_y);
-              for (int d = 0; d < depth; ++d) {
-                crops(b, y, x, d) = static_cast<float>(
-                    image(b_in, closest_y_index, closest_x_index, d));
-              }
-            }
-          }
-        }
+	  for (int y = 0; y < crop_height; ++y) {
+	    const float in_y = (crop_height > 1)
+	      ? y1 * (image_height - 1) + y * height_scale
+	      : 0.5 * (y1 + y2) * (image_height - 1);
+	    if (in_y < 0 || in_y > image_height - 1) {
+	      for (int x = 0; x < crop_width; ++x) {
+		for (int d = 0; d < depth; ++d) {
+		  crops(b, y, x, d) = extrapolation_value;
+		}
+	      }
+	      continue;
+	    }
+	    for (int x = 0; x < crop_width; ++x) {
+	      const float in_x = (crop_width > 1)
+		? x1 * (image_width - 1) + x * width_scale
+		: 0.5 * (x1 + x2) * (image_width - 1);
+	      if (in_x < 0 || in_x > image_width - 1) {
+		for (int d = 0; d < depth; ++d) {
+		  crops(b, y, x, d) = extrapolation_value;
+		}
+		continue;
+	      }
+	      const int closest_x_index = roundf(in_x);
+	      const int closest_y_index = roundf(in_y);
+	      for (int d = 0; d < depth; ++d) {
+		crops(b, y, x, d) = static_cast<float>(
+		    image(b_in, closest_y_index, closest_x_index, d));
+	      }
+	    }
+	  }
+	}
       }
     };
 

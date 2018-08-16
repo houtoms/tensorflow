@@ -28,6 +28,7 @@ package_group(
 load(
     "//tensorflow:tensorflow.bzl",
     "if_android",
+    "if_linux_x86_64",
     "tf_cc_test",
     "tf_cc_tests",
     "tf_cc_binary",
@@ -2135,6 +2136,7 @@ tf_kernel_library(
 tf_kernel_library(
     name = "crop_and_resize_op",
     prefix = "crop_and_resize_op",
+    copts = tf_copts() + if_linux_x86_64(["-msse4.1"]),
     deps = IMAGE_DEPS + [":crop_resize_bilinear_core"],
 )
 
@@ -2201,6 +2203,7 @@ tf_kernel_library(
 tf_kernel_library(
     name = "resize_bilinear_op",
     prefix = "resize_bilinear_op",
+    copts = tf_copts() + if_linux_x86_64(["-msse4.1"]),
     deps = IMAGE_DEPS + [":crop_resize_bilinear_core"],
 )
 
@@ -2315,6 +2318,22 @@ tf_cc_tests(
 tf_cuda_cc_test(
     name = "adjust_contrast_op_benchmark_test",
     srcs = ["adjust_contrast_op_benchmark_test.cc"],
+    deps = [
+        ":image",
+        ":ops_testutil",
+        ":ops_util",
+        "//tensorflow/core:core_cpu",
+        "//tensorflow/core:framework",
+        "//tensorflow/core:protos_all_cc",
+        "//tensorflow/core:test",
+        "//tensorflow/core:test_main",
+        "//tensorflow/core:testlib",
+    ],
+)
+
+tf_cuda_cc_test(
+    name = "crop_and_resize_op_benchmark_test",
+    srcs = ["crop_and_resize_op_benchmark_test.cc"],
     deps = [
         ":image",
         ":ops_testutil",

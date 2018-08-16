@@ -20,6 +20,7 @@ limitations under the License.
 #include "tensorflow/core/kernels/resize_bilinear_op.h"
 
 #include <memory>
+#include "third_party/eigen3/unsupported/Eigen/CXX11/Tensor"
 #include "tensorflow/core/framework/op_kernel.h"
 #include "tensorflow/core/framework/register_types.h"
 #include "tensorflow/core/framework/tensor.h"
@@ -29,11 +30,6 @@ limitations under the License.
 #include "tensorflow/core/kernels/image_resizer_state.h"
 #include "tensorflow/core/lib/core/status.h"
 #include "tensorflow/core/platform/logging.h"
-#include "third_party/eigen3/unsupported/Eigen/CXX11/Tensor"
-
-using ::tensorflow::internal::CachedInterpolation;
-using ::tensorflow::internal::compute_interpolation_weights;
-using ::tensorflow::internal::crop_resize_single_image;
 
 namespace tensorflow {
 
@@ -110,7 +106,7 @@ struct ResizeBilinear<CPUDevice, T> {
     }
 
     for (int b = 0; b < batch_size; ++b) {
-      crop_resize_single_image(images.data() + (int64)b * in_batch_num_values,
+      crop_resize_single_image_common(images.data() + (int64)b * in_batch_num_values,
                                in_height, in_width, out_height, out_width,
                                channels, 0, out_width - 1, xs.data(), 0,
                                out_height - 1, ys.data(), 0.0f, false, false,
