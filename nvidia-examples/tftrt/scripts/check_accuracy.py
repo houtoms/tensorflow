@@ -6,16 +6,16 @@ import re
 
 def parse_file(filename):
     with open(filename) as f:
-        d = {}
-        m = re.compile('model: \D')
-        a = re.compile('accuracy: \d') 
-        for line in f:
-            if re.match(m, line) or re.match(a, line):
-                (key, val) = line.split(': ')
-                d[key] = val[:-1]
-        assert (len(d) == 2)
-        return d
-
+        f_data = f.read()
+    results = {}
+    def regex_match(regex):
+        match = re.match(regex, f_data, re.DOTALL)
+        if match is not None:
+            results[match.group(1)] = match.group(2)
+    regex_match('.*(model): (\w*)')
+    regex_match('.*(accuracy): (0\.\d*)')
+    assert len(results) == 2, '{}'.format(results)
+    return results
 
 def check_accuracy(res, tol):
     dest = {
@@ -33,7 +33,7 @@ def check_accuracy(res, tol):
     if abs(float(res['accuracy']) - dest[res['model']]) < tol:
         print("PASS")
     else:
-        print("FAIL")
+        print("FAIL: accuracy {} vs. {}".format(res['accuracy'], dest[res['model']]))
         sys.exit(1)
 
 
@@ -46,5 +46,10 @@ if __name__ == "__main__":
     args = parser.parse_args()
     filename = args.input
     tolerance = args.tolerance
+
+    print()
+    print('checking accuracy...')
+    for arg in vars(args):
+        print('{}: {}'.format(arg, getattr(args, arg)))
     check_accuracy(parse_file(filename), tolerance)
 
