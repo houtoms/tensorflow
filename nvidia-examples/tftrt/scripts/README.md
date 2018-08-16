@@ -1,6 +1,6 @@
 # TensorFlow-TensorRT Examples
 
-This script tests a few popular models on the ImageNet validation set, to ensure that inference accuracy remains the same after converting the model using TensorFlow-TensorRT.
+This script will run inference on few popular models on the ImageNet validation set.
 
 ## Models
 
@@ -18,8 +18,9 @@ This test supports the following models for image classification:
 
 ## Setup
 
-test.sh performs the required setup.
+requirement.sh performs the required setup.
+PYTHONPATH=$PYTHONPATH:$PWD/models will add to PYTHONPATH directory of official models
 
 ## Usage
 
-`./test.sh`
+`python inference.py --model vgg16 [--use_trt]`

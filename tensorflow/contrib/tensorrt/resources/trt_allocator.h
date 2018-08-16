@@ -43,6 +43,9 @@ class TRTBaseAllocator : public nvinfer1::IGpuAllocator {
  public:
   // python wrapper seems to be not happy with an pure virtual destructor;
   virtual ~TRTBaseAllocator() = default;
+  uint64_t getGpuMemAlignment() {
+    return 512;
+  }
 };
 
 class TRTCudaAllocator : public TRTBaseAllocator {

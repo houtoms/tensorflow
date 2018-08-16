@@ -9,7 +9,7 @@ set -e
 TF_PYPATH=`which python`
 
 export PYTHON_BIN_PATH="$TF_PYPATH"
-export TF_NEED_S3="0"
+export TF_NEED_AWS="0"
 export TF_NEED_OPENCL_SYCL="0"
 export TF_NEED_CUDA="1"
 
