@@ -9,11 +9,11 @@ from classification import build_classification_graph, get_preprocess_fn
 
 class LoggerHook(tf.train.SessionRunHook):
     """Logs runtime of each iteration"""
-    def __init__(self, global_batch_size, num_records, display_every):
+    def __init__(self, batch_size, num_records, display_every):
         self.iter_times = []
         self.display_every = display_every
-        self.num_steps = (num_records + global_batch_size - 1) / global_batch_size
-        self.batch_size = global_batch_size
+        self.num_steps = (num_records + batch_size - 1) / batch_size
+        self.batch_size = batch_size
 
     def begin(self):
         self.start_time = time.time()
@@ -25,8 +25,9 @@ class LoggerHook(tf.train.SessionRunHook):
         self.iter_times.append(duration)
         count = len(self.iter_times)
         if count % self.display_every == 0:
-            print("    step %d/%d, time(ms)=%.4f, images/sec=%d" % \
-            (count, self.num_steps, duration, self.batch_size*count/sum(self.iter_times)))
+            print("    step %d/%d, time(ms)=%.4f, images/sec=%d" % (
+                count, self.num_steps, duration,
+                self.batch_size * count / sum(self.iter_times)))
 
 def run(frozen_graph, model, data_dir, batch_size, num_iterations, display_every):
     """Evaluates a frozen graph
@@ -59,7 +60,7 @@ def run(frozen_graph, model, data_dir, batch_size, num_iterations, display_every
     preprocess_fn = get_preprocess_fn(model)
     validation_files = tf.gfile.Glob(os.path.join(data_dir, 'validation*'))
 
-    def get_tf_records_count(files):
+    def get_tfrecords_count(files):
         num_records = 0
         for fn in files:
             for record in tf.python_io.tf_record_iterator(fn):
@@ -79,8 +80,8 @@ def run(frozen_graph, model, data_dir, batch_size, num_iterations, display_every
     # Evaluate model
     logger = LoggerHook(
         display_every=display_every,
-        global_batch_size=batch_size,
-        num_records=get_tf_records_count(validation_files))
+        batch_size=batch_size,
+        num_records=get_tfrecords_count(validation_files))
     estimator = tf.estimator.Estimator(
         model_fn=model_fn,
         config=tf.estimator.RunConfig(session_config=tf.ConfigProto(
