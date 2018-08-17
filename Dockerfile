@@ -99,9 +99,11 @@ RUN pip install --no-cache-dir --upgrade \
         pandas==0.23.0 \
         six \
         mpi4py \
-        librosa \
+        librosa==0.6.1 \
         matplotlib \
-        joblib==0.11
+        joblib==0.11 \
+        sentencepiece \
+        sacrebleu
 
 # Set up Bazel.
 # Running bazel inside a `docker build` command causes trouble, cf:
