@@ -23,11 +23,11 @@ class LoggerHook(tf.train.SessionRunHook):
         duration = current_time - self.start_time
         self.start_time = current_time
         self.iter_times.append(duration)
-        count = len(self.iter_times)
-        if count % self.display_every == 0:
-            print("    step %d/%d, time(ms)=%.4f, images/sec=%d" % (
-                count, self.num_steps, duration,
-                self.batch_size * count / sum(self.iter_times)))
+        current_step = len(self.iter_times)
+        if current_step % self.display_every == 0:
+            print("    step %d/%d, iter_time(ms)=%.4f, images/sec=%d" % (
+                current_step, self.num_steps, duration * 1000,
+                self.batch_size / self.iter_times[-1]))
 
 def run(frozen_graph, model, data_dir, batch_size, num_iterations, display_every=100):
     """Evaluates a frozen graph
@@ -131,6 +131,7 @@ def get_frozen_graph(
             minimum_segment_size=7
         )
         num_nodes['tftrt'] = len(frozen_graph.node)
+        num_nodes['trt'] = len([1 for n in frozen_graph.node if str(n.op)=='TRTEngineOp'])
 
         if precision == 'int8':
             calib_graph = frozen_graph
@@ -187,8 +188,11 @@ if __name__ == '__main__':
     print()
     for arg in vars(args):
         print('{}: {}'.format(arg, getattr(args, arg)))
-    print('num_nodes(tf, tftrt, tftrt_int8): {}, {}, {}'.format( \
-        num_nodes.get('tf'), num_nodes.get('tftrt'), num_nodes.get('tftrt_int8')))
+    print('num_nodes(tf, tftrt(trt), tftrt_int8): {}, {}({}), {}'.format(
+        num_nodes.get('tf'),
+        num_nodes.get('tftrt'),
+        num_nodes.get('trt'),
+        num_nodes.get('tftrt_int8')))
     print()
 
     # Evaluate model
@@ -202,9 +206,9 @@ if __name__ == '__main__':
         display_every=args.display_every)
 
     # Display results
-    print('results:')
+    print('results of {}:'.format(args.model))
     print('    accuracy: %.4f' % results['accuracy'])
-    print('    images_per_sec: %d' % results['images_per_sec'])
-    print('    99th_percentile: %.1f ms' % results['99th_percentile'])
-    print('    total_time: %.1f s' % results['total_time'])
-    print('    latency_mean: %.1f ms' % results['latency_mean'])
+    print('    images/sec: %d' % results['images_per_sec'])
+    print('    99th_percentile(ms): %.1f' % results['99th_percentile'])
+    print('    total_time(s): %.1f' % results['total_time'])
+    print('    latency_mean(ms): %.1f' % results['latency_mean'])
