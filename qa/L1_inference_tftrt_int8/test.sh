@@ -4,7 +4,7 @@ set -e
 set -v
 
 pip install requests
-MODELS="/opt/tensorflow/qa/third_party/tensorflow_models/"
+MODELS="$PWD/../third_party/tensorflow_models/"
 export PYTHONPATH="$PYTHONPATH:$MODELS"
 pushd $MODELS/research/slim
 python setup.py install
