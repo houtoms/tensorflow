@@ -23,7 +23,7 @@ ENV TENSORFLOW_VERSION 1.10.0+
 LABEL com.nvidia.tensorflow.version="${TENSORFLOW_VERSION}"
 ENV NVIDIA_TENSORFLOW_VERSION 18.09
 
-ARG PYVER=2.7
+ARG PYVER=3.5
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
         libhwloc-dev \
