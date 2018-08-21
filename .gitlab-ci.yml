@@ -776,7 +776,7 @@ L1_self_test--V100_R410_16GPU:
         
 L1_self_test--TU102_R410_16GPU:
     <<: *L1_TEST
-    <<: *TU100_R410_1GPU
+    <<: *TU102_R410_1GPU
 
 L1_nccl_test--V100_R384_4GPU:
     <<: *L1_TEST
