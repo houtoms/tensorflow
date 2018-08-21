@@ -21,14 +21,19 @@ limitations under the License.
 #include <cstdio>
 #include <cstdlib>
 #include <cassert>
+#ifdef __SSE4_1__
 #include <xmmintrin.h>
-#include <immintrin.h>
+#include <tmmintrin.h>
 #include <smmintrin.h>
-#include <emmintrin.h>
+#endif
+#ifdef __AVX2__
+#include <immintrin.h>
+#endif
 
 namespace tensorflow {
 namespace {
 
+#ifdef __SSE4_1__
 template<typename T> std::string sprint_bits(const T& val, bool msb_left = true) {
   std::string str;
   if (sizeof(T) == 1) {
@@ -116,6 +121,7 @@ template<> const char* SSEPrinter<int32>::get_typename() {return "int32";}
 template<> const char* SSEPrinter<Eigen::half>::get_typename() {return "Eigen::half";}
 template<> const char* SSEPrinter<bfloat16>::get_typename() {return "bfloat16";}
 template<> const char* SSEPrinter<float>::get_typename() {return "float";}
+#endif  // __SSE4_1__
 
 // Compute the interpolation indices only once.
 struct CachedInterpolation {
