@@ -309,6 +309,18 @@ py3-stage:
     tags:
     - TX2
 
+.V100_R410_16GPU: &V100_R410_16GPU
+    tags:
+    - V100
+    - R410
+    - 16GPU
+
+.TU102_R410_1GPU: &TU102_R410_1GPU
+    tags:
+    - TU102
+    - R410
+    - 1GPU
+
 ############################
 ####### Wheel builds #######
 ############################
@@ -565,6 +577,14 @@ L1_self_test--P100_R384_4GPU:
     <<: *L1_TEST
     <<: *P100_R384_4GPU
 
+L1_self_test--V100_R410_16GPU:
+    <<: *L1_TEST
+    <<: *V100_R410_16GPU
+
+L1_self_test--TU102_R410_1GPU:
+    <<: *L1_TEST
+    <<: *TU102_R410_1GPU
+
 L1_self_test_xla--P100_R384_4GPU:
     <<: *L1_TEST
     <<: *P100_R384_4GPU
@@ -728,6 +748,10 @@ L3_converge_resnet50--V100_R384_8GPU:
     <<: *L3_CNN_CONVERGENCE
     <<: *V100_R384_8GPU
 
+L3_converge_resnet50--V100_R410_16GPU:
+    <<: *L3_CNN_CONVERGENCE
+    <<: *V100_R410_16GPU
+
 L3_converge_inception_v3--V100_R384_8GPU:
     <<: *L3_CNN_CONVERGENCE
     <<: *V100_R384_8GPU
@@ -745,6 +769,14 @@ L1_self_test--V100_R384_4GPU:
 L1_self_test_xla--V100_R384_4GPU:
     <<: *L1_TEST
     <<: *V100_R384_4GPU
+
+L1_self_test--V100_R410_16GPU:
+    <<: *L1_TEST
+    <<: *V100_R410_16GPU
+        
+L1_self_test--TU102_R410_16GPU:
+    <<: *L1_TEST
+    <<: *TU100_R410_1GPU
 
 L1_nccl_test--V100_R384_4GPU:
     <<: *L1_TEST
@@ -850,6 +882,14 @@ L2_bench_inception_v4--P40_R384_1GPU:
     <<: *L2_CNN_BENCHMARK
     <<: *P40_R384_1GPU
 
+L2_bench_inception_v4--V100_R410_16GPU:
+    <<: *L2_CNN_BENCHMARK
+    <<: *V100_R410_16GPU
+
+L2_bench_inception_v4--TU102_R410_1GPU:
+    <<: *L2_CNN_BENCHMARK
+    <<: *TU102_R410_1GPU
+
 L2_bench_inception_resnet_v2--P40_R384_1GPU:
     <<: *L2_CNN_BENCHMARK
     <<: *P40_R384_1GPU
@@ -861,6 +901,14 @@ L2_bench_overfeat--P40_R384_1GPU:
 L2_bench_resnet50--P40_R384_1GPU:
     <<: *L2_CNN_BENCHMARK
     <<: *P40_R384_1GPU
+
+L2_bench_resnet50--V100_R410_16GPU:
+    <<: *L2_CNN_BENCHMARK
+    <<: *V100_R410_16GPU
+
+L2_bench_resnet50--TU102_R410_1GPU:
+    <<: *L2_CNN_BENCHMARK
+    <<: *TU102_R410_1GPU
 
 L2_bench_resnet101--P40_R384_1GPU:
     <<: *L2_CNN_BENCHMARK
