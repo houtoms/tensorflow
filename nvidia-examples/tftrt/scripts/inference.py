@@ -150,10 +150,10 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Evaluate model')
     parser.add_argument('--model', type=str, default='inception_v4',
         help='Which model to use. See NETS table in graph.py for available networks.')
-    parser.add_argument('--data_dir', type=str, default='/data/imagenet/train-val-tfrecord-480',
+    parser.add_argument('--data_dir', type=str, default='/data/imagenet/train-val-tfrecord',
         help='Directory containing validation set TFRecord files.')
     parser.add_argument('--calib_data_dir', type=str,
-        default='/data/imagenet/train-val-tfrecord-480',
+        default='/data/imagenet/train-val-tfrecord',
         help='Directory containing TFRecord files for calibrating int8.')
     parser.add_argument('--use_trt', action='store_true',
         help='If set, the graph will be converted to a TensorRT graph.')
