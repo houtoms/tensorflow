@@ -23,13 +23,13 @@ class LoggerHook(tf.train.SessionRunHook):
         duration = current_time - self.start_time
         self.start_time = current_time
         self.iter_times.append(duration)
-        count = len(self.iter_times)
-        if count % self.display_every == 0:
-            print("    step %d/%d, time(ms)=%.4f, images/sec=%d" % (
-                count, self.num_steps, duration,
-                self.batch_size * count / sum(self.iter_times)))
+        current_step = len(self.iter_times)
+        if current_step % self.display_every == 0:
+            print("    step %d/%d, iter_time(ms)=%.4f, images/sec=%d" % (
+                current_step, self.num_steps, duration * 1000,
+                self.batch_size / self.iter_times[-1]))
 
-def run(frozen_graph, model, data_dir, batch_size, num_iterations, display_every):
+def run(frozen_graph, model, data_dir, batch_size, num_iterations, display_every=100):
     """Evaluates a frozen graph
     
     This function evaluates a graph on the ImageNet validation set.
@@ -99,15 +99,15 @@ def run(frozen_graph, model, data_dir, batch_size, num_iterations, display_every
 def get_frozen_graph(
     model,
     use_trt=False,
-    precision='FP32',
-    batch_size=32,
+    precision='fp32',
+    batch_size=8,
     mode='classification',
     calib_data_dir=None):
     """Retreives a frozen GraphDef from model definitions in classification.py and applies TF-TRT
 
     model: str, the model name (see NETS table in classification.py)
     use_trt: bool, if true, use TensorRT
-    precision: str, floating point precision (FP32, FP16, or INT8)
+    precision: str, floating point precision (fp32, fp16, or int8)
     batch_size: int, batch size for TensorRT optimizations
     mode: str, whether the model is for classification or detection
     returns: tensorflow.GraphDef, the TensorRT compatible frozen graph
@@ -131,11 +131,12 @@ def get_frozen_graph(
             minimum_segment_size=7
         )
         num_nodes['tftrt'] = len(frozen_graph.node)
+        num_nodes['trt'] = len([1 for n in frozen_graph.node if str(n.op)=='TRTEngineOp'])
 
-        if precision == 'INT8':
+        if precision == 'int8':
             calib_graph = frozen_graph
             # INT8 calibration step
-            num_iterations = 500 // batch_size # 500 samples is a recommended amount 
+            num_iterations = 5000 // batch_size
             print('Calibrating INT8...')
             run(calib_graph, model, calib_data_dir, batch_size, num_iterations)
             frozen_graph = trt.calib_graph_to_infer_graph(calib_graph)
@@ -149,10 +150,10 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Evaluate model')
     parser.add_argument('--model', type=str, default='inception_v4',
         help='Which model to use. See NETS table in graph.py for available networks.')
-    parser.add_argument('--data_dir', type=str, default='/data/imagenet/train-val-tfrecord-480',
+    parser.add_argument('--data_dir', type=str, default='/data/imagenet/train-val-tfrecord',
         help='Directory containing validation set TFRecord files.')
     parser.add_argument('--calib_data_dir', type=str,
-        default='/data/imagenet/train-val-tfrecord-480',
+        default='/data/imagenet/train-val-tfrecord',
         help='Directory containing TFRecord files for calibrating int8.')
     parser.add_argument('--use_trt', action='store_true',
         help='If set, the graph will be converted to a TensorRT graph.')
@@ -161,7 +162,7 @@ if __name__ == '__main__':
     parser.add_argument('--mode', type=str, choices=['classification', 'detection'],
         default='classification',
         help='Whether the model will be used for classification or object detection.')
-    parser.add_argument('--batch_size', type=int, default=32,
+    parser.add_argument('--batch_size', type=int, default=8,
         help='Number of images per batch.')
     parser.add_argument('--num_iterations', type=int, default=None,
         help='How many iterations(batches) to evaluate. If not supplied, the whole set will be evaluated.')
@@ -173,7 +174,7 @@ if __name__ == '__main__':
         raise NotImplementedError('This script currently only supports classification.')
 
     if args.precision != 'fp32' and not args.use_trt:
-        raise ValueError('TensorRT must be enabled for FP16 or INT8 modes (--use_trt).')
+        raise ValueError('TensorRT must be enabled for fp16 or int8 modes (--use_trt).')
 
 
     # Retreive graph using NETS table in graph.py
@@ -187,8 +188,11 @@ if __name__ == '__main__':
     print()
     for arg in vars(args):
         print('{}: {}'.format(arg, getattr(args, arg)))
-    print('num_nodes(tf, tftrt, tftrt_int8): {}, {}, {}'.format( \
-        num_nodes.get('tf'), num_nodes.get('tftrt'), num_nodes.get('tftrt_int8')))
+    print('num_nodes(tf, tftrt(trt), tftrt_int8): {}, {}({}), {}'.format(
+        num_nodes.get('tf'),
+        num_nodes.get('tftrt'),
+        num_nodes.get('trt'),
+        num_nodes.get('tftrt_int8')))
     print()
 
     # Evaluate model
@@ -202,9 +206,9 @@ if __name__ == '__main__':
         display_every=args.display_every)
 
     # Display results
-    print('results:')
+    print('results of {}:'.format(args.model))
     print('    accuracy: %.4f' % results['accuracy'])
-    print('    images_per_sec: %d' % results['images_per_sec'])
-    print('    99th_percentile: %.1f ms' % results['99th_percentile'])
-    print('    total_time: %.1f s' % results['total_time'])
-    print('    latency_mean: %.1f ms' % results['latency_mean'])
+    print('    images/sec: %d' % results['images_per_sec'])
+    print('    99th_percentile(ms): %.1f' % results['99th_percentile'])
+    print('    total_time(s): %.1f' % results['total_time'])
+    print('    latency_mean(ms): %.1f' % results['latency_mean'])

@@ -23,7 +23,7 @@ ENV TENSORFLOW_VERSION 1.10.0+
 LABEL com.nvidia.tensorflow.version="${TENSORFLOW_VERSION}"
 ENV NVIDIA_TENSORFLOW_VERSION 18.09
 
-ARG PYVER=2.7
+ARG PYVER=3.5
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
         libhwloc-dev \
@@ -99,9 +99,11 @@ RUN pip install --no-cache-dir --upgrade \
         pandas==0.23.0 \
         six \
         mpi4py \
-        librosa \
+        librosa==0.6.1 \
         matplotlib \
-        joblib==0.11
+        joblib==0.11 \
+        sentencepiece \
+        sacrebleu
 
 # Set up Bazel.
 # Running bazel inside a `docker build` command causes trouble, cf:
