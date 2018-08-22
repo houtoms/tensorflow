@@ -206,9 +206,6 @@ class HybridPipe(dali.pipeline.Pipeline):
         images = self.resize(images)
         images = self.normalize(images, mirror=self.mirror())
 
-        # Will remove cast once dali_tf op supports int for labels
-        labels = self.cast_float(labels)
-
         return (images, labels)
 
     def iter_setup(self):
@@ -241,15 +238,11 @@ class DaliPreprocessor(object):
         with tf.device("/gpu:0"):
             self.images, self.labels = daliop(
                 serialized_pipeline=serialized_pipe,
-                height=height,
-                width=width,
-                batch_size=batch_size,
+                shape=[batch_size, height, width, 3],
                 device_id=hvd.rank())
 
     def get_device_minibatches(self):
         with tf.device("/gpu:0"):
-            # Replace this cast with dali's cast
-            self.labels = tf.cast(self.labels, tf.int32)
             self.labels -= 1 # Change to 0-based (don't use background class)
         return self.images, self.labels
 
