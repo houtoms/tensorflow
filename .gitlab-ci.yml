@@ -309,6 +309,10 @@ py3-stage:
     tags:
     - TX2
 
+.XAVIER: &XAVIER
+    tags:
+    - XAVIER
+
 .V100_R410_16GPU: &V100_R410_16GPU
     tags:
     - V100
@@ -341,15 +345,25 @@ py3-stage:
     only:
     - schedules
 
-jetson-build-py2-wheel:
+jetson-tx2-py2-wheel:
     stage: build base
     <<: *BASE_WHEEL_METAL
     <<: *TX2
 
-jetson-build-py3-wheel:
+jetson-tx2-py3-wheel:
     stage: build base
     <<: *BASE_WHEEL_METAL
     <<: *TX2
+
+jetson-xavier-py2-wheel:
+    stage: build base
+    <<: *BASE_WHEEL_METAL
+    <<: *XAVIER
+
+jetson-xavier-py3-wheel:
+    stage: build base
+    <<: *BASE_WHEEL_METAL
+    <<: *XAVIER
 
 .test_template_wheel_metal: &TEST_TEMPLATE_WHEEL_METAL
     variables:
@@ -1228,3 +1242,93 @@ L1_inference_tftrt--py2--TX2:
 L1_inference_tftrt_fp16--py2--TX2:
     <<: *NIGHTLY_TEST
     <<: *TX2
+
+#### XAVIER ####
+
+L0_models_alexnet--py3--XAVIER:
+    <<: *NIGHTLY_TEST
+    <<: *XAVIER
+
+L0_models_imagenet--py3--XAVIER:
+    <<: *NIGHTLY_TEST
+    <<: *XAVIER
+
+L0_models_mnist--py3--XAVIER:
+    <<: *NIGHTLY_TEST
+    <<: *XAVIER
+
+L0_convnet_benchmarks_alexnet--py3--XAVIER:
+    <<: *NIGHTLY_TEST
+    <<: *XAVIER
+    variables:
+      TEST_WORK_DIR: "./qa/L0_convnet_benchmarks"
+      TEST_SCRIPT: "./test-alexnet.sh"
+
+L0_convnet_benchmarks_googlenet--py3--XAVIER:
+    <<: *NIGHTLY_TEST
+    <<: *XAVIER
+    variables:
+      TEST_WORK_DIR: "./qa/L0_convnet_benchmarks"
+      TEST_SCRIPT: "./test-googlenet.sh"
+
+L0_convnet_benchmarks_overfeat--py3--XAVIER:
+    <<: *NIGHTLY_TEST
+    <<: *XAVIER
+    variables:
+      TEST_WORK_DIR: "./qa/L0_convnet_benchmarks"
+      TEST_SCRIPT: "./test-overfeat.sh"
+
+L0_convnet_benchmarks_vgga--py3--XAVIER:
+    <<: *NIGHTLY_TEST
+    <<: *XAVIER
+    variables:
+      TEST_WORK_DIR: "./qa/L0_convnet_benchmarks"
+      TEST_SCRIPT: "./test-vgga.sh"
+
+L0_tftrt--py3--XAVIER:
+    <<: *NIGHTLY_TEST
+    <<: *XAVIER
+
+L0_python_kernel_tests--py3--XAVIER:
+    <<: *NIGHTLY_TEST
+    <<: *XAVIER
+
+L1_self_test--py3--XAVIER:
+    <<: *NIGHTLY_TEST
+    <<: *XAVIER
+
+L1_self_test_xla--py3--XAVIER:
+    <<: *NIGHTLY_TEST
+    <<: *XAVIER
+
+L0_models_alexnet--py2--XAVIER:
+    <<: *NIGHTLY_TEST
+    <<: *XAVIER
+
+L0_models_imagenet--py2--XAVIER:
+    <<: *NIGHTLY_TEST
+    <<: *XAVIER
+
+L0_models_mnist--py2--XAVIER:
+    <<: *NIGHTLY_TEST
+    <<: *XAVIER
+
+L0_tftrt--py2--XAVIER:
+    <<: *NIGHTLY_TEST
+    <<: *XAVIER
+
+L0_python_kernel_tests--py2--XAVIER:
+    <<: *NIGHTLY_TEST
+    <<: *XAVIER
+
+L1_inference_tf--py2--XAVIER:
+    <<: *NIGHTLY_TEST
+    <<: *XAVIER
+
+L1_inference_tftrt--py2--XAVIER:
+    <<: *NIGHTLY_TEST
+    <<: *XAVIER
+
+L1_inference_tftrt_fp16--py2--XAVIER:
+    <<: *NIGHTLY_TEST
+    <<: *XAVIER
