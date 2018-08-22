@@ -297,14 +297,6 @@ py3-stage:
     only:
     - /^.*-devel$/
 
-.GV100_R390_1GPU: &GV100_R390_1GPU
-    tags:
-    - GV100
-    - R390
-    - 1GPU
-    only:
-    - /^.*-devel$/
-
 .TX2: &TX2
     tags:
     - TX2
@@ -591,14 +583,6 @@ L1_self_test--P100_R384_4GPU:
     <<: *L1_TEST
     <<: *P100_R384_4GPU
 
-L1_self_test--V100_R410_16GPU:
-    <<: *L1_TEST
-    <<: *V100_R410_16GPU
-
-L1_self_test--TU102_R410_1GPU:
-    <<: *L1_TEST
-    <<: *TU102_R410_1GPU
-
 L1_self_test_xla--P100_R384_4GPU:
     <<: *L1_TEST
     <<: *P100_R384_4GPU
@@ -618,6 +602,48 @@ L2_seq2seq--P100_R384_4GPU:
 L2_models_cifar10--P100_R384_4GPU:
     <<: *L2_TEST
     <<: *P100_R384_4GPU
+
+#### V100_R410_16GPU ####
+
+####  NVIDIA CNN TESTS  ####
+
+L2_bench_inception_v4--V100_R410_16GPU:
+    <<: *L2_CNN_BENCHMARK
+    <<: *V100_R410_16GPU
+
+L2_bench_resnet50--V100_R410_16GPU:
+    <<: *L2_CNN_BENCHMARK
+    <<: *V100_R410_16GPU
+
+L3_converge_resnet50--V100_R410_16GPU:
+    <<: *L3_CNN_CONVERGENCE
+    <<: *V100_R410_16GPU
+
+############################
+
+L1_self_test--V100_R410_16GPU:
+    <<: *L1_TEST
+    <<: *V100_R410_16GPU
+
+
+#### TU102_R410_1GPU ####
+
+####  NVIDIA CNN TESTS  ####
+
+L2_bench_inception_v4--TU102_R410_1GPU:
+    <<: *L2_CNN_BENCHMARK
+    <<: *TU102_R410_1GPU
+
+L2_bench_resnet50--TU102_R410_1GPU:
+    <<: *L2_CNN_BENCHMARK
+    <<: *TU102_R410_1GPU
+
+############################
+
+L1_self_test--TU102_R410_1GPU:
+    <<: *L1_TEST
+    <<: *TU102_R410_1GPU
+
 
 #### V100_R384_4GPU Python 3 ####
 
@@ -762,10 +788,6 @@ L3_converge_resnet50--V100_R384_8GPU:
     <<: *L3_CNN_CONVERGENCE
     <<: *V100_R384_8GPU
 
-L3_converge_resnet50--V100_R410_16GPU:
-    <<: *L3_CNN_CONVERGENCE
-    <<: *V100_R410_16GPU
-
 L3_converge_inception_v3--V100_R384_8GPU:
     <<: *L3_CNN_CONVERGENCE
     <<: *V100_R384_8GPU
@@ -783,14 +805,6 @@ L1_self_test--V100_R384_4GPU:
 L1_self_test_xla--V100_R384_4GPU:
     <<: *L1_TEST
     <<: *V100_R384_4GPU
-
-L1_self_test--V100_R410_16GPU:
-    <<: *L1_TEST
-    <<: *V100_R410_16GPU
-        
-L1_self_test--TU102_R410_1GPU:
-    <<: *L1_TEST
-    <<: *TU102_R410_1GPU
 
 L1_nccl_test--V100_R384_4GPU:
     <<: *L1_TEST
@@ -896,10 +910,6 @@ L2_bench_inception_v4--P40_R384_1GPU:
     <<: *L2_CNN_BENCHMARK
     <<: *P40_R384_1GPU
 
-L2_bench_inception_v4--V100_R410_16GPU:
-    <<: *L2_CNN_BENCHMARK
-    <<: *V100_R410_16GPU
-
 L2_bench_inception_v4--TU102_R410_1GPU:
     <<: *L2_CNN_BENCHMARK
     <<: *TU102_R410_1GPU
@@ -915,10 +925,6 @@ L2_bench_overfeat--P40_R384_1GPU:
 L2_bench_resnet50--P40_R384_1GPU:
     <<: *L2_CNN_BENCHMARK
     <<: *P40_R384_1GPU
-
-L2_bench_resnet50--V100_R410_16GPU:
-    <<: *L2_CNN_BENCHMARK
-    <<: *V100_R410_16GPU
 
 L2_bench_resnet50--TU102_R410_1GPU:
     <<: *L2_CNN_BENCHMARK
@@ -1092,66 +1098,6 @@ L1_self_test_xla--M40_R384_2GPU:
 L2_models_cifar10--M40_R384_1GPU:
     <<: *L2_TEST
     <<: *M40_R384_1GPU
-
-
-#### GV100_R390_1GPU ####
-
-L0_models_alexnet--GV100_R390_1GPU:
-    <<: *L0_TEST
-    <<: *GV100_R390_1GPU
-
-L0_models_imagenet--GV100_R390_1GPU:
-    <<: *L0_TEST
-    <<: *GV100_R390_1GPU
-
-L0_models_mnist--GV100_R390_1GPU:
-    <<: *L0_TEST
-    <<: *GV100_R390_1GPU
-
-L0_convnet_benchmarks_alexnet--GV100_R390_1GPU:
-    <<: *L0_TEST
-    <<: *GV100_R390_1GPU
-    variables:
-      TEST_WORK_DIR: "/opt/tensorflow/qa/L0_convnet_benchmarks"
-      TEST_SCRIPT: "./test-alexnet.sh"
-
-L0_convnet_benchmarks_googlenet--GV100_R390_1GPU:
-    <<: *L0_TEST
-    <<: *GV100_R390_1GPU
-    variables:
-      TEST_WORK_DIR: "/opt/tensorflow/qa/L0_convnet_benchmarks"
-      TEST_SCRIPT: "./test-googlenet.sh"
-
-L0_convnet_benchmarks_overfeat--GV100_R390_1GPU:
-    <<: *L0_TEST
-    <<: *GV100_R390_1GPU
-    variables:
-      TEST_WORK_DIR: "/opt/tensorflow/qa/L0_convnet_benchmarks"
-      TEST_SCRIPT: "./test-overfeat.sh"
-
-L0_convnet_benchmarks_vgga--GV100_R390_1GPU:
-    <<: *L0_TEST
-    <<: *GV100_R390_1GPU
-    variables:
-      TEST_WORK_DIR: "/opt/tensorflow/qa/L0_convnet_benchmarks"
-      TEST_SCRIPT: "./test-vgga.sh"
-
-L0_tftrt--GV100_R390_1GPU:
-    <<: *L0_TEST
-    <<: *GV100_R390_1GPU
-
-L0_python_kernel_tests--GV100_R390_1GPU:
-    <<: *L0_TEST
-    <<: *GV100_R390_1GPU
-
-L0_resnet_sanity--GV100_R390_1GPU:
-    <<: *L0_TEST
-    <<: *GV100_R390_1GPU
-
-L0_resnet_dali_sanity--GV100_R390_1GPU:
-    <<: *L0_TEST
-    <<: *GV100_R390_1GPU
-
 
 #### TX2 ####
 
