@@ -23,6 +23,9 @@ from __future__ import print_function
 
 import functools
 import six
+import numpy
+
+import tensorflow as tf
 
 from tensorflow.contrib.framework.python.ops import add_arg_scope
 from tensorflow.contrib.framework.python.ops import variables
@@ -2200,7 +2203,8 @@ def layer_norm(inputs,
                trainable=True,
                begin_norm_axis=1,
                begin_params_axis=-1,
-               scope=None):
+               scope=None,
+	       use_fused_batch_norm=None):
   """Adds a Layer Normalization layer.
 
   Based on the paper:
@@ -2251,6 +2255,9 @@ def layer_norm(inputs,
       `begin_params_axis : rank(inputs)` and will be broadcast with the
       normalized inputs accordingly.
     scope: Optional scope for `variable_scope`.
+    use_fused_batch_norm: If True, use tf.nn.fused_batch_norm instead of
+      tf.nn.batch_normalization. The former uses cudnn to accelerate
+      performance on GPUs.
 
   Returns:
     A `Tensor` representing the output of the operation, having the same
@@ -2302,19 +2309,37 @@ def layer_norm(inputs,
           initializer=init_ops.ones_initializer(),
           collections=gamma_collections,
           trainable=trainable)
-    # Calculate the moments on the last axis (layer activations).
-    norm_axes = list(range(begin_norm_axis, inputs_rank))
-    mean, variance = nn.moments(inputs, norm_axes, keep_dims=True)
     # Compute layer normalization using the batch_normalization function.
     variance_epsilon = 1e-12
-    outputs = nn.batch_normalization(
-        inputs,
-        mean,
-        variance,
-        offset=beta,
-        scale=gamma,
-        variance_epsilon=variance_epsilon)
-    outputs.set_shape(inputs_shape)
+    if use_fused_batch_norm is not None:
+      # Use nn.fused_batch_norm, which calls a cudnn method.
+      output_shape = inputs.get_shape()
+      inputs = array_ops.reshape(inputs, [1,-1,1,numpy.prod(inputs.get_shape()[begin_norm_axis:].as_list())])
+      outputs,mean,variance = nn.fused_batch_norm(
+          inputs,
+	  tf.ones(inputs.get_shape()[1], dtype=dtype),
+	  tf.zeros(inputs.get_shape()[1], dtype=dtype),
+	  epsilon=variance_epsilon,
+	  data_format="NCHW")
+      outputs = array_ops.reshape(outputs, output_shape)
+      if center and scale:
+        outputs = outputs * gamma + beta
+      elif center:
+        outputs = outputs + beta
+      elif scale:
+        outputs = outputs * gamma
+    else:
+      # Calculate the moments on the last axis (layer activations).
+      norm_axes = list(range(begin_norm_axis, inputs_rank))
+      mean, variance = nn.moments(inputs, norm_axes, keep_dims=True)
+      outputs = nn.batch_normalization(
+          inputs,
+          mean,
+          variance,
+          offset=beta,
+          scale=gamma,
+          variance_epsilon=variance_epsilon)
+      outputs.set_shape(inputs_shape)
     if activation_fn is not None:
       outputs = activation_fn(outputs)
     return utils.collect_named_outputs(outputs_collections, sc.name, outputs)
