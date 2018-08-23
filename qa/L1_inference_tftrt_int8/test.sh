@@ -20,7 +20,8 @@ models=(
   nasnet_mobile
   resnet_v1_50
   resnet_v2_50
-  vgg_16 vgg_19
+  vgg_16
+  vgg_19
   inception_v3
   inception_v4 )
 for i in "${models[@]}"

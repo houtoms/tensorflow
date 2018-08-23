@@ -101,7 +101,6 @@ def get_frozen_graph(
     use_trt=False,
     precision='fp32',
     batch_size=8,
-    mode='classification',
     calib_data_dir=None):
     """Retreives a frozen GraphDef from model definitions in classification.py and applies TF-TRT
 
@@ -109,19 +108,18 @@ def get_frozen_graph(
     use_trt: bool, if true, use TensorRT
     precision: str, floating point precision (fp32, fp16, or int8)
     batch_size: int, batch size for TensorRT optimizations
-    mode: str, whether the model is for classification or detection
     returns: tensorflow.GraphDef, the TensorRT compatible frozen graph
     """
     num_nodes = {}
+    times = {}
+
     # Build graph and load weights
-    if mode == 'classification':
-        frozen_graph = build_classification_graph(model)
-    #elif mode == 'detection':
-    #    frozen_graph = build_detection_graph(model)
-    num_nodes['tf'] = len(frozen_graph.node)
+    frozen_graph = build_classification_graph(model)
+    num_nodes['native_tf'] = len(frozen_graph.node)
 
     # Convert to TensorRT graph
     if use_trt:
+        start_time = time.time()
         frozen_graph = trt.create_inference_graph(
             input_graph_def=frozen_graph,
             outputs=['logits', 'classes'],
@@ -130,21 +128,28 @@ def get_frozen_graph(
             precision_mode=precision,
             minimum_segment_size=7
         )
-        num_nodes['tftrt'] = len(frozen_graph.node)
-        num_nodes['trt'] = len([1 for n in frozen_graph.node if str(n.op)=='TRTEngineOp'])
+        times['trt_conversion'] = time.time() - start_time
+        num_nodes['tftrt_total'] = len(frozen_graph.node)
+        num_nodes['trt_only'] = len([1 for n in frozen_graph.node if str(n.op)=='TRTEngineOp'])
 
         if precision == 'int8':
             calib_graph = frozen_graph
             # INT8 calibration step
             num_iterations = 5000 // batch_size
             print('Calibrating INT8...')
+
+            start_time = time.time()
             run(calib_graph, model, calib_data_dir, batch_size, num_iterations)
+            times['trt_calibration'] = time.time() - start_time
+
+            start_time = time.time()
             frozen_graph = trt.calib_graph_to_infer_graph(calib_graph)
+            times['trt_int8_conversion'] = time.time() - start_time
+
             del calib_graph
             print('INT8 graph created.')
-            num_nodes['tftrt_int8'] = len(frozen_graph.node)
 
-    return frozen_graph, num_nodes
+    return frozen_graph, num_nodes, times
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Evaluate model')
@@ -159,9 +164,6 @@ if __name__ == '__main__':
         help='If set, the graph will be converted to a TensorRT graph.')
     parser.add_argument('--precision', type=str, choices=['fp32', 'fp16', 'int8'], default='fp32',
         help='Precision mode to use. FP16 and INT8 only work in conjunction with --use_trt')
-    parser.add_argument('--mode', type=str, choices=['classification', 'detection'],
-        default='classification',
-        help='Whether the model will be used for classification or object detection.')
     parser.add_argument('--batch_size', type=int, default=8,
         help='Number of images per batch.')
     parser.add_argument('--num_iterations', type=int, default=None,
@@ -170,30 +172,25 @@ if __name__ == '__main__':
         help='Number of iterations executed between two consecutive display of metrics')
     args = parser.parse_args()
 
-    if args.mode == 'detection':
-        raise NotImplementedError('This script currently only supports classification.')
-
     if args.precision != 'fp32' and not args.use_trt:
         raise ValueError('TensorRT must be enabled for fp16 or int8 modes (--use_trt).')
 
 
     # Retreive graph using NETS table in graph.py
-    frozen_graph, num_nodes = get_frozen_graph(
+    frozen_graph, num_nodes, times = get_frozen_graph(
         model=args.model,
         use_trt=args.use_trt,
         precision=args.precision,
         batch_size=args.batch_size,
         calib_data_dir=args.calib_data_dir)
 
-    print()
-    for arg in vars(args):
-        print('{}: {}'.format(arg, getattr(args, arg)))
-    print('num_nodes(tf, tftrt(trt), tftrt_int8): {}, {}({}), {}'.format(
-        num_nodes.get('tf'),
-        num_nodes.get('tftrt'),
-        num_nodes.get('trt'),
-        num_nodes.get('tftrt_int8')))
-    print()
+    def print_dict(input_dict, str=''):
+        for k, v in input_dict.items():
+            headline = '{}({}): '.format(str, k) if str else '{}: '.format(k)
+            print('{}{}'.format(headline, '%.1f'%v if type(v)==float else v))
+    print_dict(vars(args))
+    print_dict(num_nodes, str='num_nodes')
+    print_dict(times, str='time(s)')
 
     # Evaluate model
     print('running inference...')

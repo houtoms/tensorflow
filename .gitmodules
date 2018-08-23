@@ -11,4 +11,4 @@
 	url = https://github.com/NVIDIA/OpenSeq2Seq
 [submodule "third_party/horovod"]
 	path = third_party/horovod
-	url = git@gitlab-dl.nvidia.com:nluehr/horovod.git
+	url = ../../nluehr/horovod.git

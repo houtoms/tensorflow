@@ -82,7 +82,7 @@ RUN curl -O https://bootstrap.pypa.io/get-pip.py && \
 RUN pip install --no-cache-dir --upgrade \
                 --extra-index-url https://developer.download.nvidia.com/compute/redist \
                 --extra-index-url http://sqrl/dldata/pip-simple --trusted-host sqrl \
-        nvidia-dali==0.1.2 \
+        nvidia-dali==0.2.0 \
         numpy==1.14.5 \
         pexpect \
         psutil \
@@ -102,8 +102,9 @@ RUN pip install --no-cache-dir --upgrade \
         librosa==0.6.1 \
         matplotlib \
         joblib==0.11 \
-        sentencepiece \
-        sacrebleu
+        sentencepiece
+
+RUN awk "BEGIN{exit $PYVER<3 ? 0 : 1}" || pip install sacrebleu
 
 # Set up Bazel.
 # Running bazel inside a `docker build` command causes trouble, cf:

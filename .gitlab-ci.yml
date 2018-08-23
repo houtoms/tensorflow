@@ -26,7 +26,14 @@ stages:
 ####### Docker builds #######
 #############################
 before_script:
-    - echo "${CI_JOB_NAME}" | grep -Eq "(^|-)py2($|-)" && export PYVER=2.7 || export PYVER=3.5   && echo "${PYVER}"
+    - if [ -z "${PYVER}" ]; then
+        if echo "${CI_JOB_NAME}" | grep -Eq "(^|-)py2($|-)"; then
+          export PYVER="2.7";
+        else
+          export PYVER="3.5";
+        fi;
+      fi;
+      echo "${PYVER}"
     - export NV_DOCKER_ARGS="curl -s http://localhost:3476/docker/cli?dev=${RUNNER_GPUS//,/+}"     && echo "${NV_DOCKER_ARGS}"
     - export RELEASE_BRANCH_NAME=${CI_COMMIT_REF_NAME%%-devel}                                     && echo "${RELEASE_BRANCH_NAME}"
     - export IMAGE_NAME_ROOT="${CI_REGISTRY_IMAGE}:${RELEASE_BRANCH_NAME}-py${PYVER%.*}"           && echo "${IMAGE_NAME_PREFIX}"
@@ -66,6 +73,10 @@ before_script:
     - tags
     - schedules
 
+py2-base:
+    stage: build base
+    <<: *BASE
+
 py3-base:
     stage: build base
     <<: *BASE
@@ -96,6 +107,10 @@ py3-base:
     except:
     - tags
     - schedules
+
+py2-devel:
+    stage: build devel
+    <<: *DEVEL
 
 py3-devel:
     stage: build devel
@@ -162,6 +177,10 @@ digits:
     - tags
     - schedules
     when: manual
+
+py2-stage:
+    stage: staging
+    <<: *STAGE
 
 py3-stage:
     stage: staging
@@ -297,17 +316,13 @@ py3-stage:
     only:
     - /^.*-devel$/
 
-.GV100_R390_1GPU: &GV100_R390_1GPU
-    tags:
-    - GV100
-    - R390
-    - 1GPU
-    only:
-    - /^.*-devel$/
-
 .TX2: &TX2
     tags:
     - TX2
+
+.XAVIER: &XAVIER
+    tags:
+    - XAVIER
 
 .V100_R410_16GPU: &V100_R410_16GPU
     tags:
@@ -341,15 +356,27 @@ py3-stage:
     only:
     - schedules
 
-jetson-build-py2-wheel:
+jetson-tx2-py2-wheel:
     stage: build base
     <<: *BASE_WHEEL_METAL
     <<: *TX2
 
-jetson-build-py3-wheel:
+jetson-tx2-py3-wheel:
     stage: build base
     <<: *BASE_WHEEL_METAL
     <<: *TX2
+
+jetson-xavier-py2-wheel:
+    stage: build base
+    <<: *BASE_WHEEL_METAL
+    <<: *XAVIER
+
+jetson-xavier-py3-wheel:
+    variables:
+      PYVER: "3.6"
+    stage: build base
+    <<: *BASE_WHEEL_METAL
+    <<: *XAVIER
 
 .test_template_wheel_metal: &TEST_TEMPLATE_WHEEL_METAL
     variables:
@@ -507,6 +534,10 @@ L1_inference_tftrt--P100_R384_4GPU:
     <<: *P100_R384_4GPU
 
 
+L1_tftrt_extended_tests--py2--P100_R384_4GPU:
+    <<: *L1_TEST
+    <<: *P100_R384_4GPU
+
 ####  NVIDIA CNN TESTS  ####
 L0_resnet_sanity--P100_R384_4GPU:
     <<: *L0_TEST
@@ -577,14 +608,6 @@ L1_self_test--P100_R384_4GPU:
     <<: *L1_TEST
     <<: *P100_R384_4GPU
 
-L1_self_test--V100_R410_16GPU:
-    <<: *L1_TEST
-    <<: *V100_R410_16GPU
-
-L1_self_test--TU102_R410_1GPU:
-    <<: *L1_TEST
-    <<: *TU102_R410_1GPU
-
 L1_self_test_xla--P100_R384_4GPU:
     <<: *L1_TEST
     <<: *P100_R384_4GPU
@@ -604,6 +627,48 @@ L2_seq2seq--P100_R384_4GPU:
 L2_models_cifar10--P100_R384_4GPU:
     <<: *L2_TEST
     <<: *P100_R384_4GPU
+
+#### V100_R410_16GPU ####
+
+####  NVIDIA CNN TESTS  ####
+
+L2_bench_inception_v4--V100_R410_16GPU:
+    <<: *L2_CNN_BENCHMARK
+    <<: *V100_R410_16GPU
+
+L2_bench_resnet50--V100_R410_16GPU:
+    <<: *L2_CNN_BENCHMARK
+    <<: *V100_R410_16GPU
+
+L3_converge_resnet50--V100_R410_16GPU:
+    <<: *L3_CNN_CONVERGENCE
+    <<: *V100_R410_16GPU
+
+############################
+
+L1_self_test--V100_R410_16GPU:
+    <<: *L1_TEST
+    <<: *V100_R410_16GPU
+
+
+#### TU102_R410_1GPU ####
+
+####  NVIDIA CNN TESTS  ####
+
+L2_bench_inception_v4--TU102_R410_1GPU:
+    <<: *L2_CNN_BENCHMARK
+    <<: *TU102_R410_1GPU
+
+L2_bench_resnet50--TU102_R410_1GPU:
+    <<: *L2_CNN_BENCHMARK
+    <<: *TU102_R410_1GPU
+
+############################
+
+L1_self_test--TU102_R410_1GPU:
+    <<: *L1_TEST
+    <<: *TU102_R410_1GPU
+
 
 #### V100_R384_4GPU Python 3 ####
 
@@ -748,10 +813,6 @@ L3_converge_resnet50--V100_R384_8GPU:
     <<: *L3_CNN_CONVERGENCE
     <<: *V100_R384_8GPU
 
-L3_converge_resnet50--V100_R410_16GPU:
-    <<: *L3_CNN_CONVERGENCE
-    <<: *V100_R410_16GPU
-
 L3_converge_inception_v3--V100_R384_8GPU:
     <<: *L3_CNN_CONVERGENCE
     <<: *V100_R384_8GPU
@@ -770,14 +831,6 @@ L1_self_test_xla--V100_R384_4GPU:
     <<: *L1_TEST
     <<: *V100_R384_4GPU
 
-L1_self_test--V100_R410_16GPU:
-    <<: *L1_TEST
-    <<: *V100_R410_16GPU
-        
-L1_self_test--TU102_R410_1GPU:
-    <<: *L1_TEST
-    <<: *TU102_R410_1GPU
-
 L1_nccl_test--V100_R384_4GPU:
     <<: *L1_TEST
     <<: *V100_R384_4GPU
@@ -794,6 +847,149 @@ L2_models_cifar10--V100_R384_4GPU:
     <<: *L2_TEST
     <<: *V100_R384_4GPU
 
+#### V100_R384_4GPU Python 2 ####
+
+L0_models_alexnet--py2--V100_R384_1GPU:
+    <<: *L0_TEST
+    <<: *V100_R384_1GPU
+
+L0_horovod_self_test--py2--V100_R384_4GPU:
+    <<: *L0_TEST
+    <<: *P100_R384_4GPU
+
+L0_models_imagenet--py2--V100_R384_1GPU:
+    <<: *L0_TEST
+    <<: *V100_R384_1GPU
+
+L0_models_mnist--py2--V100_R384_1GPU:
+    <<: *L0_TEST
+    <<: *V100_R384_1GPU
+
+L0_convnet_benchmarks_alexnet--py2--V100_R384_1GPU:
+    <<: *L0_TEST
+    <<: *V100_R384_1GPU
+    variables:
+      TEST_WORK_DIR: "/opt/tensorflow/qa/L0_convnet_benchmarks"
+      TEST_SCRIPT: "./test-alexnet.sh"
+
+L0_convnet_benchmarks_googlenet--py2--V100_R384_1GPU:
+    <<: *L0_TEST
+    <<: *V100_R384_1GPU
+    variables:
+      TEST_WORK_DIR: "/opt/tensorflow/qa/L0_convnet_benchmarks"
+      TEST_SCRIPT: "./test-googlenet.sh"
+
+L0_convnet_benchmarks_overfeat--py2--V100_R384_1GPU:
+    <<: *L0_TEST
+    <<: *V100_R384_1GPU
+    variables:
+      TEST_WORK_DIR: "/opt/tensorflow/qa/L0_convnet_benchmarks"
+      TEST_SCRIPT: "./test-overfeat.sh"
+
+L0_convnet_benchmarks_vgga--py2--V100_R384_1GPU:
+    <<: *L0_TEST
+    <<: *V100_R384_1GPU
+    variables:
+      TEST_WORK_DIR: "/opt/tensorflow/qa/L0_convnet_benchmarks"
+      TEST_SCRIPT: "./test-vgga.sh"
+
+L0_seq2seq--py2--V100_R384_1GPU:
+    <<: *L0_TEST
+    <<: *V100_R384_1GPU
+
+L0_tftrt--py2--V100_R384_1GPU:
+    <<: *L0_TEST
+    <<: *V100_R384_1GPU
+
+L1_tftrt_extended_tests--py2--V100_R384_4GPU:
+    <<: *L1_TEST
+    <<: *V100_R384_4GPU
+
+####  NVIDIA CNN TESTS  ####
+L0_resnet_sanity--py2--V100_R384_4GPU:
+    <<: *L0_TEST
+    <<: *V100_R384_4GPU
+
+L0_resnet_dali_sanity--py2--V100_R384_4GPU:
+    <<: *L0_TEST
+    <<: *V100_R384_4GPU
+
+L1_cnn_sanity--py2--V100_R384_4GPU:
+    <<: *L1_TEST
+    <<: *V100_R384_4GPU
+
+L2_bench_alexnet--py2--V100_R384_4GPU:
+    <<: *L2_CNN_BENCHMARK
+    <<: *V100_R384_4GPU
+
+L2_bench_googlenet--py2--V100_R384_4GPU:
+    <<: *L2_CNN_BENCHMARK
+    <<: *V100_R384_4GPU
+
+L2_bench_inception_v3--py2--V100_R384_4GPU:
+    <<: *L2_CNN_BENCHMARK
+    <<: *V100_R384_4GPU
+
+L2_bench_inception_v4--py2--V100_R384_4GPU:
+    <<: *L2_CNN_BENCHMARK
+    <<: *V100_R384_4GPU
+
+L2_bench_inception_resnet_v2--py2--V100_R384_4GPU:
+    <<: *L2_CNN_BENCHMARK
+    <<: *V100_R384_4GPU
+
+L2_bench_overfeat--py2--V100_R384_4GPU:
+    <<: *L2_CNN_BENCHMARK
+    <<: *V100_R384_4GPU
+
+L2_bench_resnet50--py2--V100_R384_4GPU:
+    <<: *L2_CNN_BENCHMARK
+    <<: *V100_R384_4GPU
+
+L2_bench_resnet101--py2--V100_R384_4GPU:
+    <<: *L2_CNN_BENCHMARK
+    <<: *V100_R384_4GPU
+
+L2_bench_resnet152--py2--V100_R384_4GPU:
+    <<: *L2_CNN_BENCHMARK
+    <<: *V100_R384_4GPU
+
+L2_bench_vgg11--py2--V100_R384_4GPU:
+    <<: *L2_CNN_BENCHMARK
+    <<: *V100_R384_4GPU
+
+L2_bench_vgg16--py2--V100_R384_4GPU:
+    <<: *L2_CNN_BENCHMARK
+    <<: *V100_R384_4GPU
+
+L2_bench_vgg19--py2--V100_R384_4GPU:
+    <<: *L2_CNN_BENCHMARK
+    <<: *V100_R384_4GPU
+############################
+
+L1_word2vec--py2--V100_R384_1GPU:
+    <<: *L1_TEST
+    <<: *V100_R384_1GPU
+
+L1_self_test--py2--V100_R384_4GPU:
+    <<: *L1_TEST
+    <<: *V100_R384_4GPU
+
+L1_self_test_xla--py2--V100_R384_4GPU:
+    <<: *L1_TEST
+    <<: *V100_R384_4GPU
+
+L1_nccl_test--py2--V100_R384_4GPU:
+    <<: *L1_TEST
+    <<: *V100_R384_4GPU
+
+L1_seq2seq--py2--V100_R384_4GPU:
+    <<: *L1_TEST
+    <<: *V100_R384_4GPU
+
+L2_models_cifar10--py2--V100_R384_4GPU:
+    <<: *L2_TEST
+    <<: *V100_R384_4GPU
 
 #### P40_R384_1GPU ####
 
@@ -882,10 +1078,6 @@ L2_bench_inception_v4--P40_R384_1GPU:
     <<: *L2_CNN_BENCHMARK
     <<: *P40_R384_1GPU
 
-L2_bench_inception_v4--V100_R410_16GPU:
-    <<: *L2_CNN_BENCHMARK
-    <<: *V100_R410_16GPU
-
 L2_bench_inception_v4--TU102_R410_1GPU:
     <<: *L2_CNN_BENCHMARK
     <<: *TU102_R410_1GPU
@@ -901,10 +1093,6 @@ L2_bench_overfeat--P40_R384_1GPU:
 L2_bench_resnet50--P40_R384_1GPU:
     <<: *L2_CNN_BENCHMARK
     <<: *P40_R384_1GPU
-
-L2_bench_resnet50--V100_R410_16GPU:
-    <<: *L2_CNN_BENCHMARK
-    <<: *V100_R410_16GPU
 
 L2_bench_resnet50--TU102_R410_1GPU:
     <<: *L2_CNN_BENCHMARK
@@ -1079,66 +1267,6 @@ L2_models_cifar10--M40_R384_1GPU:
     <<: *L2_TEST
     <<: *M40_R384_1GPU
 
-
-#### GV100_R390_1GPU ####
-
-L0_models_alexnet--GV100_R390_1GPU:
-    <<: *L0_TEST
-    <<: *GV100_R390_1GPU
-
-L0_models_imagenet--GV100_R390_1GPU:
-    <<: *L0_TEST
-    <<: *GV100_R390_1GPU
-
-L0_models_mnist--GV100_R390_1GPU:
-    <<: *L0_TEST
-    <<: *GV100_R390_1GPU
-
-L0_convnet_benchmarks_alexnet--GV100_R390_1GPU:
-    <<: *L0_TEST
-    <<: *GV100_R390_1GPU
-    variables:
-      TEST_WORK_DIR: "/opt/tensorflow/qa/L0_convnet_benchmarks"
-      TEST_SCRIPT: "./test-alexnet.sh"
-
-L0_convnet_benchmarks_googlenet--GV100_R390_1GPU:
-    <<: *L0_TEST
-    <<: *GV100_R390_1GPU
-    variables:
-      TEST_WORK_DIR: "/opt/tensorflow/qa/L0_convnet_benchmarks"
-      TEST_SCRIPT: "./test-googlenet.sh"
-
-L0_convnet_benchmarks_overfeat--GV100_R390_1GPU:
-    <<: *L0_TEST
-    <<: *GV100_R390_1GPU
-    variables:
-      TEST_WORK_DIR: "/opt/tensorflow/qa/L0_convnet_benchmarks"
-      TEST_SCRIPT: "./test-overfeat.sh"
-
-L0_convnet_benchmarks_vgga--GV100_R390_1GPU:
-    <<: *L0_TEST
-    <<: *GV100_R390_1GPU
-    variables:
-      TEST_WORK_DIR: "/opt/tensorflow/qa/L0_convnet_benchmarks"
-      TEST_SCRIPT: "./test-vgga.sh"
-
-L0_tftrt--GV100_R390_1GPU:
-    <<: *L0_TEST
-    <<: *GV100_R390_1GPU
-
-L0_python_kernel_tests--GV100_R390_1GPU:
-    <<: *L0_TEST
-    <<: *GV100_R390_1GPU
-
-L0_resnet_sanity--GV100_R390_1GPU:
-    <<: *L0_TEST
-    <<: *GV100_R390_1GPU
-
-L0_resnet_dali_sanity--GV100_R390_1GPU:
-    <<: *L0_TEST
-    <<: *GV100_R390_1GPU
-
-
 #### TX2 ####
 
 L0_models_alexnet--py3--TX2:
@@ -1228,3 +1356,93 @@ L1_inference_tftrt--py2--TX2:
 L1_inference_tftrt_fp16--py2--TX2:
     <<: *NIGHTLY_TEST
     <<: *TX2
+
+#### XAVIER ####
+
+L0_models_alexnet--py3--XAVIER:
+    <<: *NIGHTLY_TEST
+    <<: *XAVIER
+
+L0_models_imagenet--py3--XAVIER:
+    <<: *NIGHTLY_TEST
+    <<: *XAVIER
+
+L0_models_mnist--py3--XAVIER:
+    <<: *NIGHTLY_TEST
+    <<: *XAVIER
+
+L0_convnet_benchmarks_alexnet--py3--XAVIER:
+    <<: *NIGHTLY_TEST
+    <<: *XAVIER
+    variables:
+      TEST_WORK_DIR: "./qa/L0_convnet_benchmarks"
+      TEST_SCRIPT: "./test-alexnet.sh"
+
+L0_convnet_benchmarks_googlenet--py3--XAVIER:
+    <<: *NIGHTLY_TEST
+    <<: *XAVIER
+    variables:
+      TEST_WORK_DIR: "./qa/L0_convnet_benchmarks"
+      TEST_SCRIPT: "./test-googlenet.sh"
+
+L0_convnet_benchmarks_overfeat--py3--XAVIER:
+    <<: *NIGHTLY_TEST
+    <<: *XAVIER
+    variables:
+      TEST_WORK_DIR: "./qa/L0_convnet_benchmarks"
+      TEST_SCRIPT: "./test-overfeat.sh"
+
+L0_convnet_benchmarks_vgga--py3--XAVIER:
+    <<: *NIGHTLY_TEST
+    <<: *XAVIER
+    variables:
+      TEST_WORK_DIR: "./qa/L0_convnet_benchmarks"
+      TEST_SCRIPT: "./test-vgga.sh"
+
+L0_tftrt--py3--XAVIER:
+    <<: *NIGHTLY_TEST
+    <<: *XAVIER
+
+L0_python_kernel_tests--py3--XAVIER:
+    <<: *NIGHTLY_TEST
+    <<: *XAVIER
+
+L1_self_test--py3--XAVIER:
+    <<: *NIGHTLY_TEST
+    <<: *XAVIER
+
+L1_self_test_xla--py3--XAVIER:
+    <<: *NIGHTLY_TEST
+    <<: *XAVIER
+
+L0_models_alexnet--py2--XAVIER:
+    <<: *NIGHTLY_TEST
+    <<: *XAVIER
+
+L0_models_imagenet--py2--XAVIER:
+    <<: *NIGHTLY_TEST
+    <<: *XAVIER
+
+L0_models_mnist--py2--XAVIER:
+    <<: *NIGHTLY_TEST
+    <<: *XAVIER
+
+L0_tftrt--py2--XAVIER:
+    <<: *NIGHTLY_TEST
+    <<: *XAVIER
+
+L0_python_kernel_tests--py2--XAVIER:
+    <<: *NIGHTLY_TEST
+    <<: *XAVIER
+
+L1_inference_tf--py2--XAVIER:
+    <<: *NIGHTLY_TEST
+    <<: *XAVIER
+
+L1_inference_tftrt--py2--XAVIER:
+    <<: *NIGHTLY_TEST
+    <<: *XAVIER
+
+L1_inference_tftrt_fp16--py2--XAVIER:
+    <<: *NIGHTLY_TEST
+    <<: *XAVIER
