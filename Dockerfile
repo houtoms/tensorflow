@@ -102,8 +102,9 @@ RUN pip install --no-cache-dir --upgrade \
         librosa==0.6.1 \
         matplotlib \
         joblib==0.11 \
-        sentencepiece \
-        sacrebleu
+        sentencepiece
+
+RUN test "${PYVER} -ge 3" && pip install sacrebleu
 
 # Set up Bazel.
 # Running bazel inside a `docker build` command causes trouble, cf:
