@@ -104,7 +104,7 @@ RUN pip install --no-cache-dir --upgrade \
         joblib==0.11 \
         sentencepiece
 
-RUN awk "BEGIN{exit $PYVER>=3 ? 0 : 1}" && pip install sacrebleu
+RUN awk "BEGIN{exit $PYVER<3 ? 0 : 1}" || pip install sacrebleu
 
 # Set up Bazel.
 # Running bazel inside a `docker build` command causes trouble, cf:
