@@ -1,15 +1,19 @@
 #!/bin/bash
 
-# Create and enable swapfile
-if [ ! -f /swapfile ]; then
-  fallocate -l 4G /swapfile
-  chmod 600 /swapfile
-  mkswap /swapfile
-  echo "/swapfile none swap defaults 0 0" >> /etc/fstab
+BOARDMEM=$(free -g | awk '/^Mem:/{print $2}')
+if [ $BOARDMEM > 12]; then
+  # Create and enable swapfile
+  if [ ! -f /swapfile ]; then
+    fallocate -l 4G /swapfile
+    chmod 600 /swapfile
+    mkswap /swapfile
+    echo "/swapfile none swap defaults 0 0" >> /etc/fstab
+  fi
+  swapon -a
 fi
-swapon -a
 
 # Set startup script to boost clocks to max
+touch /etc/rc.local
 if [ -z "$(grep jetson_clocks.sh /etc/rc.local)" ]; then
   sed -i 's,^exit 0$,/home/nvidia/jetson_clocks.sh\nexit 0,' /etc/rc.local
 fi
@@ -18,7 +22,8 @@ fi
 systemctl disable ondemand nvpmodel
 
 # Install base system packages
-apt-get update && apt-get install -y build-essential openjdk-8-jdk zip python-pip python3-pip libfreetype6-dev libpng12-dev libjpeg8-dev
+apt-get update && apt-get install libpng12-dev || echo "libpng12-dev not found" && 
+	apt-get install -y build-essential openjdk-8-jdk zip python-pip python3-pip libfreetype6-dev libjpeg8-dev
 pip install virtualenv
 pip3 install virtualenv
 
