@@ -2136,7 +2136,7 @@ tf_kernel_library(
 tf_kernel_library(
     name = "crop_and_resize_op",
     prefix = "crop_and_resize_op",
-    copts = tf_copts() + if_linux_x86_64(["-msse4.1"]),
+    copts = tf_copts() + if_linux_x86_64(["-msse4.1 -finline-functions"]),
     deps = IMAGE_DEPS + [":crop_resize_bilinear_core"],
 )
 
@@ -2203,7 +2203,7 @@ tf_kernel_library(
 tf_kernel_library(
     name = "resize_bilinear_op",
     prefix = "resize_bilinear_op",
-    copts = tf_copts() + if_linux_x86_64(["-msse4.1"]),
+    copts = tf_copts() + if_linux_x86_64(["-msse4.1 -finline-functions"]),
     deps = IMAGE_DEPS + [":crop_resize_bilinear_core"],
 )
 
