@@ -2313,15 +2313,29 @@ def layer_norm(inputs,
     variance_epsilon = 1e-12
     if use_fused_batch_norm is not None:
       # Use nn.fused_batch_norm, which calls a cudnn method.
-      output_shape = inputs.get_shape()
-      inputs = array_ops.reshape(inputs, [1,-1,1,numpy.prod(inputs.get_shape()[begin_norm_axis:].as_list())])
+      # get static TensorShape of inputs tensor
+      inputs_shape = inputs.get_shape() if inputs.get_shape().is_fully_defined() else tf.shape(inputs)
+      # params_shape is static and guaranteed to be fully defined
+      # can use numpy.prod, which runs during graph construction time and thus causes no slowdown
+      inputs = array_ops.reshape(inputs, [1,-1,1,numpy.prod(params_shape.as_list())])
+      if inputs.get_shape().is_fully_defined():
+          # static inputs TensorShape fully defined after reshape.
+          # can create these input tensors during graph construction time.
+          ones = tf.ones(inputs.get_shape()[1], dtype=tf.float32)
+          zeros = tf.zeros(inputs.get_shape()[1], dtype=tf.float32)
+      else:
+          # static inputs TensorShape NOT fully defined after reshape.
+          # must use dynamic shape, which means these input tensors have to be created at runtime,
+          # which causes a slowdown.
+          scale_shape = tf.shape(inputs)[1]
+          ones = tf.ones(scale_shape, dtype=tf.float32);
+          zeros = tf.zeros(scale_shape, dtype=tf.float32);
       outputs,mean,variance = nn.fused_batch_norm(
           inputs,
-	  tf.ones(inputs.get_shape()[1], dtype=dtype),
-	  tf.zeros(inputs.get_shape()[1], dtype=dtype),
+          ones, zeros,
 	  epsilon=variance_epsilon,
 	  data_format="NCHW")
-      outputs = array_ops.reshape(outputs, output_shape)
+      outputs = array_ops.reshape(outputs, inputs_shape)
       if center and scale:
         outputs = outputs * gamma + beta
       elif center:
