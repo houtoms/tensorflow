@@ -41,7 +41,7 @@ You can download and process Imagenet using [this script provided by TF Slim](ht
 
 `python inference.py --model vgg16 [--use_trt]`
 
-### Other options
+### All Options
 
 ```
 usage: inference.py [-h]
@@ -50,7 +50,9 @@ usage: inference.py [-h]
                     [--use_trt] [--precision {fp32,fp16,int8}]
                     [--batch_size BATCH_SIZE]
                     [--num_iterations NUM_ITERATIONS]
-                    [--display_every DISPLAY_EVERY]
+                    [--display_every DISPLAY_EVERY] [--use_synthetic]
+                    [--num_warmup_iterations NUM_WARMUP_ITERATIONS]
+                    [--num_calib_inputs NUM_CALIB_INPUTS]
 
 Evaluate model
 
@@ -75,4 +77,12 @@ optional arguments:
   --display_every DISPLAY_EVERY
                         Number of iterations executed between two consecutive
                         display of metrics
+  --use_synthetic       If set, one batch of random data is generated and used
+                        at every iteration.
+  --num_warmup_iterations NUM_WARMUP_ITERATIONS
+                        Number of initial iterations skipped from timing
+  --num_calib_inputs NUM_CALIB_INPUTS
+                        Number of inputs (e.g. images) used for calibration
+                        (last batch is skipped in case it is not full)
+
 ```
