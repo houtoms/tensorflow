@@ -170,7 +170,9 @@ def get_frozen_graph(
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Evaluate model')
     parser.add_argument('--model', type=str, default='inception_v4',
-        help='Which model to use. See NETS table in graph.py for available networks.')
+        choices=['mobilenet_v1', 'mobilenet_v2', 'nasnet_mobile', 'nasnet_large',
+                 'resnet_v1_50', 'resnet_v2_50', 'vgg_16', 'vgg_19', 'inception_v3', 'inception_v4'],
+        help='Which model to use.')
     parser.add_argument('--data_dir', type=str, default='/data/imagenet/train-val-tfrecord',
         help='Directory containing validation set TFRecord files.')
     parser.add_argument('--calib_data_dir', type=str,
@@ -197,8 +199,8 @@ if __name__ == '__main__':
 
     if args.precision != 'fp32' and not args.use_trt:
         raise ValueError('TensorRT must be enabled for fp16 or int8 modes (--use_trt).')
-    if args.num_iterations <= args.num_warmup_iterations:
-        raise ValueError('--num_iterations must be larger than --num_warmp_iterations '
+    if args.num_iterations is not None and args.num_iterations <= args.num_warmup_iterations:
+        raise ValueError('--num_iterations must be larger than --num_warmup_iterations '
             '({} <= {})'.format(args.num_iterations, args.num_warmup_iterations))
     if args.num_calib_inputs < args.batch_size:
         raise ValueError('--num_calib_inputs must not be smaller than --batch_size'
