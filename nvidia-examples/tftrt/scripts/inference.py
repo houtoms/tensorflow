@@ -170,7 +170,9 @@ def get_frozen_graph(
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Evaluate model')
     parser.add_argument('--model', type=str, default='inception_v4',
-        help='Which model to use. See NETS table in graph.py for available networks.')
+        choices=['mobilenet_v1', 'mobilenet_v2', 'nasnet_mobile', 'nasnet_large',
+                 'resnet_v1_50', 'resnet_v2_50', 'vgg_16', 'vgg_19', 'inception_v3', 'inception_v4'],
+        help='Which model to use.')
     parser.add_argument('--data_dir', type=str, default='/data/imagenet/train-val-tfrecord',
         help='Directory containing validation set TFRecord files.')
     parser.add_argument('--calib_data_dir', type=str,
