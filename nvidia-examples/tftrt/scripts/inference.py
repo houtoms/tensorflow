@@ -5,7 +5,7 @@ import tensorflow.contrib.tensorrt as trt
 import time
 import numpy as np
 import sys
-from classification import build_classification_graph, get_preprocess_fn
+from classification import build_classification_graph, get_preprocess_fn, get_netdef
 
 class LoggerHook(tf.train.SessionRunHook):
     """Logs runtime of each iteration"""
@@ -29,7 +29,8 @@ class LoggerHook(tf.train.SessionRunHook):
                 current_step, self.num_steps, duration * 1000,
                 self.batch_size / self.iter_times[-1]))
 
-def run(frozen_graph, model, data_dir, batch_size, num_iterations, display_every=100):
+def run(frozen_graph, model, data_dir, batch_size,
+    num_iterations, num_warmup_iterations, use_synthetic, display_every=100):
     """Evaluates a frozen graph
     
     This function evaluates a graph on the ImageNet validation set.
@@ -69,12 +70,26 @@ def run(frozen_graph, model, data_dir, batch_size, num_iterations, display_every
 
     # Define the dataset input function for tf.estimator.Estimator
     def eval_input_fn():
-        dataset = tf.data.TFRecordDataset(validation_files)
-        dataset = dataset.map(preprocess_fn)
-        dataset = dataset.repeat(count=1)
-        dataset = dataset.batch(batch_size)
-        iterator = dataset.make_one_shot_iterator()
-        features, labels = iterator.get_next()
+        if use_synthetic:
+            input_width, input_height = get_netdef(model).get_input_dims()
+            features = np.random.normal(
+                loc=112, scale=70,
+                size=(batch_size, input_height, input_width, 3)).astype(np.float32)
+            features = np.clip(features, 0.0, 255.0)
+            features = tf.identity(tf.constant(features))
+            labels = np.random.randint(
+                low=0,
+                high=get_netdef(model).get_num_classes(),
+                size=(batch_size),
+                dtype=np.int32)
+            labels = tf.identity(tf.constant(labels))
+        else:
+            dataset = tf.data.TFRecordDataset(validation_files)
+            dataset = dataset.map(preprocess_fn)
+            dataset = dataset.repeat(count=1)
+            dataset = dataset.batch(batch_size)
+            iterator = dataset.make_one_shot_iterator()
+            features, labels = iterator.get_next()
         return features, labels
 
     # Evaluate model
@@ -89,7 +104,7 @@ def run(frozen_graph, model, data_dir, batch_size, num_iterations, display_every
     results = estimator.evaluate(eval_input_fn, steps=num_iterations, hooks=[logger])
     
     # Gather additional results
-    iter_times = np.array(logger.iter_times)
+    iter_times = np.array(logger.iter_times[num_warmup_iterations:])
     results['total_time'] = np.sum(iter_times)
     results['images_per_sec'] = np.mean(batch_size / iter_times)
     results['99th_percentile'] = np.percentile(iter_times, q=99, interpolation='lower') * 1000
@@ -101,7 +116,9 @@ def get_frozen_graph(
     use_trt=False,
     precision='fp32',
     batch_size=8,
-    calib_data_dir=None):
+    calib_data_dir=None,
+    num_calib_inputs=None,
+    use_synthetic=False):
     """Retreives a frozen GraphDef from model definitions in classification.py and applies TF-TRT
 
     model: str, the model name (see NETS table in classification.py)
@@ -135,11 +152,10 @@ def get_frozen_graph(
         if precision == 'int8':
             calib_graph = frozen_graph
             # INT8 calibration step
-            num_iterations = 5000 // batch_size
             print('Calibrating INT8...')
-
             start_time = time.time()
-            run(calib_graph, model, calib_data_dir, batch_size, num_iterations)
+            run(calib_graph, model, calib_data_dir, batch_size,
+                num_calib_inputs // batch_size, 0, False)
             times['trt_calibration'] = time.time() - start_time
 
             start_time = time.time()
@@ -170,11 +186,23 @@ if __name__ == '__main__':
         help='How many iterations(batches) to evaluate. If not supplied, the whole set will be evaluated.')
     parser.add_argument('--display_every', type=int, default=100,
         help='Number of iterations executed between two consecutive display of metrics')
+    parser.add_argument('--use_synthetic', action='store_true',
+        help='If set, one batch of random data is generated and used at every iteration.')
+    parser.add_argument('--num_warmup_iterations', type=int, default=50,
+        help='Number of initial iterations skipped from timing')
+    parser.add_argument('--num_calib_inputs', type=int, default=5000,
+        help='Number of inputs (e.g. images) used for calibration '
+        '(last batch is skipped in case it is not full)')
     args = parser.parse_args()
 
     if args.precision != 'fp32' and not args.use_trt:
         raise ValueError('TensorRT must be enabled for fp16 or int8 modes (--use_trt).')
-
+    if args.num_iterations <= args.num_warmup_iterations:
+        raise ValueError('--num_iterations must be larger than --num_warmp_iterations '
+            '({} <= {})'.format(args.num_iterations, args.num_warmup_iterations))
+    if args.num_calib_inputs < args.batch_size:
+        raise ValueError('--num_calib_inputs must not be smaller than --batch_size'
+            '({} <= {})'.format(args.num_calib_inputs, args.batch_size))
 
     # Retreive graph using NETS table in graph.py
     frozen_graph, num_nodes, times = get_frozen_graph(
@@ -182,7 +210,9 @@ if __name__ == '__main__':
         use_trt=args.use_trt,
         precision=args.precision,
         batch_size=args.batch_size,
-        calib_data_dir=args.calib_data_dir)
+        calib_data_dir=args.calib_data_dir,
+        num_calib_inputs=args.num_calib_inputs,
+        use_synthetic=args.use_synthetic)
 
     def print_dict(input_dict, str=''):
         for k, v in input_dict.items():
@@ -200,6 +230,8 @@ if __name__ == '__main__':
         data_dir=args.data_dir,
         batch_size=args.batch_size,
         num_iterations=args.num_iterations,
+        num_warmup_iterations=args.num_warmup_iterations,
+        use_synthetic=args.use_synthetic,
         display_every=args.display_every)
 
     # Display results
