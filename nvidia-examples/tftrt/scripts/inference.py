@@ -238,7 +238,7 @@ if __name__ == '__main__':
 
     # Display results
     print('results of {}:'.format(args.model))
-    print('    accuracy: %.4f' % results['accuracy'])
+    print('    accuracy: %.2f' % (results['accuracy'] * 100))
     print('    images/sec: %d' % results['images_per_sec'])
     print('    99th_percentile(ms): %.1f' % results['99th_percentile'])
     print('    total_time(s): %.1f' % results['total_time'])
