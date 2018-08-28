@@ -28,7 +28,7 @@ for i in "${models[@]}"
 do
   echo "Testing $i..."
   python -u inference.py --batch_size 1 --model $i --use_trt --precision int8 2>&1 | tee $OUTPUT_PATH/output_tftrt_int8_$i
-  python -u check_accuracy.py --tolerance 0.04 --input $OUTPUT_PATH/output_tftrt_int8_$i
+  python -u check_accuracy.py --tolerance 4.0 --input $OUTPUT_PATH/output_tftrt_int8_$i
   echo "DONE testing $i"
 done
 popd

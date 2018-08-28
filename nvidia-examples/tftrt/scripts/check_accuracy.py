@@ -13,22 +13,22 @@ def parse_file(filename):
         if match is not None:
             results[match.group(1)] = match.group(2)
     regex_match('.*(model): (\w*)')
-    regex_match('.*(accuracy): (0\.\d*)')
+    regex_match('.*(accuracy): (\d*\.\d*)')
     assert len(results) == 2, '{}'.format(results)
     return results
 
 def check_accuracy(res, tol):
     dest = {
-        'resnet_v1_50': 0.7590,
-        'resnet_v2_50': 0.7606,
-        'vgg_16': 0.7089,
-        'vgg_19': 0.7100,
-        'inception_v3': 0.7798,
-        'inception_v4': 0.8019,
-        'mobilenet_v2': 0.7408,
-        'mobilenet_v1': 0.7101,
-        'nasnet_large': 0.8272,
-        'nasnet_mobile': 0.7396,
+        'mobilenet_v1': 71.02,
+        'mobilenet_v2': 74.11,
+        'nasnet_large': 82.71,
+        'nasnet_mobile': 73.97,
+        'resnet_v1_50': 75.91,
+        'resnet_v2_50': 76.05,
+        'vgg_16': 70.89,
+        'vgg_19': 71.00,
+        'inception_v3': 77.98,
+        'inception_v4': 80.18,
     }
     if abs(float(res['accuracy']) - dest[res['model']]) < tol:
         print("PASS")
@@ -41,7 +41,7 @@ if __name__ == "__main__":
     
     parser = argparse.ArgumentParser()
     parser.add_argument('--input', dest='input')
-    parser.add_argument('--tolerance', dest='tolerance', type=float, default=0.001)
+    parser.add_argument('--tolerance', dest='tolerance', type=float, default=0.1)
     
     args = parser.parse_args()
     filename = args.input
