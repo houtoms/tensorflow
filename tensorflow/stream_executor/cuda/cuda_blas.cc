@@ -340,8 +340,9 @@ static bool TensorOpMathEnabled() {
 static bool TensorOpFp32MathEnabled() {
   static bool is_enabled = [] {
     bool ret;
-    TF_CHECK_OK(tensorflow::ReadBoolFromEnvVar("TF_ENABLE_TENSOR_OP_MATH_FP32",
-                                               /*default=*/false, &ret));
+    TF_CHECK_OK(
+        tensorflow::ReadBoolFromEnvVar("TF_ENABLE_CUBLAS_TENSOR_OP_MATH_FP32",
+                                       /*default=*/false, &ret));
     return ret;
   }();
   return is_enabled;
