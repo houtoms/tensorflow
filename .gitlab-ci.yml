@@ -531,10 +531,6 @@ L1_inference_tftrt--P100_R384_4GPU:
     <<: *P100_R384_4GPU
 
 
-L1_tftrt_extended_tests--py2--P100_R384_4GPU:
-    <<: *L1_TEST
-    <<: *P100_R384_4GPU
-
 ####  NVIDIA CNN TESTS  ####
 L0_resnet_sanity--P100_R384_4GPU:
     <<: *L0_TEST
@@ -703,6 +699,10 @@ L2_bench_vgg19--TU102_R410_1GPU:
 
 ############################
 
+L0_inference--TU102_R410_1GPU:
+    <<: *L0_TEST
+    <<: *TU102_R410_1GPU
+
 L1_self_test--TU102_R410_1GPU:
     <<: *L1_TEST
     <<: *TU102_R410_1GPU
@@ -770,6 +770,10 @@ L0_seq2seq--V100_R384_1GPU:
     <<: *V100_R384_1GPU
 
 L0_tftrt--V100_R384_1GPU:
+    <<: *L0_TEST
+    <<: *V100_R384_1GPU
+
+L0_inference--V100_R384_1GPU:
     <<: *L0_TEST
     <<: *V100_R384_1GPU
 
@@ -959,9 +963,9 @@ L0_tftrt--py2--V100_R384_1GPU:
     <<: *L0_TEST
     <<: *V100_R384_1GPU
 
-L1_tftrt_extended_tests--py2--V100_R384_4GPU:
-    <<: *L1_TEST
-    <<: *V100_R384_4GPU
+L0_inference--py2--V100_R384_1GPU:
+    <<: *L0_TEST
+    <<: *V100_R384_1GPU
 
 ####  NVIDIA CNN TESTS  ####
 L0_resnet_sanity--py2--V100_R384_4GPU:
@@ -1108,6 +1112,10 @@ L0_seq2seq--P40_R384_1GPU:
     <<: *P40_R384_1GPU
 
 L0_tftrt--P40_R384_1GPU:
+    <<: *L0_TEST
+    <<: *P40_R384_1GPU
+
+L0_inference--P40_R384_1GPU:
     <<: *L0_TEST
     <<: *P40_R384_1GPU
 
@@ -1379,6 +1387,10 @@ L0_tftrt--py3--TX2:
     <<: *NIGHTLY_TEST
     <<: *TX2
 
+L0_inference--py3--TX2:
+    <<: *NIGHTLY_TEST
+    <<: *TX2
+
 L0_python_kernel_tests--py3--TX2:
     <<: *NIGHTLY_TEST
     <<: *TX2
@@ -1404,6 +1416,10 @@ L0_models_mnist--py2--TX2:
     <<: *TX2
 
 L0_tftrt--py2--TX2:
+    <<: *NIGHTLY_TEST
+    <<: *TX2
+
+L0_inference--py2--TX2:
     <<: *NIGHTLY_TEST
     <<: *TX2
 
@@ -1485,6 +1501,10 @@ L0_tftrt--py3.6--XAVIER:
     <<: *NIGHTLY_TEST
     <<: *XAVIER
 
+L0_inference--py3.6--XAVIER:
+    <<: *NIGHTLY_TEST
+    <<: *XAVIER
+
 L0_python_kernel_tests--py3.6--XAVIER:
     <<: *NIGHTLY_TEST
     <<: *XAVIER
@@ -1510,6 +1530,10 @@ L0_models_mnist--py2--XAVIER:
     <<: *XAVIER
 
 L0_tftrt--py2--XAVIER:
+    <<: *NIGHTLY_TEST
+    <<: *XAVIER
+
+L0_inference--py2--XAVIER:
     <<: *NIGHTLY_TEST
     <<: *XAVIER
 
