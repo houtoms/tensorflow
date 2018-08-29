@@ -3,6 +3,18 @@
 set -e
 set -o pipefail
 
+CHECK_TMP=$(mktemp)
+trap "/bin/rm -f $CHECK_TMP" EXIT
+
+function CHECK {
+    ${1+"$@"} > "$CHECK_TMP" 2>&1 && RC=0 || RC=1
+    if [[ $RC -eq 1 ]]; then
+        echo "'${1+"$@"}'" exited with error. ABORTING
+        cat "$CHECK_TMP"
+    fi
+    return $RC
+}
+
 cd ../../
 
 NATIVE_ARCH=`uname -m`
@@ -14,21 +26,23 @@ else
   ./nvbuild.sh --configonly --python$PYVER
   NUM_GPUS=`nvidia-smi -L | wc -l`
 
-  tensorflow/tools/ci_build/install/install_bootstrap_deb_packages.sh
-  tensorflow/tools/ci_build/install/install_deb_packages.sh
-  add-apt-repository -y ppa:openjdk-r/ppa && \
-    add-apt-repository -y ppa:george-edison55/cmake-3.x
+  echo "Installing test dependencies..."
+  CHECK tensorflow/tools/ci_build/install/install_bootstrap_deb_packages.sh
+  CHECK tensorflow/tools/ci_build/install/install_deb_packages.sh
+  CHECK add-apt-repository -y ppa:openjdk-r/ppa
+  CHECK add-apt-repository -y ppa:george-edison55/cmake-3.x
   if [[ "${PYVER%.*}" == "3" ]]; then
-    tensorflow/tools/ci_build/install/install_python${PYVER}_pip_packages.sh
+    CHECK tensorflow/tools/ci_build/install/install_python${PYVER}_pip_packages.sh
   else
-    tensorflow/tools/ci_build/install/install_pip_packages.sh
+    CHECK tensorflow/tools/ci_build/install/install_pip_packages.sh
   fi
-  tensorflow/tools/ci_build/install/install_proto3.sh
-  tensorflow/tools/ci_build/install/install_auditwheel.sh
+  CHECK tensorflow/tools/ci_build/install/install_proto3.sh
+  CHECK tensorflow/tools/ci_build/install/install_auditwheel.sh
 fi #aarch64 check
 
 export LD_LIBRARY_PATH=/usr/local/cuda/extras/CUPTI/lib64:$LD_LIBRARY_PATH
 
+echo "Building and running tests..."
 set +e
 FAILS=0
 
@@ -78,7 +92,7 @@ bazel test --config=cuda -c opt --verbose_failures --local_test_jobs=$NUM_GPUS \
               -//tensorflow/python/keras:data_utils_test \
               `# contrib distributions is deprecated/unmaintained.` \
               -//tensorflow/contrib/distributions/python/kernel_tests/util:correlation_matrix_volumes_test \
-| tee testresult.tmp
+2>&1 | tee testresult.tmp | grep '^\[\|^FAIL\|^Executed\|Build completed'
 
 FAILS=$((FAILS+$?))
 
@@ -96,7 +110,7 @@ bazel test    --config=cuda -c opt --verbose_failures --local_test_jobs=1 \
               //tensorflow/python/kernel_tests:depthtospace_op_test \
               //tensorflow/python/kernel_tests:conv_ops_test \
               //tensorflow/core/platform/cloud:ram_file_block_cache_test \
-  | tee -a testresult.tmp
+2>&1 | tee testresult.tmp | grep '^\[\|^FAIL\|^Executed\|Build completed'
 
 FAILS=$((FAILS+$?))
 
