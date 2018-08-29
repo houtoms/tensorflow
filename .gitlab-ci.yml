@@ -652,13 +652,54 @@ L1_self_test--V100_R410_16GPU:
 
 ####  NVIDIA CNN TESTS  ####
 
+L2_bench_alexnet--TU102_R410_1GPU:
+    <<: *L2_CNN_BENCHMARK
+    <<: *TU102_R410_1GPU
+
+L2_bench_googlenet--TU102_R410_1GPU:
+    <<: *L2_CNN_BENCHMARK
+    <<: *TU102_R410_1GPU
+
+L2_bench_inception_v3--TU102_R410_1GPU:
+    <<: *L2_CNN_BENCHMARK
+    <<: *TU102_R410_1GPU
+
 L2_bench_inception_v4--TU102_R410_1GPU:
+    <<: *L2_CNN_BENCHMARK
+    <<: *TU102_R410_1GPU
+
+L2_bench_inception_resnet_v2--TU102_R410_1GPU:
+    <<: *L2_CNN_BENCHMARK
+    <<: *TU102_R410_1GPU
+
+L2_bench_overfeat--TU102_R410_1GPU:
     <<: *L2_CNN_BENCHMARK
     <<: *TU102_R410_1GPU
 
 L2_bench_resnet50--TU102_R410_1GPU:
     <<: *L2_CNN_BENCHMARK
     <<: *TU102_R410_1GPU
+
+L2_bench_resnet101--TU102_R410_1GPU:
+    <<: *L2_CNN_BENCHMARK
+    <<: *TU102_R410_1GPU
+
+L2_bench_resnet152--TU102_R410_1GPU:
+    <<: *L2_CNN_BENCHMARK
+    <<: *TU102_R410_1GPU
+
+L2_bench_vgg11--TU102_R410_1GPU:
+    <<: *L2_CNN_BENCHMARK
+    <<: *TU102_R410_1GPU
+
+L2_bench_vgg16--TU102_R410_1GPU:
+    <<: *L2_CNN_BENCHMARK
+    <<: *TU102_R410_1GPU
+
+L2_bench_vgg19--TU102_R410_1GPU:
+    <<: *L2_CNN_BENCHMARK
+    <<: *TU102_R410_1GPU
+
 
 ############################
 
@@ -858,6 +899,11 @@ L2_inference_bench--V100_R384_1GPU:
 L2_inference_bench_synthetic--V100_R384_1GPU:
     <<: *L2_TEST
     <<: *V100_R384_4GPU
+
+L2_bench_resnet50--V100_R384_1GPU:
+    <<: *L2_CNN_BENCHMARK
+    <<: *V100_R384_1GPU
+
 
 #### V100_R384_4GPU Python 2 ####
 
@@ -1098,10 +1144,6 @@ L2_bench_inception_v4--P40_R384_1GPU:
     <<: *L2_CNN_BENCHMARK
     <<: *P40_R384_1GPU
 
-L2_bench_inception_v4--TU102_R410_1GPU:
-    <<: *L2_CNN_BENCHMARK
-    <<: *TU102_R410_1GPU
-
 L2_bench_inception_resnet_v2--P40_R384_1GPU:
     <<: *L2_CNN_BENCHMARK
     <<: *P40_R384_1GPU
@@ -1113,10 +1155,6 @@ L2_bench_overfeat--P40_R384_1GPU:
 L2_bench_resnet50--P40_R384_1GPU:
     <<: *L2_CNN_BENCHMARK
     <<: *P40_R384_1GPU
-
-L2_bench_resnet50--TU102_R410_1GPU:
-    <<: *L2_CNN_BENCHMARK
-    <<: *TU102_R410_1GPU
 
 L2_bench_resnet101--P40_R384_1GPU:
     <<: *L2_CNN_BENCHMARK
