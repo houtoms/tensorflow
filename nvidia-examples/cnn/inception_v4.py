@@ -34,7 +34,7 @@ default_args = {
     'learning_rate_init' : 0.045,
     'learning_rate_power' : 2.0,
     'weight_decay' : 1e-4,
-    'loss_scale' : 128.0,
+    'loss_scale' : 1.0,
     'larc_eta' : 0.003,
     'larc_mode' : 'clip',
     'num_iter' : 90,
