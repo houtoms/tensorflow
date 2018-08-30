@@ -97,10 +97,11 @@ def run(frozen_graph, model, data_dir, batch_size,
         display_every=display_every,
         batch_size=batch_size,
         num_records=get_tfrecords_count(validation_files))
+    tf_config = tf.ConfigProto()
+    tf_config.gpu_options.per_process_gpu_memory_fraction = 0.25
     estimator = tf.estimator.Estimator(
         model_fn=model_fn,
-        config=tf.estimator.RunConfig(session_config=tf.ConfigProto(
-            gpu_options=tf.GPUOptions(per_process_gpu_memory_fraction=0.25))))
+        config=tf.estimator.RunConfig(session_config=tf_config))
     results = estimator.evaluate(eval_input_fn, steps=num_iterations, hooks=[logger])
     
     # Gather additional results
@@ -118,7 +119,8 @@ def get_frozen_graph(
     batch_size=8,
     calib_data_dir=None,
     num_calib_inputs=None,
-    use_synthetic=False):
+    use_synthetic=False,
+    cache=False):
     """Retreives a frozen GraphDef from model definitions in classification.py and applies TF-TRT
 
     model: str, the model name (see NETS table in classification.py)
@@ -129,6 +131,21 @@ def get_frozen_graph(
     """
     num_nodes = {}
     times = {}
+
+    # Load from pb file if frozen graph was already created and cached
+    if cache:
+        # Graph must match the model, TRT mode, precision, and batch size
+        prebuilt_graph_path = "graphs/frozen_graph_%s_%d_%s_%d.pb" % (model, int(use_trt), precision, batch_size)
+        if os.path.isfile(prebuilt_graph_path):
+            print('Loading cached frozen graph from \'%s\'' % prebuilt_graph_path)
+            start_time = time.time()
+            with tf.gfile.GFile(prebuilt_graph_path, "rb") as f:
+                frozen_graph = tf.GraphDef()
+                frozen_graph.ParseFromString(f.read())
+            times['loading_frozen_graph'] = time.time() - start_time
+            num_nodes['loaded_frozen_graph'] = len(frozen_graph.node)
+            num_nodes['trt_only'] = len([1 for n in frozen_graph.node if str(n.op)=='TRTEngineOp'])
+            return frozen_graph, num_nodes, times
 
     # Build graph and load weights
     frozen_graph = build_classification_graph(model)
@@ -165,6 +182,14 @@ def get_frozen_graph(
             del calib_graph
             print('INT8 graph created.')
 
+    # Cache graph to avoid long conversions each time
+    if cache:
+        os.makedirs(os.path.dirname(prebuilt_graph_path), exist_ok=True)
+        start_time = time.time()
+        with tf.gfile.GFile(prebuilt_graph_path, "wb") as f:
+            f.write(frozen_graph.SerializeToString())
+        times['saving_frozen_graph'] = time.time() - start_time
+
     return frozen_graph, num_nodes, times
 
 if __name__ == '__main__':
@@ -195,6 +220,8 @@ if __name__ == '__main__':
     parser.add_argument('--num_calib_inputs', type=int, default=5000,
         help='Number of inputs (e.g. images) used for calibration '
         '(last batch is skipped in case it is not full)')
+    parser.add_argument('--cache', action='store_true',
+        help='If set, graphs will be saved to disk after conversion. If a converted graph is present on disk, it will be loaded instead of building the graph again.')
     args = parser.parse_args()
 
     if args.precision != 'fp32' and not args.use_trt:
@@ -214,7 +241,8 @@ if __name__ == '__main__':
         batch_size=args.batch_size,
         calib_data_dir=args.calib_data_dir,
         num_calib_inputs=args.num_calib_inputs,
-        use_synthetic=args.use_synthetic)
+        use_synthetic=args.use_synthetic,
+        cache=args.cache)
 
     def print_dict(input_dict, str=''):
         for k, v in input_dict.items():
