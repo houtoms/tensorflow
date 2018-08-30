@@ -3,6 +3,12 @@
 set -e
 set -o pipefail
 
+PYMAJ=$(python -c 'import sys; print(sys.version_info[0])')
+if [[ $PYMAJ -eq 2 ]]; then
+  echo "Open Seq2Seq requires Python 3. Skipping test."
+  exit 0
+fi
+
 cd /opt/tensorflow/nvidia-examples/OpenSeq2Seq
 
 DATA_DIR="/data/wmt16_en_de/"
