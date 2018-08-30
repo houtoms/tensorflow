@@ -104,7 +104,7 @@ RUN pip install --no-cache-dir --upgrade \
         joblib==0.11 \
         sentencepiece
 # sacrebleu does not install cleanly with python2.
-RUN test ${PYVER%.*} -eq 3 && pip install --no-cache-dir --upgrade sacrebleu
+RUN test ${PYVER%.*} -eq 2 || pip install --no-cache-dir --upgrade sacrebleu
 
 # Set up Bazel.
 # Running bazel inside a `docker build` command causes trouble, cf:
