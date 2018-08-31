@@ -85,9 +85,9 @@ def run(frozen_graph, model, data_dir, batch_size,
             labels = tf.identity(tf.constant(labels))
         else:
             dataset = tf.data.TFRecordDataset(validation_files)
-            dataset = dataset.map(preprocess_fn)
+            dataset = dataset.apply(tf.contrib.data.map_and_batch(map_func=preprocess_fn, batch_size=batch_size, num_parallel_calls=8))
+            dataset = dataset.prefetch(buffer_size=tf.contrib.data.AUTOTUNE)
             dataset = dataset.repeat(count=1)
-            dataset = dataset.batch(batch_size)
             iterator = dataset.make_one_shot_iterator()
             features, labels = iterator.get_next()
         return features, labels
