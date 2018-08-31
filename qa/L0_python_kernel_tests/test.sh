@@ -181,7 +181,7 @@ batch_matmul_op_test.py"
 # Install test dependencies
 pip install portpicker
 
-pushd /opt/tensorflow
+pushd ../..
 
 test_root="tensorflow/python/kernel_tests"
 tmp_logfile="/tmp/tf_python_kernel_test.log"
