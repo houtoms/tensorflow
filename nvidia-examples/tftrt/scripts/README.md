@@ -31,38 +31,26 @@ This test supports the following models for image classification:
 * Inception v4
 
 ## Setup
-
-Clone [tensorflow/models](https://github.com/tensorflow/models)
-
 ```
-git clone https://github.com/tensorflow/models.git`
+# Clone [tensorflow/models](https://github.com/tensorflow/models)
+git clone https://github.com/tensorflow/models.git
+
+# Add the models directory to PYTHONPATH to install tensorflow/models.
+cd models
+export PYTHONPATH="$PYTHONPATH:$PWD"
+
+# Run the TF Slim setup.
+cd research/slim
+python setup.py install
+
+# You may also need to install the requests package
+pip install requests
 ```
-
-Add the models directory to PYTHONPATH to install tensorflow/models.
-
 Note: the PYTHONPATH environment variable will be not be saved between different
-shells. You can either repeat this step each time you work in a new shell, or
+shells. You can either repeat that step each time you work in a new shell, or
 add `export PYTHONPATH="$PYTHONPATH:/path/to/tensorflow_models"` to your .bashrc
 file (replacing /path/to/tensorflow_models with the path to your
 tensorflow/models repository).
-
-```
-cd models
-export PYTHONPATH="$PYTHONPATH:$PWD"
-```
-
-Run the TF Slim setup.
-
-```
-cd research/slim
-python setup.py install
-```
-
-You may also need to install the requests package
-
-```
-pip install requests
-```
 
 ### Data
 
