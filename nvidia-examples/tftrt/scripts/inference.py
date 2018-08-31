@@ -222,6 +222,8 @@ if __name__ == '__main__':
         '(last batch is skipped in case it is not full)')
     parser.add_argument('--cache', action='store_true',
         help='If set, graphs will be saved to disk after conversion. If a converted graph is present on disk, it will be loaded instead of building the graph again.')
+    parser.add_argument('--download_dir', type=str, default='./data',
+        help='Directory where downloaded model checkpoints will be stored.')
     args = parser.parse_args()
 
     if args.precision != 'fp32' and not args.use_trt:

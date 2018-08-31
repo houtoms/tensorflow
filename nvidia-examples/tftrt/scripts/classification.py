@@ -146,7 +146,7 @@ def get_preprocess_fn(model, mode='classification'):
 
     return process
 
-def build_classification_graph(model):
+def build_classification_graph(model, download_dir='./data'):
     """Builds an image classification model by name
 
     This function builds an image classification model given a model
@@ -156,6 +156,7 @@ def build_classification_graph(model):
     well optimized by the TensorRT package in TensorFlow 1.7+.
 
     model: string, the model name (see NETS table)
+    download_dir: directory to store downloaded model checkpoints
     returns: tensorflow.GraphDef, the TensorRT compatible frozen graph
     """
     netdef = get_netdef(model)
@@ -183,7 +184,7 @@ def build_classification_graph(model):
                 tf_output_classes = tf.argmax(tf_output, axis=1, name='classes')
 
             # download checkpoint
-            checkpoint_path = download_classification_checkpoint(model, './data')
+            checkpoint_path = download_classification_checkpoint(model, download_dir)
             # load checkpoint
             tf_saver = tf.train.Saver()
             tf_saver.restore(save_path=checkpoint_path, sess=tf_sess)
