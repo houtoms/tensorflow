@@ -33,7 +33,7 @@ do
   for bs in ${batch_sizes[@]};
   do
     echo "Testing $i batch_size $bs..."
-    common_args="--model $i --batch_size $bs --num_iterations 1000 --download_dir /mnt/shared/dldata/tensorflow/models"
+    common_args="--model $i --batch_size $bs --num_iterations 1000 --download_dir /data/tensorflow/models"
     python -u inference.py $common_args           --precision fp32                        2>&1 | tee $OUTPUT_PATH/output_tf_bs${bs}_fp32_$i
     python -u inference.py $common_args --use_trt --precision fp32                        2>&1 | tee $OUTPUT_PATH/output_tftrt_${bs}_fp32_$i
     python -u inference.py $common_args --use_trt --precision fp16                        2>&1 | tee $OUTPUT_PATH/output_tftrt_${bs}_fp16_$i
