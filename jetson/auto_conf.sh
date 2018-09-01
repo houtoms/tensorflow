@@ -8,6 +8,7 @@ set -e
 
 TF_PYPATH=`which python`
 
+export LD_LIBRARY_PATH=/usr/local/cuda/extras/CUPTI/lib64:$LD_LIBRARY_PATH
 export PYTHON_BIN_PATH="$TF_PYPATH"
 export TF_NEED_AWS="0"
 export TF_NEED_OPENCL_SYCL="0"

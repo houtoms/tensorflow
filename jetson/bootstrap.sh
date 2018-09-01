@@ -1,16 +1,14 @@
 #!/bin/bash
 
-BOARDMEM=$(free -g | awk '/^Mem:/{print $2}')
-if [ $BOARDMEM > 12]; then
-  # Create and enable swapfile
-  if [ ! -f /swapfile ]; then
-    fallocate -l 4G /swapfile
-    chmod 600 /swapfile
-    mkswap /swapfile
-    echo "/swapfile none swap defaults 0 0" >> /etc/fstab
-  fi
-  swapon -a
+# Create and enable swapfile
+if [ ! -f /swapfile ]; then
+  fallocate -l 4G /swapfile
+  chmod 600 /swapfile
+  mkswap /swapfile
+  echo "/swapfile none swap defaults 0 0" >> /etc/fstab
 fi
+swapon -a
+
 
 # Set startup script to boost clocks to max
 touch /etc/rc.local
