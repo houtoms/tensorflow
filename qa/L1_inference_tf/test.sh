@@ -23,7 +23,8 @@ models=(
   vgg_16
   vgg_19
   inception_v3
-  inception_v4 )
+  inception_v4
+)
 for i in "${models[@]}"
 do
   python -u inference.py --model $i 2>&1 | tee $OUTPUT_PATH/output_$i

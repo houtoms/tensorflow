@@ -23,9 +23,10 @@ models=(
   vgg_16
   vgg_19
   inception_v3
-  inception_v4 )
+  inception_v4
+)
 
-batch_sizes=( 1 2 4 8 16 32 64 128 )
+batch_sizes=( 1 8 128 )
 
 for i in ${models[@]};
 do
