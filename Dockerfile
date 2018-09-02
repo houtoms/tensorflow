@@ -38,8 +38,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         zlib1g-dev && \
     rm -rf /var/lib/apt/lists/*
 
-ENV PYTHONIOENCODING utf-8
-ENV LC_ALL C.UTF-8
+ENV PYTHONIOENCODING=utf-8 \
+    LC_ALL=C.UTF-8
 RUN rm -f /usr/bin/python && \
     rm -f /usr/bin/python`echo $PYVER | cut -c1-1` && \
     ln -s /usr/bin/python$PYVER /usr/bin/python && \
@@ -129,36 +129,27 @@ COPY . .
 RUN mkdir -p /workspace/nvidia-examples && \
      ln -s /opt/tensorflow/nvidia-examples/* /workspace/nvidia-examples/
 
-ENV CUDA_TOOLKIT_PATH /usr/local/cuda
-ENV TF_CUDA_VERSION "${_CUDA_VERSION_MAJMIN}"
-ENV TF_CUDNN_VERSION "${_CUDNN_VERSION_MAJOR}"
-ENV CUDNN_INSTALL_PATH /usr/lib/x86_64-linux-gnu
-ENV TF_NEED_CUDA 1
-ENV TF_CUDA_COMPUTE_CAPABILITIES "5.2,6.0,6.1,7.0,7.5"
-ENV TF_NEED_HDFS 0
-ENV TF_ENABLE_XLA 1
-ENV TF_NEED_TENSORRT 1
-ENV TF_NCCL_VERSION 2
-ENV NCCL_INSTALL_PATH /usr
-ENV CC_OPT_FLAGS "-march=sandybridge -mtune=broadwell"
+ENV CUDA_TOOLKIT_PATH=/usr/local/cuda \
+    CUDNN_INSTALL_PATH=/usr/lib/x86_64-linux-gnu \
+    NCCL_INSTALL_PATH=/usr
 
 # Build and install TF
 RUN ./nvbuild.sh --python$PYVER
 
-ENV TF_ADJUST_HUE_FUSED         1
-ENV TF_ADJUST_SATURATION_FUSED  1
-ENV TF_ENABLE_WINOGRAD_NONFUSED 1
-ENV TF_AUTOTUNE_THRESHOLD       2
+ENV TF_ADJUST_HUE_FUSED=1 \
+    TF_ADJUST_SATURATION_FUSED=1 \
+    TF_ENABLE_WINOGRAD_NONFUSED=1 \
+    TF_AUTOTUNE_THRESHOLD=2
 
 # TensorBoard
 EXPOSE 6006
 
 # Horovod with fp16 patch
-ENV HOROVOD_GPU_ALLREDUCE NCCL
-ENV HOROVOD_NCCL_INCLUDE /usr/include
-ENV HOROVOD_NCCL_LIB /usr/lib/x86_64-linux-gnu
-ENV HOROVOD_NCCL_LINK SHARED
-ENV HOROVOD_WITHOUT_PYTORCH 1
+ENV HOROVOD_GPU_ALLREDUCE=NCCL \
+    HOROVOD_NCCL_INCLUDE=/usr/include \
+    HOROVOD_NCCL_LIB=/usr/lib/x86_64-linux-gnu \
+    HOROVOD_NCCL_LINK=SHARED \
+    HOROVOD_WITHOUT_PYTORCH=1
 RUN cd /opt/tensorflow/third_party/horovod && \
     ln -s /usr/local/cuda/lib64/stubs/libcuda.so ./libcuda.so.1 && \
     export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$PWD && \

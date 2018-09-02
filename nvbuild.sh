@@ -40,6 +40,16 @@ while [[ $# -gt 0 ]]; do
   shift 1
 done
 
+export TF_CUDA_VERSION=$(echo "${CUDA_VERSION}" | cut -d . -f 1-2)
+export TF_CUDNN_VERSION=$(echo "${CUDNN_VERSION}" | cut -d . -f 1)
+export TF_NEED_CUDA=1
+export TF_CUDA_COMPUTE_CAPABILITIES="5.2,6.0,6.1,7.0,7.5"
+export TF_NEED_HDFS=0
+export TF_ENABLE_XLA=1
+export TF_NEED_TENSORRT=1
+export TF_NCCL_VERSION=2
+export CC_OPT_FLAGS="-march=sandybridge -mtune=broadwell"
+
 cd /opt/tensorflow
 export PYTHON_BIN_PATH=/usr/bin/python$PYVER
 LIBCUDA_FOUND=$(ldconfig -p | awk '{print $1}' | grep libcuda.so | wc -l)
