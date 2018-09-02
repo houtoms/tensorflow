@@ -15,7 +15,7 @@ Various files include modifications (c) NVIDIA CORPORATION.  All rights reserved
 NVIDIA modifications are covered by the license terms that apply to the underlying project or file.
 EOF
 
-if [[ "$(find /usr -name libcuda.so.1) " == " " || "$(ls /dev/nvidiactl) " == " " ]]; then
+if [[ "$(find /usr -name libcuda.so.1) " == " " || "$(ls /dev/nvidiactl 2>/dev/null) " == " " ]]; then
   echo
   echo "WARNING: The NVIDIA Driver was not detected.  GPU functionality will not be available."
   echo "   Use 'nvidia-docker run' to start this container; see"
