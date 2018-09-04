@@ -120,7 +120,8 @@ def get_frozen_graph(
     calib_data_dir=None,
     num_calib_inputs=None,
     use_synthetic=False,
-    cache=False):
+    cache=False,
+    download_dir='./data'):
     """Retreives a frozen GraphDef from model definitions in classification.py and applies TF-TRT
 
     model: str, the model name (see NETS table in classification.py)
@@ -148,7 +149,7 @@ def get_frozen_graph(
             return frozen_graph, num_nodes, times
 
     # Build graph and load weights
-    frozen_graph = build_classification_graph(model)
+    frozen_graph = build_classification_graph(model, download_dir)
     num_nodes['native_tf'] = len(frozen_graph.node)
 
     # Convert to TensorRT graph
@@ -222,6 +223,8 @@ if __name__ == '__main__':
         '(last batch is skipped in case it is not full)')
     parser.add_argument('--cache', action='store_true',
         help='If set, graphs will be saved to disk after conversion. If a converted graph is present on disk, it will be loaded instead of building the graph again.')
+    parser.add_argument('--download_dir', type=str, default='./data',
+        help='Directory where downloaded model checkpoints will be stored.')
     args = parser.parse_args()
 
     if args.precision != 'fp32' and not args.use_trt:
@@ -242,7 +245,8 @@ if __name__ == '__main__':
         calib_data_dir=args.calib_data_dir,
         num_calib_inputs=args.num_calib_inputs,
         use_synthetic=args.use_synthetic,
-        cache=args.cache)
+        cache=args.cache,
+        download_dir=args.download_dir)
 
     def print_dict(input_dict, str=''):
         for k, v in input_dict.items():

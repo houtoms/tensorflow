@@ -27,7 +27,7 @@ models=(
 )
 for i in "${models[@]}"
 do
-  python -u inference.py --model $i --use_trt  2>&1 | tee $OUTPUT_PATH/output_tftrt_$i
+  python -u inference.py --model $i --use_trt --download_dir /data/tensorflow/models 2>&1 | tee $OUTPUT_PATH/output_tftrt_$i
   python -u check_accuracy.py --input $OUTPUT_PATH/output_tftrt_$i
   echo "DONE testing $i"
 done

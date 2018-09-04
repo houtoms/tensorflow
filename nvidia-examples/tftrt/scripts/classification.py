@@ -146,7 +146,7 @@ def get_preprocess_fn(model, mode='classification'):
 
     return process
 
-def build_classification_graph(model):
+def build_classification_graph(model, download_dir='./data'):
     """Builds an image classification model by name
 
     This function builds an image classification model given a model
@@ -156,6 +156,7 @@ def build_classification_graph(model):
     well optimized by the TensorRT package in TensorFlow 1.7+.
 
     model: string, the model name (see NETS table)
+    download_dir: directory to store downloaded model checkpoints
     returns: tensorflow.GraphDef, the TensorRT compatible frozen graph
     """
     netdef = get_netdef(model)
@@ -183,7 +184,7 @@ def build_classification_graph(model):
                 tf_output_classes = tf.argmax(tf_output, axis=1, name='classes')
 
             # download checkpoint
-            checkpoint_path = download_classification_checkpoint(model, './data')
+            checkpoint_path = download_classification_checkpoint(model, download_dir)
             # load checkpoint
             tf_saver = tf.train.Saver()
             tf_saver.restore(save_path=checkpoint_path, sess=tf_sess)
@@ -207,21 +208,27 @@ def download_classification_checkpoint(model, output_dir='.'):
     output_dir: string, the directory where files are downloaded to
     returns: string, path to the checkpoint file containing trained model params
     """
-    checkpoint_path = ''
 
     if not os.path.exists(output_dir):
-      os.makedirs(output_dir)
+        os.makedirs(output_dir)
 
     modeldir_path = os.path.join(output_dir, model)
     if not os.path.exists(modeldir_path):
-      os.makedirs(modeldir_path)
+        os.makedirs(modeldir_path)
 
+    # Build path to checkpoint and see if we have it already
+    checkpoint_path = os.path.join(modeldir_path, get_netdef(model).checkpoint_name)
+    if os.path.exists(os.path.dirname(checkpoint_path)):
+        for filename in os.listdir(os.path.dirname(checkpoint_path)):
+            if filename.startswith(os.path.basename(checkpoint_path)):
+                print('Using checkpoint found at:', checkpoint_path)
+                return checkpoint_path
+  
+    # We don't have the checkpoint, need to redownload or extract
+    print('Downloading checkpoint - not found at:', checkpoint_path)
     modeltar_path = os.path.join(output_dir, os.path.basename(get_netdef(model).url))
     if not os.path.isfile(modeltar_path):
         subprocess.call(['wget', '--no-check-certificate', get_netdef(model).url, '-O', modeltar_path])
-
-    checkpoint_path = os.path.join(modeldir_path, get_netdef(model).checkpoint_name)
-    if not os.path.isfile(checkpoint_path):
-        subprocess.call(['tar', '-xzf', modeltar_path, '-C', modeldir_path])
+    subprocess.call(['tar', '-xzf', modeltar_path, '-C', modeldir_path])
 
     return checkpoint_path
