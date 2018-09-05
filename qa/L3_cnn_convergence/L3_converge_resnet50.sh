@@ -1,8 +1,14 @@
 #!/bin/bash
 
 GPUS=$(nvidia-smi -L | wc -l)
-if [[ "$GPUS" -lt 8 ]]; then
-    echo "Error convergence test requires 8 GPUs. Found only $GPUS"
+if [[ "$GPUS" -ge 8 && "$GPUS" -lt 16 ]]; then
+    echo "Using 8 of $GPUS GPUs"
+    BATCH_SIZE=256
+elif [[ "$GPUS" -ge 16 ]]; then
+    echo "Using 16 of $GPUS GPUs"
+    BATCH_SIZE=128
+else
+    echo "Error convergence test requires at least 8 GPUs. Found $GPUS"
     exit 1
 fi
 
@@ -18,7 +24,8 @@ SECONDS=0
 mpiexec --allow-run-as-root --bind-to socket -np 8 python -u \
     /opt/tensorflow/nvidia-examples/cnn/resnet.py --layers=50 \
     --data_dir=/data/imagenet/train-val-tfrecord-480 \
-    --log_dir=$OUT --display_every=1000 2>&1 | tee $LOG
+    --batch_size=$BATCH_SIZE --log_dir=$OUT --display_every=1000 \
+    2>&1 | tee $LOG
 RET=${PIPESTATUS[0]}
 echo "Training ran in $SECONDS seconds"
 if [[ $RET -ne 0 ]]; then
