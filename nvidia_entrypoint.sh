@@ -25,8 +25,18 @@ else
   DRIVER_VERSION=$(sed -n 's/^NVRM.*Kernel Module *\([0-9.]*\).*$/\1/p' /proc/driver/nvidia/version)
   if [[ ! "$DRIVER_VERSION" =~ ^[0-9]*.[0-9]*$ ]]; then
     echo "Failed to detect NVIDIA driver version."
-  elif [[ "${DRIVER_VERSION%.*}" -lt "410" ]]; then
-    echo "Legacy NVIDIA Driver detected.  ${_CUDA_COMPAT_STATUS}"
+  elif [[ "${DRIVER_VERSION%.*}" -lt "${CUDA_DRIVER_VERSION%.*}" ]]; then
+    if [[ "${_CUDA_COMPAT_STATUS}" == "CUDA Driver OK" ]]; then
+      echo
+      echo "NOTE: Legacy NVIDIA Driver detected.  Compatibility mode ENABLED."
+    else
+      echo
+      echo "ERROR: This container was built for NVIDIA Driver Release ${CUDA_DRIVER_VERSION%.*} or later, but"
+      echo "       version ${DRIVER_VERSION} was detected and compatibility mode is UNAVAILABLE."
+      echo
+      echo "       [[${_CUDA_COMPAT_STATUS}]]"
+      sleep 2
+    fi
   fi
 fi
 
