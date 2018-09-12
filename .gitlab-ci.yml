@@ -6,6 +6,9 @@ variables:
     EXTRA_DOCKER_RUN_ARGS: "--shm-size=1G --ulimit memlock=-1 --ulimit stack=$$((1024*65536))"
     DATADIR: /raid/dldata
 
+    # variables that may be overridden by the pipeline vars
+    VIRTUAL: 0
+
     # the following will be overridden by jobs of the pipeline that actually need to check out the sources
     GIT_STRATEGY: none
     GIT_SUBMODULE_STRATEGY: none
@@ -57,7 +60,6 @@ before_script:
     - echo -e "Dockerfile*\n"
               ".git*\n"
               ".dockerignore\n"
-              "RapidSSL_TLS_RSA_CA_G1.crt\n"
               "jetson\n"
               "qa" > .dockerignore
     - docker pull "${BASE_IMAGE_NAME}" ||
@@ -69,7 +71,7 @@ before_script:
                    --build-arg "NVIDIA_BUILD_REF=${CI_COMMIT_SHA}"
                    --build-arg "NVIDIA_BUILD_ID=${CI_JOB_ID}"
                    --build-arg "PYVER=${PYVER}" .
-    - docker push "${BASE_IMAGE_NAME}"
+    - test "${VIRTUAL}" -ne 1 && docker push "${BASE_IMAGE_NAME}"
     - docker push "${BASE_IMAGE_NAME_VERSIONED}"
     except:
     - tags
@@ -90,21 +92,26 @@ py3-base:
       GET_SOURCES_ATTEMPTS: 3
     script:
     - docker login -u gitlab-ci-token -p "${CI_JOB_TOKEN}" "${CI_REGISTRY}"
-    - echo -e "FROM ${BASE_IMAGE_NAME_VERSIONED}\n"
+    - echo -e "FROM ${CI_REGISTRY}/devops/build-scripts:latest AS build-scripts\n"
+              "FROM ${BASE_IMAGE_NAME_VERSIONED}\n"
               "COPY Dockerfile* /opt/${CI_PROJECT_NAME}/\n"
               "COPY .gitignore /opt/${CI_PROJECT_NAME}/\n"
               "COPY .gitmodules /opt/${CI_PROJECT_NAME}/\n"
               "COPY .gitlab-ci.yml /opt/${CI_PROJECT_NAME}/\n"
               "COPY .git/ /opt/${CI_PROJECT_NAME}/.git/\n"
-              "COPY RapidSSL_TLS_RSA_CA_G1.crt /usr/local/share/ca-certificates/\n"
               "COPY jetson/   /opt/${CI_PROJECT_NAME}/jetson/\n"
               "COPY qa/   /opt/${CI_PROJECT_NAME}/qa/\n"
-              "RUN update-ca-certificates\n"
+              "COPY --from=build-scripts / /nvidia/\n"
+              "$(test "${VIRTUAL}" -eq 1 -a -n "${NCCL_VERSION}"   && echo "ENV NCCL_VERSION=\"${NCCL_VERSION}\"     NCCL_VIRTUAL=1"  )\n"
+              "$(test "${VIRTUAL}" -eq 1 -a -n "${CUBLAS_VERSION}" && echo "ENV CUBLAS_VERSION=\"${CUBLAS_VERSION}\" CUBLAS_VIRTUAL=1")\n"
+              "$(test "${VIRTUAL}" -eq 1 -a -n "${CUDNN_VERSION}"  && echo "ENV CUDNN_VERSION=\"${CUDNN_VERSION}\"   CUDNN_VIRTUAL=1" )\n"
+              "$(test "${VIRTUAL}" -eq 1 -a -n "${TRT_VERSION}"    && echo "ENV TRT_VERSION=\"${TRT_VERSION}\"       TRT_VIRTUAL=1"   )\n"
+              "RUN VIRTUAL=${VIRTUAL:-0} /nvidia/internal/install_internal.sh\n"
         > Dockerfile.${CI_PROJECT_NAME}.${CI_COMMIT_REF_NAME}
     - git remote set-url origin ${ORIGIN_HTTPS}
     - docker build --pull -t "${DEVEL_IMAGE_NAME}" -t "${DEVEL_IMAGE_NAME_VERSIONED}"
                    -f Dockerfile.${CI_PROJECT_NAME}.${CI_COMMIT_REF_NAME} .
-    - docker push "${DEVEL_IMAGE_NAME}"
+    - test "${VIRTUAL}" -ne 1 && docker push "${DEVEL_IMAGE_NAME}"
     - docker push "${DEVEL_IMAGE_NAME_VERSIONED}"
     except:
     - tags
