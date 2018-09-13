@@ -98,7 +98,7 @@ def run(frozen_graph, model, data_dir, batch_size,
         batch_size=batch_size,
         num_records=get_tfrecords_count(validation_files))
     tf_config = tf.ConfigProto()
-    tf_config.gpu_options.per_process_gpu_memory_fraction = 0.25
+    tf_config.gpu_options.allow_growth = True
     estimator = tf.estimator.Estimator(
         model_fn=model_fn,
         config=tf.estimator.RunConfig(session_config=tf_config))
