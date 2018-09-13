@@ -597,11 +597,11 @@ L1_word2vec--P100_R384_4GPU:
     <<: *L1_TEST
     <<: *P100_R384_4GPU
 
-L1_self_test--P100_R384_4GPU:
+L1_kernel_tests--P100_R384_4GPU:
     <<: *L1_TEST
     <<: *P100_R384_4GPU
 
-L1_self_test_xla--P100_R384_4GPU:
+L1_xla_tests--P100_R384_4GPU:
     <<: *L1_TEST
     <<: *P100_R384_4GPU
 
@@ -639,7 +639,15 @@ L3_converge_resnet50--V100_R410_16GPU:
 
 ############################
 
-L1_self_test--V100_R410_16GPU:
+L3_self_tests--V100_R410_16GPU:
+    <<: *L3_TEST
+    <<: *V100_R410_16GPU
+
+L1_kernel_tests--V100_R410_16GPU:
+    <<: *L1_TEST
+    <<: *V100_R410_16GPU
+
+L1_xla_tests--V100_R410_16GPU:
     <<: *L1_TEST
     <<: *V100_R410_16GPU
 
@@ -703,7 +711,11 @@ L0_inference--TU102_R410_1GPU:
     <<: *L0_TEST
     <<: *TU102_R410_1GPU
 
-L1_self_test--TU102_R410_1GPU:
+L1_kernel_tests--TU102_R410_1GPU:
+    <<: *L1_TEST
+    <<: *TU102_R410_1GPU
+
+L1_xla_tests--TU102_R410_1GPU:
     <<: *L1_TEST
     <<: *TU102_R410_1GPU
 
@@ -868,15 +880,19 @@ L3_converge_inception_v3--V100_R384_8GPU:
 
 ############################
 
+L3_self_tests--V100_R384_8GPU:
+    <<: *L3_TEST
+    <<: *V100_R384_8GPU
+
 L1_word2vec--V100_R384_1GPU:
     <<: *L1_TEST
     <<: *V100_R384_1GPU
 
-L1_self_test--V100_R384_4GPU:
+L1_kernel_tests--V100_R384_4GPU:
     <<: *L1_TEST
     <<: *V100_R384_4GPU
 
-L1_self_test_xla--V100_R384_4GPU:
+L1_xla_tests--V100_R384_4GPU:
     <<: *L1_TEST
     <<: *V100_R384_4GPU
 
@@ -1029,11 +1045,11 @@ L1_word2vec--py2--V100_R384_1GPU:
     <<: *L1_TEST
     <<: *V100_R384_1GPU
 
-L1_self_test--py2--V100_R384_4GPU:
+L1_kernel_tests--py2--V100_R384_4GPU:
     <<: *L1_TEST
     <<: *V100_R384_4GPU
 
-L1_self_test_xla--py2--V100_R384_4GPU:
+L1_xla_tests--py2--V100_R384_4GPU:
     <<: *L1_TEST
     <<: *V100_R384_4GPU
 
@@ -1181,11 +1197,11 @@ L1_word2vec--P40_R384_1GPU:
     <<: *L1_TEST
     <<: *P40_R384_1GPU
 
-L1_self_test--P40_R384_2GPU:
+L1_kernel_tests--P40_R384_2GPU:
     <<: *L1_TEST
     <<: *P40_R384_2GPU
 
-L1_self_test_xla--P40_R384_2GPU:
+L1_xla_tests_xla--P40_R384_2GPU:
     <<: *L1_TEST
     <<: *P40_R384_2GPU
 
@@ -1321,11 +1337,11 @@ L1_word2vec--M40_R384_1GPU:
     <<: *L1_TEST
     <<: *M40_R384_1GPU
 
-L1_self_test--M40_R384_2GPU:
+L1_kernel_tests--M40_R384_2GPU:
     <<: *L1_TEST
     <<: *M40_R384_2GPU
 
-L1_self_test_xla--M40_R384_2GPU:
+L1_xla_tests--M40_R384_2GPU:
     <<: *L1_TEST
     <<: *M40_R384_2GPU
 
@@ -1387,11 +1403,11 @@ L0_python_kernel_tests--py3--TX2:
     <<: *NIGHTLY_TEST
     <<: *TX2
 
-L1_self_test--py3--TX2:
+L1_kernel_tests--py3--TX2:
     <<: *NIGHTLY_TEST
     <<: *TX2
 
-L1_self_test_xla--py3--TX2:
+L1_xla_tests--py3--TX2:
     <<: *NIGHTLY_TEST
     <<: *TX2
 
@@ -1501,11 +1517,11 @@ L0_python_kernel_tests--py3.6--XAVIER:
     <<: *NIGHTLY_TEST
     <<: *XAVIER
 
-L1_self_test--py3.6--XAVIER:
+L1_kernel_tests--py3.6--XAVIER:
     <<: *NIGHTLY_TEST
     <<: *XAVIER
 
-L1_self_test_xla--py3.6--XAVIER:
+L1_xla_tests--py3.6--XAVIER:
     <<: *NIGHTLY_TEST
     <<: *XAVIER
 
