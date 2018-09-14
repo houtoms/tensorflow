@@ -7,6 +7,7 @@ variables:
     DATADIR: /raid/dldata
 
     # variables that may be overridden by the pipeline vars
+    API_LOGGING: 0
     VIRTUAL: 0
 
     # the following will be overridden by jobs of the pipeline that actually need to check out the sources
@@ -23,7 +24,7 @@ stages:
     - build devel
     - trigger
     - test
-    - staging
+    - finalize
 
 #############################
 ####### Docker builds #######
@@ -164,6 +165,7 @@ digits:
       GIT_STRATEGY: fetch
       GIT_SUBMODULE_STRATEGY: recursive
       GET_SOURCES_ATTEMPTS: 3
+    dependencies: []
     script:
     - docker login -u gitlab-ci-token -p "${CI_JOB_TOKEN}" "${CI_REGISTRY}"
     # push a xx.yy-stage tag that records the commit we staged from
@@ -188,11 +190,11 @@ digits:
     when: manual
 
 py2-stage:
-    stage: staging
+    stage: finalize
     <<: *STAGE
 
 py3-stage:
-    stage: staging
+    stage: finalize
     <<: *STAGE
 
 .test_template: &TEST_TEMPLATE
@@ -208,26 +210,60 @@ py3-stage:
     - export TEST_SCRIPT="${TEST_SCRIPT/--py[23].sh/.sh}"
     - export CONTAINER_NAME="${CI_PROJECT_NAME}.${CI_JOB_ID}.${CI_JOB_NAME}"
     - test "${CI_JOB_NAME:0:3}" == "L3_" && export TEST_TIMEOUT=$((24*60*60)) || export TEST_TIMEOUT=$((3*60*60))
+    - test "${API_LOGGING}" == "0" && export LOGGER="" || export LOGGER="cudnnLog.sh"
     - echo Test timeout set to $TEST_TIMEOUT seconds
     - cat /proc/driver/nvidia/version
     - docker pull "${DEVEL_IMAGE_NAME_VERSIONED}"
     - ( sleep $TEST_TIMEOUT && echo "******TIMEOUT EXPIRED******" && docker kill "${CONTAINER_NAME}" ) &
       set -x &&
-      docker run --rm $(eval ${NV_DOCKER_ARGS})
+      docker run $(eval ${NV_DOCKER_ARGS})
              --name "${CONTAINER_NAME}"
              -v $DATADIR:/data
              $(eval echo ${EXTRA_DOCKER_RUN_ARGS})
+             -w ${TEST_WORK_DIR}
              ${DEVEL_IMAGE_NAME_VERSIONED}
-             /bin/bash -c "nvidia-smi && cd ${TEST_WORK_DIR} && exec bash -ex ${TEST_SCRIPT}" || RV=$?;
+             /bin/bash -c "nvidia-smi && exec ${LOGGER} bash -ex ${TEST_SCRIPT}" || RV=$?;
       set +x;
+      rm -rf logs/;
+      docker cp "${CONTAINER_NAME}:/logs/" "logs/" || true;
+      for LOGNAME in logs/*; do
+          mv "${LOGNAME}" $(echo "${LOGNAME}" | sed "s/-.....\./-${CI_JOB_NAME}./") 2>/dev/null || true;
+      done;
+      if [ $(cat logs/cudnnapilog-*.txt 2>/dev/null | wc -l) -eq 0 ]; then rm -f logs/cudnnapilog-*; fi;
+      gzip logs/*.txt || true;
+      docker rm -f "${CONTAINER_NAME}";
       pkill -HUP sleep || true;
       exit ${RV:-0}
+    artifacts:
+      name: "${CI_JOB_NAME}"
+      paths:
+      - logs/*
+      expire_in: 3 days
+      when: always
     tags:
     - must_specify_runner
     except:
     - tags
     - schedules
     allow_failure: false
+
+gather:
+    stage: finalize
+    script:
+    - /bin/true
+    artifacts:
+      name: "${CI_PIPELINE_ID}"
+      paths:
+      - logs/*
+      - wheelhouse/*
+      expire_in: 1 month
+      when: always
+    when: manual
+    except:
+      refs:
+        - tags
+      variables:
+        - $API_LOGGING == "0"
 
 .manual_test_trigger: &MANUAL_TEST_TRIGGER
     stage: trigger
