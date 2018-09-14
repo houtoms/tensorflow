@@ -75,8 +75,10 @@ before_script:
     - test "${VIRTUAL}" -ne 1 && docker push "${BASE_IMAGE_NAME}"
     - docker push "${BASE_IMAGE_NAME_VERSIONED}"
     except:
-    - tags
-    - schedules
+      refs:
+        - tags
+      variables:
+        - $TARGET == "jetson"
 
 py2-base:
     stage: build base
@@ -115,8 +117,10 @@ py3-base:
     - test "${VIRTUAL}" -ne 1 && docker push "${DEVEL_IMAGE_NAME}"
     - docker push "${DEVEL_IMAGE_NAME_VERSIONED}"
     except:
-    - tags
-    - schedules
+      refs:
+        - tags
+      variables:
+        - $TARGET == "jetson"
 
 py2-devel:
     stage: build devel
@@ -155,8 +159,13 @@ digits:
     only:
     - /^.*-devel$/
     except:
-    - tags
+    - api
+    - external
+    - pipelines
     - schedules
+    - tags
+    - triggers
+    - web
     allow_failure: true
 
 .stage_template : &STAGE
@@ -185,8 +194,13 @@ digits:
     only:
     - /^.*-devel$/
     except:
-    - tags
+    - api
+    - external
+    - pipelines
     - schedules
+    - tags
+    - triggers
+    - web
     when: manual
 
 py2-stage:
@@ -243,27 +257,47 @@ py3-stage:
     tags:
     - must_specify_runner
     except:
-    - tags
-    - schedules
+      refs:
+        - tags
+      variables:
+        - $TARGET == "jetson"
     allow_failure: false
 
-gather:
+.gather: &gather
     stage: finalize
     script:
     - /bin/true
+
+gather logs:
+    <<: *gather
     artifacts:
       name: "${CI_PIPELINE_ID}"
       paths:
       - logs/*
-      - wheelhouse/*
       expire_in: 1 month
       when: always
-    when: manual
     except:
       refs:
         - tags
       variables:
         - $API_LOGGING == "0"
+
+gather wheels:
+    <<: *gather
+    artifacts:
+      name: "${CI_PIPELINE_ID}"
+      paths:
+      - wheelhouse/*
+      expire_in: 1 month
+      when: always
+    when: manual
+    only:
+      variables:
+        - $TARGET == "jetson"
+    except:
+      refs:
+        - tags
+
 
 .manual_test_trigger: &MANUAL_TEST_TRIGGER
     stage: trigger
@@ -273,8 +307,10 @@ gather:
     - docker pull ${CI_REGISTRY}/devops/scripts:nvdl_nightly_test_scheduler
     - docker run --rm ${CI_REGISTRY}/devops/scripts:nvdl_nightly_test_scheduler ${CI_PIPELINE_ID} ${CI_PROJECT_PATH} ${SCOPE}
     except:
-    - tags
-    - schedules
+      refs:
+        - tags
+      variables:
+        - $TARGET == "jetson"
     when: manual
 
 .L0_test: &L0_TEST
@@ -397,9 +433,10 @@ gather:
       name: "${CI_JOB_NAME}"
       paths:
       - wheelhouse/*.whl
-      expire_in: 1 month
+      expire_in: 1 week
     only:
-    - schedules
+      variables:
+        - $TARGET == "jetson"
 
 jetson-tx2-py2-wheel:
     stage: build base
@@ -445,7 +482,8 @@ jetson-xavier-py3.6-wheel:
     tags:
     - must_specify_runner
     only:
-    - schedules
+      variables:
+        - $TARGET == "jetson"
     allow_failure: false
 
 .nightly_test: &NIGHTLY_TEST
