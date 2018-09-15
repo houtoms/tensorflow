@@ -6,6 +6,10 @@ variables:
     EXTRA_DOCKER_RUN_ARGS: "--shm-size=1G --ulimit memlock=-1 --ulimit stack=$$((1024*65536))"
     DATADIR: /raid/dldata
 
+    # variables that may be overridden by the pipeline vars
+    API_LOGGING: 0
+    VIRTUAL: 0
+
     # the following will be overridden by jobs of the pipeline that actually need to check out the sources
     GIT_STRATEGY: none
     GIT_SUBMODULE_STRATEGY: none
@@ -20,7 +24,7 @@ stages:
     - build devel
     - trigger
     - test
-    - staging
+    - finalize
 
 #############################
 ####### Docker builds #######
@@ -57,7 +61,6 @@ before_script:
     - echo -e "Dockerfile*\n"
               ".git*\n"
               ".dockerignore\n"
-              "RapidSSL_TLS_RSA_CA_G1.crt\n"
               "jetson\n"
               "qa" > .dockerignore
     - docker pull "${BASE_IMAGE_NAME}" ||
@@ -69,11 +72,13 @@ before_script:
                    --build-arg "NVIDIA_BUILD_REF=${CI_COMMIT_SHA}"
                    --build-arg "NVIDIA_BUILD_ID=${CI_JOB_ID}"
                    --build-arg "PYVER=${PYVER}" .
-    - docker push "${BASE_IMAGE_NAME}"
+    - test "${VIRTUAL}" -ne 1 && docker push "${BASE_IMAGE_NAME}"
     - docker push "${BASE_IMAGE_NAME_VERSIONED}"
     except:
-    - tags
-    - schedules
+      refs:
+        - tags
+      variables:
+        - $TARGET == "jetson"
 
 py2-base:
     stage: build base
@@ -90,25 +95,32 @@ py3-base:
       GET_SOURCES_ATTEMPTS: 3
     script:
     - docker login -u gitlab-ci-token -p "${CI_JOB_TOKEN}" "${CI_REGISTRY}"
-    - echo -e "FROM ${BASE_IMAGE_NAME_VERSIONED}\n"
+    - echo -e "FROM ${CI_REGISTRY}/devops/build-scripts:latest AS build-scripts\n"
+              "FROM ${BASE_IMAGE_NAME_VERSIONED}\n"
               "COPY Dockerfile* /opt/${CI_PROJECT_NAME}/\n"
               "COPY .gitignore /opt/${CI_PROJECT_NAME}/\n"
               "COPY .gitmodules /opt/${CI_PROJECT_NAME}/\n"
               "COPY .gitlab-ci.yml /opt/${CI_PROJECT_NAME}/\n"
               "COPY .git/ /opt/${CI_PROJECT_NAME}/.git/\n"
-              "COPY RapidSSL_TLS_RSA_CA_G1.crt /usr/local/share/ca-certificates/\n"
               "COPY jetson/   /opt/${CI_PROJECT_NAME}/jetson/\n"
               "COPY qa/   /opt/${CI_PROJECT_NAME}/qa/\n"
-              "RUN update-ca-certificates\n"
+              "COPY --from=build-scripts / /nvidia/\n"
+              "$(test "${VIRTUAL}" -eq 1 -a -n "${NCCL_VERSION}"   && echo "ENV NCCL_VERSION=\"${NCCL_VERSION}\"     NCCL_VIRTUAL=1"  )\n"
+              "$(test "${VIRTUAL}" -eq 1 -a -n "${CUBLAS_VERSION}" && echo "ENV CUBLAS_VERSION=\"${CUBLAS_VERSION}\" CUBLAS_VIRTUAL=1")\n"
+              "$(test "${VIRTUAL}" -eq 1 -a -n "${CUDNN_VERSION}"  && echo "ENV CUDNN_VERSION=\"${CUDNN_VERSION}\"   CUDNN_VIRTUAL=1" )\n"
+              "$(test "${VIRTUAL}" -eq 1 -a -n "${TRT_VERSION}"    && echo "ENV TRT_VERSION=\"${TRT_VERSION}\"       TRT_VIRTUAL=1"   )\n"
+              "RUN VIRTUAL=${VIRTUAL:-0} /nvidia/internal/install_internal.sh\n"
         > Dockerfile.${CI_PROJECT_NAME}.${CI_COMMIT_REF_NAME}
     - git remote set-url origin ${ORIGIN_HTTPS}
     - docker build --pull -t "${DEVEL_IMAGE_NAME}" -t "${DEVEL_IMAGE_NAME_VERSIONED}"
                    -f Dockerfile.${CI_PROJECT_NAME}.${CI_COMMIT_REF_NAME} .
-    - docker push "${DEVEL_IMAGE_NAME}"
+    - test "${VIRTUAL}" -ne 1 && docker push "${DEVEL_IMAGE_NAME}"
     - docker push "${DEVEL_IMAGE_NAME_VERSIONED}"
     except:
-    - tags
-    - schedules
+      refs:
+        - tags
+      variables:
+        - $TARGET == "jetson"
 
 py2-devel:
     stage: build devel
@@ -147,8 +159,13 @@ digits:
     only:
     - /^.*-devel$/
     except:
-    - tags
+    - api
+    - external
+    - pipelines
     - schedules
+    - tags
+    - triggers
+    - web
     allow_failure: true
 
 .stage_template : &STAGE
@@ -157,6 +174,7 @@ digits:
       GIT_STRATEGY: fetch
       GIT_SUBMODULE_STRATEGY: recursive
       GET_SOURCES_ATTEMPTS: 3
+    dependencies: []
     script:
     - docker login -u gitlab-ci-token -p "${CI_JOB_TOKEN}" "${CI_REGISTRY}"
     # push a xx.yy-stage tag that records the commit we staged from
@@ -176,16 +194,21 @@ digits:
     only:
     - /^.*-devel$/
     except:
-    - tags
+    - api
+    - external
+    - pipelines
     - schedules
+    - tags
+    - triggers
+    - web
     when: manual
 
 py2-stage:
-    stage: staging
+    stage: finalize
     <<: *STAGE
 
 py3-stage:
-    stage: staging
+    stage: finalize
     <<: *STAGE
 
 .test_template: &TEST_TEMPLATE
@@ -201,26 +224,80 @@ py3-stage:
     - export TEST_SCRIPT="${TEST_SCRIPT/--py[23].sh/.sh}"
     - export CONTAINER_NAME="${CI_PROJECT_NAME}.${CI_JOB_ID}.${CI_JOB_NAME}"
     - test "${CI_JOB_NAME:0:3}" == "L3_" && export TEST_TIMEOUT=$((24*60*60)) || export TEST_TIMEOUT=$((3*60*60))
+    - test "${API_LOGGING}" == "0" && export LOGGER="" || export LOGGER="cudnnLog.sh"
     - echo Test timeout set to $TEST_TIMEOUT seconds
     - cat /proc/driver/nvidia/version
     - docker pull "${DEVEL_IMAGE_NAME_VERSIONED}"
     - ( sleep $TEST_TIMEOUT && echo "******TIMEOUT EXPIRED******" && docker kill "${CONTAINER_NAME}" ) &
       set -x &&
-      docker run --rm $(eval ${NV_DOCKER_ARGS})
+      docker run $(eval ${NV_DOCKER_ARGS})
              --name "${CONTAINER_NAME}"
              -v $DATADIR:/data
              $(eval echo ${EXTRA_DOCKER_RUN_ARGS})
+             -w ${TEST_WORK_DIR}
              ${DEVEL_IMAGE_NAME_VERSIONED}
-             /bin/bash -c "nvidia-smi && cd ${TEST_WORK_DIR} && exec bash -ex ${TEST_SCRIPT}" || RV=$?;
+             /bin/bash -c "nvidia-smi && exec ${LOGGER} bash -ex ${TEST_SCRIPT}" || RV=$?;
       set +x;
+      rm -rf logs/;
+      docker cp "${CONTAINER_NAME}:/logs/" "logs/" || true;
+      for LOGNAME in logs/*; do
+          mv "${LOGNAME}" $(echo "${LOGNAME}" | sed "s/-.....\./-${CI_JOB_NAME}./") 2>/dev/null || true;
+      done;
+      if [ $(cat logs/cudnnapilog-*.txt 2>/dev/null | wc -l) -eq 0 ]; then rm -f logs/cudnnapilog-*; fi;
+      gzip logs/*.txt || true;
+      docker rm -f "${CONTAINER_NAME}";
       pkill -HUP sleep || true;
       exit ${RV:-0}
+    artifacts:
+      name: "${CI_JOB_NAME}"
+      paths:
+      - logs/*
+      expire_in: 3 days
+      when: always
     tags:
     - must_specify_runner
     except:
-    - tags
-    - schedules
+      refs:
+        - tags
+      variables:
+        - $TARGET == "jetson"
     allow_failure: false
+
+.gather: &gather
+    stage: finalize
+    script:
+    - /bin/true
+
+gather logs:
+    <<: *gather
+    artifacts:
+      name: "${CI_PIPELINE_ID}"
+      paths:
+      - logs/*
+      expire_in: 1 month
+      when: always
+    except:
+      refs:
+        - tags
+      variables:
+        - $API_LOGGING == "0"
+
+gather wheels:
+    <<: *gather
+    artifacts:
+      name: "${CI_PIPELINE_ID}"
+      paths:
+      - wheelhouse/*
+      expire_in: 1 month
+      when: always
+    when: manual
+    only:
+      variables:
+        - $TARGET == "jetson"
+    except:
+      refs:
+        - tags
+
 
 .manual_test_trigger: &MANUAL_TEST_TRIGGER
     stage: trigger
@@ -230,8 +307,10 @@ py3-stage:
     - docker pull ${CI_REGISTRY}/devops/scripts:nvdl_nightly_test_scheduler
     - docker run --rm ${CI_REGISTRY}/devops/scripts:nvdl_nightly_test_scheduler ${CI_PIPELINE_ID} ${CI_PROJECT_PATH} ${SCOPE}
     except:
-    - tags
-    - schedules
+      refs:
+        - tags
+      variables:
+        - $TARGET == "jetson"
     when: manual
 
 .L0_test: &L0_TEST
@@ -354,9 +433,10 @@ py3-stage:
       name: "${CI_JOB_NAME}"
       paths:
       - wheelhouse/*.whl
-      expire_in: 1 month
+      expire_in: 1 week
     only:
-    - schedules
+      variables:
+        - $TARGET == "jetson"
 
 jetson-tx2-py2-wheel:
     stage: build base
@@ -402,7 +482,8 @@ jetson-xavier-py3.6-wheel:
     tags:
     - must_specify_runner
     only:
-    - schedules
+      variables:
+        - $TARGET == "jetson"
     allow_failure: false
 
 .nightly_test: &NIGHTLY_TEST
