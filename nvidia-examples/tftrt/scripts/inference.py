@@ -249,7 +249,7 @@ if __name__ == '__main__':
         download_dir=args.download_dir)
 
     def print_dict(input_dict, str=''):
-        for k, v in input_dict.items():
+        for k, v in sorted(input_dict.items()):
             headline = '{}({}): '.format(str, k) if str else '{}: '.format(k)
             print('{}{}'.format(headline, '%.1f'%v if type(v)==float else v))
     print_dict(vars(args))
