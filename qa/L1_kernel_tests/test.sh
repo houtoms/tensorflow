@@ -2,17 +2,17 @@
 set -e
 set -o pipefail
 
-TEST_LIST="/opt/tensorflow/tensorflow/python/kernel_tests/tests.list"
 THIS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null && pwd)"
+TEST_LIST="$THIS_DIR/../../tensorflow/python/kernel_tests/tests.list"
 GPUS=$(nvidia-smi -L | wc -l)
 NUM_TESTS=$(wc -l "$TEST_LIST" | cut -d' ' -f1)
 rm -rf "$THIS_DIR/outputs"
 mkdir "$THIS_DIR/outputs"
 TESTS_PER_GPU=$(( ($NUM_TESTS + $GPUS - 1) / $GPUS ))
-cd /opt/tensorflow
+cd "$THIS_DIR/../.."
 export TEST_SRCDIR=$THIS_DIR
 rm -f $THIS_DIR/org_tensorflow
-ln -s /opt/tensorflow $THIS_DIR/org_tensorflow
+ln -s $PWD $THIS_DIR/org_tensorflow
 
 echo Running $NUM_TESTS kernel tests on $GPUS GPUs
 

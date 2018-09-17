@@ -43,6 +43,8 @@ while [[ $# -gt 0 ]]; do
   shift 1
 done
 
+THIS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null && pwd)"
+
 export TF_CUDA_VERSION=$(echo "${CUDA_VERSION}" | cut -d . -f 1-2)
 export TF_CUDNN_VERSION=$(echo "${CUDNN_VERSION}" | cut -d . -f 1)
 export TF_NEED_CUDA=1
@@ -53,7 +55,7 @@ export TF_NEED_TENSORRT=1
 export TF_NCCL_VERSION=2
 export CC_OPT_FLAGS="-march=sandybridge -mtune=broadwell"
 
-cd /opt/tensorflow
+cd "$THIS_DIR"
 export PYTHON_BIN_PATH=/usr/bin/python$PYVER
 LIBCUDA_FOUND=$(ldconfig -p | awk '{print $1}' | grep libcuda.so | wc -l)
 if [[ $NOCONFIG -eq 0 ]]; then
@@ -69,11 +71,11 @@ if [[ $CONFIGONLY -eq 1 ]]; then
 fi
 
 if [[ $TESTLIST -eq 1 ]]; then
-  rm -f "/opt/tensorflow/tensorflow/python/kernel_tests/tests.list" \
-        "/opt/tensorflow/tensorflow/compiler/tests/test.list"
+  rm -f "tensorflow/python/kernel_tests/tests.list" \
+        "tensorflow/compiler/tests/test.list"
   
   bazel test --config=cuda -c opt --verbose_failures --local_test_jobs=1 \
-             --run_under="/opt/tensorflow/tools/test_grabber.sh tensorflow/python/kernel_tests" \
+             --run_under="$THIS_DIR/tools/test_grabber.sh tensorflow/python/kernel_tests" \
              --build_tests_only --test_tag_filters=-no_gpu,-benchmark-test \
              --cache_test_results=no -- \
              //tensorflow/python/kernel_tests/... \
@@ -82,7 +84,7 @@ if [[ $TESTLIST -eq 1 ]]; then
              -//tensorflow/python/kernel_tests:duplicate_op_test \
              -//tensorflow/python/kernel_tests:invalid_op_test
   bazel test --config=cuda -c opt --verbose_failures --local_test_jobs=1 \
-             --run_under="/opt/tensorflow/tools/test_grabber.sh tensorflow/compiler/tests" \
+             --run_under="$THIS_DIR/tools/test_grabber.sh tensorflow/compiler/tests" \
              --build_tests_only --test_tag_filters=-no_gpu,-benchmark-test \
              --cache_test_results=no -- \
              //tensorflow/compiler/tests/... \
