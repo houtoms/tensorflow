@@ -17,12 +17,14 @@ Usage() {
   echo "    --configonly     Run configure step only"
   echo "    --noconfig       Skip configure step"
   echo "    --noclean        Retain intermediate build files"
+  echo "    --testlist       Build list of python kernel_tests"
 }
 
 PYVER=2.7
 CONFIGONLY=0
 NOCONFIG=0
 NOCLEAN=0
+TESTLIST=0
 
 while [[ $# -gt 0 ]]; do
   case $1 in
@@ -32,6 +34,7 @@ while [[ $# -gt 0 ]]; do
     "--configonly") CONFIGONLY=1 ;;
     "--noconfig")   NOCONFIG=1 ;;
     "--noclean")    NOCLEAN=1 ;;
+    "--testlist")   TESTLIST=1 ;;
     *)
       echo UNKNOWN OPTION $1
       echo Run $0 -h for help
@@ -39,6 +42,8 @@ while [[ $# -gt 0 ]]; do
   esac
   shift 1
 done
+
+THIS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null && pwd)"
 
 export TF_CUDA_VERSION=$(echo "${CUDA_VERSION}" | cut -d . -f 1-2)
 export TF_CUDNN_VERSION=$(echo "${CUDNN_VERSION}" | cut -d . -f 1)
@@ -50,7 +55,7 @@ export TF_NEED_TENSORRT=1
 export TF_NCCL_VERSION=2
 export CC_OPT_FLAGS="-march=sandybridge -mtune=broadwell"
 
-cd /opt/tensorflow
+cd "$THIS_DIR"
 export PYTHON_BIN_PATH=/usr/bin/python$PYVER
 LIBCUDA_FOUND=$(ldconfig -p | awk '{print $1}' | grep libcuda.so | wc -l)
 if [[ $NOCONFIG -eq 0 ]]; then
@@ -63,6 +68,35 @@ fi
 
 if [[ $CONFIGONLY -eq 1 ]]; then
   exit 0
+fi
+
+if [[ $TESTLIST -eq 1 ]]; then
+  rm -f "tensorflow/python/kernel_tests/tests.list" \
+        "tensorflow/compiler/tests/test.list"
+  
+  bazel test --config=cuda -c opt --verbose_failures --local_test_jobs=1 \
+             --run_under="$THIS_DIR/tools/test_grabber.sh tensorflow/python/kernel_tests" \
+             --build_tests_only --test_tag_filters=-no_gpu,-benchmark-test \
+             --cache_test_results=no -- \
+             //tensorflow/python/kernel_tests/... \
+             `# The following tests are skipped becaues they depend on additional binaries.` \
+             -//tensorflow/python/kernel_tests:ackermann_test \
+             -//tensorflow/python/kernel_tests:duplicate_op_test \
+             -//tensorflow/python/kernel_tests:invalid_op_test
+  bazel test --config=cuda -c opt --verbose_failures --local_test_jobs=1 \
+             --run_under="$THIS_DIR/tools/test_grabber.sh tensorflow/compiler/tests" \
+             --build_tests_only --test_tag_filters=-no_gpu,-benchmark-test \
+             --cache_test_results=no -- \
+             //tensorflow/compiler/tests/... \
+             `# The following tests are skipped becaues they depend on additional binaries.` \
+             -//tensorflow/compiler/tests:reduce_window_test \
+             -//tensorflow/compiler/tests:while_test \
+             -//tensorflow/compiler/tests:dynamic_slice_ops_test \
+             -//tensorflow/compiler/tests:while_test \
+             -//tensorflow/compiler/tests:sort_ops_test \
+             -//tensorflow/compiler/tests:reduce_window_test \
+             -//tensorflow/compiler/tests:dynamic_slice_ops_test \
+             -//tensorflow/compiler/tests:sort_ops_test
 fi
 
 bazel build -c opt --config=cuda tensorflow/tools/pip_package:build_pip_package --cxxopt="-D_GLIBCXX_USE_CXX11_ABI=0"

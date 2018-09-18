@@ -15,7 +15,7 @@ function CHECK {
     return $RC
 }
 
-cd ../../
+cd ../..
 
 NATIVE_ARCH=`uname -m`
 if [ ${NATIVE_ARCH} == 'aarch64' ]; then
@@ -53,6 +53,8 @@ FAILS=0
 # Note: cluster_function_library_runtime_test fails intermitently when run in
 #       with 'status: Unavailable: Endpoint read failed'
 #       or 'UnknownError: Could not start gRPC server
+# TODO(benbarsdell): Re-enable local_client_execute_test_gpu once CUDA version is > 9.0
+#                      (due to known issue with PTX generation).
 bazel test --config=cuda -c opt --verbose_failures --local_test_jobs=$NUM_GPUS \
               --run_under=//tensorflow/tools/ci_build/gpu_build:parallel_gpu_execute \
               --test_tag_filters=-no_gpu,-benchmark-test --cache_test_results=no \
@@ -70,8 +72,6 @@ bazel test --config=cuda -c opt --verbose_failures --local_test_jobs=$NUM_GPUS \
               -//tensorflow/go/... \
               `# tflite tests fail badly` \
               -//tensorflow/contrib/lite/... \
-              `# This is tested by L1_self_test_xla` \
-              -//tensorflow/compiler/... \
               `# grpc_session_test_gpu is a flaker.`\
               `# It usually runs in 370 sec, but sumtimes timesout after 900.` \
               -//tensorflow/core/distributed_runtime/rpc:grpc_session_test_gpu \
@@ -92,6 +92,8 @@ bazel test --config=cuda -c opt --verbose_failures --local_test_jobs=$NUM_GPUS \
               -//tensorflow/python/keras:data_utils_test \
               `# contrib distributions is deprecated/unmaintained.` \
               -//tensorflow/contrib/distributions/python/kernel_tests/util:correlation_matrix_volumes_test \
+              -//tensorflow/compiler/xla/tests:local_client_execute_test_gpu \
+              -//tensorflow/compiler/xla/python:xla_client_test \
 2>&1 | tee testresult.tmp | grep '^\[\|^FAIL\|^Executed\|Build completed'
 
 FAILS=$((FAILS+$?))

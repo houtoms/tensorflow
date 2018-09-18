@@ -184,7 +184,7 @@ class DeviceBase {
 
   virtual ScopedAllocatorMgr* GetScopedAllocatorMgr() const { return nullptr; }
 
-  const bool has_eigen_cpu_device() const {
+  bool has_eigen_cpu_device() const {
     return !eigen_cpu_devices_.empty();
   }
 

@@ -88,9 +88,8 @@ RUN pip install --no-cache-dir --upgrade \
         psutil \
         nltk==3.2.5 \
         future \
-        mock
-
-
+        mock \
+        portpicker
 
 # other OpenSeq2Seq dependencies
 RUN pip install --no-cache-dir --upgrade \
@@ -134,7 +133,7 @@ ENV CUDA_TOOLKIT_PATH=/usr/local/cuda \
     NCCL_INSTALL_PATH=/usr
 
 # Build and install TF
-RUN ./nvbuild.sh --python$PYVER
+RUN ./nvbuild.sh --testlist --python$PYVER
 
 ENV TF_ADJUST_HUE_FUSED=1 \
     TF_ADJUST_SATURATION_FUSED=1 \

@@ -1,16 +1,17 @@
 #!/bin/bash
 
-GPUS=$(nvidia-smi -L | wc -l)
-if [[ "$GPUS" -ge 8 && "$GPUS" -lt 16 ]]; then
-    echo "Using 8 of $GPUS GPUs"
+TOT_GPUS=$(nvidia-smi -L | wc -l)
+if [[ "$TOT_GPUS" -ge 8 && "$TOT_GPUS" -lt 16 ]]; then
+    GPUS=8
     BATCH_SIZE=128
-elif [[ "$GPUS" -ge 16 ]]; then
-    echo "Using 16 of $GPUS GPUs"
+elif [[ "$TOT_GPUS" -ge 16 ]]; then
+    GPUS=16
     BATCH_SIZE=64
 else
     echo "Error convergence test requires at least 8 GPUs. Found $GPUS"
     exit 1
 fi
+echo "Using $GPUS of $TOT_GPUS GPUs"
 
 LOG=$(mktemp XXXXXX.log)
 OUT=${LOG%.log}.dir
@@ -21,7 +22,7 @@ function CLEAN_AND_EXIT {
 }
 
 SECONDS=0
-mpiexec --allow-run-as-root --bind-to socket -np 8 python -u \
+mpiexec --allow-run-as-root --bind-to socket -np $GPUS python -u \
     /opt/tensorflow/nvidia-examples/cnn/inception_v3.py \
     --data_dir=/data/imagenet/train-val-tfrecord-480 \
     --batch_size=$BATCH_SIZE --log_dir=$OUT --display_every=1000 \
