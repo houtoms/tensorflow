@@ -115,6 +115,7 @@ def run(frozen_graph, model, data_dir, batch_size,
 def get_frozen_graph(
     model,
     use_trt=False,
+    use_dynamic_op=False,
     precision='fp32',
     batch_size=8,
     calib_data_dir=None,
@@ -161,7 +162,8 @@ def get_frozen_graph(
             max_batch_size=batch_size,
             max_workspace_size_bytes=4096 << 20,
             precision_mode=precision,
-            minimum_segment_size=7
+            minimum_segment_size=7,
+            is_dynamic_op=use_dynamic_op
         )
         times['trt_conversion'] = time.time() - start_time
         num_nodes['tftrt_total'] = len(frozen_graph.node)
@@ -206,6 +208,8 @@ if __name__ == '__main__':
         help='Directory containing TFRecord files for calibrating int8.')
     parser.add_argument('--use_trt', action='store_true',
         help='If set, the graph will be converted to a TensorRT graph.')
+    parser.add_argument('--use_trt_dynamic_op', action='store_true',
+        help='If set, TRT conversion will be done using dynamic op instead of statically.')
     parser.add_argument('--precision', type=str, choices=['fp32', 'fp16', 'int8'], default='fp32',
         help='Precision mode to use. FP16 and INT8 only work in conjunction with --use_trt')
     parser.add_argument('--batch_size', type=int, default=8,
@@ -240,6 +244,7 @@ if __name__ == '__main__':
     frozen_graph, num_nodes, times = get_frozen_graph(
         model=args.model,
         use_trt=args.use_trt,
+        use_dynamic_op=args.use_trt_dynamic_op,
         precision=args.precision,
         batch_size=args.batch_size,
         calib_data_dir=args.calib_data_dir,
