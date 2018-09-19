@@ -52,9 +52,12 @@ parser.add_argument('--layers', default=50, type=int, required=True,
 
 args, flags = nvutils.parse_cmdline(default_args, parser)
 
-def resnet_bottleneck_v1(builder, inputs, depth, depth_bottleneck, stride,
+def resnet_bottleneck_v1(builder, inputs, data_format, depth, depth_bottleneck, stride,
                          basic=False):
-    num_inputs = inputs.get_shape().as_list()[1]
+    if data_format == 'channels_first':
+        num_inputs = inputs.get_shape().as_list()[1]
+    else:
+        num_inputs = inputs.get_shape().as_list()[-1]
     x  = inputs
     with tf.name_scope('resnet_v1'):
         if depth == num_inputs:
@@ -76,19 +79,19 @@ def resnet_bottleneck_v1(builder, inputs, depth, depth_bottleneck, stride,
         x = tf.nn.relu(x + shortcut)
         return x
 
-def inference_resnet_v1_impl(builder, inputs, layer_counts, basic=False):
+def inference_resnet_v1_impl(builder, inputs, data_format, layer_counts, basic=False):
     x = inputs
     x = builder.pad2d(x, 3)
     x = builder.conv2d(       x, 64, 7, 2, 'VALID')
     x = builder.max_pooling2d(x,     3, 2, 'SAME')
     for i in range(layer_counts[0]):
-        x = resnet_bottleneck_v1(builder, x,  256,  64, 1, basic)
+        x = resnet_bottleneck_v1(builder, x, data_format, 256,  64, 1, basic)
     for i in range(layer_counts[1]):
-        x = resnet_bottleneck_v1(builder, x,  512, 128, 2 if i==0 else 1, basic)
+        x = resnet_bottleneck_v1(builder, x, data_format, 512, 128, 2 if i==0 else 1, basic)
     for i in range(layer_counts[2]):
-        x = resnet_bottleneck_v1(builder, x, 1024, 256, 2 if i==0 else 1, basic)
+        x = resnet_bottleneck_v1(builder, x, data_format,1024, 256, 2 if i==0 else 1, basic)
     for i in range(layer_counts[3]):
-        x = resnet_bottleneck_v1(builder, x, 2048, 512, 2 if i==0 else 1, basic)
+        x = resnet_bottleneck_v1(builder, x, data_format,2048, 512, 2 if i==0 else 1, basic)
     return builder.spatial_average2d(x)
 
 def resnet_v1(inputs, training=False):
@@ -96,11 +99,11 @@ def resnet_v1(inputs, training=False):
     https://arxiv.org/abs/1512.03385
     """
     builder = nvutils.LayerBuilder(tf.nn.relu, args['image_format'], training, use_batch_norm=True)
-    if   flags.layers ==  18: return inference_resnet_v1_impl(builder, inputs, [2,2, 2,2], basic=True)
-    elif flags.layers ==  34: return inference_resnet_v1_impl(builder, inputs, [3,4, 6,3], basic=True)
-    elif flags.layers ==  50: return inference_resnet_v1_impl(builder, inputs, [3,4, 6,3])
-    elif flags.layers == 101: return inference_resnet_v1_impl(builder, inputs, [3,4,23,3])
-    elif flags.layers == 152: return inference_resnet_v1_impl(builder, inputs, [3,8,36,3])
+    if   flags.layers ==  18: return inference_resnet_v1_impl(builder, inputs, args['image_format'], [2,2, 2,2], basic=True)
+    elif flags.layers ==  34: return inference_resnet_v1_impl(builder, inputs, args['image_format'], [3,4, 6,3], basic=True)
+    elif flags.layers ==  50: return inference_resnet_v1_impl(builder, inputs, args['image_format'], [3,4, 6,3])
+    elif flags.layers == 101: return inference_resnet_v1_impl(builder, inputs, args['image_format'], [3,4,23,3])
+    elif flags.layers == 152: return inference_resnet_v1_impl(builder, inputs, args['image_format'], [3,8,36,3])
     else: raise ValueError("Invalid layer count (%i); must be one of: 18,34,50,101,152" %
                            flags.layers)
 
