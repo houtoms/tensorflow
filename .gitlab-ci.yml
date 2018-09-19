@@ -602,6 +602,10 @@ L0_tftrt--P100_R384_4GPU:
     <<: *L0_TEST
     <<: *P100_R384_4GPU
 
+L0_inference--P100_R384_4GPU:
+    <<: *L0_TEST
+    <<: *P100_R384_4GPU
+
 L0_python_kernel_tests--P100_R384_4GPU:
     <<: *L0_TEST
     <<: *P100_R384_4GPU
@@ -811,6 +815,10 @@ L2_inference_bench_synthetic--TU102_R410_1GPU:
     <<: *L2_TEST
     <<: *TU102_R410_1GPU
 
+L2_inference_tftrt_int8--TU102_R410_1GPU:
+    <<: *L2_TEST
+    <<: *TU102_R410_1GPU
+
 #### V100_R384_4GPU Python 3 ####
 
 L0_compat_lib--V100_R384_4GPU:
@@ -886,10 +894,6 @@ L1_inference_tftrt--V100_R384_1GPU:
     <<: *V100_R384_1GPU
 
 L1_inference_tftrt_fp16--V100_R384_1GPU:
-    <<: *L1_TEST
-    <<: *V100_R384_1GPU
-
-L1_inference_tftrt_int8--V100_R384_1GPU:
     <<: *L1_TEST
     <<: *V100_R384_1GPU
 
@@ -1001,6 +1005,10 @@ L2_inference_bench--V100_R384_1GPU:
     <<: *V100_R384_4GPU
 
 L2_inference_bench_synthetic--V100_R384_1GPU:
+    <<: *L2_TEST
+    <<: *V100_R384_4GPU
+
+L2_inference_tftrt_int8--V100_R384_1GPU:
     <<: *L2_TEST
     <<: *V100_R384_4GPU
 
@@ -1298,6 +1306,10 @@ L2_inference_bench--P40_R384_1GPU:
     <<: *P40_R384_1GPU
 
 L2_inference_bench_synthetic--P40_R384_1GPU:
+    <<: *L2_TEST
+    <<: *P40_R384_1GPU
+
+L2_inference_tftrt_int8--P40_R384_1GPU:
     <<: *L2_TEST
     <<: *P40_R384_1GPU
 
