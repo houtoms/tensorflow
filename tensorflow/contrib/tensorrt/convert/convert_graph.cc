@@ -123,6 +123,7 @@ bool IsTensorRTCandidate(const tensorflow::Node* node) {
     "Prod",
     "Max",
     "Min",
+    "Relu6",
 #endif
     // TODO(ben,jie): ...
   };

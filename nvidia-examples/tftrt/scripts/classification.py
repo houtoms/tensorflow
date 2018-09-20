@@ -7,8 +7,6 @@ import tensorflow.contrib.slim as slim
 import official.resnet.imagenet_main
 from preprocessing import inception_preprocessing, vgg_preprocessing
 
-from graph_utils import convert_relu6
-
 class NetDef:
     """Contains definition of a model"""
     def __init__(self, name, url=None, checkpoint_name=None, preprocess='inception',
@@ -151,8 +149,7 @@ def build_classification_graph(model, download_dir='./data'):
 
     This function builds an image classification model given a model
     name, parameter checkpoint file path, and number of classes.  This
-    function performs some graph processing (such as replacing relu6(x)
-    operations with relu(x) - relu(x-6)) to produce a graph that is
+    function performs some graph processing to produce a graph that is
     well optimized by the TensorRT package in TensorFlow 1.7+.
 
     model: string, the model name (see NETS table)
@@ -195,9 +192,6 @@ def build_classification_graph(model, download_dir='./data'):
                 tf_sess.graph_def,
                 output_node_names=['logits', 'classes']
             )
-
-            # remove relu 6
-            frozen_graph = convert_relu6(frozen_graph)
 
     return frozen_graph
 

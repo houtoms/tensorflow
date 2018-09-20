@@ -1484,6 +1484,67 @@ tensorflow::Status ConvertActivation(
   return tensorflow::Status::OK();
 }
 
+// TODO(pdavoodi): we should update relu6 implementation once TensorRT supports
+// Relu6 natively.
+tensorflow::Status ConvertRelu6(
+    Converter& ctx, const tensorflow::NodeDef& node_def,
+    const std::vector<TRT_TensorOrWeights>& inputs,
+    std::vector<TRT_TensorOrWeights>* outputs) {
+
+    // ***************************************************************************
+    // TensorRT does not implement Relu6 natively. This function converts Relu6 op
+    // to available TensorRT ops: Relu6(x) = min(Relu(x), 6)
+    // ***************************************************************************
+
+    // Input Tensor 
+    const nvinfer1::ITensor* tensor = inputs.at(0).tensor();
+    
+    // Relu operation i.e. Relu(x) = max(0, x)
+    nvinfer1::IActivationLayer* relu_layer = ctx.network()->addActivation(
+        *const_cast<nvinfer1::ITensor*>(tensor), nvinfer1::ActivationType::kRELU);
+    TFTRT_RETURN_ERROR_IF_NULLPTR(relu_layer, node_def.name());
+    
+#if NV_TENSORRT_MAJOR >= 5
+    // Large range of relu is problematic during quantization in INT8 precision mode.
+    // Setting dynamic range of relu = [0.f, 6.0f] helps with quantization.
+    // TRT only uses dynamic ranges in INT8 precision mode,
+    // and this does not affect the FP32 path.
+    relu_layer->getOutput(0)->setDynamicRange(0.f, 6.0f);
+#endif
+   
+    // Create a constant layer to store the floating point weight i.e. 6.0f
+    // This tensor will be broadcasted uniformly during elementwise `min`
+    // operation.
+    nvinfer1::DimsCHW dims(1, 1, 1);
+    TRT_ShapedWeights weights = ctx.get_temp_weights(tensorflow::DataType::DT_FLOAT, dims);
+    auto weights_ptr = static_cast<float*>(const_cast<void*>(weights.GetValues()));
+    weights_ptr[0] = 6.f;
+    nvinfer1::IConstantLayer* const6_layer = ctx.network()->addConstant(dims, weights);
+    TFTRT_RETURN_ERROR_IF_NULLPTR(const6_layer, node_def.name());
+    
+    // ElementWise Min Operation
+    // Min op is a nop for INT8 execution path, as the input tensor
+    // to this layer will only have values in range [0.f, 6.0f].
+    const nvinfer1::ITensor* tensor_l  = relu_layer->getOutput(0);
+    const nvinfer1::ITensor* tensor_r = const6_layer->getOutput(0);
+    nvinfer1::IElementWiseLayer* relu6_layer = ctx.network()->addElementWise(
+        *const_cast<nvinfer1::ITensor*>(tensor_l),
+        *const_cast<nvinfer1::ITensor*>(tensor_r),
+        nvinfer1::ElementWiseOperation::kMIN);
+    TFTRT_RETURN_ERROR_IF_NULLPTR(relu6_layer, node_def.name());
+    nvinfer1::ITensor* output_tensor = relu6_layer->getOutput(0);
+    
+#if NV_TENSORRT_MAJOR >= 5
+    // Setting dynamic range on relu6 output tensor.
+    // TRT only uses dynamic ranges in INT8 precision mode,
+    // and this does not affect the FP32 path.
+    output_tensor->setDynamicRange(0.f, 6.0f);
+#endif
+
+    outputs->push_back(TRT_TensorOrWeights(output_tensor));
+    return tensorflow::Status::OK();
+}
+
 tensorflow::Status ConvertScale(Converter& ctx,
                                 const tensorflow::NodeDef& node_def,
                                 const std::vector<TRT_TensorOrWeights>& inputs,
@@ -2587,6 +2648,7 @@ void Converter::register_op_converters() {
   op_registry_["MatMul"] = ConvertMatMul;
   op_registry_["BatchMatMul"] = ConvertBatchMatMul;
   op_registry_["TopKV2"] = ConvertTopK;
+  op_registry_["Relu6"] = ConvertRelu6;
 #endif
 }
 
