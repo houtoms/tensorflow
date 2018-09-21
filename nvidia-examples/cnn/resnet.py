@@ -54,7 +54,10 @@ args, flags = nvutils.parse_cmdline(default_args, parser)
 
 def resnet_bottleneck_v1(builder, inputs, depth, depth_bottleneck, stride,
                          basic=False):
-    num_inputs = inputs.get_shape().as_list()[1]
+    if builder.data_format == 'channels_first':
+        num_inputs = inputs.get_shape().as_list()[1]
+    else:
+        num_inputs = inputs.get_shape().as_list()[-1]
     x  = inputs
     with tf.name_scope('resnet_v1'):
         if depth == num_inputs:
