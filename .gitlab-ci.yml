@@ -807,11 +807,11 @@ L1_xla_tests--TU102_R410_1GPU:
     <<: *L1_TEST
     <<: *TU102_R410_1GPU
 
-L2_inference_bench--TU102_R410_1GPU:
+L3_inference_bench--TU102_R410_1GPU:
     <<: *L2_TEST
     <<: *TU102_R410_1GPU
 
-L2_inference_bench_synthetic--TU102_R410_1GPU:
+L3_inference_bench_synthetic--TU102_R410_1GPU:
     <<: *L2_TEST
     <<: *TU102_R410_1GPU
 
@@ -1000,11 +1000,11 @@ L2_models_cifar10--V100_R384_4GPU:
     <<: *L2_TEST
     <<: *V100_R384_4GPU
 
-L2_inference_bench--V100_R384_1GPU:
+L3_inference_bench--V100_R384_1GPU:
     <<: *L2_TEST
     <<: *V100_R384_4GPU
 
-L2_inference_bench_synthetic--V100_R384_1GPU:
+L3_inference_bench_synthetic--V100_R384_1GPU:
     <<: *L2_TEST
     <<: *V100_R384_4GPU
 
@@ -1153,11 +1153,11 @@ L2_models_cifar10--py2--V100_R384_4GPU:
     <<: *L2_TEST
     <<: *V100_R384_4GPU
 
-L2_inference_bench--py2--V100_R384_1GPU:
+L3_inference_bench--py2--V100_R384_1GPU:
     <<: *L2_TEST
     <<: *V100_R384_4GPU
 
-L2_inference_bench_synthetic--py2--V100_R384_1GPU:
+L3_inference_bench_synthetic--py2--V100_R384_1GPU:
     <<: *L2_TEST
     <<: *V100_R384_4GPU
 
@@ -1301,11 +1301,11 @@ L2_models_cifar10--P40_R384_1GPU:
     <<: *L2_TEST
     <<: *P40_R384_1GPU
 
-L2_inference_bench--P40_R384_1GPU:
+L3_inference_bench--P40_R384_1GPU:
     <<: *L2_TEST
     <<: *P40_R384_1GPU
 
-L2_inference_bench_synthetic--P40_R384_1GPU:
+L3_inference_bench_synthetic--P40_R384_1GPU:
     <<: *L2_TEST
     <<: *P40_R384_1GPU
 
@@ -1543,19 +1543,19 @@ L1_inference_tftrt_fp16--py2--TX2:
     <<: *NIGHTLY_TEST
     <<: *TX2
 
-L2_inference_bench--py3.6--TX2:
+L3_inference_bench--py3.6--TX2:
     <<: *NIGHTLY_TEST
     <<: *TX2
 
-L2_inference_bench_synthetic--py3.6--TX2:
+L3_inference_bench_synthetic--py3.6--TX2:
     <<: *NIGHTLY_TEST
     <<: *TX2
 
-L2_inference_bench--py2--TX2:
+L3_inference_bench--py2--TX2:
     <<: *NIGHTLY_TEST
     <<: *TX2
 
-L2_inference_bench_synthetic--py2--TX2:
+L3_inference_bench_synthetic--py2--TX2:
     <<: *NIGHTLY_TEST
     <<: *TX2
 
@@ -1657,18 +1657,22 @@ L1_inference_tftrt_fp16--py2--XAVIER:
     <<: *NIGHTLY_TEST
     <<: *XAVIER
 
-L2_inference_bench--py3.6--XAVIER:
+L2_inference_tftrt_int8--py2--XAVIER:
     <<: *NIGHTLY_TEST
     <<: *XAVIER
 
-L2_inference_bench_synthetic--py3.6--XAVIER:
+L3_inference_bench--py3.6--XAVIER:
     <<: *NIGHTLY_TEST
     <<: *XAVIER
 
-L2_inference_bench--py2--XAVIER:
+L3_inference_bench_synthetic--py3.6--XAVIER:
     <<: *NIGHTLY_TEST
     <<: *XAVIER
 
-L2_inference_bench_synthetic--py2--XAVIER:
+L3_inference_bench--py2--XAVIER:
+    <<: *NIGHTLY_TEST
+    <<: *XAVIER
+
+L3_inference_bench_synthetic--py2--XAVIER:
     <<: *NIGHTLY_TEST
     <<: *XAVIER
