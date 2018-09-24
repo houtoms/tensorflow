@@ -370,7 +370,7 @@ void WarnIfBadPtxasVersion(const string& ptxas_path) {
            "prefers >= 9.2.88).  Compilation of XLA kernels below will likely "
            "fail.\n\nYou do not need to update CUDA; cherry-picking the ptxas "
            "binary is sufficient.";
-  } else if ((vmaj < 9 || vmin < 2 || vdot < 88)) {
+  } else if (vmaj == 9 && ( vmin < 2 || (vmin == 2 && vdot < 88) )) {
     LOG(WARNING)
         << "*** WARNING *** You are using ptxas " << vmaj << "." << vmin << "."
         << vdot
