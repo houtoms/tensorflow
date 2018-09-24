@@ -29,6 +29,7 @@ set_models() {
     inception_v4
   )
   if [${NATIVE_ARCH} == 'x86_64']; then
+    models+=(nasnet_large)
     models+=(vgg_16)
     models+=(vgg_19)
   fi
