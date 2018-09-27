@@ -18,7 +18,7 @@ pushd ../../nvidia-examples/tftrt/scripts
 set_models() {
   NATIVE_ARCH=`uname -m`
   models=(
-    mobilenet_v1
+    #mobilenet_v1
     mobilenet_v2
     #nasnet_large
     #nasnet_mobile
