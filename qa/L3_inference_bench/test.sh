@@ -26,7 +26,7 @@ set_models() {
     inception_v3
     inception_v4
   )
-  if [${NATIVE_ARCH} == 'x86_64']; then
+  if [ ${NATIVE_ARCH} == 'x86_64' ]; then
     models+=(vgg_16)
     models+=(vgg_19)
   fi
