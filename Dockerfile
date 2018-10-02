@@ -1,22 +1,5 @@
 FROM gitlab-dl.nvidia.com:5005/dgx/cuda:10.0-devel-ubuntu16.04--18.10
 
-################################################################################
-# TODO: REMOVE THESE LINES ONCE BASE CONTIANER INTEGRATES MOFED USERSPACE DRIVER
-RUN apt-get update && apt-get install -y --no-install-recommends \
-        wget \
-        libnl-route-3-200 \
-        libnuma1 && \
-    rm -rf /var/lib/apt/lists/*
-
-ENV MOFED_VERSION=3.4-1.0.0.0
-RUN wget -q -O - http://content.mellanox.com/ofed/MLNX_OFED-${MOFED_VERSION}/MLNX_OFED_LINUX-${MOFED_VERSION}-ubuntu16.04-x86_64.tgz | tar -xzf - && \
-        dpkg --install MLNX_OFED_LINUX-${MOFED_VERSION}-ubuntu16.04-x86_64/DEBS/libibverbs1_*_amd64.deb && \
-        dpkg --install MLNX_OFED_LINUX-${MOFED_VERSION}-ubuntu16.04-x86_64/DEBS/libibverbs-dev_*_amd64.deb && \
-        dpkg --install MLNX_OFED_LINUX-${MOFED_VERSION}-ubuntu16.04-x86_64/DEBS/libmlx5-1_*_amd64.deb && \
-        dpkg --install MLNX_OFED_LINUX-${MOFED_VERSION}-ubuntu16.04-x86_64/DEBS/ibverbs-utils_*_amd64.deb && \
-        rm -rf MLNX_OFED_LINUX-${MOFED_VERSION}-ubuntu16.04-x86_64
-################################################################################
-
 ENV LD_LIBRARY_PATH /usr/local/cuda/extras/CUPTI/lib64:${LD_LIBRARY_PATH}
 
 ENV TENSORFLOW_VERSION 1.10.0+
@@ -26,8 +9,6 @@ ENV NVIDIA_TENSORFLOW_VERSION 18.10
 ARG PYVER=3.5
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
-        libhwloc-dev \
-        libnuma-dev \
         pkg-config \
         python$PYVER \
         python$PYVER-dev \
@@ -40,34 +21,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 ENV PYTHONIOENCODING=utf-8 \
     LC_ALL=C.UTF-8
+
 RUN rm -f /usr/bin/python && \
     rm -f /usr/bin/python`echo $PYVER | cut -c1-1` && \
     ln -s /usr/bin/python$PYVER /usr/bin/python && \
     ln -s /usr/bin/python$PYVER /usr/bin/python`echo $PYVER | cut -c1-1`
-
-# Needed for Horovod
-RUN OPENMPI_VERSION=3.0.0 && \
-    wget -q -O - https://www.open-mpi.org/software/ompi/v3.0/downloads/openmpi-${OPENMPI_VERSION}.tar.gz | tar -xzf - && \
-    cd openmpi-${OPENMPI_VERSION} && \
-    ./configure --enable-orterun-prefix-by-default --with-cuda --with-verbs \
-                --prefix=/usr/local/mpi --disable-getpwuid && \
-    make -j"$(nproc)" install && \
-    cd .. && rm -rf openmpi-${OPENMPI_VERSION} && \
-    echo "/usr/local/mpi/lib" >> /etc/ld.so.conf.d/openmpi.conf && ldconfig
-ENV PATH /usr/local/mpi/bin:$PATH
-
-# The following works around a segfault in OpenMPI 3.0
-# when run within a single node without ssh being installed.
-RUN /bin/echo -e '#!/bin/bash'\
-'\ncat <<EOF'\
-'\n======================================================================'\
-'\nTo run a multi-node job, install an ssh client and clear plm_rsh_agent'\
-'\nin '/usr/local/mpi/etc/openmpi-mca-params.conf'.'\
-'\n======================================================================'\
-'\nEOF'\
-'\nexit 1' >> /usr/local/mpi/bin/rsh_warn.sh && \
-    chmod +x /usr/local/mpi/bin/rsh_warn.sh && \
-    echo "plm_rsh_agent = /usr/local/mpi/bin/rsh_warn.sh" >> /usr/local/mpi/etc/openmpi-mca-params.conf
 
 # TF 1.0 upstream needs this symlink
 RUN mkdir -p /usr/lib/x86_64-linux-gnu/include/ && \
