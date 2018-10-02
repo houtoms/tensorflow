@@ -40,6 +40,38 @@ else
   fi
 fi
 
+DETECTED_MOFED=$(cat /sys/module/mlx5_core/version 2>/dev/null || true)
+case "${DETECTED_MOFED}" in
+  "${MOFED_VERSION}")
+    echo
+    echo "Detected MOFED ${DETECTED_MOFED}."
+    ;;
+  "")
+    echo
+    echo "WARNING: MOFED driver was not detected.  RDMA functionality will not be available."
+    ;;
+  *)
+    if [[ -d "/opt/mellanox/DEBS/${DETECTED_MOFED}/" && $(id -u) -eq 0 ]]; then
+      echo
+      echo "NOTE: Detected MOFED driver ${DETECTED_MOFED}; attempting to automatically upgrade."
+      echo
+      dpkg -i /opt/mellanox/DEBS/${DETECTED_MOFED}/*.deb || true
+    else
+      echo
+      echo "ERROR: Detected MOFED driver ${DETECTED_MOFED}, but this container has version ${MOFED_VERSION}."
+      echo "       Unable to automatically upgrade this container."
+      echo "       Use of RDMA for multi-node communication will be unreliable."
+      sleep 2
+    fi
+    ;;
+esac
+
+DETECTED_NVPEERMEM=$(cat /sys/module/nv_peer_mem/version 2>/dev/null || true)
+if [[ "${DETECTED_MOFED} " != " " && "${DETECTED_NVPEERMEM} " == " " ]]; then
+  echo
+  echo "ERROR: nv_peer_mem driver was not detected.  GPUDirect RDMA functionality will not be available."
+fi
+
 if [[ "$(df -k /dev/shm |grep ^shm |awk '{print $2}') " == "65536 " ]]; then
   echo
   echo "NOTE: The SHMEM allocation limit is set to the default of 64MB.  This may be"
