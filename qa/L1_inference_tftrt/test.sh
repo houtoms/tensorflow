@@ -27,7 +27,7 @@ set_models() {
     inception_v3
     inception_v4
   )
-  if [${NATIVE_ARCH} == 'x86_64']; then
+  if [ ${NATIVE_ARCH} == 'x86_64' ]; then
     models+=(vgg_16)
     models+=(vgg_19)
   fi
@@ -36,7 +36,7 @@ set_models() {
 
 set_allocator() {
   NATIVE_ARCH=`uname -m`
-  if [${NATIVE_ARCH} == 'aarch64' ]; then
+  if [ ${NATIVE_ARCH} == 'aarch64' ]; then
     export TF_GPU_ALLOCATOR="cuda_malloc"
   else
     unset TF_GPU_ALLOCATOR
