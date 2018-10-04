@@ -309,8 +309,6 @@ gather wheels:
     except:
       refs:
         - tags
-      variables:
-        - $TARGET == "jetson"
     when: manual
 
 .L0_test: &L0_TEST
@@ -486,9 +484,28 @@ jetson-xavier-py3.6-wheel:
         - $TARGET == "jetson"
     allow_failure: false
 
-.nightly_test: &NIGHTLY_TEST
+.l0_test_jetson: &L0_TEST_JETSON
     stage: test
     <<: *TEST_TEMPLATE_WHEEL_METAL
+    allow_failure: false
+
+.l1_test_jetson: &L1_TEST_JETSON
+    stage: test
+    <<: *TEST_TEMPLATE_WHEEL_METAL
+    when: manual
+    allow_failure: true
+
+.l2_test_jetson: &L2_TEST_JETSON
+    stage: test
+    <<: *TEST_TEMPLATE_WHEEL_METAL
+    when: manual
+    allow_failure: true
+
+.l3_test_jetson: &L3_TEST_JETSON
+    stage: test
+    <<: *TEST_TEMPLATE_WHEEL_METAL
+    when: manual
+    allow_failure: true
 
 ######################################################
 ##
@@ -1416,199 +1433,199 @@ L2_models_cifar10--M40_R384_1GPU:
 #### TX2 ####
 
 L0_models_alexnet--py3--TX2:
-    <<: *NIGHTLY_TEST
+    <<: *L0_TEST_JETSON
     <<: *TX2
 
 L0_models_imagenet--py3--TX2:
-    <<: *NIGHTLY_TEST
+    <<: *L0_TEST_JETSON
     <<: *TX2
 
 L0_models_mnist--py3--TX2:
-    <<: *NIGHTLY_TEST
+    <<: *L0_TEST_JETSON
     <<: *TX2
 
 L0_convnet_benchmarks_alexnet--py3--TX2:
-    <<: *NIGHTLY_TEST
+    <<: *L0_TEST_JETSON
     <<: *TX2
     variables:
       TEST_WORK_DIR: "./qa/L0_convnet_benchmarks"
       TEST_SCRIPT: "./test-alexnet.sh"
 
 L0_convnet_benchmarks_googlenet--py3--TX2:
-    <<: *NIGHTLY_TEST
+    <<: *L0_TEST_JETSON
     <<: *TX2
     variables:
       TEST_WORK_DIR: "./qa/L0_convnet_benchmarks"
       TEST_SCRIPT: "./test-googlenet.sh"
 
 L0_convnet_benchmarks_overfeat--py3--TX2:
-    <<: *NIGHTLY_TEST
+    <<: *L0_TEST_JETSON
     <<: *TX2
     variables:
       TEST_WORK_DIR: "./qa/L0_convnet_benchmarks"
       TEST_SCRIPT: "./test-overfeat.sh"
 
 L0_convnet_benchmarks_vgga--py3--TX2:
-    <<: *NIGHTLY_TEST
+    <<: *L0_TEST_JETSON
     <<: *TX2
     variables:
       TEST_WORK_DIR: "./qa/L0_convnet_benchmarks"
       TEST_SCRIPT: "./test-vgga.sh"
 
 L0_tftrt--py3--TX2:
-    <<: *NIGHTLY_TEST
+    <<: *L0_TEST_JETSON
     <<: *TX2
 
 L0_inference--py3--TX2:
-    <<: *NIGHTLY_TEST
+    <<: *L0_TEST_JETSON
     <<: *TX2
 
 L0_python_kernel_tests--py3--TX2:
-    <<: *NIGHTLY_TEST
+    <<: *L0_TEST_JETSON
     <<: *TX2
 
 L1_kernel_tests--py3--TX2:
-    <<: *NIGHTLY_TEST
+    <<: *L1_TEST_JETSON
     <<: *TX2
 
 L1_xla_tests--py3--TX2:
-    <<: *NIGHTLY_TEST
+    <<: *L1_TEST_JETSON
     <<: *TX2
 
 L0_models_alexnet--py2--TX2:
-    <<: *NIGHTLY_TEST
+    <<: *L0_TEST_JETSON
     <<: *TX2
 
 L0_models_imagenet--py2--TX2:
-    <<: *NIGHTLY_TEST
+    <<: *L0_TEST_JETSON
     <<: *TX2
 
 L0_models_mnist--py2--TX2:
-    <<: *NIGHTLY_TEST
+    <<: *L0_TEST_JETSON
     <<: *TX2
 
 L0_tftrt--py2--TX2:
-    <<: *NIGHTLY_TEST
+    <<: *L0_TEST_JETSON
     <<: *TX2
 
 L0_inference--py2--TX2:
-    <<: *NIGHTLY_TEST
+    <<: *L0_TEST_JETSON
     <<: *TX2
 
 L0_python_kernel_tests--py2--TX2:
-    <<: *NIGHTLY_TEST
+    <<: *L0_TEST_JETSON
     <<: *TX2
 
 L1_inference_tf--py2--TX2:
-    <<: *NIGHTLY_TEST
+    <<: *L1_TEST_JETSON
     <<: *TX2
 
 L1_inference_tftrt--py2--TX2:
-    <<: *NIGHTLY_TEST
+    <<: *L1_TEST_JETSON
     <<: *TX2
 
 L1_inference_tftrt_fp16--py2--TX2:
-    <<: *NIGHTLY_TEST
+    <<: *L1_TEST_JETSON
     <<: *TX2
 
 #### XAVIER ####
 
 L0_models_alexnet--py3.6--XAVIER:
-    <<: *NIGHTLY_TEST
+    <<: *L0_TEST_JETSON
     <<: *XAVIER
 
 L0_models_imagenet--py3.6--XAVIER:
-    <<: *NIGHTLY_TEST
+    <<: *L0_TEST_JETSON
     <<: *XAVIER
 
 L0_models_mnist--py3.6--XAVIER:
-    <<: *NIGHTLY_TEST
+    <<: *L0_TEST_JETSON
     <<: *XAVIER
 
 L0_convnet_benchmarks_alexnet--py3.6--XAVIER:
-    <<: *NIGHTLY_TEST
+    <<: *L0_TEST_JETSON
     <<: *XAVIER
     variables:
       TEST_WORK_DIR: "./qa/L0_convnet_benchmarks"
       TEST_SCRIPT: "./test-alexnet.sh"
 
 L0_convnet_benchmarks_googlenet--py3.6--XAVIER:
-    <<: *NIGHTLY_TEST
+    <<: *L0_TEST_JETSON
     <<: *XAVIER
     variables:
       TEST_WORK_DIR: "./qa/L0_convnet_benchmarks"
       TEST_SCRIPT: "./test-googlenet.sh"
 
 L0_convnet_benchmarks_overfeat--py3.6--XAVIER:
-    <<: *NIGHTLY_TEST
+    <<: *L0_TEST_JETSON
     <<: *XAVIER
     variables:
       TEST_WORK_DIR: "./qa/L0_convnet_benchmarks"
       TEST_SCRIPT: "./test-overfeat.sh"
 
 L0_convnet_benchmarks_vgga--py3.6--XAVIER:
-    <<: *NIGHTLY_TEST
+    <<: *L0_TEST_JETSON
     <<: *XAVIER
     variables:
       TEST_WORK_DIR: "./qa/L0_convnet_benchmarks"
       TEST_SCRIPT: "./test-vgga.sh"
 
 L0_tftrt--py3.6--XAVIER:
-    <<: *NIGHTLY_TEST
+    <<: *L0_TEST_JETSON
     <<: *XAVIER
 
 L0_inference--py3.6--XAVIER:
-    <<: *NIGHTLY_TEST
+    <<: *L0_TEST_JETSON
     <<: *XAVIER
 
 L0_python_kernel_tests--py3.6--XAVIER:
-    <<: *NIGHTLY_TEST
+    <<: *L0_TEST_JETSON
     <<: *XAVIER
 
 L1_kernel_tests--py3.6--XAVIER:
-    <<: *NIGHTLY_TEST
+    <<: *L1_TEST_JETSON
     <<: *XAVIER
 
 L1_xla_tests--py3.6--XAVIER:
-    <<: *NIGHTLY_TEST
+    <<: *L1_TEST_JETSON
     <<: *XAVIER
 
 L0_models_alexnet--py2--XAVIER:
-    <<: *NIGHTLY_TEST
+    <<: *L0_TEST_JETSON
     <<: *XAVIER
 
 L0_models_imagenet--py2--XAVIER:
-    <<: *NIGHTLY_TEST
+    <<: *L0_TEST_JETSON
     <<: *XAVIER
 
 L0_models_mnist--py2--XAVIER:
-    <<: *NIGHTLY_TEST
+    <<: *L0_TEST_JETSON
     <<: *XAVIER
 
 L0_tftrt--py2--XAVIER:
-    <<: *NIGHTLY_TEST
+    <<: *L0_TEST_JETSON
     <<: *XAVIER
 
 L0_inference--py2--XAVIER:
-    <<: *NIGHTLY_TEST
+    <<: *L0_TEST_JETSON
     <<: *XAVIER
 
 L0_python_kernel_tests--py2--XAVIER:
-    <<: *NIGHTLY_TEST
+    <<: *L0_TEST_JETSON
     <<: *XAVIER
 
 L1_inference_tf--py2--XAVIER:
-    <<: *NIGHTLY_TEST
+    <<: *L1_TEST_JETSON
     <<: *XAVIER
 
 L1_inference_tftrt--py2--XAVIER:
-    <<: *NIGHTLY_TEST
+    <<: *L1_TEST_JETSON
     <<: *XAVIER
 
 L1_inference_tftrt_fp16--py2--XAVIER:
-    <<: *NIGHTLY_TEST
+    <<: *L1_TEST_JETSON
     <<: *XAVIER
 
 L2_inference_tftrt_int8--py2--XAVIER:
-    <<: *NIGHTLY_TEST
+    <<: *L2_TEST_JETSON
     <<: *XAVIER
