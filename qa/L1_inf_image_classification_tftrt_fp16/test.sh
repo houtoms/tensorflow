@@ -11,14 +11,15 @@ python setup.py install
 popd
 
 OUTPUT_PATH=$PWD
-pushd ../../nvidia-examples/tftrt/scripts
+pushd ../../nvidia-examples/inference/image-classification/scripts
+
 
 set_models() {
   NATIVE_ARCH=`uname -m`
   models=(
     mobilenet_v1
     mobilenet_v2
-    nasnet_large
+    #nasnet_large
     #nasnet_mobile
     resnet_v1_50
     resnet_v2_50
@@ -27,15 +28,14 @@ set_models() {
     inception_v3
     inception_v4
   )
-  if [ ${NATIVE_ARCH} == 'x86_64' ]; then
+  if [${NATIVE_ARCH} == 'x86_64']; then
+    models+=(nasnet_large)
     models+=(vgg_16)
     models+=(vgg_19)
   fi
 }
 
-
 set_allocator() {
-  NATIVE_ARCH=`uname -m`
   if [ ${NATIVE_ARCH} == 'aarch64' ]; then
     export TF_GPU_ALLOCATOR="cuda_malloc"
   else
@@ -43,14 +43,13 @@ set_allocator() {
   fi
 }
 
-
-set_allocator
 set_models
+set_allocator
 
 for i in "${models[@]}"
 do
-  python -u inference.py --model $i --use_trt --download_dir /data/tensorflow/models 2>&1 | tee $OUTPUT_PATH/output_tftrt_$i
-  python -u check_accuracy.py --input $OUTPUT_PATH/output_tftrt_$i
+  python -u inference.py --model $i --use_trt --precision fp16  --download_dir /data/tensorflow/models 2>&1 | tee $OUTPUT_PATH/output_tftrt_fp16_$i
+  python -u check_accuracy.py --input $OUTPUT_PATH/output_tftrt_fp16_$i
   echo "DONE testing $i"
 done
 popd

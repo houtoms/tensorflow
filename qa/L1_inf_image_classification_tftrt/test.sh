@@ -11,23 +11,21 @@ python setup.py install
 popd
 
 OUTPUT_PATH=$PWD
-pushd ../../nvidia-examples/tftrt/scripts
-
-
+pushd ../../nvidia-examples/inference/image-classification/scripts
 
 set_models() {
   NATIVE_ARCH=`uname -m`
   models=(
-    #mobilenet_v1
+    mobilenet_v1
     mobilenet_v2
-    #nasnet_large
+    nasnet_large
     #nasnet_mobile
-    #resnet_v1_50
-    #resnet_v2_50
+    resnet_v1_50
+    resnet_v2_50
     #vgg_16
     #vgg_19
     inception_v3
-    #inception_v4
+    inception_v4
   )
   if [ ${NATIVE_ARCH} == 'x86_64' ]; then
     models+=(vgg_16)
@@ -46,14 +44,13 @@ set_allocator() {
 }
 
 
-set_models
 set_allocator
+set_models
 
 for i in "${models[@]}"
 do
-  echo "Testing $i..."
-  python -u inference.py --batch_size 64 --model $i --use_trt --precision int8 --download_dir /data/tensorflow/models 2>&1 | tee $OUTPUT_PATH/output_tftrt_int8_$i
-  python -u check_accuracy.py --tolerance 1.0 --input $OUTPUT_PATH/output_tftrt_int8_$i
+  python -u inference.py --model $i --use_trt --download_dir /data/tensorflow/models 2>&1 | tee $OUTPUT_PATH/output_tftrt_$i
+  python -u check_accuracy.py --input $OUTPUT_PATH/output_tftrt_$i
   echo "DONE testing $i"
 done
 popd
