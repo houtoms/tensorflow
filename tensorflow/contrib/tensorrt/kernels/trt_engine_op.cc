@@ -290,9 +290,14 @@ void TRTEngineOp::ComputeAsync(tensorflow::OpKernelContext* ctx,
   std::vector<void*> buffers(num_binding);
   for (int i = 0; i < ctx->num_inputs(); i++) {
     const string inp_name = StrCat(kInputPHName, i);
-    const size_t binding_index =
+    const int binding_index =
         trt_engine_ptr->getBindingIndex(inp_name.c_str());
-
+    if (binding_index == -1) {
+      LOG(ERROR) << "input node not found, at " << inp_name;
+      ctx->SetStatus(tensorflow::errors::Internal("input ", inp_name,
+                                                  " couldn't be found!"));
+      return;
+    }
     const Tensor& input_tensor = ctx->input(i);
     const TensorShape& input_shape = input_tensor.shape();
     if (num_batch != input_shape.dim_size(0)) {
@@ -332,7 +337,7 @@ void TRTEngineOp::ComputeAsync(tensorflow::OpKernelContext* ctx,
   for (int i = 0; i < ctx->num_outputs(); i++) {
     // Create an output tensor
     const string output_name = StrCat(kOutputPHName, i);
-    const size_t binding_index =
+    const int binding_index =
         trt_engine_ptr->getBindingIndex(output_name.c_str());
     Tensor* output_tensor = nullptr;
 
