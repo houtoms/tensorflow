@@ -65,6 +65,10 @@ For more information, see https://docs.docker.com/engine/reference/builder/ for
 a syntax reference.  Several example Dockerfiles are provided in the container
 image in `/workspace/docker-examples`.
 
+Note that if building additional tensorflow extensions, it is important to match
+the build options used to construct the tensorflow libraries provided in this
+container. Those options are preserved in /opt/tensorflow/nvbuildopts.
+
 ## Suggested Reading
 
 For more information about TensorFlow, including tutorials, documentation, and
