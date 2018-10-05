@@ -1783,6 +1783,12 @@ tensorflow::Status ConvertConst(Converter& ctx,
       port::CopyToArray(
           content, static_cast<char*>(const_cast<void*>(weights.GetValues())));
     }
+  } else if (tensor.dims() == 1 && tensor.dim_size(0) == 0) {
+    // Empty constant tensor
+    nvinfer1::Dims empty_shape;
+    empty_shape.nbDims = 1;
+    empty_shape.d[0] = 0;
+    weights = TRT_ShapedWeights(dtype, nullptr, empty_shape);
   } else {
     return tensorflow::errors::Unimplemented("Not supported constant type, at ",
                                              node_def.name());
