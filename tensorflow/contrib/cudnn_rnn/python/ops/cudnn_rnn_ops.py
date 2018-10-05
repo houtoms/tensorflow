@@ -865,6 +865,7 @@ def _cudnn_rnn(inputs,
                rnn_mode,
                input_mode=CUDNN_INPUT_LINEAR_MODE,
                direction=CUDNN_RNN_UNIDIRECTION,
+               sequence_lengths=None,
                dropout=0.,
                seed=0,
                name=None):
@@ -890,6 +891,7 @@ def _cudnn_rnn(inputs,
       otherwise, it implies 'linear_input'.
     direction: the direction model that the model operates. Could be either
         'unidirectional' or 'bidirectional'
+    sequence_lengths: the extended cuDNN kernel will be invoked, if provided
     dropout: whether to enable dropout. With it is 0, dropout is disabled.
     seed: the op seed used for initializing dropout. See @{tf.set_random_seed}
         for behavior.
@@ -897,10 +899,12 @@ def _cudnn_rnn(inputs,
   Returns:
     outputs, output_h, output_c
   """
+  print('XXX _cudnn_rnn')
   _check_rnn_mode(rnn_mode)
   check_direction(direction)
   check_input_mode(input_mode)
   seed, seed2 = random_seed.get_seed(seed)
+  print("XXX seed: " + str(seed) + " seed2: " + str(seed2))
   # TODO(jamesqin): switch default value to "1" on May 25th 2018, and get rid
   # of V1 ops.
   use_cudnn_v2 = os.environ.get("TF_CUDNN_RNN_USE_V2", "0")
@@ -918,9 +922,15 @@ def _cudnn_rnn(inputs,
       "seed2": seed2,
       "name": name
   }
-  if use_cudnn_v2 is not "1":
+  if sequence_lengths is not None:
+    args["sequence_lengths"] = sequence_lengths
+    print('XXX -> gen_cudnn_rnn_ops.cudnn_rnn_ex')
+    outputs, output_h, output_c, _ = gen_cudnn_rnn_ops.cudnn_rnn_ex(**args)
+  elif use_cudnn_v2 is not "1":
+    print('XXX -> gen_cudnn_rnn_ops.cudnn_rnn')
     outputs, output_h, output_c, _ = gen_cudnn_rnn_ops.cudnn_rnn(**args)
   else:
+    print('XXX -> gen_cudnn_rnn_ops.cudnn_rnnv2')
     outputs, output_h, output_c, _, _ = gen_cudnn_rnn_ops.cudnn_rnnv2(**args)
   return (outputs, output_h, output_c)
 
@@ -963,6 +973,7 @@ def cudnn_lstm(inputs,
   Returns:
     outputs, output_h, output_c
   """
+  print("XXX cudnn_lstm")
   return _cudnn_rnn(inputs, input_h, input_c, params, is_training, CUDNN_LSTM,
                     input_mode, direction, dropout, seed, name)
 
@@ -1004,6 +1015,7 @@ def _cudnn_rnn_no_input_c(inputs,
   Returns:
     outputs, output_h
   """
+  print("XXX _cudnn_rnn_no_input_c")
   input_c = array_ops.constant([], dtype=input_h.dtype)
   outputs, output_h, _ = _cudnn_rnn(inputs, input_h, input_c, params,
                                     is_training, rnn_mode, input_mode,
@@ -1354,6 +1366,7 @@ class _CudnnRNN(object):
     Raises:
       ValueError: if direction is invalid.
     """
+    print('XXX _CudnnRNN init')
     self._num_layers = num_layers
     self._num_units = num_units
     self._input_size = input_size
@@ -1422,6 +1435,7 @@ class _CudnnRNN(object):
       output_h: the final state for h.
       output_c: the final state for c. This is only relevant for LSTM.
     """
+    print('XXX _CudnnRNN call')
     return _cudnn_rnn(
         input_data,
         input_h,
@@ -1512,6 +1526,7 @@ class CudnnLSTM(_CudnnRNN):
       dropout: whether to enable dropout. With it is 0, dropout is disabled.
       seed: the seed used for initializing dropout.
     """
+    print('XXX CudnnLSTM init')
     super(CudnnLSTM, self).__init__(
         CUDNN_LSTM,
         num_layers,
@@ -1540,6 +1555,7 @@ class CudnnLSTM(_CudnnRNN):
       output_h: the final state for h.
       output_c: the final state for c.
     """
+    print('XXX CudnnLSTM call')
     output, output_h, output_c = super(CudnnLSTM, self).__call__(
         input_data, input_h, input_c, params, is_training=is_training)
     return (output, output_h, output_c)
