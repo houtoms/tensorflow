@@ -1796,7 +1796,19 @@ tensorflow::Status ConvertIdentity(
     Converter& ctx, const tensorflow::NodeDef& node_def,
     const std::vector<TRT_TensorOrWeights>& inputs,
     std::vector<TRT_TensorOrWeights>* outputs) {
-  outputs->push_back(inputs.at(0));
+  if (inputs.at(0).is_weights()) {
+    outputs->push_back(inputs.at(0));
+    return tensorflow::Status::OK();
+  }
+  nvinfer1::ITensor* tensor = const_cast<nvinfer1::ITensor*>(inputs.at(0).tensor());
+  // The default shuffle layer serves as a dummy layer which will be optimized
+  // away. Identity layer does not get optimized away as of TRT 5.0, however
+  // once we know that it does it would be nice to use that instead.
+  nvinfer1::IShuffleLayer* layer;
+  layer = ctx.network()->addShuffle(*tensor);
+  TFTRT_RETURN_ERROR_IF_NULLPTR(layer, node_def.name());
+  nvinfer1::ITensor* output_tensor = layer->getOutput(0);
+  outputs->push_back(TRT_TensorOrWeights(output_tensor));
   return tensorflow::Status::OK();
 }
 
