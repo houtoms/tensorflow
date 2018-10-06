@@ -7,8 +7,11 @@
 # 2. Installs the tensorflow/models repository for object detection
 # 3. Installs the pycoco API
 
-sudo apt install python-pip python-pil python-matplotlib python-tk
-sudo apt install python3-pip python3-pil python3-matplotlib python3-tk
+SUDO=$(which sudo || true)
+${SUDO} apt-get update
+${SUDO} env DEBIAN_FRONTEND=noninteractive \
+  apt-get install -y --no-install-recommends python-pip python-pil python-matplotlib python-tk \
+                                             python3-pip python3-pil python3-matplotlib python3-tk
 
 RESEARCH_DIR=$TF_MODELS_DIR/research
 SLIM_DIR=$RESEARCH_DIR/slim
