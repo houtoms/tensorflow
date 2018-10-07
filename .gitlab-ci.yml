@@ -1293,7 +1293,7 @@ L1_kernel_tests--P40_R384_2GPU:
     <<: *L1_TEST
     <<: *P40_R384_2GPU
 
-L1_xla_tests_xla--P40_R384_2GPU:
+L1_xla_tests--P40_R384_2GPU:
     <<: *L1_TEST
     <<: *P40_R384_2GPU
 
