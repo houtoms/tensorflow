@@ -3,15 +3,9 @@
 # This script should be called after sourcing setup_env.sh to configure
 # the environment variables. This script performs the following steps. 
 # 
-# 1. Installs necessary debian/python package dependencies
+# 1. Installs necessary python package dependencies
 # 2. Installs the tensorflow/models repository for object detection
 # 3. Installs the pycoco API
-
-SUDO=$(which sudo || true)
-${SUDO} apt-get update
-${SUDO} env DEBIAN_FRONTEND=noninteractive \
-  apt-get install -y --no-install-recommends python-pip python-pil python-matplotlib python-tk \
-                                             python3-pip python3-pil python3-matplotlib python3-tk
 
 RESEARCH_DIR=$TF_MODELS_DIR/research
 SLIM_DIR=$RESEARCH_DIR/slim
@@ -45,16 +39,16 @@ $PROTOC_EXE object_detection/protos/*.proto --python_out=.
 
 # INSTALL OBJECT DETECTION
 
-python setup.py install --user
+pip install -e .
 
 popd
 
 pushd $SLIM_DIR
-python setup.py install --user
+pip install -e .
 popd
 
 # INSTALL PYCOCOTOOLS
 
 pushd $PYCOCO_DIR
-python setup.py install --user
+pip install -e .
 popd
