@@ -7,6 +7,12 @@
 # 2. Installs the tensorflow/models repository for object detection
 # 3. Installs the pycoco API
 
+# Python 2 matplotlib needs python-tk; do nothing for Py3
+python -V 2>&1 | grep "Python 3" || \
+  ( export DEBIAN_FRONTEND=noninteractive && \
+    apt-get update && \
+    apt-get install -y --no-install-recommends python-tk )
+
 RESEARCH_DIR=$TF_MODELS_DIR/research
 SLIM_DIR=$RESEARCH_DIR/slim
 PYCOCO_DIR=$COCO_API_DIR/PythonAPI
