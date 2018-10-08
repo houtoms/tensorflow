@@ -1330,7 +1330,10 @@ class CudnnRnnVariableSequenceTensorDescriptor
     RNNDataDescriptor tensor_desc = CreateRNNDataDescriptor();
     float paddingFill = 0.0f;
     std::vector<int> seq_lens_h(batch_size);
-    auto status = cudaMemcpy(seq_lens_h.data(), seq_lens, sizeof(int)*batch_size, cudaMemcpyDeviceToHost); // TODO: async version
+    cudaStream_t stream;
+    cudaStreamCreate(&stream);
+    auto status = cudaMemcpyAsync(seq_lens_h.data(), seq_lens, sizeof(int)*batch_size, 
+            cudaMemcpyDeviceToHost, stream); 
     if (status != cudaSuccess) {
       LOG(FATAL) << "Copy sequence lengths error \n";
     }
@@ -1342,6 +1345,7 @@ class CudnnRnnVariableSequenceTensorDescriptor
         /*batchSize=*/batch_size, /*vectorSize=*/data_size, 
         /*seqLengthArray=*/seq_lens_h.data(), /*paddingFill*/(void*)&paddingFill));
     std::cout << "XXX end CudnnRnnVariableSequenceTensorDescriptor Create" << std::endl;
+    cudaStreamDestroy(stream);
     return CudnnRnnVariableSequenceTensorDescriptor(parent, seq_length, batch_size,
                                             data_size, seq_lens_h.data(), data_type, true,
                                             std::move(tensor_desc));
