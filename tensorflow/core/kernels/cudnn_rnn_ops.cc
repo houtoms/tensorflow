@@ -559,7 +559,6 @@ Status ExtractForwardInput(OpKernelContext* context,
                            const Tensor** input_c, const Tensor** params,
                            CudnnRnnModelShapes* model_shapes,
                            const Tensor** sequence_lengths=nullptr) {
-  std::cout << "XXX ExtractForwardInput" << std::endl;
   TF_RETURN_IF_ERROR(context->input("input", input));
   TF_RETURN_IF_ERROR(context->input("input_h", input_h));
   if (model_types.HasInputC()) {
@@ -706,7 +705,6 @@ Status DoForward(OpKernelContext* context, const RnnDescriptor& rnn_desc,
       context, model_shapes, &input_desc, &state_desc, &output_desc, 
       &input_desc_ex, &output_desc_ex));
   }
-  std::cout << "XXX finish CreateForwardAndBackwardIODescriptors" << std:: endl;
 
   auto input_data = AsDeviceMemory<T>(input);
   auto input_h_data = AsDeviceMemory<T>(input_h);
@@ -724,7 +722,6 @@ Status DoForward(OpKernelContext* context, const RnnDescriptor& rnn_desc,
   }
 
   Stream* stream = context->op_device_context()->stream();
-  std::cout << "XXX launch ThenRnnForward" << std:: endl;
   bool launch_success =
       stream
           ->ThenRnnForward(rnn_desc, *input_desc, input_data, *state_desc,
@@ -776,7 +773,6 @@ Status DoBackward(
         context, model_shapes, &input_desc, &state_desc, &output_desc, 
         &input_desc_ex, &output_desc_ex));
   }
-  std::cout << "XXX finish CreateForwardAndBackwardIODescriptors" << std:: endl;
 
   auto input_data = AsDeviceMemory<T>(input);
   auto input_h_data = AsDeviceMemory<T>(input_h);
@@ -1220,7 +1216,6 @@ class CudnnRNNForwardOp<GPUDevice, T> : public CudnnRNNKernelCommon {
  public:
   explicit CudnnRNNForwardOp(OpKernelConstruction* context)
       : CudnnRNNKernelCommon(context) {
-    std::cout << "XXX init CudnnRNNForwardOp" << std::endl;
     OP_REQUIRES_OK(context, context->GetAttr("is_training", &is_training_));
 
     // Read debug env variables.
@@ -1230,7 +1225,6 @@ class CudnnRNNForwardOp<GPUDevice, T> : public CudnnRNNKernelCommon {
   }
 
   void Compute(OpKernelContext* context) override {
-    std::cout << "XXX Compute CudnnRNNForwardOp" << std::endl;
     AlgorithmConfig algo_config;
     ComputeAndReturnAlgorithm(context, &algo_config);
   }
@@ -1285,7 +1279,6 @@ class CudnnRNNForwardOp<GPUDevice, T> : public CudnnRNNKernelCommon {
           context, GetCachedRnnDescriptor<T>(context, model_shapes, input_mode,
                                              *output_algo_config,
                                              &rnn_state_cache_, &rnn_desc_ptr));
-      std::cout << "XXX -> DoForward" << std::endl;
       launch_status = DoForward<T>(
           context, *rnn_desc_ptr, model_types(), model_shapes, input, input_h,
           input_c, params, is_training_, output, output_h, output_c,
@@ -1361,7 +1354,6 @@ class CudnnRNNForwardExOp<GPUDevice, T> : public CudnnRNNKernelCommon {
  public:
   explicit CudnnRNNForwardExOp(OpKernelConstruction* context)
       : CudnnRNNKernelCommon(context) {
-    std::cout << "XXX init CudnnRNNForwardExOp" << std::endl;
     OP_REQUIRES_OK(context, context->GetAttr("is_training", &is_training_));
 
     // Read debug env variables.
@@ -1371,7 +1363,6 @@ class CudnnRNNForwardExOp<GPUDevice, T> : public CudnnRNNKernelCommon {
   }
 
   void Compute(OpKernelContext* context) override {
-    std::cout << "XXX Compute CudnnRNNForwardExOp" << std::endl;
     AlgorithmConfig algo_config;
     ComputeAndReturnAlgorithm(context, &algo_config);
   }
@@ -1428,7 +1419,6 @@ class CudnnRNNForwardExOp<GPUDevice, T> : public CudnnRNNKernelCommon {
           context, GetCachedRnnDescriptor<T>(context, model_shapes, input_mode,
                                              *output_algo_config,
                                              &rnn_state_cache_, &rnn_desc_ptr));
-      std::cout << "XXX -> DoForward" << std::endl;
       launch_status = DoForward<T>(
           context, *rnn_desc_ptr, model_types(), model_shapes, input, input_h,
           input_c, params, is_training_, output, output_h, output_c,
@@ -1691,11 +1681,9 @@ class CudnnRNNBackwardOp<GPUDevice, T> : public CudnnRNNKernelCommon {
  public:
   explicit CudnnRNNBackwardOp(OpKernelConstruction* context)
       : CudnnRNNKernelCommon(context) {
-    std::cout << "XXX init CudnnRNNBackwardOp" << std::endl;
   }
 
   void Compute(OpKernelContext* context) override {
-    std::cout << "XXX Compute CudnnRNNBackwardOp" << std::endl;
     const Tensor* input = nullptr;
     const Tensor* input_h = nullptr;
     const Tensor* input_c = nullptr;
@@ -1744,7 +1732,6 @@ class CudnnRNNBackwardOp<GPUDevice, T> : public CudnnRNNKernelCommon {
           context, GetCachedRnnDescriptor<T>(context, model_shapes, input_mode,
                                              algo_config, &rnn_state_cache_,
                                              &rnn_desc_ptr));
-      std::cout << "XXX -> DoBackward" << std::endl;
       launch_status = DoBackward<T>(
           context, *rnn_desc_ptr, model_types(), model_shapes, input, input_h,
           input_c, params, output, output_h, output_c, output_backprop,
@@ -1867,11 +1854,9 @@ class CudnnRNNBackwardExOp<GPUDevice, T> : public CudnnRNNKernelCommon {
  public:
   explicit CudnnRNNBackwardExOp(OpKernelConstruction* context)
       : CudnnRNNKernelCommon(context) {
-    std::cout << "XXX init CudnnRNNBackwardExOp" << std::endl;
   }
 
   void Compute(OpKernelContext* context) override {
-    std::cout << "XXX Compute CudnnRNNBackwardExOp" << std::endl;
     const Tensor* input = nullptr;
     const Tensor* input_h = nullptr;
     const Tensor* input_c = nullptr;
@@ -1922,7 +1907,6 @@ class CudnnRNNBackwardExOp<GPUDevice, T> : public CudnnRNNKernelCommon {
           context, GetCachedRnnDescriptor<T>(context, model_shapes, input_mode,
                                              algo_config, &rnn_state_cache_,
                                              &rnn_desc_ptr));
-      std::cout << "XXX -> DoBackward" << std::endl;
       launch_status = DoBackward<T>(
           context, *rnn_desc_ptr, model_types(), model_shapes, input, input_h,
           input_c, params, output, output_h, output_c, output_backprop,

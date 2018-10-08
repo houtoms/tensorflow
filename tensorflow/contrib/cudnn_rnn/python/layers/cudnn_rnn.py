@@ -195,7 +195,6 @@ class _CudnnRNN(base_layer.Layer):
     Raises:
       ValueError: if direction is invalid. Or dtype is not supported.
     """
-    print("XXX __init__ _CudnnRNN")
     super(_CudnnRNN, self).__init__(dtype=dtype, name=name)
     cudnn_rnn_ops.check_direction(direction)
     cudnn_rnn_ops.check_input_mode(input_mode)
@@ -391,7 +390,6 @@ class _CudnnRNN(base_layer.Layer):
     Raises:
       ValueError: initial_state is not a tuple.
     """
-    print("XXX call")
     if initial_state is not None and not isinstance(initial_state, tuple):
       raise ValueError("Invalid initial_state type: %s, expecting tuple.",
                        type(initial_state))
@@ -411,7 +409,6 @@ class _CudnnRNN(base_layer.Layer):
     else:
       # For model that doesn't take input_c, replace with a dummy tensor.
       c = array_ops.constant([], dtype=dtype)
-    print("XXX -> _forward")
     outputs, (output_h, output_c) = self._forward(inputs, h, c, self.kernel,
                                                   training, lengths)
     if self._rnn_mode == CUDNN_LSTM:
@@ -478,8 +475,6 @@ class _CudnnRNN(base_layer.Layer):
           direction=self._direction)
 
   def _forward(self, inputs, h, c, opaque_params, training, lengths=None):
-    print("XXX _forward")
-    print("XXX -> cudnn_rnn_ops._cudnn_rnn")
     output, output_h, output_c = cudnn_rnn_ops._cudnn_rnn(  # pylint:disable=protected-access
         inputs,
         h,
@@ -522,7 +517,6 @@ class _CudnnRNN(base_layer.Layer):
 
 class CudnnLSTM(_CudnnRNN):
   """Cudnn implementation of LSTM layer."""
-  print("XXX CudnnLSTM")
   _rnn_mode = CUDNN_LSTM
   _num_params_per_layer = CUDNN_LSTM_PARAMS_PER_LAYER
   _saveable_cls = cudnn_rnn_ops.CudnnLSTMSaveable

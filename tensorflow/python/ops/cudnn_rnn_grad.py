@@ -24,11 +24,9 @@ from tensorflow.python.ops import gen_cudnn_rnn_ops
 @ops.RegisterGradient("CudnnRNN")
 def _cudnn_rnn_backward(op, *grads):
   """Gradients for the CudnnRNN op."""
-  print("XXX _cudnn_rnn_backward")
   if not op.get_attr("is_training"):
     raise ValueError(
         "To use CudnnRNN in gradients, is_training must be set to True.")
-  print("XXX -> gen_cudnn_rnn_ops.cudnn_rnn_backprop")
   return gen_cudnn_rnn_ops.cudnn_rnn_backprop(
       input=op.inputs[0],
       input_h=op.inputs[1],

@@ -1060,9 +1060,8 @@ class CudnnRnnDescriptor : public dnn::RnnDescriptor {
         /*inputMode=*/input_mode, /*direction=*/direction_mode,
         /*mode=*/rnn_mode, /*algo=*/rnn_algo,
         /*dataType=*/compute_type));
-    std::cout << "XXX set rnn descriptor" << std::endl;
-    cudnnSetRNNPaddingMode(rnn_desc.get(), CUDNN_RNN_PADDED_IO_ENABLED);
-    std::cout << "XXX set padding mode" << std::endl;
+    RETURN_IF_CUDNN_ERROR(cudnnSetRNNPaddingMode(rnn_desc.get(), 
+        CUDNN_RNN_PADDED_IO_ENABLED));
 
     PersistentRnnPlan rnn_plan;
     if (rnn_algo == CUDNN_RNN_ALGO_PERSIST_DYNAMIC) {
@@ -1325,7 +1324,6 @@ class CudnnRnnVariableSequenceTensorDescriptor
       CUDAExecutor* parent, int seq_length, int batch_size, int data_size, 
       int* seq_lens, // This is the device memory
       cudnnDataType_t data_type) {
-    std::cout << "XXX CudnnRnnVariableSequenceTensorDescriptor Create" << std::endl;
     CHECK_GT(seq_length, 0);
     RNNDataDescriptor tensor_desc = CreateRNNDataDescriptor();
     float paddingFill = 0.0f;
@@ -1344,7 +1342,6 @@ class CudnnRnnVariableSequenceTensorDescriptor
         /*layout=*/CUDNN_RNN_DATA_LAYOUT_SEQ_MAJOR_UNPACKED, /*maxSeqLength=*/seq_length,
         /*batchSize=*/batch_size, /*vectorSize=*/data_size, 
         /*seqLengthArray=*/seq_lens_h.data(), /*paddingFill*/(void*)&paddingFill));
-    std::cout << "XXX end CudnnRnnVariableSequenceTensorDescriptor Create" << std::endl;
     cudaStreamDestroy(stream);
     return CudnnRnnVariableSequenceTensorDescriptor(parent, seq_length, batch_size,
                                             data_size, seq_lens_h.data(), data_type, true,
@@ -1353,8 +1350,6 @@ class CudnnRnnVariableSequenceTensorDescriptor
 
   static port::StatusOr<CudnnRnnVariableSequenceTensorDescriptor> Create(
       CUDAExecutor* parent) {
-    std::cout << "XXX CudnnRnnVariableSequenceTensorDescriptor Create" << std::endl;
-    std::cout << "XXX end CudnnRnnVariableSequenceTensorDescriptor Create" << std::endl;
     return CudnnRnnVariableSequenceTensorDescriptor(parent);
   }
 
@@ -1542,14 +1537,12 @@ port::Status CudnnSupport::DoRnnForwardImpl(
     dnn::ProfileResult* output_profile_result, 
     const CudnnRnnVariableSequenceTensorDescriptor& input_desc_ex,
     const CudnnRnnVariableSequenceTensorDescriptor& output_desc_ex) {
-  std::cout << "XXX in DoRnnForwardImpl" << std::endl;
   SE_ASSIGN_OR_RETURN(
       RnnModelDims model_dims,
       ExtractAndCheckRnnForward(
           rnn_desc, input_desc, input_data, input_h_desc, input_h_data,
           input_c_desc, input_c_data, params, output_desc, *output_data,
           output_h_desc, *output_h_data, output_c_desc, *output_c_data));
-  std::cout << "XXX finish ExtractAndCheckRnnForward" << std::endl;
 
   auto cudnn = cudnn_->GetHandle(parent_, stream);
 
@@ -1574,7 +1567,6 @@ port::Status CudnnSupport::DoRnnForwardImpl(
                               stream, reserve_space_size_in_bytes));
     }
   }
-  std::cout << "XXX finish finding spaces" << std::endl;
 
   std::unique_ptr<CUDATimer, TimerDeleter> timer;
   const bool is_profiling = output_profile_result != nullptr;
@@ -1588,13 +1580,9 @@ port::Status CudnnSupport::DoRnnForwardImpl(
     }
   }
 
-  std::cout << "XXX begin training1" << std::endl;
-  std::cout << std::boolalpha << input_desc_ex.is_ready() << std::endl;
-  std::cout << "XXX begin training2" << std::endl;
   if (!is_training) {
     if(input_desc_ex.is_ready())
     {
-      std::cout << "XXX InferenceEx " << std::endl;
       RETURN_IF_CUDNN_ERROR(cudnnRNNForwardInferenceEx(
         /*handle=*/cudnn.handle(), /*rnnDesc=*/rnn_desc.handle(),
         /*xDesc=*/input_desc_ex.handle(), /*x=*/input_data.opaque(), 
@@ -1609,7 +1597,6 @@ port::Status CudnnSupport::DoRnnForwardImpl(
         /*workspace=*/workspace.opaque(),
         /*workSpaceSizeInBytes=*/workspace.size()));
     } else {
-      std::cout << "XXX Inference " << std::endl;
       RETURN_IF_CUDNN_ERROR(cudnnRNNForwardInference(
         /*handle=*/cudnn.handle(), /*rnnDesc=*/rnn_desc.handle(),
         /*seqLength=*/model_dims.seq_length, /*xDesc=*/input_desc.handles(),
@@ -1625,7 +1612,6 @@ port::Status CudnnSupport::DoRnnForwardImpl(
   } else {
     if(input_desc_ex.is_ready())
     {
-      std::cout << "XXX to call cudnnRNNForwardTrainingEx" << std::endl;
       // cudnnSetRNNPaddingMode(rnn_desc.handle(), CUDNN_RNN_PADDED_IO_ENABLED);
       RETURN_IF_CUDNN_ERROR(cudnnRNNForwardTrainingEx(
         /*handle=*/cudnn.handle(), /*rnnDesc=*/rnn_desc.handle(),
@@ -1642,9 +1628,7 @@ port::Status CudnnSupport::DoRnnForwardImpl(
         /*workSpaceSizeInBytes=*/workspace.size(),
         /*reserveSpace=*/reserve_space.opaque(),
         /*reserveSpaceSizeInBytes=*/reserve_space.size()));
-      std::cout << "XXX finish cudnnRNNForwardTrainingEx" << std::endl;
     } else {
-      std::cout << "XXX to call cudnnRNNForwardTraining" << std::endl;
       RETURN_IF_CUDNN_ERROR(cudnnRNNForwardTraining(
         /*handle=*/cudnn.handle(), /*rnnDesc=*/rnn_desc.handle(),
         /*seqLength=*/model_dims.seq_length, /*xDesc=*/input_desc.handles(),
@@ -1658,7 +1642,6 @@ port::Status CudnnSupport::DoRnnForwardImpl(
         /*workSpaceSizeInBytes=*/workspace.size(),
         /*reserveSpace=*/reserve_space.opaque(),
         /*reserveSpaceSizeInBytes=*/reserve_space.size()));
-      std::cout << "XXX finish cudnnRNNForwardTraining" << std::endl;
     }
   }
 
@@ -1702,14 +1685,12 @@ port::Status CudnnSupport::DoRnnBackwardImpl(
     dnn::ProfileResult* output_profile_result,
     const CudnnRnnVariableSequenceTensorDescriptor& input_desc_ex,
     const CudnnRnnVariableSequenceTensorDescriptor& output_desc_ex) {
-  std::cout << "XXX in DoRnnBackwardImpl" << std::endl;
   SE_ASSIGN_OR_RETURN(
       RnnModelDims model_dims,
       ExtractAndCheckRnnForward(rnn_desc, input_desc, input_data, input_h_desc,
                                 input_h_data, input_c_desc, input_c_data,
                                 params, output_desc, output_data, output_h_desc,
                                 output_h_data, output_c_desc, output_c_data));
-  std::cout << "XXX finish ExtractAndCheckRnnForward" << std::endl;
 
   auto cudnn = cudnn_->GetHandle(parent_, stream);
 
@@ -1732,7 +1713,6 @@ port::Status CudnnSupport::DoRnnBackwardImpl(
 
   if(input_desc_ex.is_ready())
   {
-    std::cout << "XXX call cudnnRNNBackwardDataEx" << std::endl;
     RETURN_IF_CUDNN_ERROR(cudnnRNNBackwardDataEx(
       /*handle=*/cudnn.handle(), /*rnnDesc=*/rnn_desc.handle(),
       /*yDesc=*/output_desc_ex.handle(), /*y=*/output_data.opaque(), 
@@ -1752,7 +1732,6 @@ port::Status CudnnSupport::DoRnnBackwardImpl(
       /*reserveSpace=*/reserve_space_data->opaque(),
       /*reserveSpaceSizeInBytes=*/reserve_space_data->size()));
   } else {
-    std::cout << "XXX call cudnnRNNBackwardData" << std::endl;
     RETURN_IF_CUDNN_ERROR(cudnnRNNBackwardData(
       /*handle=*/cudnn.handle(), /*rnnDesc=*/rnn_desc.handle(),
       /*seqLength=*/model_dims.seq_length, /*yDesc=*/output_desc.handles(),
@@ -1780,7 +1759,6 @@ port::Status CudnnSupport::DoRnnBackwardImpl(
     // Clear the dw to zeros.
     stream->ThenMemZero(params_backprop_data, params_backprop_data->size());
     if(input_desc_ex.is_ready()) {
-      std::cout << "XXX call cudnnRNNBackwardWeightsEx" << std::endl;
       RETURN_IF_CUDNN_ERROR(cudnnRNNBackwardWeightsEx(
         /*handle=*/cudnn.handle(), /*rnnDesc=*/rnn_desc.handle(),
         /*xDesc=*/input_desc_ex.handle(), /*x=*/input_data.opaque(), 
@@ -1791,7 +1769,6 @@ port::Status CudnnSupport::DoRnnBackwardImpl(
         /*reserveSpace=*/reserve_space_data->opaque(),
         /*reserveSpaceSizeInBytes=*/reserve_space_data->size()));
     } else {
-      std::cout << "XXX call cudnnRNNBackwardWeights" << std::endl;
       // make the backward weight call
       RETURN_IF_CUDNN_ERROR(cudnnRNNBackwardWeights(
         /*handle=*/cudnn.handle(), /*rnnDesc=*/rnn_desc.handle(),
@@ -1858,23 +1835,19 @@ port::StatusOr<std::unique_ptr<dnn::RnnVariableSequenceTensorDescriptor>>
 CudnnSupport::createRnnVariableSequenceTensorDescriptor(int seq_length, int batch_size,
                                                 int data_size, int *seq_lens,
                                                 dnn::DataType data_type) {
-  std::cout << "XXX createRnnVariableSequenceTensorDescriptor" << std::endl;
   SE_ASSIGN_OR_RETURN(CudnnRnnVariableSequenceTensorDescriptor descriptor,
                       CudnnRnnVariableSequenceTensorDescriptor::Create(
                           parent_, seq_length, batch_size, data_size, seq_lens,
                           ToCudnnDataType(data_type)));
-  std::cout << "XXX end createRnnVariableSequenceTensorDescriptor" << std::endl;
   return std::unique_ptr<dnn::RnnVariableSequenceTensorDescriptor>(
       new CudnnRnnVariableSequenceTensorDescriptor(std::move(descriptor)));
 }
 
 port::StatusOr<std::unique_ptr<dnn::RnnVariableSequenceTensorDescriptor>>
 CudnnSupport::createRnnVariableSequenceTensorDescriptor() {
-  std::cout << "XXX createRnnVariableSequenceTensorDescriptor" << std::endl;
   SE_ASSIGN_OR_RETURN(CudnnRnnVariableSequenceTensorDescriptor descriptor,
                       CudnnRnnVariableSequenceTensorDescriptor::Create(
                           parent_));
-  std::cout << "XXX end createRnnVariableSequenceTensorDescriptor" << std::endl;
   return std::unique_ptr<dnn::RnnVariableSequenceTensorDescriptor>(
       new CudnnRnnVariableSequenceTensorDescriptor(std::move(descriptor)));
 }
@@ -1927,7 +1900,6 @@ bool CudnnSupport::DoRnnForward(
   const CudnnRnnVariableSequenceTensorDescriptor& cudnn_output_desc_ex =
       static_cast<const CudnnRnnVariableSequenceTensorDescriptor&>(output_desc_ex);
 
-  std::cout << "XXX in DoRnnForward" << std::endl;
   return IsStatusOk(
       DoRnnForwardImpl<Eigen::half>(
           stream, cudnn_rnn_desc, cudnn_input_desc, input_data,
