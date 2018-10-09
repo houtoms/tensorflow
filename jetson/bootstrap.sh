@@ -26,6 +26,7 @@ if ! grep "^#!" /etc/rc.local &>/dev/null; then
 fi
 chmod +x /etc/rc.local
 # Set clocks to max immediately as well
+systemctl stop ondemand nvpmodel
 /home/nvidia/jetson_clocks.sh
 systemctl disable ondemand nvpmodel
 
@@ -78,18 +79,21 @@ make -j$(nproc) install
 cp $GOPATH/bin/gitlab-runner /usr/local/bin
 popd
 
-# TX2:
-#   nvidia@tegra-ubuntu:~$ cat /proc/cpuinfo | grep "model name" | sort | uniq -c
-#      2 model name      : ARMv8 Processor rev 0 (v8l)
-#      4 model name      : ARMv8 Processor rev 3 (v8l)
-# Xavier:
-#   root@dl-jetson-xavier-t001:/home/gitlab-runner/builds/d3736225/0/dgx/tensorflow# cat /proc/cpuinfo | grep "model name" | sort | uniq -c
-#      8 model name      : ARMv8 Processor rev 0 (v8l)
-if cat /proc/cpuinfo | grep "model name" | grep "ARMv8 Processor rev 3" &>/dev/null; then
-  MODELNAME="TX2"
-else
-  MODELNAME="XAVIER"
+# Determine machine type
+if [ -e "/sys/devices/soc0/family" ]; then
+  if [ -e "/sys/devices/soc0/machine" ]; then
+    machine="`cat /sys/devices/soc0/machine`"
+  fi
+elif [ -e "/proc/device-tree/compatible" ]; then
+  if [ -e "/proc/device-tree/model" ]; then
+    machine="$(tr -d '\0' < /proc/device-tree/model)"
+  fi
 fi
+case $machine in
+  quill)         MODELNAME="TX2";;
+  jetson-xavier) MODELNAME="XAVIER";;
+  *)             echo "Unknown machine type $machine"; exit 1;;
+esac
 
 # Register the gitlab runner
 pushd $HOME
@@ -100,6 +104,7 @@ popd
 
 # Clean up startup -- no GUI, no docker
 systemctl set-default multi-user.target
+systemctl isolate multi-user.target
 systemctl stop lightdm
 chmod -x /usr/sbin/lightdm
 systemctl stop docker
