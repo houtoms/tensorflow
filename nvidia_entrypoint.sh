@@ -25,9 +25,51 @@ else
   DRIVER_VERSION=$(sed -n 's/^NVRM.*Kernel Module *\([0-9.]*\).*$/\1/p' /proc/driver/nvidia/version)
   if [[ ! "$DRIVER_VERSION" =~ ^[0-9]*.[0-9]*$ ]]; then
     echo "Failed to detect NVIDIA driver version."
-  elif [[ "${DRIVER_VERSION%.*}" -lt "410" ]]; then
-    echo "Legacy NVIDIA Driver detected.  ${_CUDA_COMPAT_STATUS}"
+  elif [[ "${DRIVER_VERSION%.*}" -lt "${CUDA_DRIVER_VERSION%.*}" ]]; then
+    if [[ "${_CUDA_COMPAT_STATUS}" == "CUDA Driver OK" ]]; then
+      echo
+      echo "NOTE: Legacy NVIDIA Driver detected.  Compatibility mode ENABLED."
+    else
+      echo
+      echo "ERROR: This container was built for NVIDIA Driver Release ${CUDA_DRIVER_VERSION%.*} or later, but"
+      echo "       version ${DRIVER_VERSION} was detected and compatibility mode is UNAVAILABLE."
+      echo
+      echo "       [[${_CUDA_COMPAT_STATUS}]]"
+      sleep 2
+    fi
   fi
+fi
+
+DETECTED_MOFED=$(cat /sys/module/mlx5_core/version 2>/dev/null || true)
+case "${DETECTED_MOFED}" in
+  "${MOFED_VERSION}")
+    echo
+    echo "Detected MOFED ${DETECTED_MOFED}."
+    ;;
+  "")
+    echo
+    echo "WARNING: MOFED driver was not detected.  RDMA functionality will not be available."
+    ;;
+  *)
+    if [[ -d "/opt/mellanox/DEBS/${DETECTED_MOFED}/" && $(id -u) -eq 0 ]]; then
+      echo
+      echo "NOTE: Detected MOFED driver ${DETECTED_MOFED}; attempting to automatically upgrade."
+      echo
+      dpkg -i /opt/mellanox/DEBS/${DETECTED_MOFED}/*.deb || true
+    else
+      echo
+      echo "ERROR: Detected MOFED driver ${DETECTED_MOFED}, but this container has version ${MOFED_VERSION}."
+      echo "       Unable to automatically upgrade this container."
+      echo "       Use of RDMA for multi-node communication will be unreliable."
+      sleep 2
+    fi
+    ;;
+esac
+
+DETECTED_NVPEERMEM=$(cat /sys/module/nv_peer_mem/version 2>/dev/null || true)
+if [[ "${DETECTED_MOFED} " != " " && "${DETECTED_NVPEERMEM} " == " " ]]; then
+  echo
+  echo "ERROR: nv_peer_mem driver was not detected.  GPUDirect RDMA functionality will not be available."
 fi
 
 if [[ "$(df -k /dev/shm |grep ^shm |awk '{print $2}') " == "65536 " ]]; then

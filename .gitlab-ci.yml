@@ -309,8 +309,6 @@ gather wheels:
     except:
       refs:
         - tags
-      variables:
-        - $TARGET == "jetson"
     when: manual
 
 .L0_test: &L0_TEST
@@ -486,9 +484,28 @@ jetson-xavier-py3.6-wheel:
         - $TARGET == "jetson"
     allow_failure: false
 
-.nightly_test: &NIGHTLY_TEST
+.l0_test_jetson: &L0_TEST_JETSON
     stage: test
     <<: *TEST_TEMPLATE_WHEEL_METAL
+    allow_failure: false
+
+.l1_test_jetson: &L1_TEST_JETSON
+    stage: test
+    <<: *TEST_TEMPLATE_WHEEL_METAL
+    when: manual
+    allow_failure: true
+
+.l2_test_jetson: &L2_TEST_JETSON
+    stage: test
+    <<: *TEST_TEMPLATE_WHEEL_METAL
+    when: manual
+    allow_failure: true
+
+.l3_test_jetson: &L3_TEST_JETSON
+    stage: test
+    <<: *TEST_TEMPLATE_WHEEL_METAL
+    when: manual
+    allow_failure: true
 
 ######################################################
 ##
@@ -610,14 +627,17 @@ L0_python_kernel_tests--P100_R384_4GPU:
     <<: *L0_TEST
     <<: *P100_R384_4GPU
 
-L1_inference_tf--P100_R384_4GPU:
+L1_inf_image_classification_tf--P100_R384_4GPU:
     <<: *L1_TEST
     <<: *P100_R384_4GPU
 
-L1_inference_tftrt--P100_R384_4GPU:
+L1_inf_image_classification_tftrt--P100_R384_4GPU:
     <<: *L1_TEST
     <<: *P100_R384_4GPU
 
+L1_inf_object_detection--P100_R384_4GPU:
+    <<: *L1_TEST
+    <<: *P100_R384_4GPU
 
 ####  NVIDIA CNN TESTS  ####
 L0_resnet_sanity--P100_R384_4GPU:
@@ -807,15 +827,7 @@ L1_xla_tests--TU102_R410_1GPU:
     <<: *L1_TEST
     <<: *TU102_R410_1GPU
 
-L3_inference_bench--TU102_R410_1GPU:
-    <<: *L2_TEST
-    <<: *TU102_R410_1GPU
-
-L3_inference_bench_synthetic--TU102_R410_1GPU:
-    <<: *L2_TEST
-    <<: *TU102_R410_1GPU
-
-L2_inference_tftrt_int8--TU102_R410_1GPU:
+L2_inf_image_classification_tftrt_int8--TU102_R410_1GPU:
     <<: *L2_TEST
     <<: *TU102_R410_1GPU
 
@@ -885,15 +897,19 @@ L0_python_kernel_tests--V100_R384_1GPU:
     <<: *L0_TEST
     <<: *V100_R384_1GPU
 
-L1_inference_tf--V100_R384_1GPU:
+L1_inf_image_classification_tf--V100_R384_1GPU:
     <<: *L1_TEST
     <<: *V100_R384_1GPU
 
-L1_inference_tftrt--V100_R384_1GPU:
+L1_inf_image_classification_tftrt--V100_R384_1GPU:
     <<: *L1_TEST
     <<: *V100_R384_1GPU
 
-L1_inference_tftrt_fp16--V100_R384_1GPU:
+L1_inf_image_classification_tftrt_fp16--V100_R384_1GPU:
+    <<: *L1_TEST
+    <<: *V100_R384_1GPU
+
+L1_inf_object_detection--V100_R384_1GPU:
     <<: *L1_TEST
     <<: *V100_R384_1GPU
 
@@ -1000,15 +1016,7 @@ L2_models_cifar10--V100_R384_4GPU:
     <<: *L2_TEST
     <<: *V100_R384_4GPU
 
-L3_inference_bench--V100_R384_1GPU:
-    <<: *L2_TEST
-    <<: *V100_R384_4GPU
-
-L3_inference_bench_synthetic--V100_R384_1GPU:
-    <<: *L2_TEST
-    <<: *V100_R384_4GPU
-
-L2_inference_tftrt_int8--V100_R384_1GPU:
+L2_inf_image_classification_tftrt_int8--V100_R384_1GPU:
     <<: *L2_TEST
     <<: *V100_R384_4GPU
 
@@ -1153,14 +1161,6 @@ L2_models_cifar10--py2--V100_R384_4GPU:
     <<: *L2_TEST
     <<: *V100_R384_4GPU
 
-L3_inference_bench--py2--V100_R384_1GPU:
-    <<: *L2_TEST
-    <<: *V100_R384_4GPU
-
-L3_inference_bench_synthetic--py2--V100_R384_1GPU:
-    <<: *L2_TEST
-    <<: *V100_R384_4GPU
-
 #### P40_R384_1GPU ####
 
 L0_models_alexnet--P40_R384_1GPU:
@@ -1293,7 +1293,7 @@ L1_kernel_tests--P40_R384_2GPU:
     <<: *L1_TEST
     <<: *P40_R384_2GPU
 
-L1_xla_tests_xla--P40_R384_2GPU:
+L1_xla_tests--P40_R384_2GPU:
     <<: *L1_TEST
     <<: *P40_R384_2GPU
 
@@ -1301,15 +1301,7 @@ L2_models_cifar10--P40_R384_1GPU:
     <<: *L2_TEST
     <<: *P40_R384_1GPU
 
-L3_inference_bench--P40_R384_1GPU:
-    <<: *L2_TEST
-    <<: *P40_R384_1GPU
-
-L3_inference_bench_synthetic--P40_R384_1GPU:
-    <<: *L2_TEST
-    <<: *P40_R384_1GPU
-
-L2_inference_tftrt_int8--P40_R384_1GPU:
+L2_inf_image_classification_tftrt_int8--P40_R384_1GPU:
     <<: *L2_TEST
     <<: *P40_R384_1GPU
 
@@ -1448,231 +1440,215 @@ L2_models_cifar10--M40_R384_1GPU:
 #### TX2 ####
 
 L0_models_alexnet--py3--TX2:
-    <<: *NIGHTLY_TEST
+    <<: *L0_TEST_JETSON
     <<: *TX2
 
 L0_models_imagenet--py3--TX2:
-    <<: *NIGHTLY_TEST
+    <<: *L0_TEST_JETSON
     <<: *TX2
 
 L0_models_mnist--py3--TX2:
-    <<: *NIGHTLY_TEST
+    <<: *L0_TEST_JETSON
     <<: *TX2
 
 L0_convnet_benchmarks_alexnet--py3--TX2:
-    <<: *NIGHTLY_TEST
+    <<: *L0_TEST_JETSON
     <<: *TX2
     variables:
       TEST_WORK_DIR: "./qa/L0_convnet_benchmarks"
       TEST_SCRIPT: "./test-alexnet.sh"
 
 L0_convnet_benchmarks_googlenet--py3--TX2:
-    <<: *NIGHTLY_TEST
+    <<: *L0_TEST_JETSON
     <<: *TX2
     variables:
       TEST_WORK_DIR: "./qa/L0_convnet_benchmarks"
       TEST_SCRIPT: "./test-googlenet.sh"
 
 L0_convnet_benchmarks_overfeat--py3--TX2:
-    <<: *NIGHTLY_TEST
+    <<: *L0_TEST_JETSON
     <<: *TX2
     variables:
       TEST_WORK_DIR: "./qa/L0_convnet_benchmarks"
       TEST_SCRIPT: "./test-overfeat.sh"
 
 L0_convnet_benchmarks_vgga--py3--TX2:
-    <<: *NIGHTLY_TEST
+    <<: *L0_TEST_JETSON
     <<: *TX2
     variables:
       TEST_WORK_DIR: "./qa/L0_convnet_benchmarks"
       TEST_SCRIPT: "./test-vgga.sh"
 
 L0_tftrt--py3--TX2:
-    <<: *NIGHTLY_TEST
+    <<: *L0_TEST_JETSON
     <<: *TX2
 
 L0_inference--py3--TX2:
-    <<: *NIGHTLY_TEST
+    <<: *L0_TEST_JETSON
     <<: *TX2
 
 L0_python_kernel_tests--py3--TX2:
-    <<: *NIGHTLY_TEST
+    <<: *L0_TEST_JETSON
     <<: *TX2
 
 L1_kernel_tests--py3--TX2:
-    <<: *NIGHTLY_TEST
+    <<: *L1_TEST_JETSON
     <<: *TX2
 
 L1_xla_tests--py3--TX2:
-    <<: *NIGHTLY_TEST
+    <<: *L1_TEST_JETSON
     <<: *TX2
 
 L0_models_alexnet--py2--TX2:
-    <<: *NIGHTLY_TEST
+    <<: *L0_TEST_JETSON
     <<: *TX2
 
 L0_models_imagenet--py2--TX2:
-    <<: *NIGHTLY_TEST
+    <<: *L0_TEST_JETSON
     <<: *TX2
 
 L0_models_mnist--py2--TX2:
-    <<: *NIGHTLY_TEST
+    <<: *L0_TEST_JETSON
     <<: *TX2
 
 L0_tftrt--py2--TX2:
-    <<: *NIGHTLY_TEST
+    <<: *L0_TEST_JETSON
     <<: *TX2
 
 L0_inference--py2--TX2:
-    <<: *NIGHTLY_TEST
+    <<: *L0_TEST_JETSON
     <<: *TX2
 
 L0_python_kernel_tests--py2--TX2:
-    <<: *NIGHTLY_TEST
+    <<: *L0_TEST_JETSON
     <<: *TX2
 
-L1_inference_tf--py2--TX2:
-    <<: *NIGHTLY_TEST
+L1_inf_image_classification_tf--py2--TX2:
+    <<: *L1_TEST_JETSON
     <<: *TX2
 
-L1_inference_tftrt--py2--TX2:
-    <<: *NIGHTLY_TEST
+L1_inf_image_classification_tftrt--py2--TX2:
+    <<: *L1_TEST_JETSON
     <<: *TX2
 
-L1_inference_tftrt_fp16--py2--TX2:
-    <<: *NIGHTLY_TEST
+L1_inf_image_classification_tftrt_fp16--py2--TX2:
+    <<: *L1_TEST_JETSON
     <<: *TX2
 
-L3_inference_bench--py3.6--TX2:
-    <<: *NIGHTLY_TEST
-    <<: *TX2
+L1_inf_object_detection--py2--TX2:
+  <<: *L1_TEST_JETSON
+  <<: *TX2
 
-L3_inference_bench_synthetic--py3.6--TX2:
-    <<: *NIGHTLY_TEST
-    <<: *TX2
-
-L3_inference_bench--py2--TX2:
-    <<: *NIGHTLY_TEST
-    <<: *TX2
-
-L3_inference_bench_synthetic--py2--TX2:
-    <<: *NIGHTLY_TEST
-    <<: *TX2
+L1_inf_object_detection--py3.6--TX2:
+  <<: *L1_TEST_JETSON
+  <<: *TX2
 
 #### XAVIER ####
 
 L0_models_alexnet--py3.6--XAVIER:
-    <<: *NIGHTLY_TEST
+    <<: *L0_TEST_JETSON
     <<: *XAVIER
 
 L0_models_imagenet--py3.6--XAVIER:
-    <<: *NIGHTLY_TEST
+    <<: *L0_TEST_JETSON
     <<: *XAVIER
 
 L0_models_mnist--py3.6--XAVIER:
-    <<: *NIGHTLY_TEST
+    <<: *L0_TEST_JETSON
     <<: *XAVIER
 
 L0_convnet_benchmarks_alexnet--py3.6--XAVIER:
-    <<: *NIGHTLY_TEST
+    <<: *L0_TEST_JETSON
     <<: *XAVIER
     variables:
       TEST_WORK_DIR: "./qa/L0_convnet_benchmarks"
       TEST_SCRIPT: "./test-alexnet.sh"
 
 L0_convnet_benchmarks_googlenet--py3.6--XAVIER:
-    <<: *NIGHTLY_TEST
+    <<: *L0_TEST_JETSON
     <<: *XAVIER
     variables:
       TEST_WORK_DIR: "./qa/L0_convnet_benchmarks"
       TEST_SCRIPT: "./test-googlenet.sh"
 
 L0_convnet_benchmarks_overfeat--py3.6--XAVIER:
-    <<: *NIGHTLY_TEST
+    <<: *L0_TEST_JETSON
     <<: *XAVIER
     variables:
       TEST_WORK_DIR: "./qa/L0_convnet_benchmarks"
       TEST_SCRIPT: "./test-overfeat.sh"
 
 L0_convnet_benchmarks_vgga--py3.6--XAVIER:
-    <<: *NIGHTLY_TEST
+    <<: *L0_TEST_JETSON
     <<: *XAVIER
     variables:
       TEST_WORK_DIR: "./qa/L0_convnet_benchmarks"
       TEST_SCRIPT: "./test-vgga.sh"
 
 L0_tftrt--py3.6--XAVIER:
-    <<: *NIGHTLY_TEST
+    <<: *L0_TEST_JETSON
     <<: *XAVIER
 
 L0_inference--py3.6--XAVIER:
-    <<: *NIGHTLY_TEST
+    <<: *L0_TEST_JETSON
     <<: *XAVIER
 
 L0_python_kernel_tests--py3.6--XAVIER:
-    <<: *NIGHTLY_TEST
+    <<: *L0_TEST_JETSON
     <<: *XAVIER
 
 L1_kernel_tests--py3.6--XAVIER:
-    <<: *NIGHTLY_TEST
+    <<: *L1_TEST_JETSON
     <<: *XAVIER
 
 L1_xla_tests--py3.6--XAVIER:
-    <<: *NIGHTLY_TEST
+    <<: *L1_TEST_JETSON
     <<: *XAVIER
 
 L0_models_alexnet--py2--XAVIER:
-    <<: *NIGHTLY_TEST
+    <<: *L0_TEST_JETSON
     <<: *XAVIER
 
 L0_models_imagenet--py2--XAVIER:
-    <<: *NIGHTLY_TEST
+    <<: *L0_TEST_JETSON
     <<: *XAVIER
 
 L0_models_mnist--py2--XAVIER:
-    <<: *NIGHTLY_TEST
+    <<: *L0_TEST_JETSON
     <<: *XAVIER
 
 L0_tftrt--py2--XAVIER:
-    <<: *NIGHTLY_TEST
+    <<: *L0_TEST_JETSON
     <<: *XAVIER
 
 L0_inference--py2--XAVIER:
-    <<: *NIGHTLY_TEST
+    <<: *L0_TEST_JETSON
     <<: *XAVIER
 
 L0_python_kernel_tests--py2--XAVIER:
-    <<: *NIGHTLY_TEST
+    <<: *L0_TEST_JETSON
     <<: *XAVIER
 
-L1_inference_tf--py2--XAVIER:
-    <<: *NIGHTLY_TEST
+L1_inf_image_classification_tf--py2--XAVIER:
+    <<: *L1_TEST_JETSON
     <<: *XAVIER
 
-L1_inference_tftrt--py2--XAVIER:
-    <<: *NIGHTLY_TEST
+L1_inf_image_classification_tftrt--py2--XAVIER:
+    <<: *L1_TEST_JETSON
     <<: *XAVIER
 
-L1_inference_tftrt_fp16--py2--XAVIER:
-    <<: *NIGHTLY_TEST
+L1_inf_image_classification_tftrt_fp16--py2--XAVIER:
+    <<: *L1_TEST_JETSON
     <<: *XAVIER
 
-L2_inference_tftrt_int8--py2--XAVIER:
-    <<: *NIGHTLY_TEST
+L1_inf_object_detection--py2--XAVIER:
+    <<: *L1_TEST_JETSON
     <<: *XAVIER
 
-L3_inference_bench--py3.6--XAVIER:
-    <<: *NIGHTLY_TEST
+L1_inf_object_detection--py3.6--XAVIER:
+    <<: *L1_TEST_JETSON
     <<: *XAVIER
 
-L3_inference_bench_synthetic--py3.6--XAVIER:
-    <<: *NIGHTLY_TEST
-    <<: *XAVIER
-
-L3_inference_bench--py2--XAVIER:
-    <<: *NIGHTLY_TEST
-    <<: *XAVIER
-
-L3_inference_bench_synthetic--py2--XAVIER:
-    <<: *NIGHTLY_TEST
+L2_inf_image_classification_tftrt_int8--py2--XAVIER:
+    <<: *L2_TEST_JETSON
     <<: *XAVIER

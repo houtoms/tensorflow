@@ -222,7 +222,7 @@ if __name__ == '__main__':
         help='If set, one batch of random data is generated and used at every iteration.')
     parser.add_argument('--num_warmup_iterations', type=int, default=50,
         help='Number of initial iterations skipped from timing')
-    parser.add_argument('--num_calib_inputs', type=int, default=5000,
+    parser.add_argument('--num_calib_inputs', type=int, default=500,
         help='Number of inputs (e.g. images) used for calibration '
         '(last batch is skipped in case it is not full)')
     parser.add_argument('--cache', action='store_true',

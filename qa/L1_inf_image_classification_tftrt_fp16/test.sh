@@ -11,7 +11,7 @@ python setup.py install
 popd
 
 OUTPUT_PATH=$PWD
-pushd ../../nvidia-examples/tftrt/scripts
+pushd ../../nvidia-examples/inference/image-classification/scripts
 
 
 set_models() {

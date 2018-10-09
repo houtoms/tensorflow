@@ -11,7 +11,7 @@ python setup.py install
 popd
 
 OUTPUT_PATH=$PWD
-pushd ../../nvidia-examples/tftrt/scripts
+pushd ../../nvidia-examples/inference/image-classification/scripts
 
 set_models() {
   NATIVE_ARCH=`uname -m`
@@ -26,7 +26,7 @@ set_models() {
     inception_v3
     inception_v4
   )
-  if [${NATIVE_ARCH} == 'x86_64']; then
+  if [ ${NATIVE_ARCH} == 'x86_64' ]; then
     models+=(vgg_16)
     models+=(vgg_19)
   fi

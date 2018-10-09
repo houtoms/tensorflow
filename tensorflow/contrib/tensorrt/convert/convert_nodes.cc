@@ -1113,6 +1113,7 @@ tensorflow::Status ConvertConv2DHelper(
 
   TFAttrs attrs(node_def);
 
+  int c_index = 1;
   int h_index = 2;
   int w_index = 3;
   auto data_format = attrs.get<string>("data_format");
@@ -1120,6 +1121,7 @@ tensorflow::Status ConvertConv2DHelper(
     tensor = ctx.TransposeTensor(const_cast<nvinfer1::ITensor*>(tensor),
                                  {0, 3, 1, 2});
     TFTRT_RETURN_ERROR_IF_NULLPTR(tensor, node_def.name());
+    c_index = 3;
     h_index = 1;
     w_index = 2;
     // TODO(jie): transpose it
@@ -1202,6 +1204,18 @@ tensorflow::Status ConvertConv2DHelper(
             << dim_after.d[2] << ", " << dim_after.d[3];
   }
 
+  auto tf_dilations = attrs.get<std::vector<int>>("dilations");
+  if ((int)tf_dilations.size() != 4) {
+    return tensorflow::errors::InvalidArgument(
+        "Convolution dilations field must specify 4 dimensions " +
+        node_def.name());
+  }
+  if (tf_dilations[0] != 1 || tf_dilations[c_index] != 1) {
+    return tensorflow::errors::Unimplemented(
+        "Unsupported dilations in convolution, " + node_def.name());
+  }
+  nvinfer1::DimsHW dilation(tf_dilations[h_index], tf_dilations[w_index]);
+
   nvinfer1::IConvolutionLayer* layer =
       ctx.network()->addConvolution(*const_cast<nvinfer1::ITensor*>(tensor),
                                     noutput, kernel_size, weights, biases);
@@ -1211,6 +1225,7 @@ tensorflow::Status ConvertConv2DHelper(
   layer->setPadding({padding[0].first, padding[1].first});
   layer->setName(node_def.name().c_str());
   layer->setNbGroups(num_groups);
+  layer->setDilation(dilation);
   nvinfer1::ITensor* output_tensor = layer->getOutput(0);
 
   auto dim_after = output_tensor->getDimensions();
@@ -1768,6 +1783,12 @@ tensorflow::Status ConvertConst(Converter& ctx,
       port::CopyToArray(
           content, static_cast<char*>(const_cast<void*>(weights.GetValues())));
     }
+  } else if (tensor.dims() == 1 && tensor.dim_size(0) == 0) {
+    // Empty constant tensor
+    nvinfer1::Dims empty_shape;
+    empty_shape.nbDims = 1;
+    empty_shape.d[0] = 0;
+    weights = TRT_ShapedWeights(dtype, nullptr, empty_shape);
   } else {
     return tensorflow::errors::Unimplemented("Not supported constant type, at ",
                                              node_def.name());
@@ -1781,7 +1802,19 @@ tensorflow::Status ConvertIdentity(
     Converter& ctx, const tensorflow::NodeDef& node_def,
     const std::vector<TRT_TensorOrWeights>& inputs,
     std::vector<TRT_TensorOrWeights>* outputs) {
-  outputs->push_back(inputs.at(0));
+  if (inputs.at(0).is_weights()) {
+    outputs->push_back(inputs.at(0));
+    return tensorflow::Status::OK();
+  }
+  nvinfer1::ITensor* tensor = const_cast<nvinfer1::ITensor*>(inputs.at(0).tensor());
+  // The default shuffle layer serves as a dummy layer which will be optimized
+  // away. Identity layer does not get optimized away as of TRT 5.0, however
+  // once we know that it does it would be nice to use that instead.
+  nvinfer1::IShuffleLayer* layer;
+  layer = ctx.network()->addShuffle(*tensor);
+  TFTRT_RETURN_ERROR_IF_NULLPTR(layer, node_def.name());
+  nvinfer1::ITensor* output_tensor = layer->getOutput(0);
+  outputs->push_back(TRT_TensorOrWeights(output_tensor));
   return tensorflow::Status::OK();
 }
 

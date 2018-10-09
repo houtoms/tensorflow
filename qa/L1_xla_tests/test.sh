@@ -10,7 +10,7 @@ NUM_TESTS=$(wc -l "$TEST_LIST" | cut -d' ' -f1)
 rm -rf "$THIS_DIR/outputs"
 mkdir "$THIS_DIR/outputs"
 TESTS_PER_GPU=$(( ($NUM_TESTS + $GPUS - 1) / $GPUS ))
-cd "$THIS_DIR/../../tensorflow/compiler"
+cd "$THIS_DIR/../../tensorflow/compiler/tests"
 export TEST_SRCDIR=$THIS_DIR
 rm -f $THIS_DIR/org_tensorflow
 ln -s $THIS_DIR/../.. $THIS_DIR/org_tensorflow
@@ -35,7 +35,7 @@ for i in $(seq 0 $((GPUS-1))); do
                 NAME=${NAME}_OF_$SHARDS
             fi
 
-            sed 's/^ *from tensorflow\.compiler\./from /' $SCRIPT | \
+            sed 's/^ *from tensorflow\.compiler\.tests import/import /'
                 python - $ARGS &> "$THIS_DIR/outputs/$NAME"
             if [[ $? -eq 0 ]]; then
                 echo PASS -- $NAME

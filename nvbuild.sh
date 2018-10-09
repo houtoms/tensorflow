@@ -99,7 +99,12 @@ if [[ $TESTLIST -eq 1 ]]; then
              -//tensorflow/compiler/tests:sort_ops_test
 fi
 
-bazel build -c opt --config=cuda tensorflow/tools/pip_package:build_pip_package --cxxopt="-D_GLIBCXX_USE_CXX11_ABI=0"
+bazel build $(cat nvbuildopts) \
+    tensorflow/tools/pip_package:build_pip_package \
+    //tensorflow:libtensorflow_cc.so \
+    //tensorflow:libtensorflow_framework.so
+mkdir -p /usr/local/lib/tensorflow
+cp bazel-bin/tensorflow/libtensorflow_*.so /usr/local/lib/tensorflow/
 bazel-bin/tensorflow/tools/pip_package/build_pip_package /tmp/pip --gpu
 pip$PYVER install --no-cache-dir --upgrade /tmp/pip/tensorflow_gpu-*.whl
 rm -f /tmp/pip/tensorflow_gpu-*.whl
