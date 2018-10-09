@@ -451,7 +451,7 @@ jetson-xavier-py2-wheel:
     <<: *BASE_WHEEL_METAL
     <<: *XAVIER
 
-jetson-xavier-py3.6-wheel:
+jetson-xavier-py3-wheel:
     stage: build base
     <<: *BASE_WHEEL_METAL
     <<: *XAVIER
