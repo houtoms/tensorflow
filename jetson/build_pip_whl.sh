@@ -28,10 +28,13 @@ pip${PYVER} install numpy enum34 mock
 # Set configuration options and run configure script
 source jetson/auto_conf.sh
 
+# Determine JetPack version for wheel naming
+JPVER=$(${SCRIPT_DIR}/get_jpver.sh)
+
 # Compile and link tensorflow with bazel, package wheel
 time (
 bazel build --config=opt --config=cuda tensorflow/tools/pip_package:build_pip_package
-bazel-bin/tensorflow/tools/pip_package/build_pip_package ./wheelhouse/ --gpu
+bazel-bin/tensorflow/tools/pip_package/build_pip_package ./wheelhouse/${JPVER}/ --gpu
 #bazel clean --expunge
 #rm -rf ${HOME}/.cache/bazel
 )
