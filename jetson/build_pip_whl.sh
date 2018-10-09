@@ -27,7 +27,7 @@ VIRTUALENV=$(which virtualenv 2>/dev/null || which virtualenv2 2>/dev/null || wh
 ${VIRTUALENV} --python=$(which python${PYVER}) ./tf_env${PYVER}
 
 # Activate the virtual environment; from here on, python refers to the desired version
-source ./tf_env{$PYVER}/bin/activate
+source ./tf_env${PYVER}/bin/activate
 
 # Install required Python packages
 pip${PYVER} install numpy enum34 mock
