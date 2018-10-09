@@ -865,9 +865,9 @@ def _cudnn_rnn(inputs,
                rnn_mode,
                input_mode=CUDNN_INPUT_LINEAR_MODE,
                direction=CUDNN_RNN_UNIDIRECTION,
-               sequence_lengths=None,
                dropout=0.,
                seed=0,
+               sequence_lengths=None,
                name=None):
   """Cudnn RNN.
 

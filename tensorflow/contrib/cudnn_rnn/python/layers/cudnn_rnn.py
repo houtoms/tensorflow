@@ -372,7 +372,7 @@ class _CudnnRNN(base_layer.Layer):
         "This cell does not yet support object-based saving. File a feature "
         "request if this limitation bothers you.")
 
-  def call(self, inputs, lengths=None, initial_state=None, training=True):
+  def call(self, inputs, initial_state=None, training=True, lengths=None):
     """Runs the forward step for the RNN model.
 
     Args:
@@ -484,9 +484,9 @@ class _CudnnRNN(base_layer.Layer):
         self._rnn_mode,
         input_mode=self._input_mode,
         direction=self._direction,
-        sequence_lengths=lengths,
         dropout=self._dropout,
-        seed=self._seed)
+        seed=self._seed,
+        sequence_lengths=lengths)
     return output, (output_h, output_c)
 
   def _create_saveable(self):
