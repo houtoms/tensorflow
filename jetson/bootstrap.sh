@@ -13,8 +13,18 @@ swapon -a
 # Set startup script to boost clocks to max
 touch /etc/rc.local
 if [ -z "$(grep jetson_clocks.sh /etc/rc.local)" ]; then
-  sed -i 's,^exit 0$,/home/nvidia/jetson_clocks.sh\nexit 0,' /etc/rc.local
+  if test "$(wc -l /etc/rc.local | cut -d ' ' -f 1) -gt 0" && grep "^exit " /etc/rc.local &>/dev/null; then
+    sed -i 's,^\(exit .*\)$,/home/nvidia/jetson_clocks.sh\n\1,' /etc/rc.local
+  else
+    echo "/home/nvidia/jetson_clocks.sh" >> /etc/rc.local
+  fi
 fi
+if ! grep "^#!" /etc/rc.local &>/dev/null; then
+  LOCAL=$(cat /etc/rc.local)
+  echo '#!/bin/bash' > /etc/rc.local
+  echo "${LOCAL}" >> /etc/rc.local
+fi
+chmod +x /etc/rc.local
 # Set clocks to max immediately as well
 /home/nvidia/jetson_clocks.sh
 systemctl disable ondemand nvpmodel
@@ -34,7 +44,6 @@ unzip bazel-${BAZEL_VERSION}-dist.zip
 bash compile.sh
 cp output/bazel /usr/local/bin/bazel
 popd
-
 
 #Exit script if not CI
 CI_BOOTSTRAP=${CI_BOOTSTRAP:-1}
@@ -69,11 +78,24 @@ make -j$(nproc) install
 cp $GOPATH/bin/gitlab-runner /usr/local/bin
 popd
 
+# TX2:
+#   nvidia@tegra-ubuntu:~$ cat /proc/cpuinfo | grep "model name" | sort | uniq -c
+#      2 model name      : ARMv8 Processor rev 0 (v8l)
+#      4 model name      : ARMv8 Processor rev 3 (v8l)
+# Xavier:
+#   root@dl-jetson-xavier-t001:/home/gitlab-runner/builds/d3736225/0/dgx/tensorflow# cat /proc/cpuinfo | grep "model name" | sort | uniq -c
+#      8 model name      : ARMv8 Processor rev 0 (v8l)
+if cat /proc/cpuinfo | grep "model name" | grep "ARMv8 Processor rev 3" &>/dev/null; then
+  MODELNAME="TX2"
+else
+  MODELNAME="XAVIER"
+fi
+
 # Register the gitlab runner
 pushd $HOME
 git clone https://gitlab-dl.nvidia.com/devops/gitlab-runner.git
 cd gitlab-runner
-./run-jetson.sh 0 TX2
+./run-jetson.sh 0 ${MODELNAME}
 popd
 
 # Clean up startup -- no GUI, no docker
