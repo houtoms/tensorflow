@@ -426,8 +426,8 @@ gather wheels:
       GET_SOURCES_ATTEMPTS: 3
     script:
     - echo "---------------------------"
-    - echo "Number of online CPUs: $(cat /proc/cpuinfo |grep "model name" | wc -l)"
-    - for i in /sys/devices/system/cpu/cpu[0-9]; do echo "$(echo $i | cut -d / -f 6) current freq: $(cat $i/cpufreq/scaling_cur_freq)"; done
+    - echo "Number of online CPUs = $(cat /proc/cpuinfo |grep "model name" | wc -l)"
+    - for i in /sys/devices/system/cpu/cpu[0-9]; do echo "$(echo $i | cut -d / -f 6) current freq = $(cat $i/cpufreq/scaling_cur_freq)"; done
     - echo "---------------------------"
     - export TARGET=${TARGET:-$(echo ${CI_JOB_NAME} | cut -d - -f 1)}
     - ./${TARGET}/build_pip_whl.sh
@@ -469,8 +469,8 @@ jetson-xavier-py3.6-wheel:
       TEST_SCRIPT: "./test.sh"
     script:
     - echo "---------------------------"
-    - echo "Number of online CPUs: $(cat /proc/cpuinfo |grep "model name" | wc -l)"
-    - for i in /sys/devices/system/cpu/cpu[0-9]; do echo "$(echo $i | cut -d / -f 6) current freq: $(cat $i/cpufreq/scaling_cur_freq)"; done
+    - echo "Number of online CPUs = $(cat /proc/cpuinfo |grep "model name" | wc -l)"
+    - for i in /sys/devices/system/cpu/cpu[0-9]; do echo "$(echo $i | cut -d / -f 6) current freq = $(cat $i/cpufreq/scaling_cur_freq)"; done
     - echo "---------------------------"
     - export RUNNER="${CI_JOB_NAME##*--}"
     - export TEST_WORK_DIR="${TEST_WORK_DIR%%--*}"
