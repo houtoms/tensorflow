@@ -372,12 +372,12 @@ class _CudnnRNN(base_layer.Layer):
         "This cell does not yet support object-based saving. File a feature "
         "request if this limitation bothers you.")
 
-  def call(self, inputs, initial_state=None, training=True, lengths=None):
+  def call(self, inputs, initial_state=None, training=True, sequence_lengths=None):
     """Runs the forward step for the RNN model.
 
     Args:
       inputs: `3-D` tensor with shape `[time_len, batch_size, input_size]`.
-      lengths: (optional) the new cuDNNRnn kernel will be invoked if provided.
+      sequence_lengths: (optional) the new cuDNNRnn kernel will be invoked if provided.
       initial_state: a tuple of tensor(s) of shape
         `[num_layers * num_dirs, batch_size, num_units]`. If not provided, use
         zero initial states. The tuple size is 2 for LSTM and 1 for other RNNs.
@@ -410,7 +410,7 @@ class _CudnnRNN(base_layer.Layer):
       # For model that doesn't take input_c, replace with a dummy tensor.
       c = array_ops.constant([], dtype=dtype)
     outputs, (output_h, output_c) = self._forward(inputs, h, c, self.kernel,
-                                                  training, lengths)
+                                                  training, sequence_lengths)
     if self._rnn_mode == CUDNN_LSTM:
       return outputs, (output_h, output_c)
     else:
@@ -474,7 +474,7 @@ class _CudnnRNN(base_layer.Layer):
           dropout=self._dropout,
           direction=self._direction)
 
-  def _forward(self, inputs, h, c, opaque_params, training, lengths=None):
+  def _forward(self, inputs, h, c, opaque_params, training, sequence_lengths=None):
     output, output_h, output_c = cudnn_rnn_ops._cudnn_rnn(  # pylint:disable=protected-access
         inputs,
         h,
@@ -486,7 +486,7 @@ class _CudnnRNN(base_layer.Layer):
         direction=self._direction,
         dropout=self._dropout,
         seed=self._seed,
-        sequence_lengths=lengths)
+        sequence_lengths=sequence_lengths)
     return output, (output_h, output_c)
 
   def _create_saveable(self):

@@ -939,6 +939,7 @@ def cudnn_lstm(inputs,
                direction=CUDNN_RNN_UNIDIRECTION,
                dropout=0.,
                seed=0,
+               sequence_lengths=None,
                name=None):
   """Cudnn LSTM.
 
@@ -969,7 +970,7 @@ def cudnn_lstm(inputs,
     outputs, output_h, output_c
   """
   return _cudnn_rnn(inputs, input_h, input_c, params, is_training, CUDNN_LSTM,
-                    input_mode, direction, dropout, seed, name)
+                    input_mode, direction, dropout, seed, sequence_lengths, name)
 
 
 def _cudnn_rnn_no_input_c(inputs,
@@ -981,6 +982,7 @@ def _cudnn_rnn_no_input_c(inputs,
                           direction=CUDNN_RNN_UNIDIRECTION,
                           dropout=0.,
                           seed=0,
+                          sequence_lengths=None,
                           name=None):
   """Cudnn RNN w/o input_c.
 
@@ -1012,7 +1014,7 @@ def _cudnn_rnn_no_input_c(inputs,
   input_c = array_ops.constant([], dtype=input_h.dtype)
   outputs, output_h, _ = _cudnn_rnn(inputs, input_h, input_c, params,
                                     is_training, rnn_mode, input_mode,
-                                    direction, dropout, seed, name)
+                                    direction, dropout, seed, sequence_lengths, name)
   return outputs, output_h
 
 
@@ -1024,6 +1026,7 @@ def cudnn_gru(inputs,
               direction=CUDNN_RNN_UNIDIRECTION,
               dropout=0.,
               seed=0,
+              sequence_lengths=None,
               name=None):
   """Cudnn GRU.
 
@@ -1052,7 +1055,7 @@ def cudnn_gru(inputs,
     outputs, output_h
   """
   return _cudnn_rnn_no_input_c(inputs, input_h, params, is_training, CUDNN_GRU,
-                               input_mode, direction, dropout, seed, name)
+                               input_mode, direction, dropout, seed, sequence_lengths, name)
 
 
 def cudnn_rnn_relu(inputs,
@@ -1063,6 +1066,7 @@ def cudnn_rnn_relu(inputs,
                    direction=CUDNN_RNN_UNIDIRECTION,
                    dropout=0.,
                    seed=0,
+                   sequence_lengths=None,
                    name=None):
   """Cudnn RNN Relu.
 
@@ -1092,7 +1096,7 @@ def cudnn_rnn_relu(inputs,
   """
   return _cudnn_rnn_no_input_c(inputs, input_h, params, is_training,
                                CUDNN_RNN_RELU, input_mode, direction, dropout,
-                               seed, name)
+                               seed, sequence_lengths, name)
 
 
 def cudnn_rnn_tanh(inputs,
@@ -1103,6 +1107,7 @@ def cudnn_rnn_tanh(inputs,
                    direction=CUDNN_RNN_UNIDIRECTION,
                    dropout=0.,
                    seed=0,
+                   sequence_lengths=None,
                    name=None):
   """Cudnn RNN Tanh.
 
@@ -1132,7 +1137,7 @@ def cudnn_rnn_tanh(inputs,
   """
   return _cudnn_rnn_no_input_c(inputs, input_h, params, is_training,
                                CUDNN_RNN_TANH, input_mode, direction, dropout,
-                               seed, name)
+                               seed, sequence_lengths, name)
 
 
 def cudnn_rnn_opaque_params_to_canonical(rnn_mode,
@@ -1410,7 +1415,8 @@ class _CudnnRNN(object):
         input_mode=self._input_mode,
         direction=self._direction)
 
-  def __call__(self, input_data, input_h, input_c, params, is_training=True):
+  def __call__(self, input_data, input_h, input_c, params, is_training=True,
+          sequence_lengths=None):
     """Runs the forward step for the RNN model.
 
     Args:
@@ -1437,7 +1443,8 @@ class _CudnnRNN(object):
         input_mode=self._input_mode,
         direction=self._direction,
         dropout=self._dropout,
-        seed=self._seed)
+        seed=self._seed,
+        sequence_lengths=sequence_lengths)
 
   def params_to_canonical(self, params):
     """Converts params from a specific format of cuDNN to the canonical format.
@@ -1528,7 +1535,8 @@ class CudnnLSTM(_CudnnRNN):
         dropout=dropout,
         seed=seed)
 
-  def __call__(self, input_data, input_h, input_c, params, is_training=True):
+  def __call__(self, input_data, input_h, input_c, params, is_training=True, 
+          sequence_lengths=None):
     """Runs the forward step for the Cudnn LSTM model.
 
     Args:
@@ -1546,7 +1554,8 @@ class CudnnLSTM(_CudnnRNN):
       output_c: the final state for c.
     """
     output, output_h, output_c = super(CudnnLSTM, self).__call__(
-        input_data, input_h, input_c, params, is_training=is_training)
+        input_data, input_h, input_c, params, is_training=is_training, 
+        sequence_lengths=sequence_lengths)
     return (output, output_h, output_c)
 
 
@@ -1600,7 +1609,7 @@ class _CudnnRNNNoInputC(_CudnnRNN):
         dropout=dropout,
         seed=seed)
 
-  def __call__(self, input_data, input_h, params, is_training=True):
+  def __call__(self, input_data, input_h, params, is_training=True, sequence_lengths=None):
     """Runs the forward step for the Cudnn LSTM model.
 
     Args:
@@ -1623,7 +1632,8 @@ class _CudnnRNNNoInputC(_CudnnRNN):
         input_mode=self._input_mode,
         direction=self._direction,
         dropout=self._dropout,
-        seed=self._seed)
+        seed=self._seed,
+        sequence_lengths=sequence_lengths)
 
 
 class CudnnGRU(_CudnnRNNNoInputC):
