@@ -33,10 +33,9 @@ JPVER=$(${SCRIPT_DIR}/get_jpver.sh)
 
 # Compile and link tensorflow with bazel, package wheel
 time (
+export TEST_TMPDIR="${HOME}/.cache/bazel-py${PYVER}/"
 bazel build --config=opt --config=cuda tensorflow/tools/pip_package:build_pip_package
 bazel-bin/tensorflow/tools/pip_package/build_pip_package ./wheelhouse/${JPVER}/ --gpu
-#bazel clean --expunge
-#rm -rf ${HOME}/.cache/bazel
 )
 
 # Clean up

@@ -17,6 +17,8 @@ function CHECK {
 
 cd ../..
 
+export TEST_TMPDIR="${HOME}/.cache/bazel-py${PYVER}/"
+
 GPUS=$(nvidia-smi -L 2>/dev/null| wc -l || echo 1)
 
 NATIVE_ARCH=`uname -m`
