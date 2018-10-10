@@ -41,6 +41,10 @@ fi
 OUTDIR="${1:-./imagenet-data}"
 SYNSETS_FILE="${2:-./synsets.txt}"
 
+# Make sure axel is installed
+command -v axel >/dev/null 2>&1 ||
+    { apt-get update && apt-get install -y --no-install-recommends axel; }
+
 echo "Saving downloaded files to $OUTDIR"
 mkdir -p "${OUTDIR}"
 INITIAL_DIR=$(pwd)
