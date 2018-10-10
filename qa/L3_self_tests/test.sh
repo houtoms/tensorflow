@@ -17,14 +17,14 @@ function CHECK {
 
 cd ../..
 
+GPUS=$(nvidia-smi -L 2>/dev/null| wc -l || echo 1)
+
 NATIVE_ARCH=`uname -m`
 if [ ${NATIVE_ARCH} == 'aarch64' ]; then
-  NUM_GPUS=1
   bash ./jetson/auto_conf.sh
 else
   PYVER=$(python -c 'import sys; print("{}.{}".format(sys.version_info[0], sys.version_info[1]))')
   ./nvbuild.sh --configonly --python$PYVER
-  NUM_GPUS=`nvidia-smi -L | wc -l`
 
   echo "Installing test dependencies..."
   CHECK tensorflow/tools/ci_build/install/install_bootstrap_deb_packages.sh
@@ -55,7 +55,7 @@ FAILS=0
 #       or 'UnknownError: Could not start gRPC server
 # TODO(benbarsdell): Re-enable local_client_execute_test_gpu once CUDA version is > 9.0
 #                      (due to known issue with PTX generation).
-bazel test --config=cuda -c opt --verbose_failures --local_test_jobs=$NUM_GPUS \
+bazel test --config=cuda -c opt --verbose_failures --local_test_jobs=$GPUS \
               --run_under=//tensorflow/tools/ci_build/gpu_build:parallel_gpu_execute \
               --test_tag_filters=-no_gpu,-benchmark-test --cache_test_results=no \
               --build_tests_only \

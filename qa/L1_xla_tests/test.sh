@@ -5,7 +5,7 @@ set -o pipefail
 
 THIS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null && pwd)"
 TEST_LIST="$THIS_DIR/../../tensorflow/compiler/tests/tests.list"
-GPUS=$(nvidia-smi -L | wc -l)
+GPUS=$(nvidia-smi -L 2>/dev/null| wc -l || echo 1)
 NUM_TESTS=$(wc -l "$TEST_LIST" | cut -d' ' -f1)
 rm -rf "$THIS_DIR/outputs"
 mkdir "$THIS_DIR/outputs"
