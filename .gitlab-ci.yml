@@ -424,6 +424,8 @@ gather wheels:
       GIT_STRATEGY: fetch
       GIT_SUBMODULE_STRATEGY: recursive
       GET_SOURCES_ATTEMPTS: 3
+    cache:
+    - tf_env*/
     script:
     - echo "---------------------------"
     - echo "Number of online CPUs = $(cat /proc/cpuinfo |grep "model name" | wc -l)"
@@ -467,6 +469,8 @@ jetson-xavier-py3.6-wheel:
       GET_SOURCES_ATTEMPTS: 3
       TEST_WORK_DIR: "./qa/${CI_JOB_NAME}/"
       TEST_SCRIPT: "./test.sh"
+    cache:
+    - tf_env*/
     script:
     - echo "---------------------------"
     - echo "Number of online CPUs = $(cat /proc/cpuinfo |grep "model name" | wc -l)"
@@ -479,8 +483,8 @@ jetson-xavier-py3.6-wheel:
     - export PIP_PACKAGE_NAME="${CI_PROJECT_NAME}-gpu"
     - export JPVER=$(./jetson/get_jpver.sh)
     - set -x &&
-      python${PYVER} -m virtualenv ./tf_env &&
-      source ./tf_env/bin/activate &&
+      python${PYVER} -m virtualenv ./tf_env${PYVER} &&
+      source ./tf_env${PYVER}/bin/activate &&
       pip install --find-links=file://$PWD/wheelhouse/${JPVER} ${PIP_PACKAGE_NAME} &&
       cd ${TEST_WORK_DIR} &&
       exec bash -ex ${TEST_SCRIPT} || RV=$?;
