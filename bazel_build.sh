@@ -27,8 +27,8 @@ WHL_OUT=${OUTPUT_LIST[2]}
 
 # Build the test lists for L1 kernel and xla tests
 if [[ $TESTLIST -eq 1 ]]; then
-  rm -f "tests.list" \
-        "tensorflow/compiler/tests/tests.list"
+  rm -f "${KERNEL_OUT}/tests.list" \
+        "${XLA_OUT}/tests.list"
 
   bazel test --config=cuda -c opt --verbose_failures --local_test_jobs=1 \
              --run_under="$THIS_DIR/tools/test_grabber.sh $KERNEL_OUT" \
