@@ -72,7 +72,7 @@ fi
 
 if [[ $TESTLIST -eq 1 ]]; then
   rm -f "tensorflow/python/kernel_tests/tests.list" \
-        "tensorflow/compiler/tests/test.list"
+        "tensorflow/compiler/tests/tests.list"
   
   bazel test --config=cuda -c opt --verbose_failures --local_test_jobs=1 \
              --run_under="$THIS_DIR/tools/test_grabber.sh tensorflow/python/kernel_tests" \
