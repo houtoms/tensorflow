@@ -49,11 +49,9 @@ def _cudnn_rnn_backward(op, *grads):
 @ops.RegisterGradient("CudnnRNNEx")
 def _cudnn_rnn_backward_ex(op, *grads):
   """Gradients for the CudnnRNNEx op."""
-  print("XXX _cudnn_rnn_backward_ex")
   if not op.get_attr("is_training"):
     raise ValueError(
         "To use CudnnRNNEx in gradients, is_training must be set to True.")
-  print("XXX -> gen_cudnn_rnn_ops.cudnn_rnn_backprop_ex")
   return gen_cudnn_rnn_ops.cudnn_rnn_backprop_ex(
       input=op.inputs[0],
       input_h=op.inputs[1],
