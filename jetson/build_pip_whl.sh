@@ -38,7 +38,7 @@ source jetson/auto_conf.sh
 # Determine JetPack version for wheel naming
 JPVER=$(${SCRIPT_DIR}/get_jpver.sh)
 
-export OUTPUT_DIRS="wheelhouse/${JPVER}/ wheelhouse/${JPVER}/kernel_tests/ wheelhouse/${JPVER}/xla_tests/"
+export OUTPUT_DIRS="wheelhouse/${JPVER}/kernel_tests/ wheelhouse/${JPVER}/xla_tests/ wheelhouse/${JPVER}/"
 export IN_CONTAINER="0"
 export NOCLEAN="1"
 export TESTLIST="1"
