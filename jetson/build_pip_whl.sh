@@ -16,15 +16,8 @@ pushd ${SCRIPT_DIR}/..
 
 PYVER=${PYVER:-"2.7"}
 
-# Set up virtualenv
-#
-# The complexity here is that in some of our systems, the virtualenv executable
-#  is called 'virtualenv', while on others it's either 'virtualenv2' or 'virtualenv3' only.
-#  It turns out it doesn't matter which of them you use as long as you specify --python=...
-#  and tell it which python version you want to be placed in the virtual environment.
-#
-VIRTUALENV=$(which virtualenv 2>/dev/null || which virtualenv2 2>/dev/null || which virtualenv3)
-${VIRTUALENV} --python=$(which python${PYVER}) ./tf_env${PYVER}
+# Set up virtualenv --- TODO: should this be in the before_script?
+python${PYVER} -m virtualenv ./tf_env${PYVER}
 
 # Activate the virtual environment; from here on, python refers to the desired version
 source ./tf_env${PYVER}/bin/activate

@@ -6,12 +6,7 @@ echo Container Build ID $NVIDIA_BUILD_ID
 echo Uptime: $(uptime)
 echo '--------------------------------------------------------------------------------'
 
-NATIVE_ARCH=`uname -m`
-if [ ${NATIVE_ARCH} == 'aarch64' ]; then
-  GPUS=1
-else
-  GPUS=$(nvidia-smi -L | wc -l)
-fi
+GPUS=$(nvidia-smi -L 2>/dev/null| wc -l || echo 1)
 BATCH_SIZE=128
 DATA="--data_dir=/data/imagenet/train-val-tfrecord-480"
 

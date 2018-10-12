@@ -1,5 +1,15 @@
 #!/bin/bash
 
+# Set up NFS
+apt-get update && apt-get install -y --no-install-recommends nfs-common
+if [ -z "$(grep 10.31.241.20 /etc/fstab)" ]; then
+  echo "10.31.241.20:/netapp2_labA_dgx /mnt/shared nfs rw,noatime,rsize=65536,wsize=65536,nolock,hard,intr,proto=tcp,timeo=600,retrans=3,sec=sys,vers=3,_netdev 0 0" >> /etc/fstab
+fi
+mkdir -p /mnt/shared
+mount -a -t nfs
+ln -s /mnt/shared/dldata /data || true
+
+
 # Create and enable swapfile
 if [ ! -f /swapfile ]; then
   fallocate -l 4G /swapfile
