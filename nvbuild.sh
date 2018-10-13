@@ -70,49 +70,13 @@ if [[ $CONFIGONLY -eq 1 ]]; then
   exit 0
 fi
 
-if [[ $TESTLIST -eq 1 ]]; then
-  rm -f "tensorflow/python/kernel_tests/tests.list" \
-        "tensorflow/compiler/tests/tests.list"
-  
-  bazel test --config=cuda -c opt --verbose_failures --local_test_jobs=1 \
-             --run_under="$THIS_DIR/tools/test_grabber.sh tensorflow/python/kernel_tests" \
-             --build_tests_only --test_tag_filters=-no_gpu,-benchmark-test \
-             --cache_test_results=no -- \
-             //tensorflow/python/kernel_tests/... \
-             `# The following tests are skipped becaues they depend on additional binaries.` \
-             -//tensorflow/python/kernel_tests:ackermann_test \
-             -//tensorflow/python/kernel_tests:duplicate_op_test \
-             -//tensorflow/python/kernel_tests:invalid_op_test
-  bazel test --config=cuda -c opt --verbose_failures --local_test_jobs=1 \
-             --run_under="$THIS_DIR/tools/test_grabber.sh tensorflow/compiler/tests" \
-             --build_tests_only --test_tag_filters=-no_gpu,-benchmark-test \
-             --cache_test_results=no -- \
-             //tensorflow/compiler/tests/... \
-             `# The following tests are skipped becaues they depend on additional binaries.` \
-             -//tensorflow/compiler/tests:reduce_window_test \
-             -//tensorflow/compiler/tests:while_test \
-             -//tensorflow/compiler/tests:dynamic_slice_ops_test \
-             -//tensorflow/compiler/tests:while_test \
-             -//tensorflow/compiler/tests:sort_ops_test \
-             -//tensorflow/compiler/tests:reduce_window_test \
-             -//tensorflow/compiler/tests:dynamic_slice_ops_test \
-             -//tensorflow/compiler/tests:sort_ops_test
-fi
 
-bazel build $(cat nvbuildopts) \
-    tensorflow/tools/pip_package:build_pip_package \
-    //tensorflow:libtensorflow_cc.so \
-    //tensorflow:libtensorflow_framework.so
-mkdir -p /usr/local/lib/tensorflow
-cp bazel-bin/tensorflow/libtensorflow_*.so /usr/local/lib/tensorflow/
-bazel-bin/tensorflow/tools/pip_package/build_pip_package /tmp/pip --gpu
-pip$PYVER install --no-cache-dir --upgrade /tmp/pip/tensorflow_gpu-*.whl
-rm -f /tmp/pip/tensorflow_gpu-*.whl
-if [[ $NOCLEAN -eq 0 ]]; then
-  bazel clean --expunge
-  rm -rf /root/.cache/bazel
-  rm .tf_configure.bazelrc .bazelrc
-  if [[ "$LIBCUDA_FOUND" -eq 0 ]]; then
-    rm /usr/local/cuda/lib64/stubs/libcuda.so.1
-  fi
-fi
+export OUTPUT_DIRS="tensorflow/python/kernel_tests tensorflow/compiler/tests /tmp/pip"
+export BUILD_OPTS="nvbuildopts"
+export IN_CONTAINER="1"
+export TESTLIST
+export NOCLEAN
+export PYVER
+export LIBCUDA_FOUND
+bash bazel_build.sh
+

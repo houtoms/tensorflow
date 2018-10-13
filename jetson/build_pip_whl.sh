@@ -31,12 +31,14 @@ source jetson/auto_conf.sh
 # Determine JetPack version for wheel naming
 JPVER=$(${SCRIPT_DIR}/get_jpver.sh)
 
-# Compile and link tensorflow with bazel, package wheel
-time (
-export TEST_TMPDIR="${HOME}/.cache/bazel-py${PYVER}/"
-bazel build --config=opt --config=cuda tensorflow/tools/pip_package:build_pip_package
-bazel-bin/tensorflow/tools/pip_package/build_pip_package ./wheelhouse/${JPVER}/ --gpu
-)
+export OUTPUT_DIRS="wheelhouse/${JPVER}/kernel_tests/ wheelhouse/${JPVER}/xla_tests/ wheelhouse/${JPVER}/"
+export IN_CONTAINER="0"
+export NOCLEAN="1"
+export TESTLIST="1"
+export LIBCUDA_FOUND="1"
+export BUILD_OPTS="jetson/bazelopts"
+export PYVER
+bash bazel_build.sh
 
 # Clean up
 deactivate
