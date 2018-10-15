@@ -15,3 +15,6 @@
 [submodule "qa/third_party/cocoapi"]
 	path = qa/third_party/cocoapi
 	url = https://github.com/cocodataset/cocoapi
+[submodule "nvidia-examples/resnet50v1.5"]
+	path = nvidia-examples/resnet50v1.5
+	url = ../../JoC/RN50v15_TF
