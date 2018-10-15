@@ -96,7 +96,7 @@ def compute_bounding_boxes(
                     image_count += len(batch_images)
 
                     if (image_count % print_interval) < batch_size:
-                        print('%d/%d' % (image_count, total_image_count))
+                        print('    image %d/%d' % (image_count, total_image_count))
 
                     for i, image_id in enumerate(batch_image_ids):
 

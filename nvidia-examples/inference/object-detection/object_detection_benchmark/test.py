@@ -143,7 +143,13 @@ def test(
     with open(stats_file_path, 'w') as f:
         json.dump(stats, f)
 
-    return abs(stats['map'] - reference_map) <= map_error_threshold
+    result = abs(stats['map'] - reference_map) <= map_error_threshold
+    if result:
+        print('Accuracy test: PASS')
+    else:
+        print('Accuracy test: FAIL {} vs. {}'.format(
+            reference_map, stats['map']))
+    return result
 
 
 if __name__ == '__main__':
@@ -166,6 +172,13 @@ if __name__ == '__main__':
     parser.add_argument('--reference_map', default=None)
     parser.add_argument('--map_error_threshold', default=0.001)
     args = parser.parse_args()
+
+    def print_dict(input_dict, str=''):
+        for k, v in sorted(input_dict.items()):
+            headline = '{}({}): '.format(str, k) if str else '{}: '.format(k)
+            print('  {}{}'.format(headline, '%.1f'%v if type(v)==float else v))
+    print('Running inference with following arguments...')
+    print_dict(vars(args))
 
     # get reference MAP from 
     # (a) Json file containing map of model names to MAPs (set using --reference_map_path)
@@ -198,6 +211,8 @@ if __name__ == '__main__':
         reference_map=reference_map,
         map_error_threshold=float(args.map_error_threshold)
     )
+
+    print('Done with benchmark.')
 
     if not success:
         sys.exit(1)
