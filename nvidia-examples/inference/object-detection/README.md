@@ -60,6 +60,12 @@ With the environment variables set, the scripts should run properly.  If you hav
 ./download_dataset.sh
 ```
 
+Next, you'll also have to generate a JSON file containing a subset of image ids to compute the MAP with.  To do this run the following script
+
+```bash
+./generate_ids.sh
+```
+
 Then, you can run the ``test.sh`` script to generate models, optimize the models, run on the COCO images, compute the MAP, and generate summary of the results.
 
 ```bash
