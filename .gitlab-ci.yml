@@ -424,13 +424,20 @@ gather wheels:
       GIT_STRATEGY: fetch
       GIT_SUBMODULE_STRATEGY: recursive
       GET_SOURCES_ATTEMPTS: 3
+    cache:
+      paths:
+      - tf_env*/
     script:
+    - echo "---------------------------"
+    - echo "Number of online CPUs = $(cat /proc/cpuinfo |grep "model name" | wc -l)"
+    - for i in /sys/devices/system/cpu/cpu[0-9]; do echo "$(echo $i | cut -d / -f 6) current freq = $(cat $i/cpufreq/scaling_cur_freq)"; done
+    - echo "---------------------------"
     - export TARGET=${TARGET:-$(echo ${CI_JOB_NAME} | cut -d - -f 1)}
     - ./${TARGET}/build_pip_whl.sh
     artifacts:
       name: "${CI_JOB_NAME}"
       paths:
-      - wheelhouse/*.whl
+      - wheelhouse/*
       expire_in: 1 week
     only:
       variables:
@@ -463,16 +470,24 @@ jetson-xavier-py3.6-wheel:
       GET_SOURCES_ATTEMPTS: 3
       TEST_WORK_DIR: "./qa/${CI_JOB_NAME}/"
       TEST_SCRIPT: "./test.sh"
+    cache:
+      paths:
+      - tf_env*/
     script:
+    - echo "---------------------------"
+    - echo "Number of online CPUs = $(cat /proc/cpuinfo |grep "model name" | wc -l)"
+    - for i in /sys/devices/system/cpu/cpu[0-9]; do echo "$(echo $i | cut -d / -f 6) current freq = $(cat $i/cpufreq/scaling_cur_freq)"; done
+    - echo "---------------------------"
     - export RUNNER="${CI_JOB_NAME##*--}"
     - export TEST_WORK_DIR="${TEST_WORK_DIR%%--*}"
     - export TEST_SCRIPT="${TEST_SCRIPT/--$RUNNER.sh/.sh}"
     - export TEST_SCRIPT="${TEST_SCRIPT/--py[23].sh/.sh}"
     - export PIP_PACKAGE_NAME="${CI_PROJECT_NAME}-gpu"
+    - export JPVER=$(./jetson/get_jpver.sh)
     - set -x &&
-      python${PYVER} -m virtualenv ./tf_env &&
-      source ./tf_env/bin/activate &&
-      pip install --find-links=file://$PWD/wheelhouse ${PIP_PACKAGE_NAME} &&
+      python${PYVER} -m virtualenv ./tf_env${PYVER} &&
+      source ./tf_env${PYVER}/bin/activate &&
+      pip install --find-links=file://$PWD/wheelhouse/${JPVER} ${PIP_PACKAGE_NAME} &&
       cd ${TEST_WORK_DIR} &&
       exec bash -ex ${TEST_SCRIPT} || RV=$?;
       set +x;
@@ -1499,6 +1514,10 @@ L1_xla_tests--py3--TX2:
     <<: *L1_TEST_JETSON
     <<: *TX2
 
+L3_self_tests--py3--TX2:
+    <<: *L3_TEST_JETSON
+    <<: *TX2
+
 L0_models_alexnet--py2--TX2:
     <<: *L0_TEST_JETSON
     <<: *TX2
@@ -1603,6 +1622,10 @@ L1_kernel_tests--py3.6--XAVIER:
 
 L1_xla_tests--py3.6--XAVIER:
     <<: *L1_TEST_JETSON
+    <<: *XAVIER
+
+L3_self_tests--py3.6--XAVIER:
+    <<: *L3_TEST_JETSON
     <<: *XAVIER
 
 L0_models_alexnet--py2--XAVIER:

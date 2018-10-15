@@ -183,6 +183,8 @@ pip install portpicker
 
 pushd ../..
 
+export LD_LIBRARY_PATH=/usr/local/cuda/extras/CUPTI/lib64:$LD_LIBRARY_PATH
+
 test_root="tensorflow/python/kernel_tests"
 tmp_logfile="/tmp/tf_python_kernel_test.log"
 

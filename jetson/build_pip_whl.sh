@@ -17,10 +17,10 @@ pushd ${SCRIPT_DIR}/..
 PYVER=${PYVER:-"2.7"}
 
 # Set up virtualenv --- TODO: should this be in the before_script?
-python${PYVER} -m virtualenv ./tf_env
+python${PYVER} -m virtualenv ./tf_env${PYVER}
 
 # Activate the virtual environment; from here on, python refers to the desired version
-source ./tf_env/bin/activate
+source ./tf_env${PYVER}/bin/activate
 
 # Install required Python packages
 pip${PYVER} install numpy enum34 mock
@@ -28,16 +28,19 @@ pip${PYVER} install numpy enum34 mock
 # Set configuration options and run configure script
 source jetson/auto_conf.sh
 
-# Compile and link tensorflow with bazel, package wheel
-time (
-bazel build --config=opt --config=cuda tensorflow/tools/pip_package:build_pip_package
-bazel-bin/tensorflow/tools/pip_package/build_pip_package ./wheelhouse/ --gpu
-#bazel clean --expunge
-#rm -rf ${HOME}/.cache/bazel
-)
+# Determine JetPack version for wheel naming
+JPVER=$(${SCRIPT_DIR}/get_jpver.sh)
+
+export OUTPUT_DIRS="wheelhouse/${JPVER}/kernel_tests/ wheelhouse/${JPVER}/xla_tests/ wheelhouse/${JPVER}/"
+export IN_CONTAINER="0"
+export NOCLEAN="1"
+export TESTLIST="1"
+export LIBCUDA_FOUND="1"
+export BUILD_OPTS="jetson/bazelopts"
+export PYVER
+bash bazel_build.sh
 
 # Clean up
 deactivate
-#rm -rf ./tf_env
 
 popd
