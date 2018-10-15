@@ -30,7 +30,7 @@ if [[ $TESTLIST -eq 1 ]]; then
   rm -f "${KERNEL_OUT}/tests.list" \
         "${XLA_OUT}/tests.list"
 
-  bazel test --config=cuda -c opt --verbose_failures --local_test_jobs=1 \
+  bazel test $(cat $BUILD_OPTS) --verbose_failures --local_test_jobs=1 \
              --run_under="$THIS_DIR/tools/test_grabber.sh $KERNEL_OUT" \
              --build_tests_only --test_tag_filters=-no_gpu,-benchmark-test \
              --cache_test_results=no -- \
@@ -39,7 +39,7 @@ if [[ $TESTLIST -eq 1 ]]; then
              -//tensorflow/python/kernel_tests:ackermann_test \
              -//tensorflow/python/kernel_tests:duplicate_op_test \
              -//tensorflow/python/kernel_tests:invalid_op_test
-  bazel test --config=cuda -c opt --verbose_failures --local_test_jobs=1 \
+  bazel test $(cat $BUILD_OPTS) --verbose_failures --local_test_jobs=1 \
              --run_under="$THIS_DIR/tools/test_grabber.sh $XLA_OUT" \
              --build_tests_only --test_tag_filters=-no_gpu,-benchmark-test \
              --cache_test_results=no -- \
@@ -77,5 +77,4 @@ if [[ $NOCLEAN -eq 0 ]]; then
     rm /usr/local/cuda/lib64/stubs/libcuda.so.1
   fi
 fi
-
 
