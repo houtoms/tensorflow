@@ -44,8 +44,8 @@ for i in $(seq 0 $((GPUS-1))); do
                 NAME=${NAME}_OF_$SHARDS
             fi
 
-            sed 's/^ *from tensorflow\.compiler\.tests import/import /'
-                python - $ARGS &> "$THIS_DIR/outputs/$NAME"
+            sed -i 's/^ *from tensorflow\.compiler\.tests import/import /' $SCRIPT
+            python $SCRIPT $ARGS &> "$THIS_DIR/outputs/$NAME"
             if [[ $? -eq 0 ]]; then
                 echo PASS -- $NAME
             else
