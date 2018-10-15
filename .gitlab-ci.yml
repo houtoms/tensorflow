@@ -1014,6 +1014,14 @@ L2_joc_RN50_trainbench_fp16--V100_R384_8GPU:
 L2_joc_RN50_trainbench_fp32--V100_R384_8GPU:
     <<: *L2_TEST
     <<: *V100_R384_8GPU
+
+L3_joc_RN50_convergence_fp16--V100_R384_8GPU:
+    <<: *L3_TEST
+    <<: *V100_R384_8GPU
+
+L3_joc_RN50_convergence_fp32--V100_R384_8GPU:
+    <<: *L3_TEST
+    <<: *V100_R384_8GPU
     
 ############################
 
