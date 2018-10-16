@@ -1480,7 +1480,7 @@ class CudnnRNNForwardExOp<GPUDevice, T> : public CudnnRNNKernelCommon {
 
 #define REGISTER_GPU(T)                                           \
   REGISTER_KERNEL_BUILDER(                                        \
-      Name("CudnnRNNEx").Device(DEVICE_GPU).TypeConstraint<T>("T"), \
+      Name("CudnnRNNVarSeqLen").Device(DEVICE_GPU).TypeConstraint<T>("T"), \
       CudnnRNNForwardExOp<GPUDevice, T>);
 
 TF_CALL_half(REGISTER_GPU);
@@ -2015,7 +2015,7 @@ class CudnnRNNBackwardExOp<GPUDevice, T> : public CudnnRNNKernelCommon {
 
 #define REGISTER_GPU(T)                                                   \
   REGISTER_KERNEL_BUILDER(                                                \
-      Name("CudnnRNNBackpropEx").Device(DEVICE_GPU).TypeConstraint<T>("T"), \
+      Name("CudnnRNNBackpropVarSeqLen").Device(DEVICE_GPU).TypeConstraint<T>("T"), \
       CudnnRNNBackwardExOp<GPUDevice, T>);
 
 TF_CALL_half(REGISTER_GPU);

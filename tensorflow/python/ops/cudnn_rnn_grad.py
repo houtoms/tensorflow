@@ -46,13 +46,13 @@ def _cudnn_rnn_backward(op, *grads):
       input_mode=op.get_attr("input_mode"),
       direction=op.get_attr("direction"))
 
-@ops.RegisterGradient("CudnnRNNEx")
-def _cudnn_rnn_backward_ex(op, *grads):
-  """Gradients for the CudnnRNNEx op."""
+@ops.RegisterGradient("CudnnRNNVarSeqLen")
+def _cudnn_rnn_backward_var_seq_len(op, *grads):
+  """Gradients for the CudnnRNNVarSeqLen op."""
   if not op.get_attr("is_training"):
     raise ValueError(
-        "To use CudnnRNNEx in gradients, is_training must be set to True.")
-  return gen_cudnn_rnn_ops.cudnn_rnn_backprop_ex(
+        "To use CudnnRNNVarSeqLen in gradients, is_training must be set to True.")
+  return gen_cudnn_rnn_ops.cudnn_rnn_backprop_var_seq_len(
       input=op.inputs[0],
       input_h=op.inputs[1],
       input_c=op.inputs[2],

@@ -377,11 +377,13 @@ class _CudnnRNN(base_layer.Layer):
 
     Args:
       inputs: `3-D` tensor with shape `[time_len, batch_size, input_size]`.
-      sequence_lengths: (optional) the new cuDNNRnn kernel will be invoked if provided.
       initial_state: a tuple of tensor(s) of shape
         `[num_layers * num_dirs, batch_size, num_units]`. If not provided, use
         zero initial states. The tuple size is 2 for LSTM and 1 for other RNNs.
       training: whether this operation will be used in training or inference.
+      sequence_lengths: an int32 array representing the variable sequence lengths 
+        in a batch. The size of the array has to equal to the batch_size. If not 
+        provided, the same sequence length will be assumed. 
     Returns:
       output: a tensor of shape `[time_len, batch_size, num_dirs * num_units]`.
         It is a `concat([fwd_output, bak_output], axis=2)`.

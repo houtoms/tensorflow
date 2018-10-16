@@ -99,7 +99,7 @@ REGISTER_OP("CudnnRNN")
       return Status::OK();
     });
 
-REGISTER_OP("CudnnRNNEx")
+REGISTER_OP("CudnnRNNVarSeqLen")
     .Input("input: T")
     .Input("input_h: T")
     .Input("input_c: T")
@@ -222,7 +222,7 @@ REGISTER_OP("CudnnRNNBackprop")
       return Status::OK();
     });
 
-REGISTER_OP("CudnnRNNBackpropEx")
+REGISTER_OP("CudnnRNNBackpropVarSeqLen")
     .Input("input: T")
     .Input("input_h: T")
     .Input("input_c: T")
