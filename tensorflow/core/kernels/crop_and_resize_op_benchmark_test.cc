@@ -21,59 +21,52 @@ limitations under the License.
 
 namespace tensorflow {
 
-  template<typename T>
-    static Graph* BM_CropAndResize(int batches, int width, int height, int depth,
-	int crop_height, int crop_width) {
-      Graph* g = new Graph(OpRegistry::Global());
-      Tensor in(DataTypeToEnum<T>::v(), TensorShape({batches, height, width, depth}));
-      in.flat<T>().setRandom();
-      Tensor boxes(DT_FLOAT, TensorShape({batches, 4}));
-      auto boxes_tensor = boxes.matrix<float>();
-      Tensor box_ind(DT_INT32, TensorShape({batches}));
-      auto box_ind_flat = box_ind.flat<int32>();
-      for (int i = 0; i < batches; ++i) {
-	boxes_tensor(i, 0) = 0.2;
-	boxes_tensor(i, 1) = 0.2;
-	boxes_tensor(i, 2) = 0.8;
-	boxes_tensor(i, 3) = 0.7;
-	box_ind_flat(i) = i;
-      }
-      Tensor crop_size(DT_INT32, TensorShape({2}));
-      auto crop_size_flat = crop_size.flat<int32>();
-      crop_size_flat(0) = crop_height;
-      crop_size_flat(1) = crop_width;
-      Node* ret;
-      TF_CHECK_OK(NodeBuilder(g->NewName("n"), "CropAndResize")
-	  .Input(test::graph::Constant(g, in))
-	  .Input(test::graph::Constant(g, boxes))
-	  .Input(test::graph::Constant(g, box_ind))
-	  .Input(test::graph::Constant(g, crop_size))
-	  .Finalize(g, &ret));
-      return g;
-    }
+static Graph* BM_CropAndResize(int batches, int width, int height, int depth,
+                               int crop_height, int crop_width) {
+  Graph* g = new Graph(OpRegistry::Global());
+  Tensor in(DT_FLOAT, TensorShape({batches, height, width, depth}));
+  in.flat<float>().setRandom();
+  Tensor boxes(DT_FLOAT, TensorShape({batches, 4}));
+  auto boxes_tensor = boxes.matrix<float>();
+  Tensor box_ind(DT_INT32, TensorShape({batches}));
+  auto box_ind_flat = box_ind.flat<int32>();
+  for (int i = 0; i < batches; ++i) {
+    boxes_tensor(i, 0) = 0.2;
+    boxes_tensor(i, 1) = 0.2;
+    boxes_tensor(i, 2) = 0.8;
+    boxes_tensor(i, 3) = 0.7;
+    box_ind_flat(i) = i;
+  }
+  Tensor crop_size(DT_INT32, TensorShape({2}));
+  auto crop_size_flat = crop_size.flat<int32>();
+  crop_size_flat(0) = crop_height;
+  crop_size_flat(1) = crop_width;
+  Node* ret;
+  TF_CHECK_OK(NodeBuilder(g->NewName("n"), "CropAndResize")
+                  .Input(test::graph::Constant(g, in))
+                  .Input(test::graph::Constant(g, boxes))
+                  .Input(test::graph::Constant(g, box_ind))
+                  .Input(test::graph::Constant(g, crop_size))
+                  .Finalize(g, &ret));
+  return g;
+}
 
-#define BM_CropAndResizeDev(DEVICE, DTYPE, B, W, H, D, CH, CW)                                              \
-  static void BM_CropAndResize_##DEVICE##_##DTYPE##_##B##_##W##_##H##_##D##_##CH##_##CW(                    \
-      int iters) {                                                                                          \
-    testing::ItemsProcessed(iters* B* W* H* D);                                                             \
-    test::Benchmark(#DEVICE, BM_CropAndResize<EnumToDataType<DTYPE>::Type>(B, W, H, D, CH, CW)).Run(iters); \
-  }                                                                                                         \
-  BENCHMARK(BM_CropAndResize_##DEVICE##_##DTYPE##_##B##_##W##_##H##_##D##_##CH##_##CW);
+#define BM_CropAndResizeDev(DEVICE, B, W, H, D, CH, CW)                        \
+  static void BM_CropAndResize_##DEVICE##_##B##_##W##_##H##_##D##_##CH##_##CW( \
+      int iters) {                                                             \
+    testing::ItemsProcessed(iters* B* W* H* D);                                \
+    test::Benchmark(#DEVICE, BM_CropAndResize(B, W, H, D, CH, CW)).Run(iters); \
+  }                                                                            \
+  BENCHMARK(BM_CropAndResize_##DEVICE##_##B##_##W##_##H##_##D##_##CH##_##CW);
 
-  // Benchmark results using CPU:Intel Haswell with HyperThreading (6 cores)
-  // Benchmark                                Time(ns) CPU(ns)  Iterations
-  // BM_CropAndResize_cpu_1_640_640_3_512_512 7078765 7173520 100 163.361M items/s
-  // BM_CropAndResize_cpu_1_640_640_1_512_512 3801232 3914692 185  99.784M items/s
-  // BM_CropAndResize_cpu_1_80_80_512_7_7      182470  241767 2941  1.372G items/s
+// Benchmark results using CPU:Intel Haswell with HyperThreading (6 cores)
+// Benchmark                                Time(ns) CPU(ns)  Iterations
+// BM_CropAndResize_cpu_1_640_640_3_512_512 7078765 7173520 100 163.361M items/s
+// BM_CropAndResize_cpu_1_640_640_1_512_512 3801232 3914692 185  99.784M items/s
+// BM_CropAndResize_cpu_1_80_80_512_7_7      182470  241767 2941  1.372G items/s
 
-  BM_CropAndResizeDev(cpu, DT_UINT8, 1, 640, 640, 3, 512, 512);
-  BM_CropAndResizeDev(cpu, DT_UINT8, 1, 640, 640, 1, 512, 512);
-
-  BM_CropAndResizeDev(cpu, DT_HALF, 1, 640, 640, 3, 512, 512);
-  BM_CropAndResizeDev(cpu, DT_HALF, 1, 640, 640, 1, 512, 512);
-
-  BM_CropAndResizeDev(cpu, DT_FLOAT, 1, 640, 640, 3, 512, 512);
-  BM_CropAndResizeDev(cpu, DT_FLOAT, 1, 640, 640, 1, 512, 512);
-  BM_CropAndResizeDev(cpu, DT_FLOAT, 1, 80, 80, 512, 7, 7);
+BM_CropAndResizeDev(cpu, 1, 640, 640, 3, 512, 512);
+BM_CropAndResizeDev(cpu, 1, 640, 640, 1, 512, 512);
+BM_CropAndResizeDev(cpu, 1, 80, 80, 512, 7, 7);
 
 }  // namespace tensorflow

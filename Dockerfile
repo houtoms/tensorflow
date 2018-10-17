@@ -49,7 +49,8 @@ RUN DALI_VERSION=0.4.0 \
         nltk==3.2.5 \
         future \
         mock \
-        portpicker
+        portpicker \
+        h5py
 
 # other OpenSeq2Seq dependencies
 RUN pip install --no-cache-dir --upgrade \

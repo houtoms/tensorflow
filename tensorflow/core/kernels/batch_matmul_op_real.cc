@@ -13,8 +13,6 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
-#include "cuda/include/cuda.h"
-
 #include "tensorflow/core/kernels/batch_matmul_op_impl.h"
 
 #if GOOGLE_CUDA
@@ -23,7 +21,7 @@ limitations under the License.
 
 namespace tensorflow {
 
-#if !defined(INTEL_MKL) || defined(DO_NOT_USE_ML)
+#if !defined(INTEL_MKL) || defined(INTEL_MKL_DNN_ONLY)
 TF_CALL_float(REGISTER_BATCH_MATMUL_CPU);
 TF_CALL_double(REGISTER_BATCH_MATMUL_CPU);
 #endif
@@ -33,9 +31,7 @@ TF_CALL_int32(REGISTER_BATCH_MATMUL_CPU);
 #if GOOGLE_CUDA
 TF_CALL_float(REGISTER_BATCH_MATMUL_GPU);
 TF_CALL_double(REGISTER_BATCH_MATMUL_GPU);
-// TODO(benbarsdell): Change this to the version in which cublasGemmBatchedEx is
-// officially available
-#if CUDA_VERSION >= 9000
+#if CUDA_VERSION >= 9010
 TF_CALL_half(REGISTER_BATCH_MATMUL_GPU);
 #endif
 #endif  // GOOGLE_CUDA
