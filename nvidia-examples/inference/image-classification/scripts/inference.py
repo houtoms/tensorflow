@@ -118,6 +118,7 @@ def get_frozen_graph(
     use_dynamic_op=False,
     precision='fp32',
     batch_size=8,
+    minimum_segment_size=2,
     calib_data_dir=None,
     num_calib_inputs=None,
     use_synthetic=False,
@@ -162,7 +163,7 @@ def get_frozen_graph(
             max_batch_size=batch_size,
             max_workspace_size_bytes=4096 << 20,
             precision_mode=precision,
-            minimum_segment_size=7,
+            minimum_segment_size=minimum_segment_size,
             is_dynamic_op=use_dynamic_op
         )
         times['trt_conversion'] = time.time() - start_time
@@ -214,6 +215,8 @@ if __name__ == '__main__':
         help='Precision mode to use. FP16 and INT8 only work in conjunction with --use_trt')
     parser.add_argument('--batch_size', type=int, default=8,
         help='Number of images per batch.')
+    parser.add_argument('--minimum_segment_size', type=int, default=2,
+        help='Minimum number of TF ops in a TRT engine.')
     parser.add_argument('--num_iterations', type=int, default=None,
         help='How many iterations(batches) to evaluate. If not supplied, the whole set will be evaluated.')
     parser.add_argument('--display_every', type=int, default=100,
@@ -247,6 +250,7 @@ if __name__ == '__main__':
         use_dynamic_op=args.use_trt_dynamic_op,
         precision=args.precision,
         batch_size=args.batch_size,
+        minimum_segment_size=args.minimum_segment_size,
         calib_data_dir=args.calib_data_dir,
         num_calib_inputs=args.num_calib_inputs,
         use_synthetic=args.use_synthetic,
