@@ -239,14 +239,14 @@ py3-stage:
              /bin/bash -c "nvidia-smi && exec ${LOGGER} bash -ex ${TEST_SCRIPT}" || RV=$?;
       set +x;
       rm -rf logs/;
-      docker cp "${CONTAINER_NAME}:/logs/" "logs/" || true;
+      docker cp "${CONTAINER_NAME}:/logs/" "logs/" 2>/dev/null || true;
       for LOGNAME in logs/*; do
           mv "${LOGNAME}" $(echo "${LOGNAME}" | sed "s/-.....\./-${CI_JOB_NAME}./") 2>/dev/null || true;
       done;
-      if [ $(cat logs/cudnnapilog-*.txt 2>/dev/null | wc -l) -eq 0 ]; then rm -f logs/cudnnapilog-*; fi;
-      gzip logs/*.txt || true;
-      docker rm -f "${CONTAINER_NAME}";
-      pkill -HUP sleep || true;
+      if [ $(cat logs/cudnnapilog-*.txt 2>/dev/null | wc -l) -eq 0 ]; then rm -f logs/cudnnapilog-* 2>/dev/null; fi;
+      gzip logs/*.txt 2>/dev/null || true;
+      docker rm -f "${CONTAINER_NAME}" >/dev/null 2>&1;
+      pkill -HUP sleep >/dev/null 2>&1 || true;
       exit ${RV:-0}
     artifacts:
       name: "${CI_JOB_NAME}"
