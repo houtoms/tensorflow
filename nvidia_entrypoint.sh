@@ -48,7 +48,8 @@ case "${DETECTED_MOFED}" in
     ;;
   "")
     echo
-    echo "WARNING: MOFED driver was not detected.  RDMA functionality will not be available."
+    echo "NOTE: MOFED driver for multi-node communication was not detected."
+    echo "      Multi-node communication performance may be reduced."
     ;;
   *)
     if [[ -d "/opt/mellanox/DEBS/${DETECTED_MOFED}/" && $(id -u) -eq 0 ]]; then
@@ -69,7 +70,8 @@ esac
 DETECTED_NVPEERMEM=$(cat /sys/module/nv_peer_mem/version 2>/dev/null || true)
 if [[ "${DETECTED_MOFED} " != " " && "${DETECTED_NVPEERMEM} " == " " ]]; then
   echo
-  echo "ERROR: nv_peer_mem driver was not detected.  GPUDirect RDMA functionality will not be available."
+  echo "NOTE: MOFED driver was detected, but nv_peer_mem driver was not detected."
+  echo "      Multi-node communication performance may be reduced."
 fi
 
 if [[ "$(df -k /dev/shm |grep ^shm |awk '{print $2}') " == "65536 " ]]; then
