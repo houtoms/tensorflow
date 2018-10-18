@@ -15,14 +15,14 @@ Various files include modifications (c) NVIDIA CORPORATION.  All rights reserved
 NVIDIA modifications are covered by the license terms that apply to the underlying project or file.
 EOF
 
-if [[ "$(find /usr -name libcuda.so.1) " == " " || "$(ls /dev/nvidiactl 2>/dev/null) " == " " ]]; then
+if [[ "$(find /usr -name libcuda.so.1 | grep -v "compat") " == " " || "$(ls /dev/nvidiactl 2>/dev/null) " == " " ]]; then
   echo
   echo "WARNING: The NVIDIA Driver was not detected.  GPU functionality will not be available."
   echo "   Use 'nvidia-docker run' to start this container; see"
   echo "   https://github.com/NVIDIA/nvidia-docker/wiki/nvidia-docker ."
 else
   ( /usr/local/bin/checkSMVER.sh )  
-  DRIVER_VERSION=$(sed -n 's/^NVRM.*Kernel Module *\([0-9.]*\).*$/\1/p' /proc/driver/nvidia/version)
+  DRIVER_VERSION=$(sed -n 's/^NVRM.*Kernel Module *\([0-9.]*\).*$/\1/p' /proc/driver/nvidia/version 2>/dev/null || true)
   if [[ ! "$DRIVER_VERSION" =~ ^[0-9]*.[0-9]*$ ]]; then
     echo "Failed to detect NVIDIA driver version."
   elif [[ "${DRIVER_VERSION%.*}" -lt "${CUDA_DRIVER_VERSION%.*}" ]]; then
