@@ -38,7 +38,7 @@ RUN curl -O https://bootstrap.pypa.io/get-pip.py && \
 
 # nltk version specified per OpenSeq2Seq requirements
 RUN DALI_VERSION=0.4.0 \
- && DALI_BUILD=36889 \
+ && DALI_BUILD=37472 \
  && pip install --no-cache-dir --upgrade \
                 --extra-index-url https://developer.download.nvidia.com/compute/redist \
                 --extra-index-url http://sqrl/dldata/pip-simple --trusted-host sqrl \
