@@ -21,8 +21,7 @@ do
     --coco_year $COCO_YEAR \
     --static_data_dir $STATIC_DATA_DIR \
     --data_dir $DATA_DIR \
-    --image_ids_path $IMAGE_IDS_PATH \
-    --reference_map_path $REFERENCE_MAP_PATH
+    --image_ids_path $IMAGE_IDS_PATH
 done
 
 # TENSORRT TESTS
@@ -42,17 +41,16 @@ for model in "${MODELS[@]}"
 do
   for precision_mode in "${PRECISION_MODES[@]}"
   do
-  python -u -m object_detection_benchmark.test $model \
-    --use_trt \
-    --precision_mode $precision_mode \
-    --minimum_segment_size 50 \
-    --force_nms_cpu \
-    --remove_assert \
-    --coco_dir $COCO_DIR \
-    --coco_year $COCO_YEAR \
-    --static_data_dir $STATIC_DATA_DIR \
-    --data_dir $DATA_DIR \
-    --image_ids_path $IMAGE_IDS_PATH \
-    --reference_map_path $REFERENCE_MAP_PATH
+    python -u -m object_detection_benchmark.test $model \
+      --use_trt \
+      --precision_mode $precision_mode \
+      --minimum_segment_size 50 \
+      --force_nms_cpu \
+      --remove_assert \
+      --coco_dir $COCO_DIR \
+      --coco_year $COCO_YEAR \
+      --static_data_dir $STATIC_DATA_DIR \
+      --data_dir $DATA_DIR \
+      --image_ids_path $IMAGE_IDS_PATH
   done
 done
