@@ -50,7 +50,9 @@ RUN DALI_VERSION=0.4.0 \
         future \
         mock \
         portpicker \
-        h5py
+        h5py \
+        keras_applications==1.0.5 \
+        keras_preprocessing==1.0.3
 
 # other OpenSeq2Seq dependencies
 RUN pip install --no-cache-dir --upgrade \
