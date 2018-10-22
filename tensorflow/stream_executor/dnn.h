@@ -178,6 +178,15 @@ class RnnSequenceTensorDescriptor {
   virtual ~RnnSequenceTensorDescriptor() {}
 };
 
+// Specifies the variable sequence in a RNN model.
+//
+// The user is responsible for releasing this descriptor when it is no longer
+// in use. The destructor releases the underlying descriptors.
+class RnnVariableSequenceTensorDescriptor {
+ public:
+  virtual ~RnnVariableSequenceTensorDescriptor() {}
+};
+
 // Specifies either the input and hidden state in a RNN model.
 //
 // The user is responsible for releasing this descriptor when it is no longer
@@ -2073,6 +2082,24 @@ class DnnSupport {
                         "createRnnSequenceTensorDescriptor is unimplemented");
   }
 
+  virtual port::StatusOr<
+      std::unique_ptr<dnn::RnnVariableSequenceTensorDescriptor>>
+  createRnnVariableSequenceTensorDescriptor(int seq_length, int batch_size,
+                                            int data_size, int* seq_lens,
+                                            dnn::DataType data_type) {
+    return port::Status(
+        port::error::UNIMPLEMENTED,
+        "createRnnVariableSequenceTensorDescriptor is unimplemented");
+  }
+
+  virtual port::StatusOr<
+      std::unique_ptr<dnn::RnnVariableSequenceTensorDescriptor>>
+  createRnnVariableSequenceTensorDescriptor() {
+    return port::Status(
+        port::error::UNIMPLEMENTED,
+        "createRnnVariableSequenceTensorDescriptor is unimplemented");
+  }
+
   // Create an RNN state descriptor that specifies the input or hidden state.
   // The caller retains the ownership of the returned descriptor.
   virtual port::StatusOr<std::unique_ptr<dnn::RnnStateTensorDescriptor>>
@@ -2111,66 +2138,72 @@ class DnnSupport {
   //  workspace_allocator: an allocator to create temporary workspace used in
   //    this kernel. The caller is responsible for retaining the memory long
   //    enough for the lifespan of this operation, and recycles afterwards.
-  virtual bool DoRnnForward(Stream* stream, const dnn::RnnDescriptor& rnn_desc,
-                            const dnn::RnnSequenceTensorDescriptor& input_desc,
-                            const DeviceMemory<Eigen::half>& input_data,
-                            const dnn::RnnStateTensorDescriptor& input_h_desc,
-                            const DeviceMemory<Eigen::half>& input_h_data,
-                            const dnn::RnnStateTensorDescriptor& input_c_desc,
-                            const DeviceMemory<Eigen::half>& input_c_data,
-                            const DeviceMemory<Eigen::half>& params,
-                            const dnn::RnnSequenceTensorDescriptor& output_desc,
-                            DeviceMemory<Eigen::half>* output_data,
-                            const dnn::RnnStateTensorDescriptor& output_h_desc,
-                            DeviceMemory<Eigen::half>* output_h_data,
-                            const dnn::RnnStateTensorDescriptor& output_c_desc,
-                            DeviceMemory<Eigen::half>* output_c_data,
-                            bool is_training,
-                            ScratchAllocator* reserve_space_allocator,
-                            ScratchAllocator* workspace_allocator,
-                            dnn::ProfileResult* output_profile_result) {
+  virtual bool DoRnnForward(
+      Stream* stream, const dnn::RnnDescriptor& rnn_desc,
+      const dnn::RnnSequenceTensorDescriptor& input_desc,
+      const DeviceMemory<Eigen::half>& input_data,
+      const dnn::RnnStateTensorDescriptor& input_h_desc,
+      const DeviceMemory<Eigen::half>& input_h_data,
+      const dnn::RnnStateTensorDescriptor& input_c_desc,
+      const DeviceMemory<Eigen::half>& input_c_data,
+      const DeviceMemory<Eigen::half>& params,
+      const dnn::RnnSequenceTensorDescriptor& output_desc,
+      DeviceMemory<Eigen::half>* output_data,
+      const dnn::RnnStateTensorDescriptor& output_h_desc,
+      DeviceMemory<Eigen::half>* output_h_data,
+      const dnn::RnnStateTensorDescriptor& output_c_desc,
+      DeviceMemory<Eigen::half>* output_c_data, bool is_training,
+      ScratchAllocator* reserve_space_allocator,
+      ScratchAllocator* workspace_allocator,
+      dnn::ProfileResult* output_profile_result,
+      const dnn::RnnVariableSequenceTensorDescriptor& input_desc_var_seq_len,
+      const dnn::RnnVariableSequenceTensorDescriptor& output_desc_var_seq_len) {
     return false;
   }
 
-  virtual bool DoRnnForward(Stream* stream, const dnn::RnnDescriptor& rnn_desc,
-                            const dnn::RnnSequenceTensorDescriptor& input_desc,
-                            const DeviceMemory<float>& input_data,
-                            const dnn::RnnStateTensorDescriptor& input_h_desc,
-                            const DeviceMemory<float>& input_h_data,
-                            const dnn::RnnStateTensorDescriptor& input_c_desc,
-                            const DeviceMemory<float>& input_c_data,
-                            const DeviceMemory<float>& params,
-                            const dnn::RnnSequenceTensorDescriptor& output_desc,
-                            DeviceMemory<float>* output_data,
-                            const dnn::RnnStateTensorDescriptor& output_h_desc,
-                            DeviceMemory<float>* output_h_data,
-                            const dnn::RnnStateTensorDescriptor& output_c_desc,
-                            DeviceMemory<float>* output_c_data,
-                            bool is_training,
-                            ScratchAllocator* reserve_space_allocator,
-                            ScratchAllocator* workspace_allocator,
-                            dnn::ProfileResult* output_profile_result) {
+  virtual bool DoRnnForward(
+      Stream* stream, const dnn::RnnDescriptor& rnn_desc,
+      const dnn::RnnSequenceTensorDescriptor& input_desc,
+      const DeviceMemory<float>& input_data,
+      const dnn::RnnStateTensorDescriptor& input_h_desc,
+      const DeviceMemory<float>& input_h_data,
+      const dnn::RnnStateTensorDescriptor& input_c_desc,
+      const DeviceMemory<float>& input_c_data,
+      const DeviceMemory<float>& params,
+      const dnn::RnnSequenceTensorDescriptor& output_desc,
+      DeviceMemory<float>* output_data,
+      const dnn::RnnStateTensorDescriptor& output_h_desc,
+      DeviceMemory<float>* output_h_data,
+      const dnn::RnnStateTensorDescriptor& output_c_desc,
+      DeviceMemory<float>* output_c_data, bool is_training,
+      ScratchAllocator* reserve_space_allocator,
+      ScratchAllocator* workspace_allocator,
+      dnn::ProfileResult* output_profile_result,
+      const dnn::RnnVariableSequenceTensorDescriptor& input_desc_var_seq_len,
+      const dnn::RnnVariableSequenceTensorDescriptor& output_desc_var_seq_len) {
     return false;
   }
 
-  virtual bool DoRnnForward(Stream* stream, const dnn::RnnDescriptor& rnn_desc,
-                            const dnn::RnnSequenceTensorDescriptor& input_desc,
-                            const DeviceMemory<double>& input_data,
-                            const dnn::RnnStateTensorDescriptor& input_h_desc,
-                            const DeviceMemory<double>& input_h_data,
-                            const dnn::RnnStateTensorDescriptor& input_c_desc,
-                            const DeviceMemory<double>& input_c_data,
-                            const DeviceMemory<double>& params,
-                            const dnn::RnnSequenceTensorDescriptor& output_desc,
-                            DeviceMemory<double>* output_data,
-                            const dnn::RnnStateTensorDescriptor& output_h_desc,
-                            DeviceMemory<double>* output_h_data,
-                            const dnn::RnnStateTensorDescriptor& output_c_desc,
-                            DeviceMemory<double>* output_c_data,
-                            bool is_training,
-                            ScratchAllocator* reserve_space_allocator,
-                            ScratchAllocator* workspace_allocator,
-                            dnn::ProfileResult* output_profile_result) {
+  virtual bool DoRnnForward(
+      Stream* stream, const dnn::RnnDescriptor& rnn_desc,
+      const dnn::RnnSequenceTensorDescriptor& input_desc,
+      const DeviceMemory<double>& input_data,
+      const dnn::RnnStateTensorDescriptor& input_h_desc,
+      const DeviceMemory<double>& input_h_data,
+      const dnn::RnnStateTensorDescriptor& input_c_desc,
+      const DeviceMemory<double>& input_c_data,
+      const DeviceMemory<double>& params,
+      const dnn::RnnSequenceTensorDescriptor& output_desc,
+      DeviceMemory<double>* output_data,
+      const dnn::RnnStateTensorDescriptor& output_h_desc,
+      DeviceMemory<double>* output_h_data,
+      const dnn::RnnStateTensorDescriptor& output_c_desc,
+      DeviceMemory<double>* output_c_data, bool is_training,
+      ScratchAllocator* reserve_space_allocator,
+      ScratchAllocator* workspace_allocator,
+      dnn::ProfileResult* output_profile_result,
+      const dnn::RnnVariableSequenceTensorDescriptor& input_desc_var_seq_len,
+      const dnn::RnnVariableSequenceTensorDescriptor& output_desc_var_seq_len) {
     return false;
   }
   // Enqueue a backward operation of the RNN model onto the stream.
@@ -2238,7 +2271,9 @@ class DnnSupport {
       DeviceMemory<Eigen::half>* params_backprop_data,
       DeviceMemory<uint8>* reserve_space_data,
       ScratchAllocator* workspace_allocator,
-      dnn::ProfileResult* output_profile_result) {
+      dnn::ProfileResult* output_profile_result,
+      const dnn::RnnVariableSequenceTensorDescriptor& input_desc_var_seq_len,
+      const dnn::RnnVariableSequenceTensorDescriptor& output_desc_var_seq_len) {
     return false;
   }
 
@@ -2266,7 +2301,9 @@ class DnnSupport {
       DeviceMemory<float>* params_backprop_data,
       DeviceMemory<uint8>* reserve_space_data,
       ScratchAllocator* workspace_allocator,
-      dnn::ProfileResult* output_profile_result) {
+      dnn::ProfileResult* output_profile_result,
+      const dnn::RnnVariableSequenceTensorDescriptor& input_desc_var_seq_len,
+      const dnn::RnnVariableSequenceTensorDescriptor& output_desc_var_seq_len) {
     return false;
   }
 
@@ -2294,7 +2331,9 @@ class DnnSupport {
       DeviceMemory<double>* params_backprop_data,
       DeviceMemory<uint8>* reserve_space_data,
       ScratchAllocator* workspace_allocator,
-      dnn::ProfileResult* output_profile_result) {
+      dnn::ProfileResult* output_profile_result,
+      const dnn::RnnVariableSequenceTensorDescriptor& input_desc_var_seq_len,
+      const dnn::RnnVariableSequenceTensorDescriptor& output_desc_var_seq_len) {
     return false;
   }
 
