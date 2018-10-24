@@ -188,7 +188,11 @@ def get_frozen_graph(
 
     # Cache graph to avoid long conversions each time
     if cache:
-        os.makedirs(os.path.dirname(prebuilt_graph_path), exist_ok=True)
+        if not os.path.exists(os.path.dirname(prebuilt_graph_path)):
+            try:
+                os.makedirs(os.path.dirname(prebuilt_graph_path))
+            except Exception as e:
+                raise e
         start_time = time.time()
         with tf.gfile.GFile(prebuilt_graph_path, "wb") as f:
             f.write(frozen_graph.SerializeToString())
