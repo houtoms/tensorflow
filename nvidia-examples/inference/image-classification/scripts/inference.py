@@ -1,3 +1,20 @@
+# Copyright (c) 2018, NVIDIA CORPORATION. All rights reserved.
+#
+# Copyright 2018 The TensorFlow Authors. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+# =============================================================================
+
 import argparse
 import os
 import tensorflow as tf
@@ -206,11 +223,12 @@ if __name__ == '__main__':
         choices=['mobilenet_v1', 'mobilenet_v2', 'nasnet_mobile', 'nasnet_large',
                  'resnet_v1_50', 'resnet_v2_50', 'vgg_16', 'vgg_19', 'inception_v3', 'inception_v4'],
         help='Which model to use.')
-    parser.add_argument('--data_dir', type=str, default='/data/imagenet/train-val-tfrecord',
+    parser.add_argument('--data_dir', type=str, required=True,
         help='Directory containing validation set TFRecord files.')
     parser.add_argument('--calib_data_dir', type=str,
-        default='/data/imagenet/train-val-tfrecord',
         help='Directory containing TFRecord files for calibrating int8.')
+    parser.add_argument('--download_dir', type=str, default='./data',
+        help='Directory where downloaded model checkpoints will be stored.')
     parser.add_argument('--use_trt', action='store_true',
         help='If set, the graph will be converted to a TensorRT graph.')
     parser.add_argument('--use_trt_dynamic_op', action='store_true',
@@ -234,12 +252,12 @@ if __name__ == '__main__':
         '(last batch is skipped in case it is not full)')
     parser.add_argument('--cache', action='store_true',
         help='If set, graphs will be saved to disk after conversion. If a converted graph is present on disk, it will be loaded instead of building the graph again.')
-    parser.add_argument('--download_dir', type=str, default='./data',
-        help='Directory where downloaded model checkpoints will be stored.')
     args = parser.parse_args()
 
     if args.precision != 'fp32' and not args.use_trt:
         raise ValueError('TensorRT must be enabled for fp16 or int8 modes (--use_trt).')
+    if args.precision == 'int8' and not args.calib_data_dir:
+        raise ValueError('--calib_data_dir is required for int8 mode')
     if args.num_iterations is not None and args.num_iterations <= args.num_warmup_iterations:
         raise ValueError('--num_iterations must be larger than --num_warmup_iterations '
             '({} <= {})'.format(args.num_iterations, args.num_warmup_iterations))

@@ -54,10 +54,8 @@ tensorflow/models repository).
 
 ### Data
 
-By default, the script will look for ImageNet validation files in TFRecord
-format stored in the directory `/data/imagenet/train-val-tfrecord`. You can
-change the directory by using `--data_dir /path/to/your/TFRecords`. The
-validation TFRecords should be named according to the pattern:
+The script supports only TFRecord format for data. The script
+assumes that validation TFRecords are named according to the pattern:
 `validation-*-of-00128`.
 
 You can download and process Imagenet using [this script provided by TF
@@ -67,6 +65,6 @@ and this example only requires the validation set.
 
 ## Usage
 
-`python inference.py --model vgg16 [--use_trt]`
+`python inference.py --data_dir /imagenet_validation_data --model vgg_16 [--use_trt]`
 
 Run with `--help` to see all available options.
