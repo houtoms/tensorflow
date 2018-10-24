@@ -42,7 +42,7 @@ systemctl disable ondemand nvpmodel
 
 # Install base system packages
 apt-get update && apt-get install libpng12-dev || echo "libpng12-dev not found" && 
-	apt-get install -y build-essential openjdk-8-jdk zip python-pip python3-pip libfreetype6-dev libjpeg8-dev
+	apt-get install -y build-essential openjdk-8-jdk zip python-pip python3-pip libfreetype6-dev libjpeg8-dev libhdf5-dev
 pip install virtualenv
 pip3 install virtualenv
 
