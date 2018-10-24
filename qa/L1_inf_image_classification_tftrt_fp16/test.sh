@@ -46,10 +46,16 @@ set_allocator() {
 set_models
 set_allocator
 
-for i in "${models[@]}"
+for model in "${models[@]}"
 do
-  python -u inference.py --model $i --use_trt --precision fp16  --download_dir /data/tensorflow/models 2>&1 | tee $OUTPUT_PATH/output_tftrt_fp16_$i
-  python -u check_accuracy.py --input $OUTPUT_PATH/output_tftrt_fp16_$i
-  echo "DONE testing $i"
+  python -u inference.py \
+      --data_dir "/data/imagenet/train-val-tfrecord" \
+      --download_dir "/data/tensorflow/models" \
+      --model $model \
+      --use_trt \
+      --precision fp16 \
+      2>&1 | tee $OUTPUT_PATH/output_tftrt_fp16_$model
+  python -u check_accuracy.py --input $OUTPUT_PATH/output_tftrt_fp16_$model
+  echo "DONE testing $model"
 done
 popd
