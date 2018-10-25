@@ -302,6 +302,16 @@ def train(infer_func, params):
     except KeyboardInterrupt:
         print("Keyboard interrupt")
 
+def _build_serving_input_receiver_fn(shape, dtype=tf.float32,
+                                           batch_size=None):
+  def serving_input_receiver_fn():
+    features = tf.placeholder(
+        dtype=dtype, shape=[batch_size] + shape, name='input_tensor')
+    return tf.estimator.export.TensorServingInputReceiver(
+        features=features, receiver_tensors=features)
+  return serving_input_receiver_fn
+
+
 def validate(infer_func, params):
     image_width = params['image_width']
     image_height = params['image_height']
@@ -322,6 +332,7 @@ def validate(infer_func, params):
     display_every = params['display_every']
     iter_unit = params['iter_unit']
     use_dali = params['use_dali']
+    export_dir = params['export_dir']
 
     # Determinism is not fully supported by all TF ops.
     # Disabling until remaining wrinkles can be ironed out.
@@ -395,3 +406,10 @@ def validate(infer_func, params):
             print('Top-5 accuracy:', eval_result['top5_accuracy']*100, '%')
         except KeyboardInterrupt:
             print("Keyboard interrupt")
+
+    if export_dir is not None:
+        input_receiver_fn = _build_serving_input_receiver_fn(
+            shape=[image_height, image_width, 3], 
+            dtype=tf.float16 if precision == 'fp16' else tf.float32, 
+            batch_size=None)
+        classifier.export_savedmodel(export_dir, input_receiver_fn)

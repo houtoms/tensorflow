@@ -80,6 +80,11 @@ def parse_cmdline(init_vals, custom_parser=None):
                    required=_required(init_vals, 'log_dir'),
                    help="""Directory in which to write training
                    summaries and checkpoints.""")
+    p.add_argument('--export_dir',
+                   default=_default(init_vals, 'export_dir'),
+                   required=_required(init_vals, 'export_dir'),
+                   help="""Directory in which to write the saved
+                   model.""")
     p.add_argument('--display_every', type=int,
                    default=_default(init_vals, 'display_every'),
                    required=_required(init_vals, 'display_every'),
@@ -118,6 +123,8 @@ def parse_cmdline(init_vals, custom_parser=None):
     del FLAGS.iter_unit
     vals['log_dir'] = FLAGS.log_dir
     del FLAGS.log_dir
+    vals['export_dir'] = FLAGS.export_dir
+    del FLAGS.export_dir
     vals['display_every'] = FLAGS.display_every
     del FLAGS.display_every
     vals['precision'] = FLAGS.precision

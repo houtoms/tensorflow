@@ -29,6 +29,7 @@ default_args = {
     'batch_size' : 32,
     'data_dir' : None,
     'log_dir' : None,
+    'export_dir' : None,
     'precision' : 'fp32',
     'momentum' : 0.9,
     'learning_rate_init' : 0.045,
