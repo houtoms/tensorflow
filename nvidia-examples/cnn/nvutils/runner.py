@@ -90,7 +90,8 @@ def _cnn_model_function(features, labels, mode, params):
     use_dali      = params['use_dali']
 
     device        = '/gpu:0'
-    labels = tf.reshape(labels, (-1,)) # Squash unnecessary unary dim
+    if mode != tf.estimator.ModeKeys.PREDICT:
+        labels = tf.reshape(labels, (-1,)) # Squash unnecessary unary dim
     inputs = features # TODO: Should be using feature columns?
     is_training = (mode == tf.estimator.ModeKeys.TRAIN)
 
@@ -117,7 +118,7 @@ def _cnn_model_function(features, labels, mode, params):
         predicted_classes = tf.argmax(logits, axis=1, output_type=tf.int32)
         logits = tf.cast(logits, tf.float32)
         if mode == tf.estimator.ModeKeys.PREDICT:
-            probabilities = tf.softmax(logits)
+            probabilities = tf.nn.softmax(logits)
             predictions = {
                 'class_ids': predicted_classes[:, None],
                 'probabilities': probabilities,
