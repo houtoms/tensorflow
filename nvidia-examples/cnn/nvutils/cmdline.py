@@ -92,6 +92,9 @@ def parse_cmdline(init_vals, custom_parser=None):
     p.add_argument('--use_dali', action='store_true',
                    default=False,
                    help="""Use DALI for input pipeline""")
+    p.add_argument('--predict', action='store_true',
+                   default=False,
+                   help="""Use the script only for prediction""")
 
     FLAGS, unknown_args = p.parse_known_args()
     if len(unknown_args) > 0:
@@ -124,6 +127,8 @@ def parse_cmdline(init_vals, custom_parser=None):
     del FLAGS.precision
     vals['use_dali'] = FLAGS.use_dali
     del FLAGS.use_dali
+    vals['predict'] = FLAGS.predict
+    del FLAGS.predict
 
     return vals, FLAGS
 

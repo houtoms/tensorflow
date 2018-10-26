@@ -88,8 +88,12 @@ def xception(inputs, training=False):
     x = builder.dropout(x, 0.5)
     return x
 
-nvutils.train(xception, args)
-
-if args['log_dir'] is not None and args['data_dir'] is not None:
-    nvutils.validate(xception, args)
+if args['predict']:
+    if args['log_dir'] is not None and args['data_dir'] is not None:
+        nvutils.predict(xception, args)
+else:
+    nvutils.train(xception, args)
+    
+    if args['log_dir'] is not None and args['data_dir'] is not None:
+        nvutils.validate(xception, args)
 

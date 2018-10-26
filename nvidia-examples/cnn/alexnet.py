@@ -67,8 +67,11 @@ def alexnet_owt(inputs, training):
     x = builder.dropout(x)
     return x
 
-nvutils.train(alexnet_owt, args)
-
-if args['log_dir'] is not None and args['data_dir'] is not None:
-    nvutils.validate(alexnet_owt, args)
+if args['predict']:
+    if args['log_dir'] is not None and args['data_dir'] is not None:
+        nvutils.predict(alexnet_owt, args)
+else:
+    nvutils.train(alexnet_owt, args)
+    if args['log_dir'] is not None and args['data_dir'] is not None:
+        nvutils.validate(alexnet_owt, args)
 
