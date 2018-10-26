@@ -693,8 +693,20 @@ class Converter {
       // TODO(jie): tf protobuf seems to be omitting the :0 suffix
       string output_name = node_def.name();
       if (i != 0) output_name = StrCat(output_name, ":", i);
+      // We need to check the name before setting it. If the input is one of the
+      // engine input, setting the name here will overwrite engine input
+      // bindings which will cause runtime error. 
       if (output.is_tensor()) {
-        output.tensor()->setName(output_name.c_str());
+        const char* tensor_name = output.tensor()->getName();
+        if (!tensorflow::str_util::StartsWith(tensor_name, kInputPHName)) {
+          // TRT initializes tensor names as "(Unnamed ITensor* N)". We rename
+          // them to match their corresponding TensorFlow name.
+          // Note: ITensors that we create internally within TF-TRT which are
+          // not inputs or outputs of a node will not be renamed. This is a
+          // potential cause of confusion if an error message or warning
+          // mentions the unnamed tensor.
+          output.tensor()->setName(output_name.c_str());
+        }
       }
       VLOG(2) << "Adding out tensor " << output_name << ": "
               << output.DebugString();
@@ -1897,19 +1909,10 @@ tensorflow::Status ConvertIdentity(
     Converter& ctx, const tensorflow::NodeDef& node_def,
     const std::vector<TRT_TensorOrWeights>& inputs,
     std::vector<TRT_TensorOrWeights>* outputs) {
-  if (inputs.at(0).is_weights()) {
-    outputs->push_back(inputs.at(0));
-    return tensorflow::Status::OK();
-  }
-  nvinfer1::ITensor* tensor = const_cast<nvinfer1::ITensor*>(inputs.at(0).tensor());
-  // The default shuffle layer serves as a dummy layer which will be optimized
-  // away. Identity layer does not get optimized away as of TRT 5.0, however
-  // once we know that it does it would be nice to use that instead.
-  nvinfer1::IShuffleLayer* layer;
-  layer = ctx.network()->addShuffle(*tensor);
-  TFTRT_RETURN_ERROR_IF_NULLPTR(layer, node_def.name());
-  nvinfer1::ITensor* output_tensor = layer->getOutput(0);
-  outputs->push_back(TRT_TensorOrWeights(output_tensor));
+  // TODO(tmorris): TRT's Identity layer does not get optimized away as of TRT
+  // 5.0, however once we know that it does it would be nice to use that
+  // instead.
+  outputs->push_back(inputs.at(0));
   return tensorflow::Status::OK();
 }
 
