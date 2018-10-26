@@ -58,7 +58,13 @@ run_inference() {
     for bs in ${batch_sizes[@]};
     do
       echo "Testing $i batch_size $bs..."
-      common_args="--model $i --batch_size $bs --num_iterations 2000 --download_dir /data/tensorflow/models"
+      common_args="
+        --model $i
+        --download_dir /data/tensorflow/models
+        --data_dir /data/imagenet/train-val-tfrecord
+        --calib_data_dir /data/imagenet/train-val-tfrecord
+        --batch_size $bs
+        --num_iterations 2000"
       unset TF_GPU_ALLOCATOR
       python -u inference.py $common_args           --precision fp32                        2>&1 | tee $OUTPUT_PATH/output_tf_bs${bs}_fp32_$i
       set_allocator

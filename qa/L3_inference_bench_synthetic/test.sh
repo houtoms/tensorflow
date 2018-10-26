@@ -19,7 +19,6 @@ set_models() {
     mobilenet_v1
     mobilenet_v2
     nasnet_mobile
-    #nasnet_large
     resnet_v1_50
     resnet_v2_50
     #vgg_16
@@ -59,7 +58,14 @@ run_inference() {
     for bs in ${batch_sizes[@]};
     do
       echo "Testing $i batch_size $bs..."
-      common_args="--model $i --batch_size $bs --use_synthetic --num_iterations 2000 --download_dir /data/tensorflow/models"
+      common_args="
+        --model $i
+        --download_dir /data/tensorflow/models
+        --data_dir /data/imagenet/train-val-tfrecord
+        --calib_data_dir /data/imagenet/train-val-tfrecord
+        --use_synthetic
+        --batch_size $bs
+        --num_iterations 2000"
       unset TF_GPU_ALLOCATOR
       python -u inference.py $common_args           --precision fp32                        2>&1 | tee $OUTPUT_PATH/output_tf_bs${bs}_fp32_$i
       set_allocator
