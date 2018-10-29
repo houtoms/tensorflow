@@ -1,4 +1,7 @@
 #!/bin/bash
+set +e
+set +x
+
 GPUS=$(nvidia-smi -L 2>/dev/null| wc -l || echo 1)
 [[ $GPUS -gt 4 ]] && GPUS=4
 export CUDA_VISIBLE_DEVICES=$(seq -s',' 0 $((GPUS-1)))

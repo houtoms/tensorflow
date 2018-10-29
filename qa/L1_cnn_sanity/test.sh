@@ -2,6 +2,7 @@
 
 # Script has explicit error logging
 set +x
+set +e
 
 echo '--------------------------------------------------------------------------------'
 echo TensorFlow Container $NVIDIA_TENSORFLOW_VERSION

@@ -1,4 +1,6 @@
 #!/bin/bash
+set +e
+
 IMAGE=../../tensorflow/docs_src/about/tensorflow-logo.jpg
 
 apt-get update && apt-get install -y steghide
