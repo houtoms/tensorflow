@@ -1,5 +1,8 @@
 #!/bin/bash
 
+# Script has explicit error logging
+set +x
+
 echo '--------------------------------------------------------------------------------'
 echo TensorFlow Container $NVIDIA_TENSORFLOW_VERSION
 echo Container Build ID $NVIDIA_BUILD_ID

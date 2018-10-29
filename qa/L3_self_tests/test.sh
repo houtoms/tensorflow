@@ -2,6 +2,7 @@
 
 set -e
 set -o pipefail
+set +x
 
 CHECK_TMP=$(mktemp)
 trap "/bin/rm -f $CHECK_TMP" EXIT
@@ -114,7 +115,7 @@ bazel test    --config=cuda -c opt --verbose_failures --local_test_jobs=1 \
               //tensorflow/python/kernel_tests:depthtospace_op_test \
               //tensorflow/python/kernel_tests:conv_ops_test \
               //tensorflow/core/platform/cloud:ram_file_block_cache_test \
-2>&1 | tee testresult.tmp | grep '^\[\|^FAIL\|^Executed\|Build completed'
+2>&1 | tee -a testresult.tmp | grep '^\[\|^FAIL\|^Executed\|Build completed'
 
 FAILS=$((FAILS+$?))
 

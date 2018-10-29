@@ -1,7 +1,6 @@
 #!/bin/bash
 
 set -e
-set -v
 
 pip install requests
 MODELS="$PWD/../third_party/tensorflow_models/"

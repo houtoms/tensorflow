@@ -1,5 +1,8 @@
 #!/bin/bash
 
+# Script has explicit error logging
+set +x
+
 echo '--------------------------------------------------------------------------------'
 echo TensorFlow Container $NVIDIA_TENSORFLOW_VERSION
 echo Container Build ID $NVIDIA_BUILD_ID
@@ -24,7 +27,6 @@ NETWORKS=("alexnet.py" \
           "vgg.py --layers=16" \
           "vgg.py --layers=19" \
           )
-set +x
 
 get_PERF() {
     SCRIPT="$1"

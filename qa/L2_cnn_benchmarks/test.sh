@@ -1,5 +1,6 @@
 #!/bin/bash
 
+set +x
 # Sweep through benchmark tests for all networks.
 
 if [[ $# -gt 0 ]]; then

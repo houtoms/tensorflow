@@ -1,6 +1,5 @@
 #!/bin/bash
 
-set -v
 set -e
 
 MAP_ERROR_THRESHOLD=0.001

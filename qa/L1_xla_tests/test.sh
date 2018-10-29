@@ -50,6 +50,7 @@ for i in $(seq 0 $((GPUS-1))); do
                 echo PASS -- $NAME
             else
                 FAILS=$((FAILS+1))
+                tail -n 30 "$THIS_DIR/outputs/$NAME"
                 echo FAIL -- $NAME
             fi
             unset TEST_TOTAL_SHARDS TEST_SHARD_INDEX
