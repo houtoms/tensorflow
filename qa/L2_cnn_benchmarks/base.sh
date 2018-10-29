@@ -62,7 +62,7 @@ function run_config {
                 fi
                 local TMP_DIR="$(mktemp -d dir.XXXXXX)"
 
-                echo mpiexec --bind-to socket --allow-run-as-root -np $G python -u \
+                echo mpiexec --bind-to none --allow-run-as-root -np $G python -u \
                     $CNN_SCRIPT \
                     $DATA_FLAG \
                     --log_dir="$TMP_DIR" \
@@ -74,7 +74,7 @@ function run_config {
                 echo "==================================================" >> "$TMPFILE"
             
                 SECONDS=0
-                mpiexec --allow-run-as-root --bind-to socket -np $G python -u \
+                mpiexec --allow-run-as-root --bind-to none -np $G python -u \
                     $CNN_SCRIPT \
                     $DATA_FLAG \
                     --log_dir="$TMP_DIR" \

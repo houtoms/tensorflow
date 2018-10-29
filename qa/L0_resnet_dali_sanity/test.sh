@@ -18,7 +18,7 @@ DATA="--data_dir=/data/imagenet/train-val-tfrecord-480 \
 get_PERF() {
     PRECISION=$1
     
-    mpiexec --bind-to socket --allow-run-as-root -np $GPUS python -u \
+    mpiexec --bind-to none --allow-run-as-root -np $GPUS python -u \
         ../../nvidia-examples/cnn/resnet.py \
         --use_dali \
         --layers=50 \

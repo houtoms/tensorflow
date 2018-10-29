@@ -32,7 +32,7 @@ NETWORKS=("alexnet.py" \
 get_PERF() {
     SCRIPT="$1"
     local TMP_DIR="$(mktemp -d tmp.XXXXXX)"
-    mpiexec --bind-to socket --allow-run-as-root -np $GPUS python -u \
+    mpiexec --bind-to none --allow-run-as-root -np $GPUS python -u \
         ../../nvidia-examples/cnn/$SCRIPT \
         --num_iter=101 \
         --iter_unit=batch \

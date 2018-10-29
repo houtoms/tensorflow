@@ -22,7 +22,7 @@ function CLEAN_AND_EXIT {
 }
 
 SECONDS=0
-mpiexec --allow-run-as-root --bind-to socket -np $GPUS python -u \
+mpiexec --allow-run-as-root --bind-to none -np $GPUS python -u \
     /opt/tensorflow/nvidia-examples/cnn/resnet.py --layers=50 \
     --data_dir=/data/imagenet/train-val-tfrecord-480 \
     --batch_size=$BATCH_SIZE --log_dir=$OUT --display_every=1000 \
