@@ -77,8 +77,11 @@ def googlenet(inputs, training=False):
     x = builder.spatial_average2d(x)
     return x
 
-nvutils.train(googlenet, args)
-
-if args['log_dir'] is not None and args['data_dir'] is not None:
-    nvutils.validate(googlenet, args)
+if args['predict']:
+    if args['log_dir'] is not None and args['data_dir'] is not None:
+        nvutils.predict(googlenet, args)
+else:
+    nvutils.train(googlenet, args)
+    if args['log_dir'] is not None and args['data_dir'] is not None:
+        nvutils.validate(googlenet, args)
 

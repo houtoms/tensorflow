@@ -413,3 +413,110 @@ def validate(infer_func, params):
             dtype=tf.float16 if precision == 'fp16' else tf.float32, 
             batch_size=None)
         classifier.export_savedmodel(export_dir, input_receiver_fn)
+
+def predict(infer_func, params):
+    image_width = params['image_width']
+    image_height = params['image_height']
+    image_format = params['image_format']
+    batch_size = params['batch_size']
+    data_dir = params['data_dir']
+    log_dir = params['log_dir']
+    precision = params['precision']
+    momentum = params['momentum']
+    learning_rate_init = params['learning_rate_init']
+    learning_rate_power = params['learning_rate_power']
+    weight_decay = params['weight_decay']
+    loss_scale = params['loss_scale']
+    larc_eta = params['larc_eta']
+    larc_mode = params['larc_mode']
+    num_iter = params['num_iter']
+    checkpoint_secs = params['checkpoint_secs']
+    display_every = params['display_every']
+    iter_unit = params['iter_unit']
+    use_dali = params['use_dali']
+
+    # Determinism is not fully supported by all TF ops.
+    # Disabling until remaining wrinkles can be ironed out.
+    deterministic = False
+    if deterministic:
+        tf.set_random_seed(2 * (1 + hvd.rank()))
+        random.seed(3 * (1 + hvd.rank()))
+        np.random.seed(2)
+
+    log_dir  = None if log_dir  == "" else log_dir
+    data_dir = None if data_dir == "" else data_dir
+    if data_dir is None:
+        raise ValueError("data_dir must be specified")
+    if log_dir is None:
+        raise ValueError("log_dir must be specified")
+
+    filename_pattern = os.path.join(data_dir, '%s-*')
+    eval_filenames  = sorted(tf.gfile.Glob(filename_pattern % 'validation'))
+
+    # Horovod: pin GPU to be used to process local rank (one GPU per process)
+    config = tf.ConfigProto()
+    #config.gpu_options.allow_growth = True
+    config.gpu_options.visible_device_list = str(hvd.local_rank())
+    config.gpu_options.force_gpu_compatible = True # Force pinned memory
+    config.intra_op_parallelism_threads = 1 # Avoid pool of Eigen threads
+    config.inter_op_parallelism_threads = 40 // hvd.size() - 2 # HACK TESTING
+
+    classifier = tf.estimator.Estimator(
+        model_fn=_cnn_model_function,
+        model_dir=log_dir,
+        params={
+            'model':         infer_func,
+            'format':        image_format,
+            'dtype' : tf.float16 if precision == 'fp16' else tf.float32,
+            'momentum' : momentum,
+            'learning_rate_init' : learning_rate_init,
+            'learning_rate_power' : learning_rate_power,
+            'decay_steps' : None,
+            'weight_decay' : weight_decay,
+            'loss_scale' : loss_scale,
+            'larc_eta' : larc_eta,
+            'larc_mode' : larc_mode,
+            'deterministic' : deterministic,
+            'n_classes':     1000,
+            'use_dali': False,
+        },
+        config=tf.estimator.RunConfig(
+            tf_random_seed=2 * (1 + hvd.rank()) if deterministic else None,
+            session_config=config,
+            save_checkpoints_secs=None,
+            save_checkpoints_steps=None,
+            keep_checkpoint_every_n_hours=3))
+
+    if not deterministic and not use_dali:
+        num_preproc_threads = 10
+    elif not deterministic and use_dali:
+        num_preproc_threads = 2 
+    elif deterministic:
+        num_preproc_threads = 1 
+
+    if hvd.rank() == 0:
+        print("Predicting")
+        try:
+            pred_result = classifier.predict(
+                input_fn=lambda: nvutils.image_set(
+                    eval_filenames, batch_size, image_height, image_width,
+                    training=False, distort_color=False,
+                    deterministic=deterministic,
+                    num_threads=num_preproc_threads))
+        except KeyboardInterrupt:
+            print("Keyboard interrupt")
+
+    fname = 'synset_names.txt'
+    location = os.path.realpath(
+    os.path.join(os.path.dirname(__file__), fname))
+    class_name_exist = os.path.isfile(location)
+    if class_name_exist:
+        with open(location) as f:
+            class_names = f.readlines()
+        class_names = [x.strip() for x in class_names] 
+
+    for idx, pred_dict in enumerate(pred_result):
+        class_id = pred_dict['class_ids'][0]
+        probability = pred_dict['probabilities'][class_id]
+        class_name = class_names[class_id] if class_name_exist else class_id
+        print(idx, "Class:", "'" + str(class_name) + "'", "Prob.:", probability)

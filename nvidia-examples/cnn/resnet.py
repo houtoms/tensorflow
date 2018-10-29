@@ -108,8 +108,11 @@ def resnet_v1(inputs, training=False):
     else: raise ValueError("Invalid layer count (%i); must be one of: 18,34,50,101,152" %
                            flags.layers)
 
-nvutils.train(resnet_v1, args)
-
-if args['log_dir'] is not None and args['data_dir'] is not None:
-    nvutils.validate(resnet_v1, args)
+if args['predict']:
+    if args['log_dir'] is not None and args['data_dir'] is not None:
+        nvutils.predict(resnet_v1, args)
+else:
+    nvutils.train(resnet_v1, args)
+    if args['log_dir'] is not None and args['data_dir'] is not None:
+        nvutils.validate(resnet_v1, args)
 

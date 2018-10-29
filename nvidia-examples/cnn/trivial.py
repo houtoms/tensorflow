@@ -54,8 +54,11 @@ def trivial(inputs, training=False):
     x = builder.dense_linear(x, 1)
     return x
 
-nvutils.train(trivial, args)
-
-if args['log_dir'] is not None and args['data_dir'] is not None:
-    nvutils.validate(trivial, args)
+if args['predict']:
+    if args['log_dir'] is not None and args['data_dir'] is not None:
+        nvutils.predict(trivial, args)
+else:
+    nvutils.train(trivial, args)
+    if args['log_dir'] is not None and args['data_dir'] is not None:
+        nvutils.validate(trivial, args)
 

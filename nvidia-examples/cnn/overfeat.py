@@ -62,8 +62,12 @@ def overfeat(inputs, training=False):
     x = builder.dense(x, 4096)
     return x
 
-nvutils.train(overfeat, args)
-
-if args['log_dir'] is not None and args['data_dir'] is not None:
-    nvutils.validate(overfeat, args)
+if args['predict']:
+    if args['log_dir'] is not None and args['data_dir'] is not None:
+        nvutils.predict(overfeat, args)
+else:
+    nvutils.train(overfeat, args)
+    
+    if args['log_dir'] is not None and args['data_dir'] is not None:
+        nvutils.validate(overfeat, args)
 

@@ -107,8 +107,12 @@ def inception_v3(inputs, training=False):
     x = inception_v3_e(builder, x, 'MAX')
     return builder.spatial_average2d(x)
 
-nvutils.train(inception_v3, args)
-
-if args['log_dir'] is not None and args['data_dir'] is not None:
-    nvutils.validate(inception_v3, args)
+if args['predict']:
+    if args['log_dir'] is not None and args['data_dir'] is not None:
+        nvutils.predict(inception_v3, args)
+else:
+    nvutils.train(inception_v3, args)
+    
+    if args['log_dir'] is not None and args['data_dir'] is not None:
+        nvutils.validate(inception_v3, args)
 
