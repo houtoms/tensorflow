@@ -52,7 +52,6 @@ FAILS=0
 # Note: //tensorflow/python/debug:debugger_cli_common_test fails when run as root due to a file permissions issue.
 # Note: //tensorflow/contrib/tensor_forest:scatter_add_ndim_op_test fails for an unknown reason with "Create kernel failed: Invalid argument: AttrValue must not have reference type value of float_ref".
 # Note: //tensorflow/contrib/distributions:mvn_full_covariance_test fails due to assert_equal being used to check symmetry of the result of a matmul.
-# Note: //tensorflow/contrib/kfac/examples/tests:convnet_test times out when distributed tests are included. These have been commented out in the python test.
 # Note: cluster_function_library_runtime_test fails intermitently when run in
 #       with 'status: Unavailable: Endpoint read failed'
 #       or 'UnknownError: Could not start gRPC server
@@ -69,7 +68,6 @@ bazel test --config=cuda -c opt --verbose_failures --local_test_jobs=$GPUS \
               `# These are tested in serial below` \
               -//tensorflow/python:localhost_cluster_performance_test \
               -//tensorflow/core/debug:grpc_session_debug_test \
-              -//tensorflow/contrib/kfac/examples/tests:convnet_test \
               -//tensorflow/python/kernel_tests:depthtospace_op_test \
               `# We do not provide Go support` \
               -//tensorflow/go/... \
@@ -93,8 +91,6 @@ bazel test --config=cuda -c opt --verbose_failures --local_test_jobs=$GPUS \
               -//tensorflow/python/kernel_tests:conv_ops_test \
               `# data_utils_test hangs.` \
               -//tensorflow/python/keras:data_utils_test \
-              `# contrib distributions is deprecated/unmaintained.` \
-              -//tensorflow/contrib/distributions/python/kernel_tests/util:correlation_matrix_volumes_test \
               -//tensorflow/compiler/xla/tests:local_client_execute_test_gpu \
               -//tensorflow/compiler/xla/python:xla_client_test \
 2>&1 | tee testresult.tmp | grep '^\[\|^FAIL\|^Executed\|Build completed'
@@ -111,7 +107,6 @@ bazel test    --config=cuda -c opt --verbose_failures --local_test_jobs=1 \
               -- \
               //tensorflow/python:localhost_cluster_performance_test \
               //tensorflow/core/debug:grpc_session_debug_test \
-              //tensorflow/contrib/kfac/examples/tests:convnet_test \
               //tensorflow/python/kernel_tests:depthtospace_op_test \
               //tensorflow/python/kernel_tests:conv_ops_test \
               //tensorflow/core/platform/cloud:ram_file_block_cache_test \
