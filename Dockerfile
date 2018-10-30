@@ -8,6 +8,7 @@ ENV NVIDIA_TENSORFLOW_VERSION 18.11
 
 ARG PYVER=3.5
 
+# libboost-*-dev and cmake needed for OpenSeq2Seq CTC Decoder/KenLM
 RUN apt-get update && apt-get install -y --no-install-recommends \
         pkg-config \
         python$PYVER \
@@ -16,7 +17,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         swig \
         unzip \
         zip \
-        zlib1g-dev && \
+        zlib1g-dev \
+        libboost-locale-dev \
+        libboost-program-options-dev \
+        libboost-system-dev \
+        libboost-thread-dev \
+        libboost-test-dev \
+        cmake && \
     rm -rf /var/lib/apt/lists/*
 
 ENV PYTHONIOENCODING=utf-8 \
@@ -120,6 +127,23 @@ RUN cd /opt/tensorflow/third_party/horovod && \
     python setup.py install && \
     python setup.py clean && \
     rm ./libcuda.so.1
+
+# OpenSeq2Seq CTC Decoder & KenLM
+RUN cd /opt/tensorflow/nvidia-examples/OpenSeq2Seq && \
+    ./scripts/install_kenlm.sh && \
+    cd /opt/tensorflow && \
+    ln -s nvidia-examples/OpenSeq2Seq/ctc_decoder_with_lm ./ && \
+    ./nvbuild.sh --configonly --python$PYVER && \
+    bazel build $(cat nvbuildopts) \
+        //ctc_decoder_with_lm:libctc_decoder_with_kenlm.so \
+        //ctc_decoder_with_lm:generate_trie && \
+    cp bazel-bin/ctc_decoder_with_lm/libctc_decoder_with_kenlm.so \
+        bazel-bin/ctc_decoder_with_lm/generate_trie \
+        ctc_decoder_with_lm/ && \
+    bazel clean --expunge && \
+    rm .tf_configure.bazelrc .bazelrc /usr/local/cuda/lib64/stubs/libcuda.so.1 && \
+    rm -rf ${HOME}/.cache/bazel /tmp/*
+
 
 WORKDIR /workspace
 COPY NVREADME.md README.md
