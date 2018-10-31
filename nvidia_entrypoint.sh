@@ -9,7 +9,7 @@ cat <<EOF
 NVIDIA Release ${NVIDIA_TENSORFLOW_VERSION} (build ${NVIDIA_BUILD_ID})
 
 Container image Copyright (c) 2018, NVIDIA CORPORATION.  All rights reserved.
-Copyright 2017 The TensorFlow Authors.  All rights reserved.
+Copyright 2017-2018 The TensorFlow Authors.  All rights reserved.
 
 Various files include modifications (c) NVIDIA CORPORATION.  All rights reserved.
 NVIDIA modifications are covered by the license terms that apply to the underlying project or file.
