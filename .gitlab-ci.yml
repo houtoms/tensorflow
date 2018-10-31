@@ -658,6 +658,10 @@ L1_inf_object_detection--P100_R384_4GPU:
     <<: *L1_TEST
     <<: *P100_R384_4GPU
 
+L1_inf_translation--P100_R384_4GPU:
+    <<: *L1_TEST
+    <<: *P100_R384_4GPU
+
 ####  NVIDIA CNN TESTS  ####
 L0_resnet_sanity--P100_R384_4GPU:
     <<: *L0_TEST
@@ -929,6 +933,10 @@ L1_inf_image_classification_tftrt_fp16--V100_R384_1GPU:
     <<: *V100_R384_1GPU
 
 L1_inf_object_detection--V100_R384_1GPU:
+    <<: *L1_TEST
+    <<: *V100_R384_1GPU
+
+L1_inf_translation--V100_R384_1GPU:
     <<: *L1_TEST
     <<: *V100_R384_1GPU
 
@@ -1558,6 +1566,14 @@ L1_inf_image_classification_tftrt_fp16--py2--TX2:
     <<: *L1_TEST_JETSON
     <<: *TX2
 
+L1_inf_image_classification_tftrt--py3.6--TX2:
+    <<: *L1_TEST_JETSON
+    <<: *TX2
+
+L1_inf_image_classification_tftrt_fp16--py3.6--TX2:
+    <<: *L1_TEST_JETSON
+    <<: *TX2
+
 L1_inf_object_detection--py2--TX2:
   <<: *L1_TEST_JETSON
   <<: *TX2
@@ -1665,6 +1681,14 @@ L1_inf_image_classification_tftrt--py2--XAVIER:
     <<: *XAVIER
 
 L1_inf_image_classification_tftrt_fp16--py2--XAVIER:
+    <<: *L1_TEST_JETSON
+    <<: *XAVIER
+
+L1_inf_image_classification_tftrt--py3.6--XAVIER:
+    <<: *L1_TEST_JETSON
+    <<: *XAVIER
+
+L1_inf_image_classification_tftrt_fp16--py3.6--XAVIER:
     <<: *L1_TEST_JETSON
     <<: *XAVIER
 
