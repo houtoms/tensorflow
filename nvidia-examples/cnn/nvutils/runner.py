@@ -506,17 +506,8 @@ def predict(infer_func, params):
         except KeyboardInterrupt:
             print("Keyboard interrupt")
 
-    fname = 'synset_names.txt'
-    location = os.path.realpath(
-    os.path.join(os.path.dirname(__file__), fname))
-    class_name_exist = os.path.isfile(location)
-    if class_name_exist:
-        with open(location) as f:
-            class_names = f.readlines()
-        class_names = [x.strip() for x in class_names] 
-
     for idx, pred_dict in enumerate(pred_result):
         class_id = pred_dict['class_ids'][0]
         probability = pred_dict['probabilities'][class_id]
-        class_name = class_names[class_id] if class_name_exist else class_id
+        class_name = class_id
         print(idx, "Class:", "'" + str(class_name) + "'", "Prob.:", probability)
