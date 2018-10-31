@@ -87,17 +87,8 @@ with tf.Session(graph=tf.Graph()) as sess:
         class_ids_, probs_ = sess.run([class_ids, probabilities], {x: value_})
         total = batch_size
 
-    fname = 'nvutils/synset_names.txt'
-    location = os.path.realpath(
-    os.path.join(os.path.dirname(__file__), fname))
-    class_name_exist = os.path.isfile(location)
-    if class_name_exist:
-        with open(location) as f:
-            class_names = f.readlines()
-        class_names = [x.strip() for x in class_names] 
-
     for i in range(total if display_total == 0 else display_total):
         class_id = class_ids_[i][0]
         probability = probs_[i][class_id]
-        class_name = class_names[class_id] if class_name_exist else class_id
+        class_name = class_id
         print(i, "Class:", "'" + str(class_name) + "'", "Prob.:", probability)
