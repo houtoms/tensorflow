@@ -1,10 +1,10 @@
-FROM gitlab-dl.nvidia.com:5005/dgx/cuda:10.0-devel-ubuntu16.04--18.10
+FROM gitlab-dl.nvidia.com:5005/dgx/cuda:10.0-devel-ubuntu16.04--18.11
 
 ENV LD_LIBRARY_PATH /usr/local/cuda/extras/CUPTI/lib64:${LD_LIBRARY_PATH}
 
 ENV TENSORFLOW_VERSION 1.11.0+
 LABEL com.nvidia.tensorflow.version="${TENSORFLOW_VERSION}"
-ENV NVIDIA_TENSORFLOW_VERSION 18.10
+ENV NVIDIA_TENSORFLOW_VERSION 18.11
 
 ARG PYVER=3.5
 
