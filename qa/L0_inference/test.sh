@@ -53,19 +53,23 @@ pushd $PWD/../../nvidia-examples/inference/object-detection
 
 model=ssd_mobilenet_v1_coco
 precision_mode=FP16
+MODEL_DIR=$DATA_DIR/${model}_trt_${precision_mode}
 
-python -u -m object_detection_benchmark.test $model \
+python -u -m object_detection_benchmark.inference $model \
+  --batch_size 1 \
   --use_trt \
   --precision_mode $precision_mode \
   --minimum_segment_size 50 \
   --force_nms_cpu \
   --remove_assert \
-  --coco_dir $COCO_DIR \
-  --coco_year $COCO_YEAR \
+  --coco_image_dir $COCO_IMAGE_DIR \
+  --coco_annotation_path $COCO_ANNOTATION_PATH \
   --static_data_dir $STATIC_DATA_DIR \
-  --data_dir $DATA_DIR \
+  --model_dir $MODEL_DIR \
   --image_ids_path $IMAGE_IDS_PATH \
-  --reference_map_path $REFERENCE_MAP_PATH \
-  --map_error_threshold $MAP_ERROR_THRESHOLD
+  --image_shape 600,600
+
+python -u -m object_detection_benchmark.check_accuracy $model $MODEL_DIR \
+  --tolerance $MAP_ERROR_THRESHOLD
 
 popd

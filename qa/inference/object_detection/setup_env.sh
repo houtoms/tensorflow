@@ -1,7 +1,7 @@
 #!/bin/bash
 
-export COCO_DIR=/data/coco/coco-2017/coco2017
-export COCO_YEAR=2017
+export COCO_IMAGE_DIR=/data/coco/coco-2017/coco2017/val2017
+export COCO_ANNOTATION_PATH=/data/coco/coco-2017/coco2017/annotations/instances_val2017.json
 export STATIC_DATA_DIR=/data/tensorflow/object_detection
 export DATA_DIR=$PWD/data
 export COCO_API_DIR=$PWD/../third_party/cocoapi
