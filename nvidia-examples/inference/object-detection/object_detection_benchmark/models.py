@@ -2,6 +2,11 @@ from collections import namedtuple
 
 DetectionModel = namedtuple('DetectionModel', ['name', 'url', 'extract_dir'])
 
+MODELS_SUBDIR = 'models'
+ACCURACY_FILE = 'accuracy.json'
+PERFORMANCE_FILE = 'performance.json'
+DETECTIONS_FILE = 'detections.json'
+
 INPUT_NAME='image_tensor'
 BOXES_NAME='detection_boxes'
 CLASSES_NAME='detection_classes'
@@ -39,6 +44,23 @@ def faster_rcnn_config_override(box_score_threshold):
        }
       }
     ''' % box_score_threshold
+
+# These ground truth accuracy values were determined by 
+# executing the networks with a fixed image size of 600x600 
+# with plain TensorFlow on a V100 workstation.  These values
+# may be lower than what were previously reported, because
+# the image resizing distorts the aspect ratio.  However,
+# to enable mini-batching to produce consistent results across
+# batch sizes, this was a necessary change.
+BASELINE_ACCURACY = {
+    'ssd_mobilenet_v1_coco': 0.2263085572910199,
+    'ssd_mobilenet_v2_coco': 0.2388525480086969,
+    'ssd_inception_v2_coco': 0.27116796129577764,
+    'ssd_resnet_50_fpn_coco': -1,
+    'faster_rcnn_resnet50_coco': 0.2615557909194892,
+    'faster_rcnn_nas': -1,
+    'mask_rcnn_resnet50_atrous_coco': 0.2757974513765069 
+}
 
 MODELS = {
     'ssd_mobilenet_v1_coco': DetectionModel(
