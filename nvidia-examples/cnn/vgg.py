@@ -30,6 +30,7 @@ default_args = {
     'batch_size' : 256,
     'data_dir' : None,
     'log_dir' : None,
+    'export_dir' : None,
     'precision' : 'fp16',
     'momentum' : 0.9,
     'learning_rate_init' : 0.02,
@@ -81,8 +82,12 @@ def vgg(inputs, training=False):
     else: raise ValueError("Invalid nlayer (%i); must be one of: 11,13,16,19" %
                            flags.layers)
 
-nvutils.train(vgg, args)
-
-if args['log_dir'] is not None and args['data_dir'] is not None:
-    nvutils.validate(vgg, args)
+if args['predict']:
+    if args['log_dir'] is not None and args['data_dir'] is not None:
+        nvutils.predict(vgg, args)
+else:
+    nvutils.train(vgg, args)
+    
+    if args['log_dir'] is not None and args['data_dir'] is not None:
+        nvutils.validate(vgg, args)
 

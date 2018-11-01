@@ -30,6 +30,7 @@ default_args = {
     'batch_size' : 256,
     'data_dir' : None,
     'log_dir' : None,
+    'export_dir' : None,
     'precision' : 'fp16',
     'momentum' : 0.9,
     'learning_rate_init' : 2.0,
@@ -39,7 +40,7 @@ default_args = {
     'larc_eta' : 0.003,
     'larc_mode' : 'clip',
     'num_iter' : 90,
-    'iter_unit' : 'epoch',
+    'iter_unit' : 'batch',
     'checkpoint_secs' : None,
     'display_every' : 10,
 }
@@ -107,8 +108,11 @@ def resnet_v1(inputs, training=False):
     else: raise ValueError("Invalid layer count (%i); must be one of: 18,34,50,101,152" %
                            flags.layers)
 
-nvutils.train(resnet_v1, args)
-
-if args['log_dir'] is not None and args['data_dir'] is not None:
-    nvutils.validate(resnet_v1, args)
+if args['predict']:
+    if args['log_dir'] is not None and args['data_dir'] is not None:
+        nvutils.predict(resnet_v1, args)
+else:
+    nvutils.train(resnet_v1, args)
+    if args['log_dir'] is not None and args['data_dir'] is not None:
+        nvutils.validate(resnet_v1, args)
 

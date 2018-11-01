@@ -22,6 +22,7 @@ from .image_processing import image_set
 from .image_processing import fake_image_set
 from .runner import train
 from .runner import validate
+from .runner import predict 
 from .cmdline import RequireInCmdline
 from .cmdline import parse_cmdline
 import os, sys, random

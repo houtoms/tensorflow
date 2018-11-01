@@ -29,6 +29,7 @@ default_args = {
     'batch_size' : 256,
     'data_dir' : None,
     'log_dir' : None,
+    'export_dir' : None,
     'precision' : 'fp16',
     'momentum' : 0.9,
     'learning_rate_init' : 0.04,
@@ -76,8 +77,11 @@ def googlenet(inputs, training=False):
     x = builder.spatial_average2d(x)
     return x
 
-nvutils.train(googlenet, args)
-
-if args['log_dir'] is not None and args['data_dir'] is not None:
-    nvutils.validate(googlenet, args)
+if args['predict']:
+    if args['log_dir'] is not None and args['data_dir'] is not None:
+        nvutils.predict(googlenet, args)
+else:
+    nvutils.train(googlenet, args)
+    if args['log_dir'] is not None and args['data_dir'] is not None:
+        nvutils.validate(googlenet, args)
 

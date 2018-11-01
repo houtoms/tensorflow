@@ -29,6 +29,7 @@ default_args = {
     'batch_size' : 256,
     'data_dir' : None,
     'log_dir' : None,
+    'export_dir' : None,
     'precision' : 'fp16',
     'momentum' : 0.9,
     'learning_rate_init' : 0.001,
@@ -61,8 +62,12 @@ def overfeat(inputs, training=False):
     x = builder.dense(x, 4096)
     return x
 
-nvutils.train(overfeat, args)
-
-if args['log_dir'] is not None and args['data_dir'] is not None:
-    nvutils.validate(overfeat, args)
+if args['predict']:
+    if args['log_dir'] is not None and args['data_dir'] is not None:
+        nvutils.predict(overfeat, args)
+else:
+    nvutils.train(overfeat, args)
+    
+    if args['log_dir'] is not None and args['data_dir'] is not None:
+        nvutils.validate(overfeat, args)
 

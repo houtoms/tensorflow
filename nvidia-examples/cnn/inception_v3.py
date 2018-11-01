@@ -29,6 +29,7 @@ default_args = {
     'batch_size' : 128,
     'data_dir' : None,
     'log_dir' : None,
+    'export_dir' : None,
     'precision' : 'fp16',
     'momentum' : 0.9,
     'learning_rate_init' : 1.0,
@@ -106,8 +107,12 @@ def inception_v3(inputs, training=False):
     x = inception_v3_e(builder, x, 'MAX')
     return builder.spatial_average2d(x)
 
-nvutils.train(inception_v3, args)
-
-if args['log_dir'] is not None and args['data_dir'] is not None:
-    nvutils.validate(inception_v3, args)
+if args['predict']:
+    if args['log_dir'] is not None and args['data_dir'] is not None:
+        nvutils.predict(inception_v3, args)
+else:
+    nvutils.train(inception_v3, args)
+    
+    if args['log_dir'] is not None and args['data_dir'] is not None:
+        nvutils.validate(inception_v3, args)
 
