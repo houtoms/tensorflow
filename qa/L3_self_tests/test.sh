@@ -29,18 +29,18 @@ else
   PYVER=$(python -c 'import sys; print("{}.{}".format(sys.version_info[0], sys.version_info[1]))')
   ./nvbuild.sh --configonly --python$PYVER
 
-  echo "Installing test dependencies..."
-  CHECK tensorflow/tools/ci_build/install/install_bootstrap_deb_packages.sh
-  CHECK tensorflow/tools/ci_build/install/install_deb_packages.sh
-  CHECK add-apt-repository -y ppa:openjdk-r/ppa
-  CHECK add-apt-repository -y ppa:george-edison55/cmake-3.x
-  if [[ "${PYVER%.*}" == "3" ]]; then
-    CHECK tensorflow/tools/ci_build/install/install_python${PYVER}_pip_packages.sh
-  else
-    CHECK tensorflow/tools/ci_build/install/install_pip_packages.sh
-  fi
-  CHECK tensorflow/tools/ci_build/install/install_proto3.sh
-  CHECK tensorflow/tools/ci_build/install/install_auditwheel.sh
+  #echo "Installing test dependencies..."
+  #CHECK tensorflow/tools/ci_build/install/install_bootstrap_deb_packages.sh
+  #CHECK tensorflow/tools/ci_build/install/install_deb_packages.sh
+  #CHECK add-apt-repository -y ppa:openjdk-r/ppa
+  #CHECK add-apt-repository -y ppa:george-edison55/cmake-3.x
+  #if [[ "${PYVER%.*}" == "3" ]]; then
+  #  CHECK tensorflow/tools/ci_build/install/install_python${PYVER}_pip_packages.sh
+  #else
+  #  CHECK tensorflow/tools/ci_build/install/install_pip_packages.sh
+  #fi
+  #CHECK tensorflow/tools/ci_build/install/install_proto3.sh
+  #CHECK tensorflow/tools/ci_build/install/install_auditwheel.sh
 fi #aarch64 check
 
 export LD_LIBRARY_PATH=/usr/local/cuda/extras/CUPTI/lib64:$LD_LIBRARY_PATH
@@ -64,7 +64,6 @@ bazel test --config=cuda -c opt --verbose_failures --local_test_jobs=$GPUS \
               -- \
               //tensorflow/... \
               //tensorflow/contrib/tensorrt/... \
-              //tensorflow/contrib/cudnn_rnn:cudnn_rnn_ops_test \
               `# These are tested in serial below` \
               -//tensorflow/python:localhost_cluster_performance_test \
               -//tensorflow/core/debug:grpc_session_debug_test \
@@ -93,6 +92,10 @@ bazel test --config=cuda -c opt --verbose_failures --local_test_jobs=$GPUS \
               -//tensorflow/python/keras:data_utils_test \
               -//tensorflow/compiler/xla/tests:local_client_execute_test_gpu \
               -//tensorflow/compiler/xla/python:xla_client_test \
+              `# biasadd_matmul seems to suffer from but in TRT. [B] 2432079` \
+              -//tensorflow/contrib/tensorrt:biasadd_matmul_test \
+              -//tensorflow/compiler/xla/tests:exhaustive_f32_elementwise_op_test \
+              -//tensorflow/contrib/cudnn_rnn:cudnn_rnn_ops_test \
 2>&1 | tee testresult.tmp | grep '^\[\|^FAIL\|^Executed\|Build completed'
 
 FAILS=$((FAILS+$?))
