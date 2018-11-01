@@ -33,7 +33,7 @@ run_and_check() {
   RESULT_FILE="result_${model_logdirs[$1]}"
   LOG_FILE="log_${model_logdirs[$1]}"
   # Run inference
-  common_args="--config_file="$MODEL_DIR/$MODEL_LOGDIR/$MODEL_CONFIG" \
+  common_args="--config_file="$TEST_DIR/$MODEL_CONFIG" \
                 --mode=infer \
                 --infer_output_file=$TEMP_OUTPUT_FILE \
                 --logdir=$MODEL_DIR/$MODEL_LOGDIR"
