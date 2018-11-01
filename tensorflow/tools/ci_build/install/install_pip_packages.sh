@@ -23,7 +23,13 @@ set -e
 # Install pip packages from whl files to avoid the time-consuming process of
 # building from source.
 
-pip2 install wheel
+# Pin wheel==0.31.1 to work around issue
+# https://github.com/pypa/auditwheel/issues/102
+pip2 install wheel==0.31.1
+
+# Install last working version of setuptools. This must happen before we install
+# absl-py, which uses install_requires notation introduced in setuptools 20.5.
+pip2 install --upgrade setuptools==39.1.0
 
 pip2 install virtualenv
 
@@ -57,7 +63,7 @@ else
   pip2 install --upgrade numpy==1.14.5
 fi
 
-pip2 install scipy==0.19.0
+pip2 install scipy==1.1.0
 
 pip2 install scikit-learn==0.18.1
 
@@ -87,13 +93,7 @@ pip2 install --upgrade astor
 pip2 install --upgrade gast
 pip2 install --upgrade termcolor
 
-# Install last working version of setuptools.
-pip2 install --upgrade setuptools==39.1.0
-
 # Keras
-pip2 install keras_applications==1.0.5 --no-deps
-pip2 install keras_preprocessing==1.0.3 --no-deps
+pip2 install keras_applications==1.0.6 --no-deps
+pip2 install keras_preprocessing==1.0.5 --no-deps
 pip2 install --upgrade h5py==2.8.0
-
-# Install last working version of setuptools.
-pip2 install --upgrade setuptools==39.1.0

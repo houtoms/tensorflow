@@ -102,7 +102,6 @@ unique_op_test.py
 variable_ops_test.py
 xent_op_test.py
 zero_division_test.py
-cond_v2_test.py
 constant_op_test.py
 gather_nd_op_test.py
 io_ops_test.py

@@ -52,7 +52,8 @@ if [[ $TESTLIST -eq 1 ]]; then
              -//tensorflow/compiler/tests:sort_ops_test \
              -//tensorflow/compiler/tests:reduce_window_test \
              -//tensorflow/compiler/tests:dynamic_slice_ops_test \
-             -//tensorflow/compiler/tests:sort_ops_test
+             -//tensorflow/compiler/tests:sort_ops_test \
+             -//tensorflow/compiler/tests:xla_ops_test
 fi
 
 if [[ $IN_CONTAINER -eq 1 ]]; then

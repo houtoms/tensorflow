@@ -2,7 +2,7 @@ FROM gitlab-dl.nvidia.com:5005/dgx/cuda:10.0-devel-ubuntu16.04--18.11
 
 ENV LD_LIBRARY_PATH /usr/local/cuda/extras/CUPTI/lib64:${LD_LIBRARY_PATH}
 
-ENV TENSORFLOW_VERSION 1.11.0+
+ENV TENSORFLOW_VERSION 1.12.0rc1+
 LABEL com.nvidia.tensorflow.version="${TENSORFLOW_VERSION}"
 ENV NVIDIA_TENSORFLOW_VERSION 18.11
 
@@ -51,8 +51,8 @@ RUN DALI_VERSION=0.4.1 \
         mock \
         portpicker \
         h5py \
-        keras_applications==1.0.5 \
-        keras_preprocessing==1.0.3
+        keras_preprocessing==1.0.5 \
+        keras_applications==1.0.6
 
 # other OpenSeq2Seq dependencies
 RUN pip install --no-cache-dir --upgrade \

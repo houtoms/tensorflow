@@ -883,7 +883,7 @@ class NormalizeDescriptor {
 
 // Describes a kind of non-linearity (threshold-like mathematical function).
 enum class ActivationMode {
-  kNone,
+  kNone = 0,
   kSigmoid,
   // Rectified linear activation: f(x) = x < 0 ? 0 : x
   kRelu,
@@ -895,6 +895,8 @@ enum class ActivationMode {
   kTanh,
   // Like ReluX, but passes all values in the range [-X,X].
   kBandPass,
+
+  kNumActivationModes,  // Always in the end.
 };
 
 // Returns a string representation of the given activation mode.
