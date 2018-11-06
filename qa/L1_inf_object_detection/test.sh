@@ -8,7 +8,7 @@ source $PWD/../inference/object_detection/setup_env.sh
 
 pushd $PWD/../../nvidia-examples/inference/object-detection
 
-#./setup.sh
+./setup.sh
 
 # TENSORFLOW TESTS
 
