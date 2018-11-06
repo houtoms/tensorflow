@@ -407,12 +407,13 @@ def validate(infer_func, params):
         except KeyboardInterrupt:
             print("Keyboard interrupt")
 
-    if export_dir is not None:
-        input_receiver_fn = _build_serving_input_receiver_fn(
-            shape=[image_height, image_width, 3], 
-            dtype=tf.float16 if precision == 'fp16' else tf.float32, 
-            batch_size=None)
-        classifier.export_savedmodel(export_dir, input_receiver_fn)
+    if hvd.rank() == 0:
+        if export_dir is not None:
+            input_receiver_fn = _build_serving_input_receiver_fn(
+                shape=[image_height, image_width, 3], 
+                dtype=tf.float16 if precision == 'fp16' else tf.float32, 
+                batch_size=None)
+            classifier.export_savedmodel(export_dir, input_receiver_fn)
 
 def predict(infer_func, params):
     image_width = params['image_width']
