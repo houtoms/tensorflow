@@ -629,6 +629,10 @@ L0_resnet_sanity--P100_R384_4GPU:
     <<: *L0_TEST
     <<: *P100_R384_4GPU
 
+L0_cnn_saved_model_sanity--P100_R384_4GPU:
+    <<: *L0_TEST
+    <<: *P100_R384_4GPU
+
 L0_resnet_dali_sanity--P100_R384_4GPU:
     <<: *L0_TEST
     <<: *P100_R384_4GPU
@@ -907,6 +911,10 @@ L0_resnet_sanity--V100_R384_4GPU:
     <<: *L0_TEST
     <<: *V100_R384_4GPU
 
+L0_cnn_saved_model_sanity--V100_R384_4GPU:
+    <<: *L0_TEST
+    <<: *V100_R384_4GPU
+
 L0_resnet_dali_sanity--V100_R384_4GPU:
     <<: *L0_TEST
     <<: *V100_R384_4GPU
@@ -1073,6 +1081,10 @@ L0_resnet_sanity--py2--V100_R384_4GPU:
     <<: *L0_TEST
     <<: *V100_R384_4GPU
 
+L0_cnn_saved_model_sanity--py2--V100_R384_4GPU:
+    <<: *L0_TEST
+    <<: *V100_R384_4GPU
+
 L0_resnet_dali_sanity--py2--V100_R384_4GPU:
     <<: *L0_TEST
     <<: *V100_R384_4GPU
@@ -1217,6 +1229,10 @@ L0_resnet_sanity--P40_R384_1GPU:
     <<: *L0_TEST
     <<: *P40_R384_1GPU
 
+L0_cnn_saved_model_sanity--P40_R384_1GPU:
+    <<: *L0_TEST
+    <<: *P40_R384_1GPU
+
 L0_resnet_dali_sanity--P40_R384_1GPU:
     <<: *L0_TEST
     <<: *P40_R384_1GPU
@@ -1350,6 +1366,10 @@ L0_python_kernel_tests--M40_R384_1GPU:
 
 ####  NVIDIA CNN TESTS  ####
 L0_resnet_sanity--M40_R384_1GPU:
+    <<: *L0_TEST
+    <<: *M40_R384_1GPU
+
+L0_cnn_saved_model_sanity--M40_R384_1GPU:
     <<: *L0_TEST
     <<: *M40_R384_1GPU
 
