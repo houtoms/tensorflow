@@ -47,7 +47,7 @@ pip install virtualenv
 pip3 install virtualenv
 
 # Install bazel
-BAZEL_VERSION=0.15.0
+BAZEL_VERSION=0.18.1
 mkdir -p /tmp/bazel
 pushd /tmp/bazel
 wget https://github.com/bazelbuild/bazel/releases/download/${BAZEL_VERSION}/bazel-${BAZEL_VERSION}-dist.zip

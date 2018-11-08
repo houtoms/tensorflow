@@ -24,7 +24,27 @@ KERNEL_OUT=${OUTPUT_LIST[0]}
 XLA_OUT=${OUTPUT_LIST[1]}
 WHL_OUT=${OUTPUT_LIST[2]}
 
+KERNEL_TEST_RETURN=0
+XLA_TEST_RETURN=0
+BAZEL_BUILD_RETURN=0
+if [[ $IN_CONTAINER -eq 1 ]]; then
+  bazel build $(cat $BUILD_OPTS) \
+      tensorflow/tools/pip_package:build_pip_package \
+      //tensorflow:libtensorflow_cc.so \
+      //tensorflow:libtensorflow_framework.so
+  BAZEL_BUILD_RETURN=$?
+  mkdir -p /usr/local/lib/tensorflow
+  cp bazel-bin/tensorflow/libtensorflow_*.so /usr/local/lib/tensorflow/
+else
+  bazel build $(cat $BUILD_OPTS) \
+      tensorflow/tools/pip_package:build_pip_package
+  BAZEL_BUILD_RETURN=$?
+fi
 
+if [ ${BAZEL_BUILD_RETURN} -gt 0 ]
+then
+  exit ${BAZEL_BUILD_RETURN}
+fi
 # Build the test lists for L1 kernel and xla tests
 if [[ $TESTLIST -eq 1 ]]; then
   rm -f "${KERNEL_OUT}/tests.list" \
@@ -39,6 +59,7 @@ if [[ $TESTLIST -eq 1 ]]; then
              -//tensorflow/python/kernel_tests:ackermann_test \
              -//tensorflow/python/kernel_tests:duplicate_op_test \
              -//tensorflow/python/kernel_tests:invalid_op_test
+      KERNEL_TEST_RETURN=$?  
   bazel test $(cat $BUILD_OPTS) --verbose_failures --local_test_jobs=1 \
              --run_under="$THIS_DIR/tools/test_grabber.sh $XLA_OUT" \
              --build_tests_only --test_tag_filters=-no_gpu,-benchmark-test \
@@ -54,19 +75,10 @@ if [[ $TESTLIST -eq 1 ]]; then
              -//tensorflow/compiler/tests:dynamic_slice_ops_test \
              -//tensorflow/compiler/tests:sort_ops_test \
              -//tensorflow/compiler/tests:xla_ops_test
+        XLA_TEST_RETURN=$?
 fi
 
-if [[ $IN_CONTAINER -eq 1 ]]; then
-  bazel build $(cat $BUILD_OPTS) \
-      tensorflow/tools/pip_package:build_pip_package \
-      //tensorflow:libtensorflow_cc.so \
-      //tensorflow:libtensorflow_framework.so
-  mkdir -p /usr/local/lib/tensorflow
-  cp bazel-bin/tensorflow/libtensorflow_*.so /usr/local/lib/tensorflow/
-else
-  bazel build $(cat $BUILD_OPTS) \
-      tensorflow/tools/pip_package:build_pip_package
-fi
+
 bazel-bin/tensorflow/tools/pip_package/build_pip_package $WHL_OUT --gpu
 pip$PYVER install --no-cache-dir --upgrade $WHL_OUT/tensorflow_gpu-*.whl
 if [[ $NOCLEAN -eq 0 ]]; then
