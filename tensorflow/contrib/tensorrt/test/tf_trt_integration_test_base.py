@@ -270,7 +270,10 @@ class TfTrtIntegrationTestBase(test_util.TensorFlowTestCase):
         for i in range(output_len):
           self.assertEqual(params.expected_output_dims[i], new_val[i].shape)
         if val is not None:
-          self.assertAllClose(val, new_val, atol=1.e-06, rtol=1.e-06)
+          self.assertAllClose(
+            val, new_val,
+            atol=1.e-06 if run_params.precision_mode=="FP32" else 1.e-5,
+            rtol=1.e-06 if run_params.precision_mode=="FP32" else 1.e-5)
         val = new_val
         self.VerifyRun(run_params, graph_state)
     return val
