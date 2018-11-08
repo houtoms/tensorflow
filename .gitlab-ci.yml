@@ -415,15 +415,15 @@ gather wheels:
       variables:
         - $TARGET == "jetson"
 
-jetson-tx2-py2-wheel:
-    stage: build base
-    <<: *BASE_WHEEL_METAL
-    <<: *TX2
+# jetson-tx2-py2-wheel:
+#     stage: build base
+#     <<: *BASE_WHEEL_METAL
+#     <<: *TX2
 
-jetson-tx2-py3-wheel:
-    stage: build base
-    <<: *BASE_WHEEL_METAL
-    <<: *TX2
+# jetson-tx2-py3-wheel:
+#     stage: build base
+#     <<: *BASE_WHEEL_METAL
+#     <<: *TX2
 
 jetson-xavier-py2-wheel:
     stage: build base
