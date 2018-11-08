@@ -624,6 +624,10 @@ L1_inf_translation--P100_R384_4GPU:
     <<: *L1_TEST
     <<: *P100_R384_4GPU
 
+L1_tftrt--P100_R384_4GPU:
+    <<: *L1_TEST
+    <<: *P100_R384_4GPU
+
 ####  NVIDIA CNN TESTS  ####
 L0_resnet_sanity--P100_R384_4GPU:
     <<: *L0_TEST
@@ -816,6 +820,10 @@ L1_xla_tests--TU102_R410_1GPU:
     <<: *L1_TEST
     <<: *TU102_R410_1GPU
 
+L1_tftrt--TU102_R410_1GPU:
+    <<: *L1_TEST
+    <<: *TU102_R410_1GPU
+
 L2_inf_image_classification_tftrt_int8--TU102_R410_1GPU:
     <<: *L2_TEST
     <<: *TU102_R410_1GPU
@@ -903,6 +911,10 @@ L1_inf_object_detection--V100_R384_1GPU:
     <<: *V100_R384_1GPU
 
 L1_inf_translation--V100_R384_1GPU:
+    <<: *L1_TEST
+    <<: *V100_R384_1GPU
+
+L1_tftrt--V100_R384_1GPU:
     <<: *L1_TEST
     <<: *V100_R384_1GPU
 
@@ -1302,6 +1314,10 @@ L1_xla_tests--P40_R384_2GPU:
     <<: *L1_TEST
     <<: *P40_R384_2GPU
 
+L1_tftrt--P40_R384_2GPU:
+    <<: *L1_TEST
+    <<: *P40_R384_2GPU
+
 L2_models_cifar10--P40_R384_1GPU:
     <<: *L2_TEST
     <<: *P40_R384_1GPU
@@ -1564,6 +1580,10 @@ L1_inf_object_detection--py3.6--TX2:
   <<: *L1_TEST_JETSON
   <<: *TX2
 
+L1_tftrt--py3.6--TX2:
+  <<: *L1_TEST_JETSON
+  <<: *TX2
+
 #### XAVIER ####
 
 L0_models_alexnet--py3.6--XAVIER:
@@ -1679,6 +1699,10 @@ L1_inf_object_detection--py2--XAVIER:
     <<: *XAVIER
 
 L1_inf_object_detection--py3.6--XAVIER:
+    <<: *L1_TEST_JETSON
+    <<: *XAVIER
+
+L1_tftrt--py3.6--XAVIER:
     <<: *L1_TEST_JETSON
     <<: *XAVIER
 
