@@ -150,7 +150,8 @@ class HybridPipe(dali.pipeline.Pipeline):
                  num_threads,
                  device_id,
                  num_gpus,
-                 deterministic=False):
+                 deterministic=False,
+                 dali_pipeline_variant="GPU"):
 
         kwargs = dict()
         if deterministic:
@@ -172,16 +173,27 @@ class HybridPipe(dali.pipeline.Pipeline):
                 'image/object/bbox/ymin':dali.tfrecord.VarLenFeature(dali.tfrecord.float32, 0.0),
                 'image/object/bbox/xmax':dali.tfrecord.VarLenFeature(dali.tfrecord.float32, 0.0),
                 'image/object/bbox/ymax':dali.tfrecord.VarLenFeature(dali.tfrecord.float32, 0.0)})
-        self.decode = dali.ops.nvJPEGDecoder(
-            device="mixed",
-            output_type=dali.types.RGB)
-        self.resize = dali.ops.RandomResizedCrop(
-            device="gpu",
-            size=[height, width],
-            interp_type=dali.types.INTERP_LINEAR,
-            random_aspect_ratio=[0.8, 1.25],
-            random_area=[0.1, 1.0],
-            num_attempts=100)
+        if dali_pipeline_variant == "CPU":
+            self.decode = dali.ops.HostDecoder(device="cpu", output_type=dali.types.RGB)
+            self.resize = dali.ops.RandomResizedCrop(
+                device="cpu",
+                size=[height, width],
+                interp_type=dali.types.INTERP_LINEAR,
+                random_aspect_ratio=[0.8, 1.25],
+                random_area=[0.1, 1.0],
+                num_attempts=100)
+        else:
+            self.decode = dali.ops.nvJPEGDecoder(
+                device="mixed",
+                output_type=dali.types.RGB)
+            self.resize = dali.ops.RandomResizedCrop(
+                device="gpu",
+                size=[height, width],
+                interp_type=dali.types.INTERP_LINEAR,
+                random_aspect_ratio=[0.8, 1.25],
+                random_area=[0.1, 1.0],
+                num_attempts=100)
+
         self.normalize = dali.ops.CropMirrorNormalize(
             device="gpu",
             output_dtype=dali.types.FLOAT,
@@ -204,7 +216,7 @@ class HybridPipe(dali.pipeline.Pipeline):
         # Decode and augmentation
         images = self.decode(images)
         images = self.resize(images)
-        images = self.normalize(images, mirror=self.mirror())
+        images = self.normalize(images.gpu(), mirror=self.mirror())
 
         return (images, labels)
 
@@ -219,6 +231,7 @@ class DaliPreprocessor(object):
                  batch_size,
                  num_threads,
                  dtype=tf.uint8,
+                 dali_pipeline_variant="GPU",
                  deterministic=False):
         pipe = HybridPipe(
             tfrec_filenames=filenames,
@@ -229,7 +242,8 @@ class DaliPreprocessor(object):
             num_threads=num_threads,
             device_id=hvd.rank(),
             num_gpus=hvd.size(),
-            deterministic=deterministic)
+            deterministic=deterministic,
+            dali_pipeline_variant=dali_pipeline_variant)
         serialized_pipe = pipe.serialize()
         del pipe
 
@@ -248,7 +262,7 @@ class DaliPreprocessor(object):
 
 def image_set(filenames, batch_size, height, width, training=False,
               distort_color=False, num_threads=10, nsummary=10,
-              deterministic=False, use_dali=False, idx_filenames=None):
+              deterministic=False, use_dali=None, idx_filenames=None):
     if use_dali:
         if idx_filenames is None:
             raise ValueError("Must provide idx_filenames if Dali is enabled")
@@ -270,6 +284,7 @@ def image_set(filenames, batch_size, height, width, training=False,
             height, width,
             batch_size,
             num_threads,
+            dali_pipeline_variant=use_dali,
             deterministic=deterministic)
         images, labels = preprocessor.get_device_minibatches()
         return (images, labels)

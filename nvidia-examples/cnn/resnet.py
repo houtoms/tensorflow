@@ -43,6 +43,7 @@ default_args = {
     'iter_unit' : 'batch',
     'checkpoint_secs' : None,
     'display_every' : 10,
+    'use_dali' : None,
 }
 
 formatter = argparse.ArgumentDefaultsHelpFormatter

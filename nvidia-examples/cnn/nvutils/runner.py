@@ -259,7 +259,7 @@ def train(infer_func, params):
             'larc_mode' : larc_mode,
             'deterministic' : deterministic,
             'n_classes':     1000,
-            'use_dali': use_dali,
+            'use_dali': use_dali
         },
         config=tf.estimator.RunConfig(
             tf_random_seed=2 * (1 + hvd.rank()) if deterministic else None,

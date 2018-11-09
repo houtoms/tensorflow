@@ -633,7 +633,11 @@ L0_cnn_saved_model_sanity--P100_R384_4GPU:
     <<: *L0_TEST
     <<: *P100_R384_4GPU
 
-L0_resnet_dali_sanity--P100_R384_4GPU:
+L0_resnet_dali_cpu_sanity--P100_R384_4GPU:
+    <<: *L0_TEST
+    <<: *P100_R384_4GPU
+
+L0_resnet_dali_gpu_sanity--P100_R384_4GPU:
     <<: *L0_TEST
     <<: *P100_R384_4GPU
 
@@ -915,7 +919,11 @@ L0_cnn_saved_model_sanity--V100_R384_4GPU:
     <<: *L0_TEST
     <<: *V100_R384_4GPU
 
-L0_resnet_dali_sanity--V100_R384_4GPU:
+L0_resnet_dali_cpu_sanity--V100_R384_4GPU:
+    <<: *L0_TEST
+    <<: *V100_R384_4GPU
+
+L0_resnet_dali_gpu_sanity--V100_R384_4GPU:
     <<: *L0_TEST
     <<: *V100_R384_4GPU
 
@@ -1085,7 +1093,11 @@ L0_cnn_saved_model_sanity--py2--V100_R384_4GPU:
     <<: *L0_TEST
     <<: *V100_R384_4GPU
 
-L0_resnet_dali_sanity--py2--V100_R384_4GPU:
+L0_resnet_dali_cpu_sanity--py2--V100_R384_4GPU:
+    <<: *L0_TEST
+    <<: *V100_R384_4GPU
+
+L0_resnet_dali_gpu_sanity--py2--V100_R384_4GPU:
     <<: *L0_TEST
     <<: *V100_R384_4GPU
 
@@ -1233,7 +1245,11 @@ L0_cnn_saved_model_sanity--P40_R384_1GPU:
     <<: *L0_TEST
     <<: *P40_R384_1GPU
 
-L0_resnet_dali_sanity--P40_R384_1GPU:
+L0_resnet_dali_cpu_sanity--P40_R384_1GPU:
+    <<: *L0_TEST
+    <<: *P40_R384_1GPU
+
+L0_resnet_dali_gpu_sanity--P40_R384_1GPU:
     <<: *L0_TEST
     <<: *P40_R384_1GPU
 
@@ -1373,7 +1389,11 @@ L0_cnn_saved_model_sanity--M40_R384_1GPU:
     <<: *L0_TEST
     <<: *M40_R384_1GPU
 
-L0_resnet_dali_sanity--M40_R384_1GPU:
+L0_resnet_dali_cpu_sanity--M40_R384_1GPU:
+    <<: *L0_TEST
+    <<: *M40_R384_1GPU
+
+L0_resnet_dali_gpu_sanity--M40_R384_1GPU:
     <<: *L0_TEST
     <<: *M40_R384_1GPU
 
