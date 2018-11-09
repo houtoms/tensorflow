@@ -1126,6 +1126,21 @@ class CudnnRnnDescriptor : public dnn::RnnDescriptor {
     }
 #endif
 
+#if CUDNN_VERSION >= 7201
+    // The above bug nvbugs/2172799 has been covered from cuDNN v7.2.1.
+    if (RnnTensorOpMathEnabled()) {
+      cudnnMathType_t math_type =
+          algorithm_config.algorithm().tensor_ops_enabled()
+              ? CUDNN_TENSOR_OP_MATH
+              : CUDNN_DEFAULT_MATH;
+      if (math_type == CUDNN_TENSOR_OP_MATH && RnnTensorOpFp32MathEnabled()) {
+        math_type = CUDNN_TENSOR_OP_MATH_ALLOW_CONVERSION;
+      }
+      CHECK_CUDNN_OK(cudnnSetRNNMatrixMathType(rnn_desc.get(), math_type));
+    }
+#endif
+
+
     return CudnnRnnDescriptor(cudnn, std::move(rnn_desc), std::move(rnn_plan),
                               num_layers, hidden_size, input_size, batch_size,
                               input_mode, direction_mode, rnn_mode, data_type,
