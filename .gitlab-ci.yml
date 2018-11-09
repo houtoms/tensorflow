@@ -368,6 +368,12 @@ gather wheels:
 .XAVIER: &XAVIER
     tags:
     - XAVIER
+    - PY3
+
+.XAVIER_PY2: &XAVIER_PY2
+    tags:
+    - XAVIER
+    - PY2
 
 .V100_R410_16GPU: &V100_R410_16GPU
     tags:
@@ -422,7 +428,7 @@ jetson-tx2-py3-wheel:
 jetson-xavier-py2-wheel:
     stage: build base
     <<: *BASE_WHEEL_METAL
-    <<: *XAVIER
+    <<: *XAVIER_PY2
 
 jetson-xavier-py3.6-wheel:
     stage: build base
@@ -453,7 +459,7 @@ jetson-xavier-py3.6-wheel:
     - set -x &&
       python${PYVER} -m virtualenv ./tf_env${PYVER} &&
       source ./tf_env${PYVER}/bin/activate &&
-      pip install --find-links=file://$PWD/wheelhouse/${JPVER} ${PIP_PACKAGE_NAME} &&
+      pip install -U --find-links=file://$PWD/wheelhouse/${JPVER} ${PIP_PACKAGE_NAME} &&
       cd ${TEST_WORK_DIR} &&
       exec bash -ex ${TEST_SCRIPT} || RV=$?;
       set +x;
@@ -1680,55 +1686,55 @@ L3_self_tests--py3.6--XAVIER:
 
 L0_models_alexnet--py2--XAVIER:
     <<: *L0_TEST_JETSON
-    <<: *XAVIER
+    <<: *XAVIER_PY2
 
 L0_models_imagenet--py2--XAVIER:
     <<: *L0_TEST_JETSON
-    <<: *XAVIER
+    <<: *XAVIER_PY2
 
 L0_models_mnist--py2--XAVIER:
     <<: *L0_TEST_JETSON
-    <<: *XAVIER
+    <<: *XAVIER_PY2
 
 L0_tftrt--py2--XAVIER:
     <<: *L0_TEST_JETSON
-    <<: *XAVIER
+    <<: *XAVIER_PY2
 
 L0_inference--py2--XAVIER:
     <<: *L0_TEST_JETSON
-    <<: *XAVIER
+    <<: *XAVIER_PY2
 
 L0_python_kernel_tests--py2--XAVIER:
     <<: *L0_TEST_JETSON
-    <<: *XAVIER
+    <<: *XAVIER_PY2
 
 L1_inf_image_classification_tf--py2--XAVIER:
     <<: *L1_TEST_JETSON
-    <<: *XAVIER
+    <<: *XAVIER_PY2
 
 L1_inf_image_classification_tftrt--py2--XAVIER:
     <<: *L1_TEST_JETSON
-    <<: *XAVIER
+    <<: *XAVIER_PY2
 
 L1_inf_image_classification_tftrt_fp16--py2--XAVIER:
     <<: *L1_TEST_JETSON
-    <<: *XAVIER
+    <<: *XAVIER_PY2
 
 L1_inf_image_classification_tftrt--py3.6--XAVIER:
     <<: *L1_TEST_JETSON
-    <<: *XAVIER
+    <<: *XAVIER_PY2
 
 L1_inf_image_classification_tftrt_fp16--py3.6--XAVIER:
     <<: *L1_TEST_JETSON
-    <<: *XAVIER
+    <<: *XAVIER_PY2
 
 L1_inf_object_detection--py2--XAVIER:
     <<: *L1_TEST_JETSON
-    <<: *XAVIER
+    <<: *XAVIER_PY2
 
 L1_inf_object_detection--py3.6--XAVIER:
     <<: *L1_TEST_JETSON
-    <<: *XAVIER
+    <<: *XAVIER_PY2
 
 L1_tftrt--py3.6--XAVIER:
     <<: *L1_TEST_JETSON
@@ -1736,4 +1742,4 @@ L1_tftrt--py3.6--XAVIER:
 
 L2_inf_image_classification_tftrt_int8--py2--XAVIER:
     <<: *L2_TEST_JETSON
-    <<: *XAVIER
+    <<: *XAVIER_PY2
