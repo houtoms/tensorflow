@@ -1,1 +1,1 @@
---config=opt --config=cuda
+-c opt --config=opt --config=noaws --config=noignite --config=nokafka --config=nohdfs --cpu=arm --host_cpu=arm --cxxopt=-D_GLIBCXX_USE_CXX11_ABI=0
