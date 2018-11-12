@@ -93,7 +93,8 @@ RUN mkdir -p /workspace/nvidia-examples && \
 
 ENV CUDA_TOOLKIT_PATH=/usr/local/cuda \
     CUDNN_INSTALL_PATH=/usr/lib/x86_64-linux-gnu \
-    NCCL_INSTALL_PATH=/usr
+    NCCL_INSTALL_PATH=/usr \
+    NCCL_HEADER_PATH=/usr
 
 # Build and install TF
 RUN ./nvbuild.sh --testlist --python$PYVER
