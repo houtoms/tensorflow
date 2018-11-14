@@ -40,7 +40,7 @@ default_args = {
     'larc_eta' : 0.003,
     'larc_mode' : 'clip',
     'num_iter' : 90,
-    'iter_unit' : 'batch',
+    'iter_unit' : 'epoch',
     'checkpoint_secs' : None,
     'display_every' : 10,
     'use_dali' : None,
