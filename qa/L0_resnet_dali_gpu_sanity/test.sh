@@ -17,10 +17,10 @@ DATA="--data_dir=/data/imagenet/train-val-tfrecord-480 \
 
 get_PERF() {
     PRECISION=$1
-    
+
     mpiexec --bind-to none --allow-run-as-root -np $GPUS python -u \
         ../../nvidia-examples/cnn/resnet.py \
-        --use_dali \
+        --use_dali="GPU" \
         --layers=50 \
         --num_iter=101 \
         --iter_unit=batch \
@@ -28,13 +28,13 @@ get_PERF() {
         $DATA \
         --batch=$BATCH_SIZE \
         --precision=$PRECISION &> log.tmp
-    
+
     if [[ $? -ne 0 ]]; then
         cat log.tmp
         echo TRAINING SCRIPT FAILED
         exit 1
     fi
-    
+
     PERF=$(grep "^ *100 " log.tmp | awk '{print $3}')
 
     if [[ -z "$PERF" ]]; then

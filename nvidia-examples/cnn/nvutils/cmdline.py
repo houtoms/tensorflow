@@ -94,9 +94,13 @@ def parse_cmdline(init_vals, custom_parser=None):
                    default=_default(init_vals, 'precision'),
                    required=_required(init_vals, 'precision'),
                    help="""Select single or half precision arithmetic.""")
-    p.add_argument('--use_dali', action='store_true',
-                   default=False,
-                   help="""Use DALI for input pipeline""")
+    p.add_argument('--use_dali', choices=['CPU', 'GPU'],
+                   default=_default(init_vals, 'use_dali'),
+                   required=_required(init_vals, 'use_dali'),
+                   nargs='?', const='GPU',
+                   help="""Use DALI for input pipeline, available values are
+                   [CPU|GPU] which tell which version of the pipeline run.
+                   Default is GPU""")
     p.add_argument('--predict', action='store_true',
                    default=False,
                    help="""Use the script only for prediction""")
@@ -112,7 +116,7 @@ def parse_cmdline(init_vals, custom_parser=None):
         for flag, val in vars(FLAGS).items():
             if val is not None:
                 print("  --{} {}".format(flag, val))
-   
+
     vals = init_vals
     vals['data_dir'] = FLAGS.data_dir
     del FLAGS.data_dir
@@ -138,4 +142,3 @@ def parse_cmdline(init_vals, custom_parser=None):
     del FLAGS.predict
 
     return vals, FLAGS
-
