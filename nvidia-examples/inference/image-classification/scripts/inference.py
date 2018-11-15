@@ -118,7 +118,8 @@ def run(frozen_graph, model, data_dir, batch_size,
     tf_config.gpu_options.allow_growth = True
     estimator = tf.estimator.Estimator(
         model_fn=model_fn,
-        config=tf.estimator.RunConfig(session_config=tf_config))
+        config=tf.estimator.RunConfig(session_config=tf_config),
+        model_dir='model_dir')
     results = estimator.evaluate(eval_input_fn, steps=num_iterations, hooks=[logger])
     
     # Gather additional results
