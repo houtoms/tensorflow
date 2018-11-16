@@ -11,9 +11,16 @@ popd
 
 OUTPUT_PATH=$PWD
 pushd ../../nvidia-examples/inference/image-classification/scripts
+JESTON=false
+
+NATIVE_ARCH=`uname -m`
+
+if [ ${NATIVE_ARCH} == 'aarch64' ]; then
+  JETSON=true
+fi
+
 
 set_models() {
-  NATIVE_ARCH=`uname -m`
   models=(
     mobilenet_v1
     mobilenet_v2
@@ -26,7 +33,7 @@ set_models() {
     inception_v3
     inception_v4
   )
-  if [ ${NATIVE_ARCH} == 'x86_64' ]; then
+  if $JETSON ; then
     models+=(vgg_16)
     models+=(vgg_19)
   fi
@@ -55,6 +62,9 @@ do
       --use_trt \
       2>&1 | tee $OUTPUT_PATH/output_tftrt_$model
   python -u check_accuracy.py --input $OUTPUT_PATH/output_tftrt_$model
+  if $JETSON ; then
+    python -u check_performance.py --input_path $OUTPUT_PATH --model $model --batch_size 8 --precision tftrt_fp32
+  fi
   echo "DONE testing $model"
 done
 popd
