@@ -31,7 +31,7 @@ set_models() {
     inception_v3
     inception_v4
   )
-  if $JETSON ; then
+  if ! $JETSON ; then
     models+=(vgg_16)
     models+=(vgg_19)
   fi
@@ -45,8 +45,8 @@ do
       --data_dir "/data/imagenet/train-val-tfrecord" \
       --default_models_dir "/data/tensorflow/models" \
       --model $model \
-      2>&1 | tee $OUTPUT_PATH/output_$model
-  python -u check_accuracy.py --input $OUTPUT_PATH/output_$model
+      2>&1 | tee $OUTPUT_PATH/output_tf_fp32_bs8_$model
+  python -u check_accuracy.py --input $OUTPUT_PATH/output_tf_fp32_bs8_$model
 
   if $JETSON ; then
     python -u check_performance.py --input_path $OUTPUT_PATH --model $model --batch_size 8 --precision tf_fp32
