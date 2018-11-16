@@ -33,7 +33,7 @@ set_models() {
     inception_v3
     #inception_v4
   )
-  if [ ${JETSON} == false ]; then
+  if ! $JETSON; then
     models+=(vgg_16)
     models+=(vgg_19)
   fi
@@ -64,7 +64,7 @@ do
       --batch_size 8 \
       --precision int8 \
       2>&1 | tee $OUTPUT_PATH/output_tftrt_int8_bs8_$model
-  python -u check_accuracy.py --tolerance 1.0 --input $OUTPUT_PATH/output_tftrt_int8_bs8_$model
+  python -u check_accuracy.py --tolerance 1.0 --input_path $OUTPUT_PATH --precision tftrt_int8 --batch_size 8 --model $model
   if $JETSON ; then
     python -u check_performance.py --input_path $OUTPUT_PATH --model $model --batch_size 8 --precision tftrt_int8 
   fi

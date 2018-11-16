@@ -33,7 +33,7 @@ set_models() {
     inception_v3
     inception_v4
   )
-  if [ ${JETSON} == false ]; then
+  if ! $JETSON ; then
     models+=(nasnet_large)
     models+=(vgg_16)
     models+=(vgg_19)
@@ -60,7 +60,7 @@ do
       --use_trt \
       --precision fp16 \
       2>&1 | tee $OUTPUT_PATH/output_tftrt_fp16_bs8_$model
-  python -u check_accuracy.py --input $OUTPUT_PATH/output_tftrt_fp16_bs8_$model
+  python -u check_accuracy.py --input $OUTPUT_PATH --precision tftrt_fp16 --batch_size 8 --model $model
   if $JETSON ; then
     python -u check_performance.py --input_path $OUTPUT_PATH --model $model --precision tftrt_fp16 --batch_size 8 
   fi
