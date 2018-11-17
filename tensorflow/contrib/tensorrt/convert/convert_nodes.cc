@@ -64,14 +64,14 @@ limitations under the License.
 
 #define TFTRT_RETURN_ERROR_IF_FALSE(status, node) \
   do {                                            \
-    if (status == false) {                        \
+    if ((status) == false) {                      \
       TFTRT_INTERNAL_ERROR_AT_NODE(node);         \
     }                                             \
   } while (0)
 
 #define TFTRT_RETURN_ERROR_IF_NULLPTR(ptr, node) \
   do {                                           \
-    if (ptr == nullptr) {                        \
+    if ((ptr) == nullptr) {                      \
       TFTRT_INTERNAL_ERROR_AT_NODE(node);        \
     }                                            \
   } while (0)
@@ -1278,14 +1278,29 @@ tensorflow::Status ConvertConv2DHelper(
           << tf_stride[3];
   const nvinfer1::DimsHW stride(tf_stride[h_index], tf_stride[w_index]);
 
+  auto tf_dilations = attrs.get<std::vector<int>>("dilations");
+  if ((int)tf_dilations.size() != 4) {
+    return tensorflow::errors::InvalidArgument(
+        "Convolution dilations field must specify 4 dimensions " +
+        node_def.name());
+  }
+  if (tf_dilations[0] != 1 || tf_dilations[c_index] != 1) {
+    return tensorflow::errors::Unimplemented(
+        "Unsupported dilations in convolution, " + node_def.name());
+  }
+  nvinfer1::DimsHW dilation(tf_dilations[h_index], tf_dilations[w_index]);
+
   std::vector<std::pair<int, int>> padding;
   // TODO(jie): padding.
   if (attrs.get<string>("padding") == "SAME") {
     // This is NCHW tensor with no batch dimension.
     //  1 -> h
     //  2 -> w
+    nvinfer1::DimsHW effective_kernel_size = kernel_size;
+    effective_kernel_size.h() += (kernel_size.h() - 1) * (dilation.h() - 1);
+    effective_kernel_size.w() += (kernel_size.w() - 1) * (dilation.w() - 1);
     padding = CreateSamePadding(
-        stride, kernel_size,
+        stride, effective_kernel_size,
         {static_cast<int>(tensor_dim.d[1]), static_cast<int>(tensor_dim.d[2])});
   } else {
     padding = {{0, 0}, {0, 0}};
@@ -1307,23 +1322,10 @@ tensorflow::Status ConvertConv2DHelper(
     VLOG(2) << "TENSOR after: " << DebugString(tensor->getDimensions());
   }
 
-  auto tf_dilations = attrs.get<std::vector<int>>("dilations");
-  if ((int)tf_dilations.size() != 4) {
-    return tensorflow::errors::InvalidArgument(
-        "Convolution dilations field must specify 4 dimensions " +
-        node_def.name());
-  }
-  if (tf_dilations[0] != 1 || tf_dilations[c_index] != 1) {
-    return tensorflow::errors::Unimplemented(
-        "Unsupported dilations in convolution, " + node_def.name());
-  }
-  nvinfer1::DimsHW dilation(tf_dilations[h_index], tf_dilations[w_index]);
-
   nvinfer1::IConvolutionLayer* layer =
       ctx.network()->addConvolution(*const_cast<nvinfer1::ITensor*>(tensor),
                                     noutput, kernel_size, weights, biases);
   TFTRT_RETURN_ERROR_IF_NULLPTR(layer, node_def.name());
-
   layer->setStride(stride);
   layer->setPadding({padding[0].first, padding[1].first});
   layer->setName(node_def.name().c_str());
