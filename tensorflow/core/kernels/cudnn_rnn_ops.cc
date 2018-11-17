@@ -1486,10 +1486,12 @@ class CudnnRNNForwardVarSeqLenOp<GPUDevice, T> : public CudnnRNNKernelCommon {
   RnnStateCache rnn_state_cache_ GUARDED_BY(mu_);
 };
 
-#define REGISTER_GPU(T)                                                    \
-  REGISTER_KERNEL_BUILDER(                                                 \
-      Name("CudnnRNNVarSeqLen").Device(DEVICE_GPU).TypeConstraint<T>("T"), \
-      CudnnRNNForwardVarSeqLenOp<GPUDevice, T>);
+#define REGISTER_GPU(T)                                        \
+  REGISTER_KERNEL_BUILDER(Name("CudnnRNNVarSeqLen")            \
+                              .Device(DEVICE_GPU)              \
+                              .HostMemory("sequence_lengths")  \
+                              .TypeConstraint<T>("T"),         \
+                          CudnnRNNForwardVarSeqLenOp<GPUDevice, T>);
 
 TF_CALL_half(REGISTER_GPU);
 TF_CALL_float(REGISTER_GPU);
@@ -2029,10 +2031,11 @@ class CudnnRNNBackwardVarSeqLenOp<GPUDevice, T> : public CudnnRNNKernelCommon {
   }
 };
 
-#define REGISTER_GPU(T)                                     \
-  REGISTER_KERNEL_BUILDER(Name("CudnnRNNBackpropVarSeqLen") \
-                              .Device(DEVICE_GPU)           \
-                              .TypeConstraint<T>("T"),      \
+#define REGISTER_GPU(T)                                        \
+  REGISTER_KERNEL_BUILDER(Name("CudnnRNNBackpropVarSeqLen")    \
+                              .Device(DEVICE_GPU)              \
+                              .HostMemory("sequence_lengths")  \
+                              .TypeConstraint<T>("T"),         \
                           CudnnRNNBackwardVarSeqLenOp<GPUDevice, T>);
 
 TF_CALL_half(REGISTER_GPU);

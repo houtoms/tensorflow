@@ -1318,32 +1318,20 @@ class CudnnRnnVariableSequenceTensorDescriptor
 
   static port::StatusOr<CudnnRnnVariableSequenceTensorDescriptor> Create(
       CUDAExecutor* parent, int seq_length, int batch_size, int data_size,
-      int* seq_lens,  // This is the device memory
+      int* seq_lens,  // This is the host memory
       cudnnDataType_t data_type) {
     CHECK_GT(seq_length, 0);
     RNNDataDescriptor tensor_desc = CreateRNNDataDescriptor();
-    float paddingFill = 0.0f;
-    std::vector<int> seq_lens_h(batch_size);
-    cudaStream_t stream;
-    cudaStreamCreate(&stream);
-    auto status =
-        cudaMemcpyAsync(seq_lens_h.data(), seq_lens, sizeof(int) * batch_size,
-                        cudaMemcpyDeviceToHost, stream);
-    if (status != cudaSuccess) {
-      LOG(FATAL) << "Copy sequence lengths error \n";
-    }
-    // int seqx[] = {1,2,1,3,4};
-    // int vector_size = data_size*(isOutput?(isBidirectional?2:1):1);
+    float padding_fill = 0.0f;
     RETURN_IF_CUDNN_ERROR(cudnnSetRNNDataDescriptor(
         /*RNNDataDesc=*/tensor_desc.get(), /*dataType*/ data_type,
         /*layout=*/CUDNN_RNN_DATA_LAYOUT_SEQ_MAJOR_UNPACKED,
         /*maxSeqLength=*/seq_length,
         /*batchSize=*/batch_size, /*vectorSize=*/data_size,
-        /*seqLengthArray=*/seq_lens_h.data(),
-        /*paddingFill*/ (void*)&paddingFill));
-    cudaStreamDestroy(stream);
+        /*seqLengthArray=*/seq_lens,
+        /*paddingFill*/ (void*)&padding_fill));
     return CudnnRnnVariableSequenceTensorDescriptor(
-        parent, seq_length, batch_size, data_size, seq_lens_h.data(), data_type,
+        parent, seq_length, batch_size, data_size, seq_lens, data_type,
         true, std::move(tensor_desc));
   }
 
