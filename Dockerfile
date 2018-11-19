@@ -93,7 +93,7 @@ RUN mkdir -p /workspace/nvidia-examples && \
 
 ENV CUDA_TOOLKIT_PATH=/usr/local/cuda \
     CUDNN_INSTALL_PATH=/usr/lib/x86_64-linux-gnu \
-    NCCL_INSTALL_PATH=/usr \
+    NCCL_INSTALL_PATH=/usr/lib/x86_64-linux-gnu \
     NCCL_HDR_PATH=/usr/include
 
 # Build and install TF
