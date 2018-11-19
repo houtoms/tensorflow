@@ -71,30 +71,16 @@ run_inference() {
         --batch_size $bs
         --num_iterations 2000"
       unset TF_GPU_ALLOCATOR
-      
-      
+            
       python -u inference.py $common_args           --precision fp32                        2>&1 | tee $OUTPUT_PATH/output_tf_bs${bs}_fp32_$i
-      if $JETSON ; then
-        python -u check_performance.py --model $i --precision tf_fp32 --batch_size $bs --input_path $OUTPUT_PATH
-      fi
-      
+
       set_allocator
 
-
       python -u inference.py $common_args --use_trt --precision fp32                        2>&1 | tee $OUTPUT_PATH/output_tftrt_fp32_bs${bs}_$i
-      if $JETSON ; then
-        python -u check_performance.py --model $i --precision tftrt_fp32 --batch_size $bs --input_path $OUTPUT_PATH
-      fi
-      
+
       python -u inference.py $common_args --use_trt --precision fp16                        2>&1 | tee $OUTPUT_PATH/output_tftrt_fp16_bs${bs}_$i
-      if $JETSON ; then
-        python -u check_performance.py --model $i --precision tftrt_fp16 --batch_size $bs --input_path $OUTPUT_PATH
-      fi
       
       python -u inference.py $common_args --use_trt --precision int8 --num_calib_inputs 128 2>&1 | tee $OUTPUT_PATH/output_tftrt_int8_bs${bs}_$i
-      if $JETSON ; then
-        python -u check_performance.py --model $i --precision tftrt_int8 --batch_size $bs --input_path $OUTPUT_PATH
-      fi
       
       echo "DONE testing $i batch_size $bs"
     done

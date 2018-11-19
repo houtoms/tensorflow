@@ -22,15 +22,15 @@ fi
 
 set_models() {
   models=(
-    mobilenet_v1
-    mobilenet_v2
+    #mobilenet_v1
+    #mobilenet_v2
     #nasnet_large
     #nasnet_mobile
-    resnet_v1_50
-    resnet_v2_50
+    #resnet_v1_50
+    #resnet_v2_50
     #vgg_16
     #vgg_19
-    inception_v3
+    #inception_v3
     inception_v4
   )
   if ! $JETSON ; then
@@ -62,7 +62,9 @@ do
       2>&1 | tee $OUTPUT_PATH/output_tftrt_fp16_bs8_$model
   python -u check_accuracy.py --input $OUTPUT_PATH --precision tftrt_fp16 --batch_size 8 --model $model
   if $JETSON ; then
+    pushd ../../../../qa/inference/image_classification
     python -u check_performance.py --input_path $OUTPUT_PATH --model $model --precision tftrt_fp16 --batch_size 8 
+    popd
   fi
   echo "DONE testing $model"
 done

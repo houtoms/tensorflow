@@ -49,7 +49,9 @@ do
   python -u check_accuracy.py --input_path $OUTPUT_PATH --precision tf_fp32 --batch_size 8 --model $model
 
   if $JETSON ; then
+    pushd ../../../../qa/inference/image_classification
     python -u check_performance.py --input_path $OUTPUT_PATH --model $model --batch_size 8 --precision tf_fp32
+    popd
   fi
 
   echo "DONE testing $model"

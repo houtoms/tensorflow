@@ -1,5 +1,6 @@
 dest = {
-'output_tf_fp32_bs8_inception_v4':  34
+'output_tftrt_fp16_bs8_inception_v4': 100
+,'output_tf_fp32_bs8_inception_v4':  34
 ,'output_tftrt_int8_bs1_nasnet_mobile':  48
 ,'output_tftrt_int8_bs64_resnet_v2_50':  405
 ,'output_tftrt_int8_bs64_inception_v4':  284

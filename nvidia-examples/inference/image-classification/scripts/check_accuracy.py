@@ -64,7 +64,7 @@ if __name__ == "__main__":
     parser.add_argument('--tolerance', dest='tolerance', type=float, default=0.1)
     
     args = parser.parse_args()
-    filename = args.input_path + "output_" + args.precision + "_bs" + str(args.batch_size) + "_" + args.model
+    filename = args.input_path + "/output_" + args.precision + "_bs" + str(args.batch_size) + "_" + args.model
     tolerance = args.tolerance
 
     print()

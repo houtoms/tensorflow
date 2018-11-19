@@ -66,7 +66,9 @@ do
       2>&1 | tee $OUTPUT_PATH/output_tftrt_int8_bs8_$model
   python -u check_accuracy.py --tolerance 1.0 --input_path $OUTPUT_PATH --precision tftrt_int8 --batch_size 8 --model $model
   if $JETSON ; then
+    pushd ../../../../qa/inference/image_classification
     python -u check_performance.py --input_path $OUTPUT_PATH --model $model --batch_size 8 --precision tftrt_int8 
+    popd
   fi
   echo "DONE testing $model"
 done
