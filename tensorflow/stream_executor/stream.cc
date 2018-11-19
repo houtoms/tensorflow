@@ -5083,9 +5083,7 @@ Stream& Stream::ThenRnnForward(
     DeviceMemory<Eigen::half>* output_c_data, bool is_training,
     ScratchAllocator* reserve_space_allocator,
     ScratchAllocator* workspace_allocator,
-    dnn::ProfileResult* output_profile_result,
-    const dnn::RnnVariableSequenceTensorDescriptor& input_desc_var_seq_len,
-    const dnn::RnnVariableSequenceTensorDescriptor& output_desc_var_seq_len) {
+    dnn::ProfileResult* output_profile_result) {
   // TODO(zhengxq): add VLOG PARAM calls.
   if (ok()) {
     if (dnn::DnnSupport *dnn = parent_->AsDnn()) {
@@ -5094,8 +5092,7 @@ Stream& Stream::ThenRnnForward(
           input_c_desc, input_c_data, params, output_desc, output_data,
           output_h_desc, output_h_data, output_c_desc, output_c_data,
           is_training, reserve_space_allocator, workspace_allocator,
-          output_profile_result, input_desc_var_seq_len,
-          output_desc_var_seq_len);
+          output_profile_result);
       if (!status && !output_profile_result) {
         SetError();
       }
@@ -5122,9 +5119,7 @@ Stream& Stream::ThenRnnForward(
     DeviceMemory<float>* output_c_data, bool is_training,
     ScratchAllocator* reserve_space_allocator,
     ScratchAllocator* workspace_allocator,
-    dnn::ProfileResult* output_profile_result,
-    const dnn::RnnVariableSequenceTensorDescriptor& input_desc_var_seq_len,
-    const dnn::RnnVariableSequenceTensorDescriptor& output_desc_var_seq_len) {
+    dnn::ProfileResult* output_profile_result) {
   // TODO(zhengxq): add VLOG PARAM calls.
   if (ok()) {
     if (dnn::DnnSupport *dnn = parent_->AsDnn()) {
@@ -5133,8 +5128,7 @@ Stream& Stream::ThenRnnForward(
           input_c_desc, input_c_data, params, output_desc, output_data,
           output_h_desc, output_h_data, output_c_desc, output_c_data,
           is_training, reserve_space_allocator, workspace_allocator,
-          output_profile_result, input_desc_var_seq_len,
-          output_desc_var_seq_len);
+          output_profile_result);
       if (!status && !output_profile_result) {
         SetError();
       }
@@ -5162,9 +5156,7 @@ Stream& Stream::ThenRnnForward(
     DeviceMemory<double>* output_c_data, bool is_training,
     ScratchAllocator* reserve_space_allocator,
     ScratchAllocator* workspace_allocator,
-    dnn::ProfileResult* output_profile_result,
-    const dnn::RnnVariableSequenceTensorDescriptor& input_desc_var_seq_len,
-    const dnn::RnnVariableSequenceTensorDescriptor& output_desc_var_seq_len) {
+    dnn::ProfileResult* output_profile_result) {
   // TODO(zhengxq): add VLOG PARAM calls.
   if (ok()) {
     if (dnn::DnnSupport *dnn = parent_->AsDnn()) {
@@ -5173,8 +5165,7 @@ Stream& Stream::ThenRnnForward(
           input_c_desc, input_c_data, params, output_desc, output_data,
           output_h_desc, output_h_data, output_c_desc, output_c_data,
           is_training, reserve_space_allocator, workspace_allocator,
-          output_profile_result, input_desc_var_seq_len,
-          output_desc_var_seq_len);
+          output_profile_result);
       if (!status && !output_profile_result) {
         SetError();
       }
@@ -5209,9 +5200,7 @@ Stream& Stream::ThenRnnBackward(
     DeviceMemory<Eigen::half>* params_backprop_data,
     DeviceMemory<uint8>* reserve_space_data,
     ScratchAllocator* workspace_allocator,
-    dnn::ProfileResult* output_profile_result,
-    const dnn::RnnVariableSequenceTensorDescriptor& input_desc_var_seq_len,
-    const dnn::RnnVariableSequenceTensorDescriptor& output_desc_var_seq_len) {
+    dnn::ProfileResult* output_profile_result) {
   // TODO(zhengxq): add VLOG PARAM calls.
   if (ok()) {
     if (dnn::DnnSupport *dnn = parent_->AsDnn()) {
@@ -5222,8 +5211,7 @@ Stream& Stream::ThenRnnBackward(
           output_backprop_data, output_h_backprop_data, output_c_backprop_data,
           input_backprop_data, input_h_backprop_data, input_c_backprop_data,
           params_backprop_data, reserve_space_data, workspace_allocator,
-          output_profile_result, input_desc_var_seq_len,
-          output_desc_var_seq_len);
+          output_profile_result);
       if (!status && !output_profile_result) {
         SetError();
       }
@@ -5258,9 +5246,7 @@ Stream& Stream::ThenRnnBackward(
     DeviceMemory<float>* params_backprop_data,
     DeviceMemory<uint8>* reserve_space_data,
     ScratchAllocator* workspace_allocator,
-    dnn::ProfileResult* output_profile_result,
-    const dnn::RnnVariableSequenceTensorDescriptor& input_desc_var_seq_len,
-    const dnn::RnnVariableSequenceTensorDescriptor& output_desc_var_seq_len) {
+    dnn::ProfileResult* output_profile_result) {
   // TODO(zhengxq): add VLOG PARAM calls.
   if (ok()) {
     if (dnn::DnnSupport *dnn = parent_->AsDnn()) {
@@ -5271,8 +5257,7 @@ Stream& Stream::ThenRnnBackward(
           output_backprop_data, output_h_backprop_data, output_c_backprop_data,
           input_backprop_data, input_h_backprop_data, input_c_backprop_data,
           params_backprop_data, reserve_space_data, workspace_allocator,
-          output_profile_result, input_desc_var_seq_len,
-          output_desc_var_seq_len);
+          output_profile_result);
       if (!status && !output_profile_result) {
         SetError();
       }
@@ -5308,9 +5293,7 @@ Stream& Stream::ThenRnnBackward(
     DeviceMemory<double>* params_backprop_data,
     DeviceMemory<uint8>* reserve_space_data,
     ScratchAllocator* workspace_allocator,
-    dnn::ProfileResult* output_profile_result,
-    const dnn::RnnVariableSequenceTensorDescriptor& input_desc_var_seq_len,
-    const dnn::RnnVariableSequenceTensorDescriptor& output_desc_var_seq_len) {
+    dnn::ProfileResult* output_profile_result) {
   // TODO(zhengxq): add VLOG PARAM calls.
   if (ok()) {
     if (dnn::DnnSupport *dnn = parent_->AsDnn()) {
@@ -5321,8 +5304,7 @@ Stream& Stream::ThenRnnBackward(
           output_backprop_data, output_h_backprop_data, output_c_backprop_data,
           input_backprop_data, input_h_backprop_data, input_c_backprop_data,
           params_backprop_data, reserve_space_data, workspace_allocator,
-          output_profile_result, input_desc_var_seq_len,
-          output_desc_var_seq_len);
+          output_profile_result);
       if (!status && !output_profile_result) {
         SetError();
       }

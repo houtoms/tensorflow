@@ -128,7 +128,6 @@ using se::dnn::RnnDirectionMode;
 using se::dnn::RnnInputMode;
 using se::dnn::RnnMode;
 using se::dnn::RnnSequenceTensorDescriptor;
-using se::dnn::RnnVariableSequenceTensorDescriptor;
 using se::dnn::RnnStateTensorDescriptor;
 using se::dnn::ToDataType;
 using se::port::StatusOr;
@@ -616,11 +615,7 @@ Status CreateForwardAndBackwardIODescriptors(
     std::unique_ptr<RnnSequenceTensorDescriptor>* input_desc,
     std::unique_ptr<RnnStateTensorDescriptor>* state_desc,
     std::unique_ptr<RnnSequenceTensorDescriptor>* output_desc,
-    std::unique_ptr<RnnVariableSequenceTensorDescriptor>*
-        input_desc_var_seq_len,
-    std::unique_ptr<RnnVariableSequenceTensorDescriptor>*
-        output_desc_var_seq_len,
-    int* seq_lens = nullptr) {
+    int* seq_lens) {
   StreamExecutor* executor = context->op_device_context()->stream()->parent();
   se::dnn::DataType data_type = ToDataType<T>::value;
 
@@ -629,25 +624,12 @@ Status CreateForwardAndBackwardIODescriptors(
   const TensorShape& output_shape = model_shapes.output_shape;
 
   DCHECK_EQ(input_shape.dims(), 3);
+
   auto input_desc_s = executor->createRnnSequenceTensorDescriptor(
       input_shape.dim_size(0), input_shape.dim_size(1), input_shape.dim_size(2),
-      data_type);
+      seq_lens, data_type);
   TF_RETURN_IF_ERROR(input_desc_s.status());
   *input_desc = input_desc_s.ConsumeValueOrDie();
-
-  if (seq_lens != nullptr) {
-    auto input_desc_var_seq_len_s =
-        executor->createRnnVariableSequenceTensorDescriptor(
-            input_shape.dim_size(0), input_shape.dim_size(1),
-            input_shape.dim_size(2), seq_lens, data_type);
-    TF_RETURN_IF_ERROR(input_desc_var_seq_len_s.status());
-    *input_desc_var_seq_len = input_desc_var_seq_len_s.ConsumeValueOrDie();
-  } else {
-    auto input_desc_var_seq_len_s =
-        executor->createRnnVariableSequenceTensorDescriptor();
-    TF_RETURN_IF_ERROR(input_desc_var_seq_len_s.status());
-    *input_desc_var_seq_len = input_desc_var_seq_len_s.ConsumeValueOrDie();
-  }
 
   DCHECK_EQ(hidden_state_shape.dims(), 3);
   auto hidden_state_desc_s = executor->createRnnStateTensorDescriptor(
@@ -659,23 +641,10 @@ Status CreateForwardAndBackwardIODescriptors(
   DCHECK_EQ(output_shape.dims(), 3);
   auto output_desc_s = executor->createRnnSequenceTensorDescriptor(
       output_shape.dim_size(0), output_shape.dim_size(1),
-      output_shape.dim_size(2), data_type);
+      output_shape.dim_size(2), seq_lens, data_type);
   TF_RETURN_IF_ERROR(output_desc_s.status());
   *output_desc = output_desc_s.ConsumeValueOrDie();
 
-  if (seq_lens != nullptr) {
-    auto output_desc_var_seq_len_s =
-        executor->createRnnVariableSequenceTensorDescriptor(
-            output_shape.dim_size(0), output_shape.dim_size(1),
-            output_shape.dim_size(2), seq_lens, data_type);
-    TF_RETURN_IF_ERROR(output_desc_var_seq_len_s.status());
-    *output_desc_var_seq_len = output_desc_var_seq_len_s.ConsumeValueOrDie();
-  } else {
-    auto output_desc_var_seq_len_s =
-        executor->createRnnVariableSequenceTensorDescriptor();
-    TF_RETURN_IF_ERROR(output_desc_var_seq_len_s.status());
-    *output_desc_var_seq_len = output_desc_var_seq_len_s.ConsumeValueOrDie();
-  }
   return Status::OK();
 }
 
@@ -694,24 +663,18 @@ Status DoForward(OpKernelContext* context, const RnnDescriptor& rnn_desc,
                  ProfileResult* output_profile_result,
                  const Tensor* sequence_lengths = nullptr) {
   std::unique_ptr<RnnSequenceTensorDescriptor> input_desc;
-  std::unique_ptr<RnnVariableSequenceTensorDescriptor> input_desc_var_seq_len;
   std::unique_ptr<RnnStateTensorDescriptor> state_desc;
   std::unique_ptr<RnnSequenceTensorDescriptor> output_desc;
-  std::unique_ptr<RnnVariableSequenceTensorDescriptor> output_desc_var_seq_len;
 
   DeviceMemory<int> sequence_lengths_data;
-  // Only extended ops will provide 'sequence_lengths'
+  int* seq_lens = nullptr;
   if (sequence_lengths != nullptr) {
     sequence_lengths_data = AsDeviceMemory<int>(sequence_lengths);
-    TF_RETURN_IF_ERROR(CreateForwardAndBackwardIODescriptors<T>(
-        context, model_shapes, &input_desc, &state_desc, &output_desc,
-        &input_desc_var_seq_len, &output_desc_var_seq_len,
-        (int*)sequence_lengths_data.opaque()));
-  } else {
-    TF_RETURN_IF_ERROR(CreateForwardAndBackwardIODescriptors<T>(
-        context, model_shapes, &input_desc, &state_desc, &output_desc,
-        &input_desc_var_seq_len, &output_desc_var_seq_len));
+    seq_lens = (int*)sequence_lengths_data.opaque();
   }
+  TF_RETURN_IF_ERROR(CreateForwardAndBackwardIODescriptors<T>(
+        context, model_shapes, &input_desc, &state_desc, &output_desc,
+        seq_lens));
 
   auto input_data = AsDeviceMemory<T>(input);
   auto input_h_data = AsDeviceMemory<T>(input_h);
@@ -736,8 +699,7 @@ Status DoForward(OpKernelContext* context, const RnnDescriptor& rnn_desc,
                            *output_desc, &output_data, *state_desc,
                            &output_h_data, *state_desc, &output_c_data,
                            is_training, reserve_space_allocator,
-                           workspace_allocator, output_profile_result,
-                           *input_desc_var_seq_len, *output_desc_var_seq_len)
+                           workspace_allocator, output_profile_result)
           .ok();
   return launch_success
              ? Status::OK()
@@ -764,23 +726,18 @@ Status DoBackward(
     ProfileResult* output_profile_result,
     const Tensor* sequence_lengths = nullptr) {
   std::unique_ptr<RnnSequenceTensorDescriptor> input_desc;
-  std::unique_ptr<RnnVariableSequenceTensorDescriptor> input_desc_var_seq_len;
   std::unique_ptr<RnnStateTensorDescriptor> state_desc;
   std::unique_ptr<RnnSequenceTensorDescriptor> output_desc;
-  std::unique_ptr<RnnVariableSequenceTensorDescriptor> output_desc_var_seq_len;
 
   DeviceMemory<int> sequence_lengths_data;
+  int* seq_lens = nullptr;
   if (sequence_lengths != nullptr) {
     sequence_lengths_data = AsDeviceMemory<int>(sequence_lengths);
-    TF_RETURN_IF_ERROR(CreateForwardAndBackwardIODescriptors<T>(
-        context, model_shapes, &input_desc, &state_desc, &output_desc,
-        &input_desc_var_seq_len, &output_desc_var_seq_len,
-        (int*)sequence_lengths_data.opaque()));
-  } else {
-    TF_RETURN_IF_ERROR(CreateForwardAndBackwardIODescriptors<T>(
-        context, model_shapes, &input_desc, &state_desc, &output_desc,
-        &input_desc_var_seq_len, &output_desc_var_seq_len));
+    seq_lens = (int*)sequence_lengths_data.opaque();
   }
+  TF_RETURN_IF_ERROR(CreateForwardAndBackwardIODescriptors<T>(
+        context, model_shapes, &input_desc, &state_desc, &output_desc,
+        seq_lens));
 
   auto input_data = AsDeviceMemory<T>(input);
   auto input_h_data = AsDeviceMemory<T>(input_h);
@@ -824,8 +781,7 @@ Status DoBackward(
                             output_c_backprop_data, &input_backprop_data,
                             &input_h_backprop_data, &input_c_backprop_data,
                             &params_backprop_data, &reserve_space_uint8,
-                            workspace_allocator, output_profile_result,
-                            *input_desc_var_seq_len, *output_desc_var_seq_len)
+                            workspace_allocator, output_profile_result)
           .ok();
   return launch_success
              ? Status::OK()
