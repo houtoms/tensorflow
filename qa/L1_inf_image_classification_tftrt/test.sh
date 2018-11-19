@@ -25,7 +25,7 @@ set_models() {
     mobilenet_v1
     mobilenet_v2
     nasnet_large
-    nasnet_mobile
+    #nasnet_mobile
     resnet_v1_50
     resnet_v2_50
     #vgg_16

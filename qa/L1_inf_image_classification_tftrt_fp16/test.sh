@@ -22,15 +22,15 @@ fi
 
 set_models() {
   models=(
-    #mobilenet_v1
-    #mobilenet_v2
+    mobilenet_v1
+    mobilenet_v2
     #nasnet_large
-    #nasnet_mobile
-    #resnet_v1_50
-    #resnet_v2_50
+    nasnet_mobile
+    resnet_v1_50
+    resnet_v2_50
     #vgg_16
     #vgg_19
-    #inception_v3
+    inception_v3
     inception_v4
   )
   if ! $JETSON ; then
