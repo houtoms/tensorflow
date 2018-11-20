@@ -46,6 +46,7 @@ def _cudnn_rnn_backward(op, *grads):
       input_mode=op.get_attr("input_mode"),
       direction=op.get_attr("direction"))
 
+
 @ops.RegisterGradient("CudnnRNNV2")
 def _cudnn_rnn_backward_v2(op, *grad):
   if not op.get_attr("is_training"):
@@ -70,6 +71,7 @@ def _cudnn_rnn_backward_v2(op, *grad):
       rnn_mode=op.get_attr("rnn_mode"),
       input_mode=op.get_attr("input_mode"),
       direction=op.get_attr("direction"))
+
 
 @ops.RegisterGradient("CudnnRNNV3")
 def _cudnn_rnn_backward_var_seq_len(op, *grads):

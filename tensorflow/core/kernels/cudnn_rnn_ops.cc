@@ -97,19 +97,19 @@ template <typename Device, typename T>
 class CudnnRNNForwardOp;
 
 template <typename Device, typename T>
-class CudnnRNNForwardVarSeqLenOp;
-
-template <typename Device, typename T>
 class CudnnRNNBackwardOp;
-
-template <typename Device, typename T>
-class CudnnRNNBackwardVarSeqLenOp;
 
 template <typename Device, typename T>
 class CudnnRNNForwardOpV2;
 
 template <typename Device, typename T>
 class CudnnRNNBackwardOpV2;
+
+template <typename Device, typename T>
+class CudnnRNNForwardOpV3;
+
+template <typename Device, typename T>
+class CudnnRNNBackwardOpV3;
 
 enum class TFRNNInputMode {
   kRNNLinearInput = 0,
@@ -1314,9 +1314,9 @@ TF_CALL_double(REGISTER_GPU);
 
 // Run the extended forward operation of the RNN model.
 template <typename T>
-class CudnnRNNForwardVarSeqLenOp<GPUDevice, T> : public CudnnRNNKernelCommon {
+class CudnnRNNForwardOpV3<GPUDevice, T> : public CudnnRNNKernelCommon {
  public:
-  explicit CudnnRNNForwardVarSeqLenOp(OpKernelConstruction* context)
+  explicit CudnnRNNForwardOpV3(OpKernelConstruction* context)
       : CudnnRNNKernelCommon(context) {
     OP_REQUIRES_OK(context, context->GetAttr("is_training", &is_training_));
 
@@ -1447,7 +1447,7 @@ class CudnnRNNForwardVarSeqLenOp<GPUDevice, T> : public CudnnRNNKernelCommon {
                               .Device(DEVICE_GPU)              \
                               .HostMemory("sequence_lengths")  \
                               .TypeConstraint<T>("T"),         \
-                          CudnnRNNForwardVarSeqLenOp<GPUDevice, T>);
+                          CudnnRNNForwardOpV3<GPUDevice, T>);
 
 TF_CALL_half(REGISTER_GPU);
 TF_CALL_float(REGISTER_GPU);
@@ -1824,9 +1824,9 @@ TF_CALL_double(REGISTER_GPU);
 
 // Run the extended backward operation of the RNN model.
 template <typename T>
-class CudnnRNNBackwardVarSeqLenOp<GPUDevice, T> : public CudnnRNNKernelCommon {
+class CudnnRNNBackwardOpV3<GPUDevice, T> : public CudnnRNNKernelCommon {
  public:
-  explicit CudnnRNNBackwardVarSeqLenOp(OpKernelConstruction* context)
+  explicit CudnnRNNBackwardOpV3(OpKernelConstruction* context)
       : CudnnRNNKernelCommon(context) {}
 
   void Compute(OpKernelContext* context) override {
@@ -1992,7 +1992,7 @@ class CudnnRNNBackwardVarSeqLenOp<GPUDevice, T> : public CudnnRNNKernelCommon {
                               .Device(DEVICE_GPU)              \
                               .HostMemory("sequence_lengths")  \
                               .TypeConstraint<T>("T"),         \
-                          CudnnRNNBackwardVarSeqLenOp<GPUDevice, T>);
+                          CudnnRNNBackwardOpV3<GPUDevice, T>);
 
 TF_CALL_half(REGISTER_GPU);
 TF_CALL_float(REGISTER_GPU);
