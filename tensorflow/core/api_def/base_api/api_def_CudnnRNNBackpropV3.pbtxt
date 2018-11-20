@@ -1,10 +1,10 @@
 op {
-  graph_op_name: "CudnnRNNBackpropVarSeqLen"
+  graph_op_name: "CudnnRNNBackpropV3"
   visibility: HIDDEN
-  summary: "Backprop step of CudnnRNNVarSeqLen."
+  summary: "Backprop step of CudnnRNNV3."
   description: <<END
 Compute the backprop of both data and weights in a RNN. Takes an extra
-    "sequence_lengths" inupt than CudnnRNNBackprop.
+    "sequence_lengths" input than CudnnRNNBackprop.
 
 rnn_mode: Indicates the type of the RNN model.
 input_mode: Indicates whether there is a linear projection between the input and

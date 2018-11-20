@@ -1,5 +1,5 @@
 op {
-  graph_op_name: "CudnnRNNVarSeqLen"
+  graph_op_name: "CudnnRNNV3"
   visibility: HIDDEN
   summary: "A RNN backed by cuDNN."
   description: <<END

@@ -33,7 +33,6 @@ namespace cuda {
 class CUDAExecutor;
 class CudnnRnnDescriptor;
 class CudnnRnnSequenceTensorDescriptor;
-class CudnnRnnVariableSequenceTensorDescriptor;
 class CudnnRnnStateTensorDescriptor;
 
 // Opaque and unique identifier for the cuDNN plugin.

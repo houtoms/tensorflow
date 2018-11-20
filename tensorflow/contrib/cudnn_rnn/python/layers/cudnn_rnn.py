@@ -215,7 +215,6 @@ class _CudnnRNN(base_layer.Layer):
     # Init input_size to None, which will be set after build().
     self._input_size = None
     self._saveable = None
-    self._built = False
 
   @property
   def num_layers(self):
@@ -312,7 +311,7 @@ class _CudnnRNN(base_layer.Layer):
     Raises:
       ValueError: if input_shape has wrong dimension or unknown 3rd dimension.
     """
-    if self._built:
+    if self.built:
       return
 
     input_shape = tensor_shape.TensorShape(input_shape)
@@ -333,7 +332,7 @@ class _CudnnRNN(base_layer.Layer):
     # Cudnn.
     with vs.variable_scope(
         self._scope,
-        reuse=self._built,
+        reuse=self.built,
         custom_getter=self._update_trainable_weights):
       if self._kernel_initializer is None:
         self._kernel_initializer = init_ops.glorot_uniform_initializer(
@@ -365,17 +364,17 @@ class _CudnnRNN(base_layer.Layer):
     # Create saveable in the outer scope of the cudnn subgraph, such that
     # alternative subgraph with platform-independent rnn cells can load the
     # checkpoints directly.
-    if not (self._built or vs.get_variable_scope().reuse is True):
+    if not (self.built or vs.get_variable_scope().reuse is True):
       self._create_saveable()
-    self._built = True
+    self.built = True
 
   def _gather_saveables_for_checkpoint(self):
     raise NotImplementedError(
         "This cell does not yet support object-based saving. File a feature "
         "request if this limitation bothers you.")
 
-  def call(self, inputs, initial_state=None, training=True,
-           sequence_lengths=None):
+  def call(self, inputs, initial_state=None, sequence_lengths=None,
+           training=True):
     """Runs the forward step for the RNN model.
 
     Args:
@@ -383,10 +382,10 @@ class _CudnnRNN(base_layer.Layer):
       initial_state: a tuple of tensor(s) of shape
         `[num_layers * num_dirs, batch_size, num_units]`. If not provided, use
         zero initial states. The tuple size is 2 for LSTM and 1 for other RNNs.
-      training: whether this operation will be used in training or inference.
       sequence_lengths: an int32 array representing the variable sequence
         lengths in a batch. The size of the array has to equal to the
         batch_size. If not provided, the same sequence length will be assumed.
+      training: whether this operation will be used in training or inference.
     Returns:
       output: a tensor of shape `[time_len, batch_size, num_dirs * num_units]`.
         It is a `concat([fwd_output, bak_output], axis=2)`.

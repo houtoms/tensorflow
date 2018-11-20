@@ -927,7 +927,7 @@ def _cudnn_rnn(inputs,
       raise ValueError("Invalid sequence_lengths dtype: %s",
                        sequence_lengths.dtype)
     args["sequence_lengths"] = sequence_lengths
-    outputs, output_h, output_c, _ = gen_cudnn_rnn_ops.cudnn_rnn_var_seq_len(
+    outputs, output_h, output_c, _ = gen_cudnn_rnn_ops.cudnn_rnnv3(
         **args)
   elif use_cudnn_v2 is not "1":
     outputs, output_h, output_c, _ = gen_cudnn_rnn_ops.cudnn_rnn(**args)

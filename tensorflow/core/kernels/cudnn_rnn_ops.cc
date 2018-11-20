@@ -1443,7 +1443,7 @@ class CudnnRNNForwardVarSeqLenOp<GPUDevice, T> : public CudnnRNNKernelCommon {
 };
 
 #define REGISTER_GPU(T)                                        \
-  REGISTER_KERNEL_BUILDER(Name("CudnnRNNVarSeqLen")            \
+  REGISTER_KERNEL_BUILDER(Name("CudnnRNNV3")            \
                               .Device(DEVICE_GPU)              \
                               .HostMemory("sequence_lengths")  \
                               .TypeConstraint<T>("T"),         \
@@ -1988,7 +1988,7 @@ class CudnnRNNBackwardVarSeqLenOp<GPUDevice, T> : public CudnnRNNKernelCommon {
 };
 
 #define REGISTER_GPU(T)                                        \
-  REGISTER_KERNEL_BUILDER(Name("CudnnRNNBackpropVarSeqLen")    \
+  REGISTER_KERNEL_BUILDER(Name("CudnnRNNBackpropV3")    \
                               .Device(DEVICE_GPU)              \
                               .HostMemory("sequence_lengths")  \
                               .TypeConstraint<T>("T"),         \
