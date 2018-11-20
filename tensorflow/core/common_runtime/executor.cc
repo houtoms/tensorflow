@@ -1651,9 +1651,10 @@ void ExecutorState::Process(TaggedNode tagged_node, int64 scheduled_nsec) {
     params.track_allocations = false;
     stats = nullptr;
     if (stats_collector_ && !tagged_node.is_dead) {
-      // track allocations if and only if we are collecting statistics
-      params.track_allocations = true;
       stats = stats_collector_->CreateNodeExecStats(node);
+      // Track allocations if and only if we are collecting statistics, and
+      // `stats` object is expecting allocations to be tracked.
+      params.track_allocations = stats ? stats->TrackAllocations() : false;
       nodestats::SetScheduled(stats, scheduled_nsec);
       nodestats::SetAllStart(stats);
     }
@@ -2045,6 +2046,23 @@ Status ExecutorState::ProcessOutputs(const NodeItem& item, OpKernelContext* ctx,
 void ExecutorState::PropagateOutputs(const TaggedNode& tagged_node,
                                      const NodeItem* item, EntryVector* outputs,
                                      TaggedNodeSeq* ready) {
+  auto activity_handle =
+      [&]() -> std::unique_ptr<tracing::TraceCollector::Handle> {
+    if (TF_PREDICT_FALSE(trace_collector_ != nullptr &&
+                         trace_collector_->IsEnabledForActivities(
+                             false /* is_expensive */))) {
+      const string& op_name = item->kernel->name();
+      // Intentionally using ExecutorPropagateOutputs as the first key so that
+      // users are aware that it's not the op invocation.
+      return trace_collector_->CreateActivityHandle(
+          "ExecutorPropagateOutputs",
+          strings::StrCat(op_name, "#id=", step_id_, "#"),
+          false /* is_expensive */);
+    } else {
+      return nullptr;
+    }
+  }();
+
   const Node* node = tagged_node.node;
   FrameState* input_frame = tagged_node.input_frame;
   const int64 input_iter = tagged_node.input_iter;

@@ -1304,6 +1304,7 @@ def _inputs_with_flattening(pfor_input, input_indices):
 @RegisterPForWithArgs("AvgPool", dims=[0])
 @RegisterPForWithArgs("MaxPool", dims=[0])
 @RegisterPForWithArgs("MaxPoolGrad", dims=[0, 1, 2])
+@RegisterPForWithArgs("MaxPoolGradGrad", dims=[0, 1, 2])
 @RegisterPForWithArgs("SoftmaxCrossEntropyWithLogits", dims=[0, 1])
 def _convert_flatten_batch(pfor_input, op_type, dims):
   del op_type
@@ -1532,6 +1533,7 @@ def _convert_conv2d_backprop_filter(pfor_input):
 
 @RegisterPForWithArgs("Identity", array_ops.identity)
 @RegisterPForWithArgs("StopGradient", array_ops.stop_gradient)
+@RegisterPForWithArgs("MatrixDiagPart", array_ops.matrix_diag_part)
 def _convert_identity(pfor_input, op_type, op_func):
   del op_type
   return wrap(op_func(*[x.t for x in pfor_input.inputs]), True)
@@ -1924,7 +1926,8 @@ def _convert_unsortedsegmentsum(pfor_input):
   segment_offset = array_ops.reshape(segment_offset,
                                      array_ops.concat([[n], ones], axis=0))
   segment_ids += segment_offset
-  num_segments *= n
+  num_segments = math_ops.cast(num_segments, dtypes.int64) * math_ops.cast(
+      n, dtypes.int64)
   output = math_ops.unsorted_segment_sum(data, segment_ids, num_segments)
   new_output_shape = array_ops.concat(
       [[n, -1], array_ops.shape(output)[1:]], axis=0)
