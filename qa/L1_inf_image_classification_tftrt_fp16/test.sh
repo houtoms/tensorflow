@@ -59,7 +59,7 @@ do
       --model $model \
       --use_trt \
       --precision fp16 \
-      2>&1 | tee $OUTPUT_PATH/output_tftrt_fp16_bs8_${model}_False
+      2>&1 | tee $OUTPUT_PATH/output_tftrt_fp16_bs8_${model}
   python -u check_accuracy.py --input $OUTPUT_PATH --precision tftrt_fp16 --batch_size 8 --model $model
   if $JETSON ; then
     pushd ../../../../qa/inference/image_classification

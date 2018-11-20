@@ -39,9 +39,12 @@ for use_trt_dynamic_op in ${dynamic_op[@]}; do
         dynamic_op_params=--use_trt_dynamic_op
     fi;
 
-        
-    OUTPUT_FILE=$OUTPUT_PATH/output_tftrt_fp16_bs8_${model}_${use_trt_dynamic_op}
-    print $OUTPUT_FILE 
+    if [ ${use_trt_dynamic_op} == False ] ; then    
+        OUTPUT_FILE=$OUTPUT_PATH/output_tftrt_fp16_bs8_${model}
+    else
+        OUTPUT_FILE=$OUTPUT_PATH/output_tftrt_fp16_bs8_${model}True
+    fi;
+    echo $OUTPUT_FILE 
     python -u inference.py \
         --data_dir "/data/imagenet/train-val-tfrecord" \
         --model $model \

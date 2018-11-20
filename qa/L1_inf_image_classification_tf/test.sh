@@ -45,7 +45,7 @@ do
       --data_dir "/data/imagenet/train-val-tfrecord" \
       --default_models_dir "/data/tensorflow/models" \
       --model $model \
-      2>&1 | tee $OUTPUT_PATH/output_tf_fp32_bs8_${model}_False
+      2>&1 | tee $OUTPUT_PATH/output_tf_fp32_bs8_${model}
   python -u check_accuracy.py --input_path $OUTPUT_PATH --precision tf_fp32 --batch_size 8 --model $model
 
   if $JETSON ; then
