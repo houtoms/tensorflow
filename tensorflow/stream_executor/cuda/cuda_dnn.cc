@@ -1023,7 +1023,7 @@ class CudnnRnnDescriptor : public dnn::RnnDescriptor {
         /*inputMode=*/input_mode, /*direction=*/direction_mode,
         /*mode=*/rnn_mode, /*algo=*/rnn_algo,
         /*dataType=*/compute_type));
-#if CUDNN_VERSION >= 7400
+#if CUDNN_VERSION >= 7201
     RETURN_IF_CUDNN_ERROR(
         cudnnSetRNNPaddingMode(rnn_desc.get(), CUDNN_RNN_PADDED_IO_ENABLED));
 #endif
@@ -1256,7 +1256,7 @@ class CudnnRnnSequenceTensorDescriptor
         /*tensorDesc=*/tensor_desc.get(), /*dataType=*/data_type,
         /*nbDims=*/sizeof(dims) / sizeof(dims[0]), /*dimA=*/dims,
         /*strideA=*/strides));
-#if CUDNN_VERSION >= 7400
+#if CUDNN_VERSION >= 7201
     if (seq_lens == nullptr) {
       return CudnnRnnSequenceTensorDescriptor(parent, seq_length, batch_size,
                                               data_size, data_type,
@@ -1509,7 +1509,7 @@ port::Status CudnnSupport::DoRnnForwardImpl(
   }
 
   if (!is_training) {
-#if CUDNN_VERSION >= 7400
+#if CUDNN_VERSION >= 7201
     if (input_desc.is_var_seq_lens()) {
       RETURN_IF_CUDNN_ERROR(cudnnRNNForwardInferenceEx(
           /*handle=*/cudnn.handle(), /*rnnDesc=*/rnn_desc.handle(),
@@ -1551,7 +1551,7 @@ port::Status CudnnSupport::DoRnnForwardImpl(
         /*workSpaceSizeInBytes=*/workspace.size()));
 #endif
   } else {
-#if CUDNN_VERSION >= 7400
+#if CUDNN_VERSION >= 7201
     if (input_desc.is_var_seq_lens()) {
       // cudnnSetRNNPaddingMode(rnn_desc.handle(), CUDNN_RNN_PADDED_IO_ENABLED);
       RETURN_IF_CUDNN_ERROR(cudnnRNNForwardTrainingEx(
@@ -1666,7 +1666,7 @@ port::Status CudnnSupport::DoRnnBackwardImpl(
   }
 
   if (input_desc.is_var_seq_lens()) {
-#if CUDNN_VERSION >= 7400
+#if CUDNN_VERSION >= 7201
     RETURN_IF_CUDNN_ERROR(cudnnRNNBackwardDataEx(
         /*handle=*/cudnn.handle(), /*rnnDesc=*/rnn_desc.handle(),
         /*yDesc=*/output_desc.handle(), /*y=*/output_data.opaque(),
@@ -1739,7 +1739,7 @@ port::Status CudnnSupport::DoRnnBackwardImpl(
   if (params_backprop_data != nullptr) {
     // Clear the dw to zeros.
     stream->ThenMemZero(params_backprop_data, params_backprop_data->size());
-#if CUDNN_VERSION >= 7400
+#if CUDNN_VERSION >= 7201
     if (input_desc.is_var_seq_lens()) {
       RETURN_IF_CUDNN_ERROR(cudnnRNNBackwardWeightsEx(
           /*handle=*/cudnn.handle(), /*rnnDesc=*/rnn_desc.handle(),
