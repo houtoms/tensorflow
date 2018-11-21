@@ -1023,8 +1023,10 @@ class CudnnRnnDescriptor : public dnn::RnnDescriptor {
         /*inputMode=*/input_mode, /*direction=*/direction_mode,
         /*mode=*/rnn_mode, /*algo=*/rnn_algo,
         /*dataType=*/compute_type));
+#if CUDNN_VERSION >= 7400
     RETURN_IF_CUDNN_ERROR(
         cudnnSetRNNPaddingMode(rnn_desc.get(), CUDNN_RNN_PADDED_IO_ENABLED));
+#endif
 
     port::StatusOr<PersistentRnnPlan> rnn_plan_wrapper;
     PersistentRnnPlan rnn_plan;
@@ -1254,6 +1256,7 @@ class CudnnRnnSequenceTensorDescriptor
         /*tensorDesc=*/tensor_desc.get(), /*dataType=*/data_type,
         /*nbDims=*/sizeof(dims) / sizeof(dims[0]), /*dimA=*/dims,
         /*strideA=*/strides));
+#if CUDNN_VERSION >= 7400
     if (seq_lens == nullptr) {
       return CudnnRnnSequenceTensorDescriptor(parent, seq_length, batch_size,
                                               data_size, data_type,
@@ -1273,6 +1276,11 @@ class CudnnRnnSequenceTensorDescriptor
                                               std::move(data_desc),
                                               std::move(tensor_desc));
     }
+#else
+    return CudnnRnnSequenceTensorDescriptor(parent, seq_length, batch_size,
+                                            data_size, data_type,
+                                            std::move(tensor_desc));
+#endif
   }
 
   const cudnnTensorDescriptor_t* handles() const {
@@ -1501,6 +1509,7 @@ port::Status CudnnSupport::DoRnnForwardImpl(
   }
 
   if (!is_training) {
+#if CUDNN_VERSION >= 7400
     if (input_desc.is_var_seq_lens()) {
       RETURN_IF_CUDNN_ERROR(cudnnRNNForwardInferenceEx(
           /*handle=*/cudnn.handle(), /*rnnDesc=*/rnn_desc.handle(),
@@ -1528,7 +1537,21 @@ port::Status CudnnSupport::DoRnnForwardImpl(
           /*cy=*/output_c_data->opaque(), /*workspace=*/workspace.opaque(),
           /*workSpaceSizeInBytes=*/workspace.size()));
     }
+#else
+    RETURN_IF_CUDNN_ERROR(cudnnRNNForwardInference(
+        /*handle=*/cudnn.handle(), /*rnnDesc=*/rnn_desc.handle(),
+        /*seqLength=*/model_dims.seq_length, /*xDesc=*/input_desc.handles(),
+        /*x=*/input_data.opaque(), /*hxDesc=*/input_h_desc.handle(),
+        /*hx=*/input_h_data.opaque(), /*cxDesc=*/input_c_desc.handle(),
+        /*cx=*/input_c_data.opaque(), /*wDesc=*/rnn_desc.params_handle(),
+        /*w=*/params.opaque(), /*yDesc=*/output_desc.handles(),
+        /*y=*/output_data->opaque(), /*hyDesc=*/output_h_desc.handle(),
+        /*hy=*/output_h_data->opaque(), /*cyDesc=*/output_c_desc.handle(),
+        /*cy=*/output_c_data->opaque(), /*workspace=*/workspace.opaque(),
+        /*workSpaceSizeInBytes=*/workspace.size()));
+#endif
   } else {
+#if CUDNN_VERSION >= 7400
     if (input_desc.is_var_seq_lens()) {
       // cudnnSetRNNPaddingMode(rnn_desc.handle(), CUDNN_RNN_PADDED_IO_ENABLED);
       RETURN_IF_CUDNN_ERROR(cudnnRNNForwardTrainingEx(
@@ -1561,6 +1584,21 @@ port::Status CudnnSupport::DoRnnForwardImpl(
           /*reserveSpace=*/reserve_space.opaque(),
           /*reserveSpaceSizeInBytes=*/reserve_space.size()));
     }
+#else
+    RETURN_IF_CUDNN_ERROR(cudnnRNNForwardTraining(
+        /*handle=*/cudnn.handle(), /*rnnDesc=*/rnn_desc.handle(),
+        /*seqLength=*/model_dims.seq_length, /*xDesc=*/input_desc.handles(),
+        /*x=*/input_data.opaque(), /*hxDesc=*/input_h_desc.handle(),
+        /*hx=*/input_h_data.opaque(), /*cxDesc=*/input_c_desc.handle(),
+        /*cx=*/input_c_data.opaque(), /*wDesc=*/rnn_desc.params_handle(),
+        /*w=*/params.opaque(), /*yDesc=*/output_desc.handles(),
+        /*y=*/output_data->opaque(), /*hyDesc=*/output_h_desc.handle(),
+        /*hy=*/output_h_data->opaque(), /*cyDesc=*/output_c_desc.handle(),
+        /*cy=*/output_c_data->opaque(), /*workspace=*/workspace.opaque(),
+        /*workSpaceSizeInBytes=*/workspace.size(),
+        /*reserveSpace=*/reserve_space.opaque(),
+        /*reserveSpaceSizeInBytes=*/reserve_space.size()));
+#endif
   }
 
   if (is_profiling) {
@@ -1628,6 +1666,7 @@ port::Status CudnnSupport::DoRnnBackwardImpl(
   }
 
   if (input_desc.is_var_seq_lens()) {
+#if CUDNN_VERSION >= 7400
     RETURN_IF_CUDNN_ERROR(cudnnRNNBackwardDataEx(
         /*handle=*/cudnn.handle(), /*rnnDesc=*/rnn_desc.handle(),
         /*yDesc=*/output_desc.handle(), /*y=*/output_data.opaque(),
@@ -1673,10 +1712,34 @@ port::Status CudnnSupport::DoRnnBackwardImpl(
         /*reserveSpace=*/reserve_space_data->opaque(),
         /*reserveSpaceSizeInBytes=*/reserve_space_data->size()));
   }
+#else
+  RETURN_IF_CUDNN_ERROR(cudnnRNNBackwardData(
+      /*handle=*/cudnn.handle(), /*rnnDesc=*/rnn_desc.handle(),
+      /*seqLength=*/model_dims.seq_length, /*yDesc=*/output_desc.handles(),
+      /*y=*/output_data.opaque(), /*dyDesc=*/output_desc.handles(),
+      /*dy=*/output_backprop_data.opaque(),
+      /*dhyDesc=*/output_h_desc.handle(),
+      /*dhy=*/output_h_backprop_data.opaque(),
+      /*dcyDesc=*/output_c_desc.handle(),
+      /*dcy=*/output_c_backprop_data.opaque(),
+      /*wDesc=*/rnn_desc.params_handle(), /*w=*/params.opaque(),
+      /*hxDesc=*/input_h_desc.handle(), /*hx=*/input_h_data.opaque(),
+      /*cxDesc=*/input_c_desc.handle(), /*cx=*/input_c_data.opaque(),
+      /*dxDesc=*/input_desc.handles(), /*dx=*/input_backprop_data->opaque(),
+      /*dhxDesc=*/input_h_desc.handle(),
+      /*dhx=*/input_h_backprop_data->opaque(),
+      /*dcxDesc=*/input_c_desc.handle(),
+      /*dcx=*/input_c_backprop_data->opaque(),
+      /*workspace=*/workspace.opaque(),
+      /*workSpaceSizeInBytes=*/workspace.size(),
+      /*reserveSpace=*/reserve_space_data->opaque(),
+      /*reserveSpaceSizeInBytes=*/reserve_space_data->size()));
+#endif
 
   if (params_backprop_data != nullptr) {
     // Clear the dw to zeros.
     stream->ThenMemZero(params_backprop_data, params_backprop_data->size());
+#if CUDNN_VERSION >= 7400
     if (input_desc.is_var_seq_lens()) {
       RETURN_IF_CUDNN_ERROR(cudnnRNNBackwardWeightsEx(
           /*handle=*/cudnn.handle(), /*rnnDesc=*/rnn_desc.handle(),
@@ -1704,6 +1767,20 @@ port::Status CudnnSupport::DoRnnBackwardImpl(
           /*reserveSpace=*/reserve_space_data->opaque(),
           /*reserveSpaceSizeInBytes=*/reserve_space_data->size()));
     }
+#else
+    // make the backward weight call
+    RETURN_IF_CUDNN_ERROR(cudnnRNNBackwardWeights(
+        /*handle=*/cudnn.handle(), /*rnnDesc=*/rnn_desc.handle(),
+        /*seqLength=*/model_dims.seq_length, /*xDesc=*/input_desc.handles(),
+        /*x=*/input_data.opaque(), /*hxDesc=*/input_h_desc.handle(),
+        /*hx=*/input_h_data.opaque(), /*yDesc=*/output_desc.handles(),
+        /*y=*/output_data.opaque(), /*workspace=*/workspace.opaque(),
+        /*workSpaceSizeInBytes=*/workspace.size(),
+        /*dwDesc=*/rnn_desc.params_handle(),
+        /*dw=*/params_backprop_data->opaque(),
+        /*reserveSpace=*/reserve_space_data->opaque(),
+        /*reserveSpaceSizeInBytes=*/reserve_space_data->size()));
+#endif
   }
 
   if (is_profiling) {
