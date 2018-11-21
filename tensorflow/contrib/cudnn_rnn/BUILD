@@ -70,34 +70,6 @@ cuda_py_test(
 )
 
 cuda_py_test(
-    name = "cudnn_rnn_ops_var_seq_len_test",
-    size = "large",
-    srcs = ["python/kernel_tests/cudnn_rnn_ops_var_seq_len_test.py"],
-    additional_deps = [
-        ":cudnn_rnn_py",
-        "//tensorflow/core:protos_all_py",
-        "//tensorflow/contrib/rnn:rnn_py",
-        "//tensorflow/python/ops/losses:losses",
-        "//tensorflow/python:array_ops",
-        "//tensorflow/python:client_testlib",
-        "//tensorflow/python:framework",
-        "//tensorflow/python:framework_for_generated_wrappers",
-        "//tensorflow/python:framework_test_lib",
-        "//tensorflow/python:math_ops",
-        "//tensorflow/python:platform_test",
-        "//tensorflow/python:random_ops",
-        "//tensorflow/python:state_ops",
-        "//tensorflow/python:training",
-        "//tensorflow/python:variables",
-    ],
-    shard_count = 6,
-    tags = [
-        "manual",
-        "requires_cudnn5",
-    ],
-)
-
-cuda_py_test(
     name = "cudnn_rnn_test",
     size = "enormous",
     srcs = ["python/kernel_tests/cudnn_rnn_test.py"],
