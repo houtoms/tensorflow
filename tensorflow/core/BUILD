@@ -1359,7 +1359,11 @@ cc_library(
         "//tensorflow/core/kernels:summary_kernels",
         "//tensorflow/core/kernels:training_ops",
         "//tensorflow/core/kernels:word2vec_kernels",
-    ] + tf_additional_cloud_kernel_deps() + if_not_windows([
+    ] + tf_additional_cloud_kernel_deps() + select({
+        "//tensorflow:no_nccl_support": [],
+        "//tensorflow:windows": [],
+        "//conditions:default": ["//tensorflow/core/kernels:nccl_kernels"],
+    }) + if_not_windows([
         "//tensorflow/core/kernels:fact_op",
         "//tensorflow/core/kernels:array_not_windows",
         "//tensorflow/core/kernels:math_not_windows",
