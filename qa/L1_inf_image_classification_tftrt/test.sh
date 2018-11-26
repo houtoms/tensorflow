@@ -12,7 +12,7 @@ popd
 OUTPUT_PATH=$PWD
 pushd ../../nvidia-examples/inference/image-classification/scripts
 
-JESTON=false
+JETSON=false
 NATIVE_ARCH=`uname -m`
 
 if [ ${NATIVE_ARCH} == 'aarch64' ]; then
