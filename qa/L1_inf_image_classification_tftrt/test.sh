@@ -19,6 +19,7 @@ if [ ${NATIVE_ARCH} == 'aarch64' ]; then
   JETSON=true
 fi
 
+echo $JETSON
 
 set_models() {
   models=(
@@ -34,6 +35,7 @@ set_models() {
     inception_v4
   )
   if ! $JETSON ; then
+    echo "adding vgg to the models list"
     models+=(vgg_16)
     models+=(vgg_19)
   fi
@@ -42,6 +44,7 @@ set_models() {
 
 set_allocator() {
   if $JETSON ; then
+    echo "set cuda_malloc as gpu allocator"
     export TF_GPU_ALLOCATOR="cuda_malloc"
   else
     unset TF_GPU_ALLOCATOR
@@ -60,11 +63,15 @@ do
       --use_trt \
       2>&1 | tee $OUTPUT_PATH/output_tftrt_fp32_bs8_${model}
   python -u check_accuracy.py --input_path $OUTPUT_PATH --precision tftrt_fp32 --batch_size 8 --model $model
+  
+  echo $JETSON
   if $JETSON ; then
+    echo "checking performance"
     pushd ../../../../qa/inference/image_classification
     python -u check_performance.py --input_path $OUTPUT_PATH --model $model --batch_size 8 --precision tftrt_fp32
     popd
   fi
+  
   echo "DONE testing $model"
 done
 popd
