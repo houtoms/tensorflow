@@ -742,6 +742,10 @@ L3_converge_resnet50--V100_R410_16GPU:
     <<: *L3_CNN_CONVERGENCE
     <<: *V100_R410_16GPU
 
+L3_resnet50_dali--V100_R410_16GPU:
+    <<: *L3_CNN_CONVERGENCE
+    <<: *V100_R410_16GPU
+
 ############################
 
 L3_self_tests--V100_R410_16GPU:
@@ -992,6 +996,10 @@ L2_bench_vgg19--V100_R384_4GPU:
     <<: *V100_R384_4GPU
 
 L3_converge_resnet50--V100_R384_8GPU:
+    <<: *L3_CNN_CONVERGENCE
+    <<: *V100_R384_8GPU
+
+L3_resnet50_dali--V100_R384_8GPU:
     <<: *L3_CNN_CONVERGENCE
     <<: *V100_R384_8GPU
 
