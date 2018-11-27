@@ -28,6 +28,8 @@ pip${PYVER} install numpy enum34 mock h5py keras_applications keras_preprocessin
 # Set configuration options and run configure script
 source jetson/auto_conf.sh
 
+# Run script without capturing output first to fail if JP version is unknown
+bash ${SCRIPT_DIR}/get_jpver.sh
 # Determine JetPack version for wheel naming
 JPVER=$(${SCRIPT_DIR}/get_jpver.sh)
 
