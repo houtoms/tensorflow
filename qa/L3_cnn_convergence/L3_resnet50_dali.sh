@@ -24,7 +24,8 @@ function CLEAN_AND_EXIT {
 SECONDS=0
 mpiexec --allow-run-as-root --bind-to none -np $GPUS python -u \
     /opt/tensorflow/nvidia-examples/cnn/resnet.py --layers=50 \
-    --data_dir=/data/imagenet/train-val-tfrecord-480 --use_dali=GPU \
+    --data_dir=/data/imagenet/train-val-tfrecord-480 \
+    --use_dali=GPU --data_idx_dir=/data/imagenet/train-val-tfrecord-480.idx \
     --batch_size=$BATCH_SIZE --log_dir=$OUT --display_every=1000 \
     2>&1 | tee $LOG
 RET=${PIPESTATUS[0]}
