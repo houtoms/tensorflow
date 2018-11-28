@@ -16,9 +16,6 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-# TODO(mconley) temporary Xavier testCapacity fix
-import platform
-
 from tensorflow.python.framework import dtypes
 from tensorflow.python.framework import ops
 from tensorflow.python.ops import array_ops
@@ -162,8 +159,6 @@ class StageTest(test.TestCase):
       self.assertEqual(sess.run(size), 0)
 
   def testCapacity(self):
-#    if platform.machine() == 'aarch64':
-#      return
     capacity = 3
 
     with ops.Graph().as_default() as G:
