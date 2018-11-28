@@ -158,6 +158,7 @@ REGISTER_OP("CudnnRNNV3")
     .Output("output_h: T")
     .Output("output_c: T")
     .Output("reserve_space: T")
+    .Output("host_reserved: int8")
     .Attr("T: {float16, float32, float64}")
     .Attr(kRNNModeAttrs)
     .Attr(kRNNInputModeAttrs)
@@ -187,6 +188,7 @@ REGISTER_OP("CudnnRNNV3")
       c->set_output(1, output_h_shape);
       c->set_output(2, output_c_shape);
       c->set_output(3, c->UnknownShape());
+      c->set_output(4, c->UnknownShape());
       return Status::OK();
     });
 
@@ -276,6 +278,7 @@ REGISTER_OP("CudnnRNNBackpropV3")
     .Input("output_h_backprop: T")
     .Input("output_c_backprop: T")
     .Input("reserve_space: T")
+    .Input("host_reserved: int8")
     .SetIsStateful()
     .Output("input_backprop: T")
     .Output("input_h_backprop: T")

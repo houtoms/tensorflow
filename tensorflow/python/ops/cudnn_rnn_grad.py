@@ -93,6 +93,7 @@ def _cudnn_rnn_backward_var_seq_len(op, *grads):
       output_h_backprop=grads[1],
       output_c_backprop=grads[2],
       reserve_space=op.outputs[3],
+      host_reserved=op.outputs[4],
       dropout=op.get_attr("dropout"),
       seed=op.get_attr("seed"),
       seed2=op.get_attr("seed2"),
