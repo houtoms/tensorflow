@@ -271,10 +271,13 @@ def train(infer_func, params):
     print("Training")
     if not deterministic and not use_dali:
         num_preproc_threads = 10
-    elif not deterministic and use_dali:
-        num_preproc_threads = 2 
+    elif not deterministic:
+        if use_dali:
+            num_preproc_threads = 4
+        else:
+            num_preproc_threads = 2
     elif deterministic:
-        num_preproc_threads = 1 
+        num_preproc_threads = 1
 
     training_hooks = [hvd.BroadcastGlobalVariablesHook(0),
                       _PrefillStagingAreasHook()]

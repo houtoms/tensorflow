@@ -44,8 +44,8 @@ RUN curl -O https://bootstrap.pypa.io/get-pip.py && \
     rm get-pip.py
 
 # nltk version specified per OpenSeq2Seq requirements
-RUN DALI_VERSION=0.5.0 \
- && DALI_BUILD=39581 \
+RUN DALI_VERSION=0.6.0 \
+ && DALI_BUILD=40894 \
  && pip install --no-cache-dir --upgrade \
                 --extra-index-url https://developer.download.nvidia.com/compute/redist \
                 --extra-index-url http://sqrl/dldata/pip-simple --trusted-host sqrl \
@@ -60,6 +60,9 @@ RUN DALI_VERSION=0.5.0 \
         h5py \
         keras_preprocessing==1.0.5 \
         keras_applications==1.0.6
+
+#it is needed for the DALI video
+ENV NVIDIA_DRIVER_CAPABILITIES=compute,utility
 
 # other OpenSeq2Seq dependencies
 RUN pip install --no-cache-dir --upgrade \

@@ -251,8 +251,9 @@ class DaliPreprocessor(object):
 
         with tf.device("/gpu:0"):
             self.images, self.labels = daliop(
-                serialized_pipeline=serialized_pipe,
-                shape=[batch_size, height, width, 3],
+                serialized_pipeline=serialized_pipe
+                shapes=[(batch_size, height, width, 3), ()],
+                dtypes=[tf.float32, tf.int64],
                 device_id=hvd.rank())
 
     def get_device_minibatches(self):
