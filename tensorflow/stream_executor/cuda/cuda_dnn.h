@@ -55,7 +55,7 @@ class CudnnSupport : public dnn::DnnSupport {
       ScratchAllocator* state_allocator) override;
 
   port::StatusOr<std::unique_ptr<dnn::RnnSequenceTensorDescriptor>>
-  createRnnSequenceTensorDescriptor(int seq_length, int batch_size,
+  createRnnSequenceTensorDescriptor(int max_seq_length, int batch_size,
                                     int data_size, int* seq_lens,
                                     dnn::DataType data_type) override;
 
