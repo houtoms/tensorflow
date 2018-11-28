@@ -29,7 +29,6 @@ decode_csv_op_test.py
 decode_image_op_test.py
 decode_png_op_test.py
 decode_raw_op_test.py
-denormal_test.py
 dense_update_ops_no_tsan_test.py
 dense_update_ops_test.py
 determinant_op_test.py
@@ -70,7 +69,6 @@ argmax_op_test.py
 base64_ops_test.py
 basic_gpu_test.py
 batchtospace_op_test.py
-benchmark_test.py
 betainc_op_test.py
 checkpoint_ops_test.py
 clip_ops_test.py
@@ -157,7 +155,6 @@ pad_op_test.py
 sets_test.py
 dct_ops_test.py
 shape_ops_test.py
-control_flow_ops_py_test.py
 scatter_nd_ops_test.py
 cholesky_op_test.py
 matrix_solve_ls_op_test.py
@@ -165,7 +162,6 @@ padding_fifo_queue_test.py
 py_func_test.py
 sparse_conditional_accumulator_test.py
 dynamic_partition_op_test.py
-sparse_matmul_op_test.py
 conditional_accumulator_test.py
 priority_queue_test.py
 scan_ops_test.py
@@ -176,6 +172,17 @@ record_input_test.py
 embedding_ops_test.py
 conv2d_backprop_filter_grad_test.py
 batch_matmul_op_test.py"
+
+arm_disabled="denormal_test.py
+sparse_matmul_op_test.py
+benchmark_test.py
+control_flow_ops_py_test.py"
+
+current_arch=`uname -m`
+if [[ $current_arch != "aarch64" ]]; then
+	tests="$tests
+	$arm_disabled"
+fi
 
 # Install test dependencies
 pip install portpicker
