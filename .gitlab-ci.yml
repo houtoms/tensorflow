@@ -460,7 +460,7 @@ jetson-xavier-py3.6-wheel:
       python${PYVER} -m virtualenv ./tf_env${PYVER} &&
       source ./tf_env${PYVER}/bin/activate &&
       pip install -U --find-links=file://$PWD/wheelhouse/${JPVER} ${PIP_PACKAGE_NAME} &&
-      cd ${TEST_WORK_DIR} &&
+      cd ${TEST_WORK_DIR} && sync && echo 3 |sudo tee /proc/sys/vm/drop_caches && export LD_LIBRARY_PATH=/usr/local/cuda/extras/CUPTI/lib64:${LD_LIBRARY_PATH}
       exec bash -ex ${TEST_SCRIPT} || RV=$?;
       set +x;
       exit ${RV:-0}
@@ -1563,6 +1563,18 @@ L1_xla_tests--py3.6--XAVIER:
     <<: *L1_TEST_JETSON
     <<: *XAVIER
 
+L1_inf_object_detection--py3.6--XAVIER:
+    <<: *L1_TEST_JETSON
+    <<: *XAVIER
+
+L1_inf_image_classification_tftrt--py3.6--XAVIER:
+    <<: *L1_TEST_JETSON
+    <<: *XAVIER
+
+L1_inf_image_classification_tftrt_fp16--py3.6--XAVIER:
+    <<: *L1_TEST_JETSON
+    <<: *XAVIER
+
 L3_self_tests--py3.6--XAVIER:
     <<: *L3_TEST_JETSON
     <<: *XAVIER
@@ -1603,25 +1615,9 @@ L1_inf_image_classification_tftrt_fp16--py2--XAVIER:
     <<: *L1_TEST_JETSON
     <<: *XAVIER_PY2
 
-L1_inf_image_classification_tftrt--py3.6--XAVIER:
-    <<: *L1_TEST_JETSON
-    <<: *XAVIER_PY2
-
-L1_inf_image_classification_tftrt_fp16--py3.6--XAVIER:
-    <<: *L1_TEST_JETSON
-    <<: *XAVIER_PY2
-
 L1_inf_object_detection--py2--XAVIER:
     <<: *L1_TEST_JETSON
     <<: *XAVIER_PY2
-
-L1_inf_object_detection--py3.6--XAVIER:
-    <<: *L1_TEST_JETSON
-    <<: *XAVIER_PY2
-
-L1_tftrt--py3.6--XAVIER:
-    <<: *L1_TEST_JETSON
-    <<: *XAVIER
 
 L2_inf_image_classification_tftrt_int8--py2--XAVIER:
     <<: *L2_TEST_JETSON

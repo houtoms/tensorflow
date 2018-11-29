@@ -263,7 +263,7 @@ class QuantizationAwareTrainingMNISTTest(test_util.TensorFlowTestCase):
   def testEval(self):
     if not trt_convert.is_tensorrt_enabled():
       return
-    if "TEST_SRCDIR" in os.env:
+    if "TEST_SRCDIR" in os.environ:
       model_dir = test.test_src_dir_path('contrib/tensorrt/test/testdata')
     else:
       model_dir = os.curdir()
