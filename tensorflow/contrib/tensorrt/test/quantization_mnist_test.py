@@ -266,7 +266,7 @@ class QuantizationAwareTrainingMNISTTest(test_util.TensorFlowTestCase):
     if "TEST_SRCDIR" in os.environ:
       model_dir = test.test_src_dir_path('contrib/tensorrt/test/testdata')
     else:
-      model_dir = os.curdir()
+      model_dir = os.path.abspath(os.path.curdir)
 
     accuracy_tf_native = self._Run(
         is_training=False,
