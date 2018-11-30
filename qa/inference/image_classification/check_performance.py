@@ -4,12 +4,6 @@ import sys
 import re
 from dest_res import dest
 
-def bool_str(b):
-    if b == False:
-        return ''
-    else:
-        return 'True'
-
 def parse_file(filename):
     with(open(filename)) as f:
         f_data = f.read()
@@ -44,7 +38,7 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
-    fn = 'output_' + args.precision + '_bs' + str(args.batch_size) + '_' + args.model + bool_str(args.dynamic_op)
+    fn = 'output_' + args.precision + '_bs' + str(args.batch_size) + '_' + args.model + '_dynamic_op=' + str(args.dynamic_op)
 
     print()
     print('checking performance...')

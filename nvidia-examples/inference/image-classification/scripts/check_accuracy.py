@@ -20,12 +20,6 @@ import ast
 import sys
 import re
 
-def bool_str(b):
-    if b == False:
-        return ''
-    else:
-        return 'True'
-
 
 def parse_file(filename):
     with open(filename) as f:
@@ -71,7 +65,7 @@ if __name__ == "__main__":
     parser.add_argument('--dynamic_op',  type=bool, default=False) 
     
     args = parser.parse_args()
-    filename = args.input_path + "/output_" + args.precision + "_bs" + str(args.batch_size) + "_" + args.model + bool_str(args.dynamic_op)
+    filename = args.input_path + "/output_" + args.precision + "_bs" + str(args.batch_size) + "_" + args.model + '_dynamic_op=' + str(args.dynamic_op)
     tolerance = args.tolerance
 
     print()

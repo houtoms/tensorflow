@@ -63,7 +63,7 @@ do
       --use_trt \
       --batch_size 8 \
       --precision int8 \
-      2>&1 | tee $OUTPUT_PATH/output_tftrt_int8_bs8_${model}
+      2>&1 | tee $OUTPUT_PATH/output_tftrt_int8_bs8_${model}_dynamic_op=False
   python -u check_accuracy.py --tolerance 1.0 --input_path $OUTPUT_PATH --precision tftrt_int8 --batch_size 8 --model $model
   if $JETSON ; then
     pushd ../../../../qa/inference/image_classification

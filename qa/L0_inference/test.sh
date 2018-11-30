@@ -1,6 +1,6 @@
 #!/bin/bash
 
-#set -e
+set -e
 
 # IMAGE CLASSIFICATION
 
@@ -39,12 +39,7 @@ for use_trt_dynamic_op in ${dynamic_op[@]}; do
         dynamic_op_params=--use_trt_dynamic_op
     fi;
 
-    if [ ${use_trt_dynamic_op} == False ] ; then    
-        OUTPUT_FILE=$OUTPUT_PATH/output_tftrt_fp16_bs8_${model}
-    else
-        OUTPUT_FILE=$OUTPUT_PATH/output_tftrt_fp16_bs8_${model}True
-    fi;
-    echo $OUTPUT_FILE 
+    OUTPUT_FILE=$OUTPUT_PATH/output_tftrt_fp16_bs8_${model}_dynamic_op=${use_trt_dynamic_op}
     python -u inference.py \
         --data_dir "/data/imagenet/train-val-tfrecord" \
         --model $model \

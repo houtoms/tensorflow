@@ -58,7 +58,7 @@ do
       --default_models_dir "/data/tensorflow/models" \
       --model $model \
       --use_trt \
-      2>&1 | tee $OUTPUT_PATH/output_tftrt_fp32_bs8_${model}
+      2>&1 | tee $OUTPUT_PATH/output_tftrt_fp32_bs8_${model}_dynamic_op=False
   python -u check_accuracy.py --input_path $OUTPUT_PATH --precision tftrt_fp32 --batch_size 8 --model $model
   
   if $JETSON ; then
