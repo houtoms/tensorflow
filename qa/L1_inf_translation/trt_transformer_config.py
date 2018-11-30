@@ -32,7 +32,7 @@ base_params = {
   "print_samples_steps": 100,
   "eval_steps": 4001,
   "save_checkpoint_steps": 299998,
-  "logdir": "Transformer-FP32-H-256",
+  "logdir": "/data/tensorflow/machine_translation/models/Transformer-FP32-H-256",
   "dtype": tf.float32,
   #"dtype": "mixed",
   #"loss_scaling": "Backoff",
@@ -121,8 +121,13 @@ eval_params = {
 }
 
 infer_params = {
-  "batch_size_per_gpu": 128,
+  "batch_size_per_gpu": 64,
   "data_layer": ParallelTextDataLayer,
+  "use_trt": True,
+  "trt_precision_mode": "FP32",
+  "trt_minimum_segment_size": 10,
+  "trt_is_dynamic_op": True,
+  "trt_maximum_cached_engines": 100,
   "data_layer_params": {
     "src_vocab_file": data_root+"m_common.vocab",
     "tgt_vocab_file": data_root+"m_common.vocab",
