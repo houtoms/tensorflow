@@ -594,7 +594,7 @@ L0_convnet_benchmarks_vgga--P100_R384_4GPU:
 
 L0_os2s_ctc--P100_R384_4GPU:
     <<: *L0_TEST
-    <<: *P100_R384_1GPU
+    <<: *P100_R384_4GPU
 
 L0_seq2seq--P100_R384_4GPU:
     <<: *L0_TEST
