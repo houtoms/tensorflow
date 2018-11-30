@@ -34,8 +34,13 @@ echo tests ${tests[@]}
 #    It's currently broken. We don't use plugins yet. Once we
 #    start using plugins from the registry, then we should
 #    write some tests.
+#./test/quantization_mnist_test.py
+#    TODO(mconley) This test was accidentally merged in too
+#    early by one of the cherry-picks to fix Xavier.  This 
+#    test should not be ignored when properly merged in.
 ignored_tests="
 ./custom_plugin_examples/plugin_test.py
+./test/quantization_mnist_test.py
 "
 
 tmp_logfile="/tmp/tf_trt_test.log"
