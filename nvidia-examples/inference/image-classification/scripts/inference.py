@@ -132,6 +132,7 @@ def run(frozen_graph, model, data_dir, batch_size,
 
 def get_frozen_graph(
     model,
+    model_dir=None,
     use_trt=False,
     use_dynamic_op=False,
     precision='fp32',
@@ -141,7 +142,7 @@ def get_frozen_graph(
     num_calib_inputs=None,
     use_synthetic=False,
     cache=False,
-    download_dir='./data'):
+    default_models_dir='./data'):
     """Retreives a frozen GraphDef from model definitions in classification.py and applies TF-TRT
 
     model: str, the model name (see NETS table in classification.py)
@@ -169,7 +170,7 @@ def get_frozen_graph(
             return frozen_graph, num_nodes, times
 
     # Build graph and load weights
-    frozen_graph = build_classification_graph(model, download_dir)
+    frozen_graph = build_classification_graph(model, model_dir, default_models_dir)
     num_nodes['native_tf'] = len(frozen_graph.node)
 
     # Convert to TensorRT graph
@@ -222,14 +223,20 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Evaluate model')
     parser.add_argument('--model', type=str, default='inception_v4',
         choices=['mobilenet_v1', 'mobilenet_v2', 'nasnet_mobile', 'nasnet_large',
-                 'resnet_v1_50', 'resnet_v2_50', 'vgg_16', 'vgg_19', 'inception_v3', 'inception_v4'],
+                 'resnet_v1_50', 'resnet_v2_50', 'resnet_v2_152', 'vgg_16', 'vgg_19',
+                 'inception_v3', 'inception_v4'],
         help='Which model to use.')
     parser.add_argument('--data_dir', type=str, required=True,
         help='Directory containing validation set TFRecord files.')
     parser.add_argument('--calib_data_dir', type=str,
         help='Directory containing TFRecord files for calibrating int8.')
-    parser.add_argument('--download_dir', type=str, default='./data',
-        help='Directory where downloaded model checkpoints will be stored.')
+    parser.add_argument('--model_dir', type=str, default=None,
+        help='Directory containing model checkpoint. If not provided, a ' \
+             'checkpoint may be downloaded automatically and stored in ' \
+             '"{--default_models_dir}/{--model}" for future use.') 
+    parser.add_argument('--default_models_dir', type=str, default='./data',
+        help='Directory where downloaded model checkpoints will be stored and ' \
+             'loaded from if --model_dir is not provided.')
     parser.add_argument('--use_trt', action='store_true',
         help='If set, the graph will be converted to a TensorRT graph.')
     parser.add_argument('--use_trt_dynamic_op', action='store_true',
@@ -269,6 +276,7 @@ if __name__ == '__main__':
     # Retreive graph using NETS table in graph.py
     frozen_graph, num_nodes, times = get_frozen_graph(
         model=args.model,
+        model_dir=args.model_dir,
         use_trt=args.use_trt,
         use_dynamic_op=args.use_trt_dynamic_op,
         precision=args.precision,
@@ -278,7 +286,7 @@ if __name__ == '__main__':
         num_calib_inputs=args.num_calib_inputs,
         use_synthetic=args.use_synthetic,
         cache=args.cache,
-        download_dir=args.download_dir)
+        default_models_dir=args.default_models_dir)
 
     def print_dict(input_dict, str=''):
         for k, v in sorted(input_dict.items()):

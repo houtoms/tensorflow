@@ -79,7 +79,7 @@ do
   python -u inference.py \
       --data_dir "/data/imagenet/train-val-tfrecord" \
       --calib_data_dir "/data/imagenet/train-val-tfrecord" \
-      --download_dir "/data/tensorflow/models" \
+      --default_models_dir "/data/tensorflow/models" \
       --model $model \
       --use_trt \
       --batch_size $BATCH_SIZE \

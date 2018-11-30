@@ -38,7 +38,7 @@ for model in "${models[@]}"
 do
   python -u inference.py \
       --data_dir "/data/imagenet/train-val-tfrecord" \
-      --download_dir "/data/tensorflow/models" \
+      --default_models_dir "/data/tensorflow/models" \
       --model $model \
       2>&1 | tee $OUTPUT_PATH/output_$model
   python -u check_accuracy.py --input $OUTPUT_PATH/output_$model
