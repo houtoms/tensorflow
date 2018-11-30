@@ -50,7 +50,7 @@ for model in "${models[@]}"
 do
   python -u inference.py \
       --data_dir "/data/imagenet/train-val-tfrecord" \
-      --download_dir "/data/tensorflow/models" \
+      --default_models_dir "/data/tensorflow/models" \
       --model $model \
       --use_trt \
       2>&1 | tee $OUTPUT_PATH/output_tftrt_$model

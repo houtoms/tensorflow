@@ -20,6 +20,7 @@ set_models() {
     nasnet_mobile
     resnet_v1_50
     resnet_v2_50
+    resnet_v2_152
     #vgg_16
     #vgg_19
     inception_v3
@@ -59,7 +60,7 @@ run_inference() {
       echo "Testing $i batch_size $bs..."
       common_args="
         --model $i
-        --download_dir /data/tensorflow/models
+        --default_models_dir /data/tensorflow/models
         --data_dir /data/imagenet/train-val-tfrecord
         --calib_data_dir /data/imagenet/train-val-tfrecord
         --batch_size $bs
