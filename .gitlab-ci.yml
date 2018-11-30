@@ -592,6 +592,10 @@ L0_convnet_benchmarks_vgga--P100_R384_4GPU:
       TEST_WORK_DIR: "/opt/tensorflow/qa/L0_convnet_benchmarks"
       TEST_SCRIPT: "./test-vgga.sh"
 
+L0_os2s_ctc--P100_R384_4GPU:
+    <<: *L0_TEST
+    <<: *P100_R384_1GPU
+
 L0_seq2seq--P100_R384_4GPU:
     <<: *L0_TEST
     <<: *P100_R384_4GPU
@@ -885,6 +889,10 @@ L0_convnet_benchmarks_vgga--V100_R384_1GPU:
     variables:
       TEST_WORK_DIR: "/opt/tensorflow/qa/L0_convnet_benchmarks"
       TEST_SCRIPT: "./test-vgga.sh"
+
+L0_os2s_ctc--V100_R384_1GPU:
+    <<: *L0_TEST
+    <<: *V100_R384_1GPU
 
 L0_seq2seq--V100_R384_1GPU:
     <<: *L0_TEST
@@ -1239,6 +1247,10 @@ L0_convnet_benchmarks_vgga--P40_R384_1GPU:
     variables:
       TEST_WORK_DIR: "/opt/tensorflow/qa/L0_convnet_benchmarks"
       TEST_SCRIPT: "./test-vgga.sh"
+
+L0_os2s_ctc--P40_R384_1GPU:
+    <<: *L0_TEST
+    <<: *P40_R384_1GPU
 
 L0_seq2seq--P40_R384_1GPU:
     <<: *L0_TEST
