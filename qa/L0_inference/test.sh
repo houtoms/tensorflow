@@ -26,17 +26,28 @@ set_allocator() {
 set_allocator
 
 model="mobilenet_v1"
-for use_trt_dynamic_op in "" "--use_trt_dynamic_op"; do
+
+dynamic_op=(
+True
+False
+)
+
+for use_trt_dynamic_op in ${dynamic_op[@]}; do
     echo "Testing $model $use_trt_dynamic_op"
-    OUTPUT_FILE=$OUTPUT_PATH/output_tftrt_fp16_${model}${use_trt_dynamic_op}
+    dynamic_op_params=""
+    if [ ${use_trt_dynamic_op} == True ] ; then
+        dynamic_op_params=--use_trt_dynamic_op
+    fi;
+
+    OUTPUT_FILE=$OUTPUT_PATH/output_tftrt_fp16_bs8_${model}_dynamic_op=${use_trt_dynamic_op}
     python -u inference.py \
         --data_dir "/data/imagenet/train-val-tfrecord" \
         --model $model \
         --use_trt \
         --precision fp16 \
-        $use_trt_dynamic_op \
+        $dynamic_op_params \
         2>&1 | tee $OUTPUT_FILE
-    python -u check_accuracy.py --input $OUTPUT_FILE
+    python -u check_accuracy.py --input_path $OUTPUT_PATH --batch_size 8 --model $model --dynamic_op $use_trt_dynamic_op --precision tftrt_fp16
     echo "DONE testing $model $use_trt_dynamic_op"
 done
 popd

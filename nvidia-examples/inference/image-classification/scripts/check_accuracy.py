@@ -57,11 +57,15 @@ def check_accuracy(res, tol):
 if __name__ == "__main__":
     
     parser = argparse.ArgumentParser()
-    parser.add_argument('--input', dest='input')
-    parser.add_argument('--tolerance', dest='tolerance', type=float, default=0.1)
+    parser.add_argument('--input_path')
+    parser.add_argument('--model')
+    parser.add_argument('--batch_size')
+    parser.add_argument('--precision')
+    parser.add_argument('--tolerance', type=float, default=0.1)
+    parser.add_argument('--dynamic_op',  type=bool, default=False) 
     
     args = parser.parse_args()
-    filename = args.input
+    filename = args.input_path + "/output_" + args.precision + "_bs" + str(args.batch_size) + "_" + args.model + '_dynamic_op=' + str(args.dynamic_op)
     tolerance = args.tolerance
 
     print()
