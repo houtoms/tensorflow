@@ -10,15 +10,12 @@ python setup.py install
 popd
 
 OUTPUT_PATH=$PWD
-pushd ../../nvidia-examples/inference/image-classification/scripts
 
 JETSON=false
-
 NATIVE_ARCH=`uname -m`
-if [ ${NATIVE_ARCH} == 'aarch64' ]; then
+if [ ${NATIVE_ARCH} == "aarch64" ]; then
   JETSON=true
 fi
-
 
 set_models() {
   models=(
@@ -33,7 +30,7 @@ set_models() {
     inception_v3
     #inception_v4
   )
-  if ! $JETSON; then
+  if ! $JETSON ; then
     models+=(vgg_16)
     models+=(vgg_19)
   fi
@@ -48,14 +45,14 @@ set_allocator() {
   fi
 }
 
-
-set_models
 set_allocator
+set_models
 
 for model in "${models[@]}"
 do
   echo "Testing $model..."
-  python -u inference.py \
+  pushd ../third_party/tensorrt/tftrt/examples/image-classification/
+  python -u image_classification.py \
       --data_dir "/data/imagenet/train-val-tfrecord" \
       --calib_data_dir "/data/imagenet/train-val-tfrecord" \
       --default_models_dir "/data/tensorflow/models" \
@@ -64,12 +61,13 @@ do
       --batch_size 8 \
       --precision int8 \
       2>&1 | tee $OUTPUT_PATH/output_tftrt_int8_bs8_${model}_dynamic_op=False
+  popd
+  pushd ../inference/image_classification/
   python -u check_accuracy.py --tolerance 1.0 --input_path $OUTPUT_PATH --precision tftrt_int8 --batch_size 8 --model $model
   if $JETSON ; then
-    pushd ../../../../qa/inference/image_classification
     python -u check_performance.py --input_path $OUTPUT_PATH --model $model --batch_size 8 --precision tftrt_int8 
-    popd
   fi
+  popd
+
   echo "DONE testing $model"
 done
-popd
