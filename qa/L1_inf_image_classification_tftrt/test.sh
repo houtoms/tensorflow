@@ -12,8 +12,15 @@ popd
 OUTPUT_PATH=$PWD
 pushd ../../nvidia-examples/inference/image-classification/scripts
 
+JETSON=false
+NATIVE_ARCH=`uname -m`
+
+if [ ${NATIVE_ARCH} == 'aarch64' ]; then
+  JETSON=true
+fi
+
+
 set_models() {
-  NATIVE_ARCH=`uname -m`
   models=(
     mobilenet_v1
     mobilenet_v2
@@ -26,7 +33,7 @@ set_models() {
     inception_v3
     inception_v4
   )
-  if [ ${NATIVE_ARCH} == 'x86_64' ]; then
+  if ! $JETSON ; then
     models+=(vgg_16)
     models+=(vgg_19)
   fi
@@ -34,14 +41,12 @@ set_models() {
 
 
 set_allocator() {
-  NATIVE_ARCH=`uname -m`
-  if [ ${NATIVE_ARCH} == 'aarch64' ]; then
+  if $JETSON ; then
     export TF_GPU_ALLOCATOR="cuda_malloc"
   else
     unset TF_GPU_ALLOCATOR
   fi
 }
-
 
 set_allocator
 set_models
@@ -53,8 +58,15 @@ do
       --default_models_dir "/data/tensorflow/models" \
       --model $model \
       --use_trt \
-      2>&1 | tee $OUTPUT_PATH/output_tftrt_$model
-  python -u check_accuracy.py --input $OUTPUT_PATH/output_tftrt_$model
+      2>&1 | tee $OUTPUT_PATH/output_tftrt_fp32_bs8_${model}_dynamic_op=False
+  python -u check_accuracy.py --input_path $OUTPUT_PATH --precision tftrt_fp32 --batch_size 8 --model $model
+  
+  if $JETSON ; then
+    pushd ../../../../qa/inference/image_classification
+    python -u check_performance.py --input_path $OUTPUT_PATH --model $model --batch_size 8 --precision tftrt_fp32
+    popd
+  fi
+  
   echo "DONE testing $model"
 done
 popd
