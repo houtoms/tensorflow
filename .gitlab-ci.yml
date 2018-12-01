@@ -368,6 +368,12 @@ gather wheels:
 .XAVIER: &XAVIER
     tags:
     - XAVIER
+    - PY3
+
+.XAVIER_PY2: &XAVIER_PY2
+    tags:
+    - XAVIER
+    - PY2
 
 .V100_R410_16GPU: &V100_R410_16GPU
     tags:
@@ -409,20 +415,20 @@ gather wheels:
       variables:
         - $TARGET == "jetson"
 
-jetson-tx2-py2-wheel:
-    stage: build base
-    <<: *BASE_WHEEL_METAL
-    <<: *TX2
+# jetson-tx2-py2-wheel:
+#     stage: build base
+#     <<: *BASE_WHEEL_METAL
+#     <<: *TX2
 
-jetson-tx2-py3-wheel:
-    stage: build base
-    <<: *BASE_WHEEL_METAL
-    <<: *TX2
+# jetson-tx2-py3-wheel:
+#     stage: build base
+#     <<: *BASE_WHEEL_METAL
+#     <<: *TX2
 
 jetson-xavier-py2-wheel:
     stage: build base
     <<: *BASE_WHEEL_METAL
-    <<: *XAVIER
+    <<: *XAVIER_PY2
 
 jetson-xavier-py3.6-wheel:
     stage: build base
@@ -453,8 +459,8 @@ jetson-xavier-py3.6-wheel:
     - set -x &&
       python${PYVER} -m virtualenv ./tf_env${PYVER} &&
       source ./tf_env${PYVER}/bin/activate &&
-      pip install --find-links=file://$PWD/wheelhouse/${JPVER} ${PIP_PACKAGE_NAME} &&
-      cd ${TEST_WORK_DIR} &&
+      pip install -U --find-links=file://$PWD/wheelhouse/${JPVER} ${PIP_PACKAGE_NAME} &&
+      cd ${TEST_WORK_DIR} && sync && echo 3 |sudo tee /proc/sys/vm/drop_caches && export LD_LIBRARY_PATH=/usr/local/cuda/extras/CUPTI/lib64:${LD_LIBRARY_PATH} &&
       exec bash -ex ${TEST_SCRIPT} || RV=$?;
       set +x;
       exit ${RV:-0}
@@ -1502,127 +1508,6 @@ L2_models_cifar10--M40_R384_1GPU:
     <<: *L2_TEST
     <<: *M40_R384_1GPU
 
-#### TX2 ####
-
-L0_models_alexnet--py3--TX2:
-    <<: *L0_TEST_JETSON
-    <<: *TX2
-
-L0_models_imagenet--py3--TX2:
-    <<: *L0_TEST_JETSON
-    <<: *TX2
-
-L0_models_mnist--py3--TX2:
-    <<: *L0_TEST_JETSON
-    <<: *TX2
-
-L0_convnet_benchmarks_alexnet--py3--TX2:
-    <<: *L0_TEST_JETSON
-    <<: *TX2
-    variables:
-      TEST_WORK_DIR: "./qa/L0_convnet_benchmarks"
-      TEST_SCRIPT: "./test-alexnet.sh"
-
-L0_convnet_benchmarks_googlenet--py3--TX2:
-    <<: *L0_TEST_JETSON
-    <<: *TX2
-    variables:
-      TEST_WORK_DIR: "./qa/L0_convnet_benchmarks"
-      TEST_SCRIPT: "./test-googlenet.sh"
-
-L0_convnet_benchmarks_overfeat--py3--TX2:
-    <<: *L0_TEST_JETSON
-    <<: *TX2
-    variables:
-      TEST_WORK_DIR: "./qa/L0_convnet_benchmarks"
-      TEST_SCRIPT: "./test-overfeat.sh"
-
-L0_convnet_benchmarks_vgga--py3--TX2:
-    <<: *L0_TEST_JETSON
-    <<: *TX2
-    variables:
-      TEST_WORK_DIR: "./qa/L0_convnet_benchmarks"
-      TEST_SCRIPT: "./test-vgga.sh"
-
-L0_tftrt--py3--TX2:
-    <<: *L0_TEST_JETSON
-    <<: *TX2
-
-L0_inference--py3--TX2:
-    <<: *L0_TEST_JETSON
-    <<: *TX2
-
-L0_python_kernel_tests--py3--TX2:
-    <<: *L0_TEST_JETSON
-    <<: *TX2
-
-L1_kernel_tests--py3--TX2:
-    <<: *L1_TEST_JETSON
-    <<: *TX2
-
-L1_xla_tests--py3--TX2:
-    <<: *L1_TEST_JETSON
-    <<: *TX2
-
-L3_self_tests--py3--TX2:
-    <<: *L3_TEST_JETSON
-    <<: *TX2
-
-L0_models_alexnet--py2--TX2:
-    <<: *L0_TEST_JETSON
-    <<: *TX2
-
-L0_models_imagenet--py2--TX2:
-    <<: *L0_TEST_JETSON
-    <<: *TX2
-
-L0_models_mnist--py2--TX2:
-    <<: *L0_TEST_JETSON
-    <<: *TX2
-
-L0_tftrt--py2--TX2:
-    <<: *L0_TEST_JETSON
-    <<: *TX2
-
-L0_inference--py2--TX2:
-    <<: *L0_TEST_JETSON
-    <<: *TX2
-
-L0_python_kernel_tests--py2--TX2:
-    <<: *L0_TEST_JETSON
-    <<: *TX2
-
-L1_inf_image_classification_tf--py2--TX2:
-    <<: *L1_TEST_JETSON
-    <<: *TX2
-
-L1_inf_image_classification_tftrt--py2--TX2:
-    <<: *L1_TEST_JETSON
-    <<: *TX2
-
-L1_inf_image_classification_tftrt_fp16--py2--TX2:
-    <<: *L1_TEST_JETSON
-    <<: *TX2
-
-L1_inf_image_classification_tftrt--py3.6--TX2:
-    <<: *L1_TEST_JETSON
-    <<: *TX2
-
-L1_inf_image_classification_tftrt_fp16--py3.6--TX2:
-    <<: *L1_TEST_JETSON
-    <<: *TX2
-
-L1_inf_object_detection--py2--TX2:
-  <<: *L1_TEST_JETSON
-  <<: *TX2
-
-L1_inf_object_detection--py3.6--TX2:
-  <<: *L1_TEST_JETSON
-  <<: *TX2
-
-L1_tftrt--py3.6--TX2:
-  <<: *L1_TEST_JETSON
-  <<: *TX2
 
 #### XAVIER ####
 
@@ -1686,43 +1571,7 @@ L1_xla_tests--py3.6--XAVIER:
     <<: *L1_TEST_JETSON
     <<: *XAVIER
 
-L3_self_tests--py3.6--XAVIER:
-    <<: *L3_TEST_JETSON
-    <<: *XAVIER
-
-L0_models_alexnet--py2--XAVIER:
-    <<: *L0_TEST_JETSON
-    <<: *XAVIER
-
-L0_models_imagenet--py2--XAVIER:
-    <<: *L0_TEST_JETSON
-    <<: *XAVIER
-
-L0_models_mnist--py2--XAVIER:
-    <<: *L0_TEST_JETSON
-    <<: *XAVIER
-
-L0_tftrt--py2--XAVIER:
-    <<: *L0_TEST_JETSON
-    <<: *XAVIER
-
-L0_inference--py2--XAVIER:
-    <<: *L0_TEST_JETSON
-    <<: *XAVIER
-
-L0_python_kernel_tests--py2--XAVIER:
-    <<: *L0_TEST_JETSON
-    <<: *XAVIER
-
-L1_inf_image_classification_tf--py2--XAVIER:
-    <<: *L1_TEST_JETSON
-    <<: *XAVIER
-
-L1_inf_image_classification_tftrt--py2--XAVIER:
-    <<: *L1_TEST_JETSON
-    <<: *XAVIER
-
-L1_inf_image_classification_tftrt_fp16--py2--XAVIER:
+L1_inf_object_detection--py3.6--XAVIER:
     <<: *L1_TEST_JETSON
     <<: *XAVIER
 
@@ -1734,18 +1583,50 @@ L1_inf_image_classification_tftrt_fp16--py3.6--XAVIER:
     <<: *L1_TEST_JETSON
     <<: *XAVIER
 
+L3_self_tests--py3.6--XAVIER:
+    <<: *L3_TEST_JETSON
+    <<: *XAVIER
+
+L0_models_alexnet--py2--XAVIER:
+    <<: *L0_TEST_JETSON
+    <<: *XAVIER_PY2
+
+L0_models_imagenet--py2--XAVIER:
+    <<: *L0_TEST_JETSON
+    <<: *XAVIER_PY2
+
+L0_models_mnist--py2--XAVIER:
+    <<: *L0_TEST_JETSON
+    <<: *XAVIER_PY2
+
+L0_tftrt--py2--XAVIER:
+    <<: *L0_TEST_JETSON
+    <<: *XAVIER_PY2
+
+L0_inference--py2--XAVIER:
+    <<: *L0_TEST_JETSON
+    <<: *XAVIER_PY2
+
+L0_python_kernel_tests--py2--XAVIER:
+    <<: *L0_TEST_JETSON
+    <<: *XAVIER_PY2
+
+L1_inf_image_classification_tf--py2--XAVIER:
+    <<: *L1_TEST_JETSON
+    <<: *XAVIER_PY2
+
+L1_inf_image_classification_tftrt--py2--XAVIER:
+    <<: *L1_TEST_JETSON
+    <<: *XAVIER_PY2
+
+L1_inf_image_classification_tftrt_fp16--py2--XAVIER:
+    <<: *L1_TEST_JETSON
+    <<: *XAVIER_PY2
+
 L1_inf_object_detection--py2--XAVIER:
     <<: *L1_TEST_JETSON
-    <<: *XAVIER
-
-L1_inf_object_detection--py3.6--XAVIER:
-    <<: *L1_TEST_JETSON
-    <<: *XAVIER
-
-L1_tftrt--py3.6--XAVIER:
-    <<: *L1_TEST_JETSON
-    <<: *XAVIER
+    <<: *XAVIER_PY2
 
 L2_inf_image_classification_tftrt_int8--py2--XAVIER:
     <<: *L2_TEST_JETSON
-    <<: *XAVIER
+    <<: *XAVIER_PY2
