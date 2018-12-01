@@ -1497,10 +1497,6 @@ L2_models_cifar10--M40_R384_1GPU:
     <<: *M40_R384_1GPU
 
 
-L1_tftrt--py3.6--TX2:
-  <<: *L1_TEST_JETSON
-  <<: *TX2
-
 #### XAVIER ####
 
 L0_models_alexnet--py3.6--XAVIER:
