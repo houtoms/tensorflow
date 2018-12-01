@@ -17,14 +17,6 @@ if [ ${NATIVE_ARCH} == "aarch64" ]; then
   JETSON=true
 fi
 
-
-JETSON=false
-NATIVE_ARCH=`uname -m`
-if [ ${NATIVE_ARCH} == 'aarch64' ]; then
-  JETSON=true
-fi
-
-
 set_models() {
   models=(
     mobilenet_v1
