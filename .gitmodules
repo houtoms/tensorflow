@@ -15,3 +15,6 @@
 [submodule "qa/third_party/cocoapi"]
 	path = qa/third_party/cocoapi
 	url = https://github.com/cocodataset/cocoapi
+[submodule "qa/third_party/tensorrt"]
+	path = qa/third_party/tensorrt
+	url = https://github.com/tensorflow/tensorrt
