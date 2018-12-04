@@ -39,15 +39,15 @@ TEST(CudnnRNNOpsTest, ParamsSize_ShapeFn) {
 }
 
 TEST(CudnnRNNOpsTest, ForwardLstm_ShapeFn) {
-  int seq_length = 2;
+  int max_seq_length = 2;
   int batch_size = 3;
   int num_units = 4;
   int num_layers = 5;
   int dir_count = 1;
-  std::vector<int> input_shape = {seq_length, batch_size, num_units};
+  std::vector<int> input_shape = {max_seq_length, batch_size, num_units};
   std::vector<int> input_h_shape = {num_layers * dir_count, batch_size,
                                     num_units};
-  std::vector<int> output_shape = {seq_length, batch_size,
+  std::vector<int> output_shape = {max_seq_length, batch_size,
                                    num_units * dir_count};
   auto shape_to_str = [](const std::vector<int>& v) {
     return strings::StrCat("[", str_util::Join(v, ","), "]");
@@ -71,15 +71,15 @@ TEST(CudnnRNNOpsTest, ForwardLstm_ShapeFn) {
 }
 
 TEST(CudnnRNNOpsTest, ForwardV2Lstm_ShapeFn) {
-  int seq_length = 2;
+  int max_seq_length = 2;
   int batch_size = 3;
   int num_units = 4;
   int num_layers = 5;
   int dir_count = 1;
-  std::vector<int> input_shape = {seq_length, batch_size, num_units};
+  std::vector<int> input_shape = {max_seq_length, batch_size, num_units};
   std::vector<int> input_h_shape = {num_layers * dir_count, batch_size,
                                     num_units};
-  std::vector<int> output_shape = {seq_length, batch_size,
+  std::vector<int> output_shape = {max_seq_length, batch_size,
                                    num_units * dir_count};
   auto shape_to_str = [](const std::vector<int>& v) {
     return strings::StrCat("[", str_util::Join(v, ","), "]");

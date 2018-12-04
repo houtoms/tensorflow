@@ -1246,7 +1246,7 @@ class CudnnRnnSequenceTensorDescriptor
 
   static port::StatusOr<CudnnRnnSequenceTensorDescriptor> Create(
       CUDAExecutor* parent, int max_seq_length, int batch_size, int data_size,
-      absl::Span<int> seq_lengths_span,
+      absl::Span<int> seq_lengths,
       cudnnDataType_t data_type) {
     CHECK_GT(max_seq_length, 0);
     int dims[] = {batch_size, data_size, 1};
@@ -1256,9 +1256,9 @@ class CudnnRnnSequenceTensorDescriptor
         /*tensorDesc=*/tensor_desc.get(), /*dataType=*/data_type,
         /*nbDims=*/sizeof(dims) / sizeof(dims[0]), /*dimA=*/dims,
         /*strideA=*/strides));
-    int* seq_lengths = seq_lengths_span.data();
+    int* seq_lengths_array = seq_lengths.data();
 #if CUDNN_VERSION >= 7201
-    if (seq_lengths == nullptr) {
+    if (seq_lengths_array == nullptr) {
       return CudnnRnnSequenceTensorDescriptor(parent, max_seq_length, batch_size,
                                               data_size, data_type,
                                               std::move(tensor_desc));
@@ -1270,11 +1270,11 @@ class CudnnRnnSequenceTensorDescriptor
           /*layout=*/CUDNN_RNN_DATA_LAYOUT_SEQ_MAJOR_UNPACKED,
           /*maxSeqLength=*/max_seq_length,
           /*batchSize=*/batch_size, /*vectorSize=*/data_size,
-          /*seqLengthArray=*/seq_lengths,
+          /*seqLengthArray=*/seq_lengths_array,
           /*paddingFill*/ (void*)&padding_fill));
       return CudnnRnnSequenceTensorDescriptor(parent, max_seq_length, batch_size,
-                                              data_size, seq_lengths, data_type,
-                                              std::move(data_desc),
+                                              data_size, seq_lengths_array,
+                                              data_type, std::move(data_desc),
                                               std::move(tensor_desc));
     }
 #else
@@ -1347,7 +1347,7 @@ namespace {
 struct RnnModelDims {
   int num_layers = 0;
   int batch_size = 0;
-  int seq_length = 0;
+  int max_seq_length = 0;
   int hidden_size = 0;
   int input_size = 0;
   int dir_count = 0;
@@ -1372,7 +1372,7 @@ port::StatusOr<RnnModelDims> ExtractAndCheckRnnForward(
   RnnModelDims model_dims;
   model_dims.num_layers = rnn_desc.num_layers();
   model_dims.batch_size = input_desc.batch_size();
-  model_dims.seq_length = input_desc.max_seq_length();
+  model_dims.max_seq_length = input_desc.max_seq_length();
   model_dims.hidden_size = rnn_desc.hidden_size();
   model_dims.input_size = input_desc.data_size();
   model_dims.dir_count =
@@ -1390,7 +1390,7 @@ port::StatusOr<RnnModelDims> ExtractAndCheckRnnForward(
         input_h_desc.data_size() == input_c_desc.data_size())) {
     return port::Status(port::error::INVALID_ARGUMENT, "Invalid input_c shape");
   }
-  if (!(output_desc.max_seq_length() == model_dims.seq_length &&
+  if (!(output_desc.max_seq_length() == model_dims.max_seq_length &&
         output_desc.batch_size() == model_dims.batch_size &&
         output_desc.data_size() ==
             model_dims.hidden_size * model_dims.dir_count)) {
@@ -1487,7 +1487,7 @@ port::Status CudnnSupport::DoRnnForwardImpl(
     size_t reserve_space_size_in_bytes = 0;
     RETURN_IF_CUDNN_ERROR(cudnnGetRNNTrainingReserveSize(
         /*handle=*/cudnn.handle(), /*rnnDesc=*/rnn_desc.handle(),
-        /*seqLength=*/model_dims.seq_length, /*xDesc=*/input_desc.handles(),
+        /*seqLength=*/model_dims.max_seq_length, /*xDesc=*/input_desc.handles(),
         /*sizeInBytes=*/&reserve_space_size_in_bytes));
 
     if (reserve_space_size_in_bytes > 0) {
@@ -1533,7 +1533,7 @@ port::Status CudnnSupport::DoRnnForwardImpl(
     } else {
       RETURN_IF_CUDNN_ERROR(cudnnRNNForwardInference(
           /*handle=*/cudnn.handle(), /*rnnDesc=*/rnn_desc.handle(),
-          /*seqLength=*/model_dims.seq_length, /*xDesc=*/input_desc.handles(),
+          /*seqLength=*/model_dims.max_seq_length, /*xDesc=*/input_desc.handles(),
           /*x=*/input_data.opaque(), /*hxDesc=*/input_h_desc.handle(),
           /*hx=*/input_h_data.opaque(), /*cxDesc=*/input_c_desc.handle(),
           /*cx=*/input_c_data.opaque(), /*wDesc=*/rnn_desc.params_handle(),
@@ -1570,7 +1570,7 @@ port::Status CudnnSupport::DoRnnForwardImpl(
     } else {
       RETURN_IF_CUDNN_ERROR(cudnnRNNForwardTraining(
           /*handle=*/cudnn.handle(), /*rnnDesc=*/rnn_desc.handle(),
-          /*seqLength=*/model_dims.seq_length, /*xDesc=*/input_desc.handles(),
+          /*seqLength=*/model_dims.max_seq_length, /*xDesc=*/input_desc.handles(),
           /*x=*/input_data.opaque(), /*hxDesc=*/input_h_desc.handle(),
           /*hx=*/input_h_data.opaque(), /*cxDesc=*/input_c_desc.handle(),
           /*cx=*/input_c_data.opaque(), /*wDesc=*/rnn_desc.params_handle(),
@@ -1680,7 +1680,7 @@ port::Status CudnnSupport::DoRnnBackwardImpl(
   } else {
     RETURN_IF_CUDNN_ERROR(cudnnRNNBackwardData(
         /*handle=*/cudnn.handle(), /*rnnDesc=*/rnn_desc.handle(),
-        /*seqLength=*/model_dims.seq_length, /*yDesc=*/output_desc.handles(),
+        /*seqLength=*/model_dims.max_seq_length, /*yDesc=*/output_desc.handles(),
         /*y=*/output_data.opaque(), /*dyDesc=*/output_desc.handles(),
         /*dy=*/output_backprop_data.opaque(),
         /*dhyDesc=*/output_h_desc.handle(),
@@ -1727,7 +1727,7 @@ port::Status CudnnSupport::DoRnnBackwardImpl(
       // make the backward weight call
       RETURN_IF_CUDNN_ERROR(cudnnRNNBackwardWeights(
           /*handle=*/cudnn.handle(), /*rnnDesc=*/rnn_desc.handle(),
-          /*seqLength=*/model_dims.seq_length, /*xDesc=*/input_desc.handles(),
+          /*seqLength=*/model_dims.max_seq_length, /*xDesc=*/input_desc.handles(),
           /*x=*/input_data.opaque(), /*hxDesc=*/input_h_desc.handle(),
           /*hx=*/input_h_data.opaque(), /*yDesc=*/output_desc.handles(),
           /*y=*/output_data.opaque(), /*workspace=*/workspace.opaque(),
@@ -1777,12 +1777,12 @@ CudnnSupport::createRnnDescriptor(
 port::StatusOr<std::unique_ptr<dnn::RnnSequenceTensorDescriptor>>
 CudnnSupport::createRnnSequenceTensorDescriptor(int max_seq_length, int batch_size,
                                                 int data_size,
-                                                absl::Span<int> seq_lengths_span,
+                                                absl::Span<int> seq_lengths,
                                                 dnn::DataType data_type) {
   SE_ASSIGN_OR_RETURN(CudnnRnnSequenceTensorDescriptor descriptor,
                       CudnnRnnSequenceTensorDescriptor::Create(
                           parent_, max_seq_length, batch_size, data_size,
-                          seq_lengths_span,
+                          seq_lengths,
                           ToCudnnDataType(data_type)));
   return std::unique_ptr<dnn::RnnSequenceTensorDescriptor>(
       new CudnnRnnSequenceTensorDescriptor(std::move(descriptor)));

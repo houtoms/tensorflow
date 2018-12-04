@@ -148,13 +148,13 @@ uint64 HashList(const std::vector<int>& list) {
 class CudnnRnnParameters {
  public:
   CudnnRnnParameters(int num_layers, int input_size, int num_units,
-                     int seq_length, int batch_size, int dir_count,
+                     int max_seq_length, int batch_size, int dir_count,
                      bool has_dropout, bool is_training, RnnMode rnn_mode,
                      TFRNNInputMode rnn_input_mode, DataType dtype)
       : num_layers_(num_layers),
         input_size_(input_size),
         num_units_(num_units),
-        seq_length_(seq_length),
+        seq_length_(max_seq_length),
         batch_size_(batch_size),
         dir_count_(dir_count),
         has_dropout_(has_dropout),
@@ -163,7 +163,7 @@ class CudnnRnnParameters {
         rnn_input_mode_(rnn_input_mode),
         dtype_(dtype) {
     hash_code_ = HashList(
-        {num_layers, input_size, num_units, seq_length, batch_size, dir_count,
+        {num_layers, input_size, num_units, max_seq_length, batch_size, dir_count,
          static_cast<int>(has_dropout), static_cast<int>(is_training),
          static_cast<int>(rnn_mode), static_cast<int>(rnn_input_mode), dtype});
   }
@@ -499,7 +499,7 @@ struct CudnnRnnModelShapes {
   int input_size;
   int num_units;
   int dir_count;
-  int seq_length;
+  int max_seq_length;
   int batch_size;
   TensorShape input_shape;
   TensorShape output_shape;
@@ -511,9 +511,9 @@ struct CudnnRnnModelShapes {
   }
   string DebugString() const {
     return strings::Printf(
-        "[num_layers, input_size, num_units, dir_count, seq_length, "
+        "[num_layers, input_size, num_units, dir_count, max_seq_length, "
         "batch_size]: [%d, %d, %d, %d, %d, %d] ",
-        num_layers, input_size, num_units, dir_count, seq_length, batch_size);
+        num_layers, input_size, num_units, dir_count, max_seq_length, batch_size);
   }
 };
 
@@ -571,7 +571,7 @@ Status ExtractForwardInput(OpKernelContext* context,
   if ((*input)->dims() != 3) {
     return errors::InvalidArgument("RNN input must be a 3-D vector.");
   }
-  model_shapes->seq_length = (*input)->dim_size(0);
+  model_shapes->max_seq_length = (*input)->dim_size(0);
   model_shapes->batch_size = (*input)->dim_size(1);
   model_shapes->input_size = (*input)->dim_size(2);
   model_shapes->input_shape = (*input)->shape();
@@ -603,7 +603,7 @@ Status ExtractForwardInput(OpKernelContext* context,
     }
   }
   model_shapes->output_shape =
-      TensorShape({model_shapes->seq_length, model_shapes->batch_size,
+      TensorShape({model_shapes->max_seq_length, model_shapes->batch_size,
                    model_shapes->dir_count * model_shapes->num_units});
   return Status::OK();
 }
@@ -627,7 +627,7 @@ Status ExtractForwardInput(OpKernelContext* context,
   if ((*input)->dims() != 3) {
     return errors::InvalidArgument("RNN input must be a 3-D vector.");
   }
-  model_shapes->seq_length = (*input)->dim_size(0);
+  model_shapes->max_seq_length = (*input)->dim_size(0);
   model_shapes->batch_size = (*input)->dim_size(1);
   model_shapes->input_size = (*input)->dim_size(2);
   model_shapes->input_shape = (*input)->shape();
@@ -659,7 +659,7 @@ Status ExtractForwardInput(OpKernelContext* context,
     }
   }
   model_shapes->output_shape =
-      TensorShape({model_shapes->seq_length, model_shapes->batch_size,
+      TensorShape({model_shapes->max_seq_length, model_shapes->batch_size,
                    model_shapes->dir_count * model_shapes->num_units});
   return Status::OK();
 }
@@ -670,7 +670,7 @@ Status CreateForwardAndBackwardIODescriptors(
     std::unique_ptr<RnnSequenceTensorDescriptor>* input_desc,
     std::unique_ptr<RnnStateTensorDescriptor>* state_desc,
     std::unique_ptr<RnnSequenceTensorDescriptor>* output_desc,
-    absl::Span<int> seq_lens_span) {
+    absl::Span<int> seq_lengths) {
   StreamExecutor* executor = context->op_device_context()->stream()->parent();
   se::dnn::DataType data_type = ToDataType<T>::value;
 
@@ -682,7 +682,7 @@ Status CreateForwardAndBackwardIODescriptors(
 
   auto input_desc_s = executor->createRnnSequenceTensorDescriptor(
       input_shape.dim_size(0), input_shape.dim_size(1), input_shape.dim_size(2),
-      seq_lens_span, data_type);
+      seq_lengths, data_type);
   TF_RETURN_IF_ERROR(input_desc_s.status());
   *input_desc = input_desc_s.ConsumeValueOrDie();
 
@@ -696,7 +696,7 @@ Status CreateForwardAndBackwardIODescriptors(
   DCHECK_EQ(output_shape.dims(), 3);
   auto output_desc_s = executor->createRnnSequenceTensorDescriptor(
       output_shape.dim_size(0), output_shape.dim_size(1),
-      output_shape.dim_size(2), seq_lens_span, data_type);
+      output_shape.dim_size(2), seq_lengths, data_type);
   TF_RETURN_IF_ERROR(output_desc_s.status());
   *output_desc = output_desc_s.ConsumeValueOrDie();
 
@@ -723,15 +723,15 @@ Status DoForward(OpKernelContext* context, const RnnDescriptor& rnn_desc,
 
   DeviceMemory<int> sequence_lengths_data;
   int* seq_lens = nullptr;
-  absl::Span<int> seq_lens_span;
+  absl::Span<int> seq_lengths;
   if (sequence_lengths != nullptr) {
     sequence_lengths_data = AsDeviceMemory<int>(sequence_lengths);
     seq_lens = (int*)sequence_lengths_data.opaque();
-    seq_lens_span = absl::Span<int>(seq_lens, model_shapes.batch_size);
+    seq_lengths = absl::Span<int>(seq_lens, model_shapes.batch_size);
   }
   TF_RETURN_IF_ERROR(CreateForwardAndBackwardIODescriptors<T>(
         context, model_shapes, &input_desc, &state_desc, &output_desc,
-        seq_lens_span));
+        seq_lengths));
 
   auto input_data = AsDeviceMemory<T>(input);
   auto input_h_data = AsDeviceMemory<T>(input_h);
@@ -788,15 +788,15 @@ Status DoBackward(
 
   DeviceMemory<int> sequence_lengths_data;
   int* seq_lens = nullptr;
-  absl::Span<int> seq_lens_span;
+  absl::Span<int> seq_lengths;
   if (sequence_lengths != nullptr) {
     sequence_lengths_data = AsDeviceMemory<int>(sequence_lengths);
     seq_lens = (int*)sequence_lengths_data.opaque();
-    seq_lens_span = absl::Span<int>(seq_lens, model_shapes.batch_size);
+    seq_lengths= absl::Span<int>(seq_lens, model_shapes.batch_size);
   }
   TF_RETURN_IF_ERROR(CreateForwardAndBackwardIODescriptors<T>(
         context, model_shapes, &input_desc, &state_desc, &output_desc,
-        seq_lens_span));
+        seq_lengths));
 
   auto input_data = AsDeviceMemory<T>(input);
   auto input_h_data = AsDeviceMemory<T>(input_h);
@@ -1458,7 +1458,7 @@ class CudnnRNNForwardOpV2<GPUDevice, T>
     const auto& modeltypes = model_types();
     CudnnRnnParameters rnn_params(
         model_shapes.num_layers, model_shapes.input_size,
-        model_shapes.num_units, model_shapes.seq_length,
+        model_shapes.num_units, model_shapes.max_seq_length,
         model_shapes.batch_size, model_shapes.dir_count,
         /*has_dropout=*/std::abs(dropout()) > 1e-8, is_training(),
         modeltypes.rnn_mode, modeltypes.rnn_input_mode, input->dtype());
