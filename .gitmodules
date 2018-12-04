@@ -15,3 +15,6 @@
 [submodule "qa/third_party/cocoapi"]
 	path = qa/third_party/cocoapi
 	url = https://github.com/cocodataset/cocoapi
+[submodule "nvidia-examples/tensorrt"]
+	path = nvidia-examples/tensorrt
+	url = https://github.com/tensorflow/tensorrt.git
