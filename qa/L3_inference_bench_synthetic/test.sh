@@ -10,6 +10,7 @@ python setup.py install
 popd
 
 OUTPUT_PATH=$PWD
+EXAMPLE_PATH="../../nvidia-examples/tensorrt/tftrt/examples/image-classification/"
 
 JETSON=false
 NATIVE_ARCH=`uname -m`
@@ -69,7 +70,7 @@ run_inference() {
         --batch_size $bs
         --num_iterations 2000"
       unset TF_GPU_ALLOCATOR
-      pushd ../third_party/tensorrt/tftrt/examples/image-classification/
+      pushd $EXAMPLE_PATH
       python -u image_classification.py $common_args           --precision fp32                        2>&1 | tee $OUTPUT_PATH/output_tf_bs${bs}_fp32_$i
       set_allocator
       python -u image_classification.py $common_args --use_trt --precision fp32                        2>&1 | tee $OUTPUT_PATH/output_tftrt_fp32_bs${bs}_$i
