@@ -1023,6 +1023,10 @@ class CudnnRnnDescriptor : public dnn::RnnDescriptor {
         /*inputMode=*/input_mode, /*direction=*/direction_mode,
         /*mode=*/rnn_mode, /*algo=*/rnn_algo,
         /*dataType=*/compute_type));
+
+    // TODO: For now, we only use cudnnRNN**Ex API to process padded inputs. 
+    // But in the future if these APIs are used to process full length arrays, 
+    // we need to distinguish when to set it.
 #if CUDNN_VERSION >= 7201
     RETURN_IF_CUDNN_ERROR(
         cudnnSetRNNPaddingMode(rnn_desc.get(), CUDNN_RNN_PADDED_IO_ENABLED));
@@ -1214,18 +1218,6 @@ class CudnnRnnSequenceTensorDescriptor
     : public dnn::RnnSequenceTensorDescriptor {
   CudnnRnnSequenceTensorDescriptor(CUDAExecutor* parent, int max_seq_length,
                                    int batch_size, int data_size,
-                                   cudnnDataType_t data_type,
-                                   TensorDescriptor handle)
-      : parent_(parent),
-        max_seq_length_(max_seq_length),
-        batch_size_(batch_size),
-        data_size_(data_size),
-        data_type_(data_type),
-        handle_(std::move(handle)),
-        handles_(max_seq_length, handle_.get()) {}
-
-  CudnnRnnSequenceTensorDescriptor(CUDAExecutor* parent, int max_seq_length,
-                                   int batch_size, int data_size,
                                    int* seq_lengths,
                                    cudnnDataType_t data_type,
                                    RNNDataDescriptor data_handle,
@@ -1260,8 +1252,8 @@ class CudnnRnnSequenceTensorDescriptor
 #if CUDNN_VERSION >= 7201
     if (seq_lengths_array == nullptr) {
       return CudnnRnnSequenceTensorDescriptor(parent, max_seq_length, batch_size,
-                                              data_size, data_type,
-                                              std::move(tensor_desc));
+                                              data_size, nullptr, data_type,
+                                              nullptr, std::move(tensor_desc));
     } else {
       RNNDataDescriptor data_desc = CreateRNNDataDescriptor();
       float padding_fill = 0.0f;
@@ -1279,8 +1271,8 @@ class CudnnRnnSequenceTensorDescriptor
     }
 #else
     return CudnnRnnSequenceTensorDescriptor(parent, max_seq_length, batch_size,
-                                            data_size, data_type,
-                                            std::move(tensor_desc));
+                                            data_size, nullptr, data_type,
+                                            nullptr, std::move(tensor_desc));
 #endif
   }
 
@@ -1527,8 +1519,8 @@ port::Status CudnnSupport::DoRnnForwardImpl(
           /*workSpaceSizeInBytes=*/workspace.size()));
 #else
       return port::Status(port::error::INVALID_ARGUMENT,
-                          "No supported cudnnRNNForwardInferenceEx when
-                           CUDNN_VERSION < 7.2.1");
+                          "No supported cudnnRNNForwardInferenceEx when "
+                          "CUDNN_VERSION < 7.2.1");
 #endif
     } else {
       RETURN_IF_CUDNN_ERROR(cudnnRNNForwardInference(
@@ -1564,8 +1556,8 @@ port::Status CudnnSupport::DoRnnForwardImpl(
           /*reserveSpaceSizeInBytes=*/reserve_space.size()));
 #else
       return port::Status(port::error::INVALID_ARGUMENT,
-                          "No supported cudnnRNNForwardTrainingEx when
-                           CUDNN_VERSION < 7.2.1");
+                          "No supported cudnnRNNForwardTrainingEx when "
+                          "CUDNN_VERSION < 7.2.1");
 #endif
     } else {
       RETURN_IF_CUDNN_ERROR(cudnnRNNForwardTraining(
@@ -1674,8 +1666,8 @@ port::Status CudnnSupport::DoRnnBackwardImpl(
         /*reserveSpaceSizeInBytes=*/reserve_space_data->size()));
 #else
     return port::Status(port::error::INVALID_ARGUMENT,
-                        "No supported cudnnRNNBackwardDataEx when
-                         CUDNN_VERSION < 7.2.1");
+                        "No supported cudnnRNNBackwardDataEx when "
+                        "CUDNN_VERSION < 7.2.1");
 #endif
   } else {
     RETURN_IF_CUDNN_ERROR(cudnnRNNBackwardData(
@@ -1720,8 +1712,8 @@ port::Status CudnnSupport::DoRnnBackwardImpl(
           /*reserveSpaceSizeInBytes=*/reserve_space_data->size()));
 #else
       return port::Status(port::error::INVALID_ARGUMENT,
-                          "No supported cudnnRNNBackwardWeightsEx when
-                           CUDNN_VERSION < 7.2.1");
+                          "No supported cudnnRNNBackwardWeightsEx when "
+                          "CUDNN_VERSION < 7.2.1");
 #endif
     } else {
       // make the backward weight call
