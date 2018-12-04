@@ -670,7 +670,7 @@ Status CreateForwardAndBackwardIODescriptors(
     std::unique_ptr<RnnSequenceTensorDescriptor>* input_desc,
     std::unique_ptr<RnnStateTensorDescriptor>* state_desc,
     std::unique_ptr<RnnSequenceTensorDescriptor>* output_desc,
-    int* seq_lens) {
+    absl::Span<int> seq_lens_span) {
   StreamExecutor* executor = context->op_device_context()->stream()->parent();
   se::dnn::DataType data_type = ToDataType<T>::value;
 
@@ -682,7 +682,7 @@ Status CreateForwardAndBackwardIODescriptors(
 
   auto input_desc_s = executor->createRnnSequenceTensorDescriptor(
       input_shape.dim_size(0), input_shape.dim_size(1), input_shape.dim_size(2),
-      seq_lens, data_type);
+      seq_lens_span, data_type);
   TF_RETURN_IF_ERROR(input_desc_s.status());
   *input_desc = input_desc_s.ConsumeValueOrDie();
 
@@ -696,7 +696,7 @@ Status CreateForwardAndBackwardIODescriptors(
   DCHECK_EQ(output_shape.dims(), 3);
   auto output_desc_s = executor->createRnnSequenceTensorDescriptor(
       output_shape.dim_size(0), output_shape.dim_size(1),
-      output_shape.dim_size(2), seq_lens, data_type);
+      output_shape.dim_size(2), seq_lens_span, data_type);
   TF_RETURN_IF_ERROR(output_desc_s.status());
   *output_desc = output_desc_s.ConsumeValueOrDie();
 
@@ -723,13 +723,15 @@ Status DoForward(OpKernelContext* context, const RnnDescriptor& rnn_desc,
 
   DeviceMemory<int> sequence_lengths_data;
   int* seq_lens = nullptr;
+  absl::Span<int> seq_lens_span;
   if (sequence_lengths != nullptr) {
     sequence_lengths_data = AsDeviceMemory<int>(sequence_lengths);
     seq_lens = (int*)sequence_lengths_data.opaque();
+    seq_lens_span = absl::Span<int>(seq_lens, model_shapes.batch_size);
   }
   TF_RETURN_IF_ERROR(CreateForwardAndBackwardIODescriptors<T>(
         context, model_shapes, &input_desc, &state_desc, &output_desc,
-        seq_lens));
+        seq_lens_span));
 
   auto input_data = AsDeviceMemory<T>(input);
   auto input_h_data = AsDeviceMemory<T>(input_h);
@@ -786,13 +788,15 @@ Status DoBackward(
 
   DeviceMemory<int> sequence_lengths_data;
   int* seq_lens = nullptr;
+  absl::Span<int> seq_lens_span;
   if (sequence_lengths != nullptr) {
     sequence_lengths_data = AsDeviceMemory<int>(sequence_lengths);
     seq_lens = (int*)sequence_lengths_data.opaque();
+    seq_lens_span = absl::Span<int>(seq_lens, model_shapes.batch_size);
   }
   TF_RETURN_IF_ERROR(CreateForwardAndBackwardIODescriptors<T>(
         context, model_shapes, &input_desc, &state_desc, &output_desc,
-        seq_lens));
+        seq_lens_span));
 
   auto input_data = AsDeviceMemory<T>(input);
   auto input_h_data = AsDeviceMemory<T>(input_h);
