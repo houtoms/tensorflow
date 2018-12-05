@@ -810,14 +810,12 @@ Status DoForward(OpKernelContext* context, const RnnDescriptor& rnn_desc,
   std::unique_ptr<RnnStateTensorDescriptor> state_desc;
   std::unique_ptr<RnnSequenceTensorDescriptor> output_desc;
 
-  DeviceMemory<int> sequence_lengths_data;
-  int* seq_lens = nullptr;
-  absl::Span<int> seq_lengths;
-  if (sequence_lengths != nullptr) {
-    sequence_lengths_data = AsDeviceMemory<int>(sequence_lengths);
-    seq_lens = (int*)sequence_lengths_data.opaque();
-    seq_lengths = absl::Span<int>(seq_lens, model_shapes.batch_size);
-  }
+  DeviceMemory<int> sequence_lengths_data = 
+      AsDeviceMemory<int>(sequence_lengths);
+  int* seq_lens = (int*)sequence_lengths_data.opaque();
+  absl::Span<int> seq_lengths =
+      absl::Span<int>(seq_lens, model_shapes.batch_size);
+
   TF_RETURN_IF_ERROR(CreateForwardAndBackwardIODescriptors<T>(
         context, model_shapes, &input_desc, &state_desc, &output_desc,
         seq_lengths));
@@ -949,14 +947,12 @@ Status DoBackward(
   std::unique_ptr<RnnStateTensorDescriptor> state_desc;
   std::unique_ptr<RnnSequenceTensorDescriptor> output_desc;
 
-  DeviceMemory<int> sequence_lengths_data;
-  int* seq_lens = nullptr;
-  absl::Span<int> seq_lengths;
-  if (sequence_lengths != nullptr) {
-    sequence_lengths_data = AsDeviceMemory<int>(sequence_lengths);
-    seq_lens = (int*)sequence_lengths_data.opaque();
-    seq_lengths= absl::Span<int>(seq_lens, model_shapes.batch_size);
-  }
+  DeviceMemory<int> sequence_lengths_data =
+      AsDeviceMemory<int>(sequence_lengths);
+  int* seq_lens = (int*)sequence_lengths_data.opaque();
+  absl::Span<int> seq_lengths =
+      absl::Span<int>(seq_lens, model_shapes.batch_size);
+
   TF_RETURN_IF_ERROR(CreateForwardAndBackwardIODescriptors<T>(
         context, model_shapes, &input_desc, &state_desc, &output_desc,
         seq_lengths));
@@ -1770,15 +1766,9 @@ class CudnnRNNForwardOpV3<GPUDevice, T>
     }
 
     Tensor* output_host_reserved = nullptr;
-    // output_host_reserved stores opaque info used for backprop when running
-    // in training mode. At present, it includes a serialization of the best
-    // AlgorithmDesc picked during rnn forward pass autotune.
-    // int8 algorithm_id
-    // int8 use_tensor_op
-    // If autotune is not enabled, the algorithm_id is
-    // stream_executor::dnn::kDefaultAlgorithm and use_tensor_op is false. If
-    // running in inference mode, the output_host_reserved is currently not
-    // populated.
+    // TODO: Current V3 only uses the default standard algorithm to process 
+    // batches with variable sequences and the inputs should be padded. 
+    // Autotune is not supported yet.
     if (is_training()) {
       OP_REQUIRES_OK(context, context->allocate_output(4, TensorShape({2}),
                                                        &output_host_reserved));
