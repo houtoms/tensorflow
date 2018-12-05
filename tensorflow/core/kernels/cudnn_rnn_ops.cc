@@ -626,44 +626,6 @@ Status CreateForwardAndBackwardIODescriptors(
     OpKernelContext* context, const CudnnRnnModelShapes& model_shapes,
     std::unique_ptr<RnnSequenceTensorDescriptor>* input_desc,
     std::unique_ptr<RnnStateTensorDescriptor>* state_desc,
-    std::unique_ptr<RnnSequenceTensorDescriptor>* output_desc) {
-  StreamExecutor* executor = context->op_device_context()->stream()->parent();
-  se::dnn::DataType data_type = ToDataType<T>::value;
-
-  const TensorShape& input_shape = model_shapes.input_shape;
-  const TensorShape& hidden_state_shape = model_shapes.hidden_state_shape;
-  const TensorShape& output_shape = model_shapes.output_shape;
-
-  DCHECK_EQ(input_shape.dims(), 3);
-
-  auto input_desc_s = executor->createRnnSequenceTensorDescriptor(
-      input_shape.dim_size(0), input_shape.dim_size(1), input_shape.dim_size(2),
-      data_type);
-  TF_RETURN_IF_ERROR(input_desc_s.status());
-  *input_desc = input_desc_s.ConsumeValueOrDie();
-
-  DCHECK_EQ(hidden_state_shape.dims(), 3);
-  auto hidden_state_desc_s = executor->createRnnStateTensorDescriptor(
-      hidden_state_shape.dim_size(0), hidden_state_shape.dim_size(1),
-      hidden_state_shape.dim_size(2), data_type);
-  TF_RETURN_IF_ERROR(hidden_state_desc_s.status());
-  *state_desc = hidden_state_desc_s.ConsumeValueOrDie();
-
-  DCHECK_EQ(output_shape.dims(), 3);
-  auto output_desc_s = executor->createRnnSequenceTensorDescriptor(
-      output_shape.dim_size(0), output_shape.dim_size(1),
-      output_shape.dim_size(2), data_type);
-  TF_RETURN_IF_ERROR(output_desc_s.status());
-  *output_desc = output_desc_s.ConsumeValueOrDie();
-
-  return Status::OK();
-}
-
-template <typename T>
-Status CreateForwardAndBackwardIODescriptors(
-    OpKernelContext* context, const CudnnRnnModelShapes& model_shapes,
-    std::unique_ptr<RnnSequenceTensorDescriptor>* input_desc,
-    std::unique_ptr<RnnStateTensorDescriptor>* state_desc,
     std::unique_ptr<RnnSequenceTensorDescriptor>* output_desc,
     absl::Span<int> seq_lengths) {
   StreamExecutor* executor = context->op_device_context()->stream()->parent();
@@ -674,12 +636,19 @@ Status CreateForwardAndBackwardIODescriptors(
   const TensorShape& output_shape = model_shapes.output_shape;
 
   DCHECK_EQ(input_shape.dims(), 3);
-
-  auto input_desc_s = executor->createRnnSequenceTensorDescriptor(
-      input_shape.dim_size(0), input_shape.dim_size(1), input_shape.dim_size(2),
-      seq_lengths, data_type);
-  TF_RETURN_IF_ERROR(input_desc_s.status());
-  *input_desc = input_desc_s.ConsumeValueOrDie();
+  if (seq_lengths.data() != nullptr) {
+    auto input_desc_s = executor->createRnnSequenceTensorDescriptor(
+        input_shape.dim_size(0), input_shape.dim_size(1), input_shape.dim_size(2),
+        seq_lengths, data_type);
+    TF_RETURN_IF_ERROR(input_desc_s.status());
+    *input_desc = input_desc_s.ConsumeValueOrDie();
+  } else {
+    auto input_desc_s = executor->createRnnSequenceTensorDescriptor(
+        input_shape.dim_size(0), input_shape.dim_size(1), input_shape.dim_size(2),
+        data_type);
+    TF_RETURN_IF_ERROR(input_desc_s.status());
+    *input_desc = input_desc_s.ConsumeValueOrDie();
+  }
 
   DCHECK_EQ(hidden_state_shape.dims(), 3);
   auto hidden_state_desc_s = executor->createRnnStateTensorDescriptor(
@@ -689,66 +658,23 @@ Status CreateForwardAndBackwardIODescriptors(
   *state_desc = hidden_state_desc_s.ConsumeValueOrDie();
 
   DCHECK_EQ(output_shape.dims(), 3);
-  auto output_desc_s = executor->createRnnSequenceTensorDescriptor(
-      output_shape.dim_size(0), output_shape.dim_size(1),
-      output_shape.dim_size(2), seq_lengths, data_type);
-  TF_RETURN_IF_ERROR(output_desc_s.status());
-  *output_desc = output_desc_s.ConsumeValueOrDie();
+  if (seq_lengths.data() != nullptr) {
+    auto output_desc_s = executor->createRnnSequenceTensorDescriptor(
+        output_shape.dim_size(0), output_shape.dim_size(1),
+        output_shape.dim_size(2), seq_lengths, data_type);
+    TF_RETURN_IF_ERROR(output_desc_s.status());
+    *output_desc = output_desc_s.ConsumeValueOrDie();
+  } else {
+    auto output_desc_s = executor->createRnnSequenceTensorDescriptor(
+        output_shape.dim_size(0), output_shape.dim_size(1),
+        output_shape.dim_size(2), data_type);
+    TF_RETURN_IF_ERROR(output_desc_s.status());
+    *output_desc = output_desc_s.ConsumeValueOrDie();
+  }
 
   return Status::OK();
 }
 
-template <typename T>
-Status DoForward(OpKernelContext* context, const RnnDescriptor& rnn_desc,
-                 const CudnnModelTypes& model_types,
-                 const CudnnRnnModelShapes& model_shapes,
-                 /* forward inputs */
-                 const Tensor* input, const Tensor* input_h,
-                 const Tensor* input_c, const Tensor* params,
-                 const bool is_training,
-                 /* forward outputs, outputs of the function */
-                 Tensor* output, Tensor* output_h, Tensor* output_c,
-                 ScratchAllocator* reserve_space_allocator,
-                 ScratchAllocator* workspace_allocator,
-                 ProfileResult* output_profile_result) {
-  std::unique_ptr<RnnSequenceTensorDescriptor> input_desc;
-  std::unique_ptr<RnnStateTensorDescriptor> state_desc;
-  std::unique_ptr<RnnSequenceTensorDescriptor> output_desc;
-
-  TF_RETURN_IF_ERROR(CreateForwardAndBackwardIODescriptors<T>(
-        context, model_shapes, &input_desc, &state_desc, &output_desc));
-
-  auto input_data = AsDeviceMemory<T>(input);
-  auto input_h_data = AsDeviceMemory<T>(input_h);
-  DeviceMemory<T> input_c_data;
-  if (model_types.HasInputC()) {
-    input_c_data = AsDeviceMemory<T>(input_c);
-  }
-
-  auto params_data = AsDeviceMemory<T>(params);
-  auto output_data = AsDeviceMemory<T>(output);
-  auto output_h_data = AsDeviceMemory<T>(output_h);
-  DeviceMemory<T> output_c_data;
-  if (model_types.HasInputC()) {
-    output_c_data = AsDeviceMemory<T>(output_c);
-  }
-
-  Stream* stream = context->op_device_context()->stream();
-  bool launch_success =
-      stream
-          ->ThenRnnForward(rnn_desc, *input_desc, input_data, *state_desc,
-                           input_h_data, *state_desc, input_c_data, params_data,
-                           *output_desc, &output_data, *state_desc,
-                           &output_h_data, *state_desc, &output_c_data,
-                           is_training, reserve_space_allocator,
-                           workspace_allocator, output_profile_result)
-          .ok();
-  return launch_success
-             ? Status::OK()
-             : errors::Internal(
-                   "Failed to call ThenRnnForward with model config: ",
-                   model_types.DebugString(), ", ", model_shapes.DebugString());
-}
 template <typename T>
 Status DoForward(OpKernelContext* context, const RnnDescriptor& rnn_desc,
                  const CudnnModelTypes& model_types,
@@ -762,17 +688,18 @@ Status DoForward(OpKernelContext* context, const RnnDescriptor& rnn_desc,
                  ScratchAllocator* reserve_space_allocator,
                  ScratchAllocator* workspace_allocator,
                  ProfileResult* output_profile_result,
-                 const Tensor* sequence_lengths) {
+                 const Tensor* sequence_lengths=nullptr) {
   std::unique_ptr<RnnSequenceTensorDescriptor> input_desc;
   std::unique_ptr<RnnStateTensorDescriptor> state_desc;
   std::unique_ptr<RnnSequenceTensorDescriptor> output_desc;
 
-  DeviceMemory<int> sequence_lengths_data = 
-      AsDeviceMemory<int>(sequence_lengths);
-  int* seq_lens = (int*)sequence_lengths_data.opaque();
-  absl::Span<int> seq_lengths =
-      absl::Span<int>(seq_lens, model_shapes.batch_size);
-
+  absl::Span<int> seq_lengths;
+  if (sequence_lengths != nullptr) {
+    DeviceMemory<int> sequence_lengths_data = 
+        AsDeviceMemory<int>(sequence_lengths);
+    int* seq_lens = (int*)sequence_lengths_data.opaque();
+    seq_lengths = absl::Span<int>(seq_lens, model_shapes.batch_size);
+  }
   TF_RETURN_IF_ERROR(CreateForwardAndBackwardIODescriptors<T>(
         context, model_shapes, &input_desc, &state_desc, &output_desc,
         seq_lengths));
@@ -824,92 +751,19 @@ Status DoBackward(
     /* backprop outputs, output of the function */
     Tensor* input_backprop, Tensor* input_h_backprop, Tensor* input_c_backprop,
     Tensor* params_backprop, ScratchAllocator* workspace_allocator,
-    ProfileResult* output_profile_result) {
-  std::unique_ptr<RnnSequenceTensorDescriptor> input_desc;
-  std::unique_ptr<RnnStateTensorDescriptor> state_desc;
-  std::unique_ptr<RnnSequenceTensorDescriptor> output_desc;
-
-  TF_RETURN_IF_ERROR(CreateForwardAndBackwardIODescriptors<T>(
-        context, model_shapes, &input_desc, &state_desc, &output_desc));
-
-  auto input_data = AsDeviceMemory<T>(input);
-  auto input_h_data = AsDeviceMemory<T>(input_h);
-  DeviceMemory<T> input_c_data;
-  if (model_types.HasInputC()) {
-    input_c_data = AsDeviceMemory<T>(input_c);
-  }
-  auto params_data = AsDeviceMemory<T>(params);
-  auto output_data = AsDeviceMemory<T>(output);
-  auto output_h_data = AsDeviceMemory<T>(output_h);
-  DeviceMemory<T> output_c_data;
-  if (model_types.HasInputC()) {
-    output_c_data = AsDeviceMemory<T>(output_c);
-  }
-  auto output_backprop_data = AsDeviceMemory<T>(output_backprop);
-  auto output_h_backprop_data = AsDeviceMemory<T>(output_h_backprop);
-  DeviceMemory<T> output_c_backprop_data;
-  if (model_types.HasInputC()) {
-    output_c_backprop_data = AsDeviceMemory<T>(output_c_backprop);
-  }
-  auto input_backprop_data = AsDeviceMemory<T>(input_backprop);
-  auto input_h_backprop_data = AsDeviceMemory<T>(input_h_backprop);
-  DeviceMemory<T> input_c_backprop_data;
-  if (model_types.HasInputC()) {
-    input_c_backprop_data = AsDeviceMemory<T>(input_c_backprop);
-  }
-  auto params_backprop_data = AsDeviceMemory<T>(params_backprop);
-  auto reserve_space_uint8 =
-      CastDeviceMemory<uint8, T>(const_cast<Tensor*>(reserve_space));
-
-  // Creates a memory callback for the workspace. The memory lives to the end
-  // of this kernel calls.
-  Stream* stream = context->op_device_context()->stream();
-  bool launch_success =
-      stream
-          ->ThenRnnBackward(rnn_desc, *input_desc, input_data, *state_desc,
-                            input_h_data, *state_desc, input_c_data,
-                            params_data, *output_desc, output_data, *state_desc,
-                            output_h_data, *state_desc, output_c_data,
-                            output_backprop_data, output_h_backprop_data,
-                            output_c_backprop_data, &input_backprop_data,
-                            &input_h_backprop_data, &input_c_backprop_data,
-                            &params_backprop_data, &reserve_space_uint8,
-                            workspace_allocator, output_profile_result)
-          .ok();
-  return launch_success
-             ? Status::OK()
-             : errors::Internal(
-                   "Failed to call ThenRnnBackward with model config: ",
-                   model_types.DebugString(), ", ", model_shapes.DebugString());
-}
-
-template <typename T>
-Status DoBackward(
-    OpKernelContext* context, const RnnDescriptor& rnn_desc,
-    const CudnnModelTypes& model_types, const CudnnRnnModelShapes& model_shapes,
-    /* forward inputs */
-    const Tensor* input, const Tensor* input_h, const Tensor* input_c,
-    const Tensor* params,
-    /* forward outptus */
-    const Tensor* output, const Tensor* output_h, const Tensor* output_c,
-    /* backprop inputs */
-    const Tensor* output_backprop, const Tensor* output_h_backprop,
-    const Tensor* output_c_backprop, const Tensor* reserve_space,
-    /* backprop outputs, output of the function */
-    Tensor* input_backprop, Tensor* input_h_backprop, Tensor* input_c_backprop,
-    Tensor* params_backprop, ScratchAllocator* workspace_allocator,
     ProfileResult* output_profile_result,
-    const Tensor* sequence_lengths) {
+    const Tensor* sequence_lengths=nullptr) {
   std::unique_ptr<RnnSequenceTensorDescriptor> input_desc;
   std::unique_ptr<RnnStateTensorDescriptor> state_desc;
   std::unique_ptr<RnnSequenceTensorDescriptor> output_desc;
 
-  DeviceMemory<int> sequence_lengths_data =
-      AsDeviceMemory<int>(sequence_lengths);
-  int* seq_lens = (int*)sequence_lengths_data.opaque();
-  absl::Span<int> seq_lengths =
-      absl::Span<int>(seq_lens, model_shapes.batch_size);
-
+  absl::Span<int> seq_lengths;
+  if (sequence_lengths != nullptr) {
+    DeviceMemory<int> sequence_lengths_data =
+        AsDeviceMemory<int>(sequence_lengths);
+    int* seq_lens = (int*)sequence_lengths_data.opaque();
+    seq_lengths = absl::Span<int>(seq_lens, model_shapes.batch_size);
+  }
   TF_RETURN_IF_ERROR(CreateForwardAndBackwardIODescriptors<T>(
         context, model_shapes, &input_desc, &state_desc, &output_desc,
         seq_lengths));
