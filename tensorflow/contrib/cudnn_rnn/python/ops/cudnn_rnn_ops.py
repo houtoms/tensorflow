@@ -1064,7 +1064,7 @@ def cudnn_lstm(inputs,
     seed: the op seed used for initializing dropout. See `tf.set_random_seed`
         for behavior.
     sequence_lengths: an int32 array representing the variable sequence lengths
-      in a batch. The size of the array has to equal to the batch_size. If not
+      in a batch. The size of the array has to equal the batch_size. If not
       provided, the same sequence length will be assumed.
     name: name of the operation.
   Returns:
@@ -1201,7 +1201,7 @@ def cudnn_rnn_relu(inputs,
     seed: the op seed used for initializing dropout. See `tf.set_random_seed`
         for behavior.
     sequence_lengths: an int32 array representing the variable sequence lengths
-      in a batch. The size of the array has to equal to the batch_size. If not
+      in a batch. The size of the array has to equal the batch_size. If not
       provided, the same sequence length will be assumed.
     name: name of the operation.
   Returns:
@@ -1545,7 +1545,7 @@ class _CudnnRNN(object):
       params: the parameter buffer created for this model.
       is_training: whether this operation will be used in training or inference.
       sequence_lengths: an int32 array representing the variable sequence
-        lengths in a batch. The size of the array has to equal to the
+        lengths in a batch. The size of the array has to equal the
         batch_size. If not provided, the same sequence length will be assumed.
     Returns:
       output: the output sequence.
