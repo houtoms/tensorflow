@@ -46,7 +46,8 @@ def test_broadcast(sess, devices):
     n = 4096
     data = np.random.randint(-128, 128, size=(n,n)).astype(np.float32)
     with tf.device(devices[0]):
-        data0 = tf.constant(data) bcast_data = nccl_ops.broadcast(data0)
+        data0 = tf.constant(data)
+    bcast_data = nccl_ops.broadcast(data0)
 
     received_tensors = []
     for device_name in devices:
@@ -69,7 +70,6 @@ def test_broadcast(sess, devices):
     print("Broadcast aggregate BW: {} GB/s".format(nrep*ngpu*nbyte/elapsed_secs/1e9))
     
     results = sess.run(received_tensors)
-    assert(len(results) == len(devices))
     return all([np.all(result == data) for result in results]) and len(results) == len(devices)
 
 def main():
