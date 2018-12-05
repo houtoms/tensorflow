@@ -487,11 +487,11 @@ class _CudnnRNN(base_layer.Layer):
         opaque_params,
         training,
         self._rnn_mode,
+        sequence_lengths=sequence_lengths,
         input_mode=self._input_mode,
         direction=self._direction,
         dropout=self._dropout,
-        seed=self._seed,
-        sequence_lengths=sequence_lengths)
+        seed=self._seed)
     return output, (output_h, output_c)
 
   def _create_saveable(self):

@@ -955,11 +955,11 @@ def _cudnn_rnn(inputs,
                params,
                is_training,
                rnn_mode,
+               sequence_lengths=None,
                input_mode=CUDNN_INPUT_LINEAR_MODE,
                direction=CUDNN_RNN_UNIDIRECTION,
                dropout=0.,
                seed=0,
-               sequence_lengths=None,
                name=None):
   """Cudnn RNN.
 
@@ -973,6 +973,9 @@ def _cudnn_rnn(inputs,
     params: the parameter buffer created for this model.
     is_training: whether this operation will be used in training or inference
     rnn_mode: one of ('lstm', 'gru', 'rnn_relu', 'rnn_tanh').
+    sequence_lengths: an int32 array representing the variable sequence lengths
+      in a batch. The size of the array has to equal the batch_size. If not
+      provided, the same sequence length will be assumed.
     input_mode: indicate whether there is a linear projection between the
       input and the actual computation before the first layer. It could be
       'linear_input', 'skip_input' or 'auto_select'.
@@ -986,9 +989,6 @@ def _cudnn_rnn(inputs,
     dropout: whether to enable dropout. With it is 0, dropout is disabled.
     seed: the op seed used for initializing dropout. See `tf.set_random_seed`
         for behavior.
-    sequence_lengths: an int32 array representing the variable sequence lengths
-      in a batch. The size of the array has to equal to the batch_size. If not
-      provided, the same sequence length will be assumed.
     name: name of the operation.
   Returns:
     outputs, output_h, output_c
@@ -1071,7 +1071,7 @@ def cudnn_lstm(inputs,
     outputs, output_h, output_c
   """
   return _cudnn_rnn(inputs, input_h, input_c, params, is_training, CUDNN_LSTM,
-                    input_mode, direction, dropout, seed, sequence_lengths,
+                    sequence_lengths, input_mode, direction, dropout, seed,
                     name)
 
 
@@ -1118,8 +1118,8 @@ def _cudnn_rnn_no_input_c(inputs,
   """
   input_c = array_ops.constant([], dtype=input_h.dtype)
   outputs, output_h, _ = _cudnn_rnn(inputs, input_h, input_c, params,
-                                    is_training, rnn_mode, input_mode,
-                                    direction, dropout, seed, sequence_lengths,
+                                    is_training, rnn_mode, sequence_lengths, 
+                                    input_mode, direction, dropout, seed, 
                                     name)
   return outputs, output_h
 
@@ -1559,11 +1559,11 @@ class _CudnnRNN(object):
         params,
         is_training,
         self._rnn_mode,
+        sequence_lengths=sequence_lengths,
         input_mode=self._input_mode,
         direction=self._direction,
         dropout=self._dropout,
-        seed=self._seed,
-        sequence_lengths=sequence_lengths)
+        seed=self._seed)
 
   def params_to_canonical(self, params):
     """Converts params from a specific format of cuDNN to the canonical format.
