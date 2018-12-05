@@ -142,8 +142,8 @@ def RunLSTM(sess,
       cu_initial_h_op,
       cu_initial_c_op,
       opaque_params,
-      dropout=dropout,
       sequence_lengths=lengths,
+      dropout=dropout,
       is_training=is_training,
       rnn_mode=cudnn_rnn_ops.CUDNN_LSTM)
   # Remove the trivial 1st dimension.
@@ -682,8 +682,8 @@ def RunGRU(sess,
       cu_initial_h_op,
       array_ops.zeros_like(cu_initial_h_op),  # not used
       opaque_params,
-      dropout=dropout,
       sequence_lengths=lengths,
+      dropout=dropout,
       is_training=is_training,
       rnn_mode=cudnn_rnn_ops.CUDNN_GRU)
 

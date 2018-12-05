@@ -1033,11 +1033,11 @@ def cudnn_lstm(inputs,
                input_c,
                params,
                is_training,
+               sequence_lengths=None,
                input_mode=CUDNN_INPUT_LINEAR_MODE,
                direction=CUDNN_RNN_UNIDIRECTION,
                dropout=0.,
                seed=0,
-               sequence_lengths=None,
                name=None):
   """Cudnn LSTM.
 
@@ -1080,11 +1080,11 @@ def _cudnn_rnn_no_input_c(inputs,
                           params,
                           is_training,
                           rnn_mode,
+                          sequence_lengths=None,
                           input_mode=CUDNN_INPUT_LINEAR_MODE,
                           direction=CUDNN_RNN_UNIDIRECTION,
                           dropout=0.,
                           seed=0,
-                          sequence_lengths=None,
                           name=None):
   """Cudnn RNN w/o input_c.
 
@@ -1096,6 +1096,9 @@ def _cudnn_rnn_no_input_c(inputs,
     params: the parameter buffer created for this model.
     is_training: whether this operation will be used in training or inference
     rnn_mode: one of ('lstm', 'gru', 'rnn_relu', 'rnn_tanh').
+    sequence_lengths: an int32 array representing the variable sequence lengths
+      in a batch. The size of the array has to equal the batch_size. If not
+      provided, the same sequence length will be assumed.
     input_mode: indicate whether there is a linear projection between the
       input and the actual computation before the first layer. It could be
       'linear_input', 'skip_input' or 'auto_select'.
@@ -1109,9 +1112,6 @@ def _cudnn_rnn_no_input_c(inputs,
     dropout: whether to enable dropout. With it is 0, dropout is disabled.
     seed: the op seed used for initializing dropout. See `tf.set_random_seed`
         for behavior.
-    sequence_lengths: an int32 array representing the variable sequence lengths
-      in a batch. The size of the array has to equal to the batch_size. If not
-      provided, the same sequence length will be assumed.
     name: name of the operation.
   Returns:
     outputs, output_h
@@ -1128,11 +1128,11 @@ def cudnn_gru(inputs,
               input_h,
               params,
               is_training,
+              sequence_lengths=None,
               input_mode=CUDNN_INPUT_LINEAR_MODE,
               direction=CUDNN_RNN_UNIDIRECTION,
               dropout=0.,
               seed=0,
-              sequence_lengths=None,
               name=None):
   """Cudnn GRU.
 
@@ -1151,21 +1151,21 @@ def cudnn_gru(inputs,
         'skip_input' is only allowed when input_size == num_units;
         'auto_select' implies 'skip_input' when input_size == num_units;
         otherwise, it implies 'linear_input'.
+    sequence_lengths: an int32 array representing the variable sequence lengths
+      in a batch. The size of the array has to equal the batch_size. If not
+      provided, the same sequence length will be assumed.
     direction: the direction model that the model operates. Could be either
         'unidirectional' or 'bidirectional'
     dropout: whether to enable dropout. With it is 0, dropout is disabled.
     seed: the op seed used for initializing dropout. See `tf.set_random_seed`
         for behavior.
-    sequence_lengths: an int32 array representing the variable sequence lengths
-      in a batch. The size of the array has to equal to the batch_size. If not
-      provided, the same sequence length will be assumed.
     name: name of the operation.
   Returns:
     outputs, output_h
   """
   return _cudnn_rnn_no_input_c(inputs, input_h, params, is_training, CUDNN_GRU,
-                               input_mode, direction, dropout, seed,
-                               sequence_lengths, name)
+                               sequence_lengths, input_mode, direction, dropout,
+                               seed, name)
 
 
 def cudnn_rnn_relu(inputs,
@@ -1208,19 +1208,19 @@ def cudnn_rnn_relu(inputs,
     outputs, output_h
   """
   return _cudnn_rnn_no_input_c(inputs, input_h, params, is_training,
-                               CUDNN_RNN_RELU, input_mode, direction, dropout,
-                               seed, sequence_lengths, name)
+                               CUDNN_RNN_RELU, sequence_lengths, input_mode,
+                               direction, dropout, seed,  name)
 
 
 def cudnn_rnn_tanh(inputs,
                    input_h,
                    params,
                    is_training,
+                   sequence_lengths=None,
                    input_mode=CUDNN_INPUT_LINEAR_MODE,
                    direction=CUDNN_RNN_UNIDIRECTION,
                    dropout=0.,
                    seed=0,
-                   sequence_lengths=None,
                    name=None):
   """Cudnn RNN Tanh.
 
@@ -1239,21 +1239,21 @@ def cudnn_rnn_tanh(inputs,
         'skip_input' is only allowed when input_size == num_units;
         'auto_select' implies 'skip_input' when input_size == num_units;
         otherwise, it implies 'linear_input'.
+    sequence_lengths: an int32 array representing the variable sequence lengths
+      in a batch. The size of the array has to equal the batch_size. If not
+      provided, the same sequence length will be assumed.
     direction: the direction model that the model operates. Could be either
         'unidirectional' or 'bidirectional'
     dropout: whether to enable dropout. With it is 0, dropout is disabled.
     seed: the op seed used for initializing dropout. See `tf.set_random_seed`
         for behavior.
-    sequence_lengths: an int32 array representing the variable sequence lengths
-      in a batch. The size of the array has to equal to the batch_size. If not
-      provided, the same sequence length will be assumed.
     name: name of the operation.
   Returns:
     outputs, output_h
   """
   return _cudnn_rnn_no_input_c(inputs, input_h, params, is_training,
-                               CUDNN_RNN_TANH, input_mode, direction, dropout,
-                               seed, sequence_lengths, name)
+                               CUDNN_RNN_TANH, sequence_lengths, input_mode,
+                               direction, dropout, seed, name)
 
 
 def cudnn_rnn_opaque_params_to_canonical(rnn_mode,
@@ -1654,8 +1654,8 @@ class CudnnLSTM(_CudnnRNN):
         dropout=dropout,
         seed=seed)
 
-  def __call__(self, input_data, input_h, input_c, params, is_training=True,
-               sequence_lengths=None):
+  def __call__(self, input_data, input_h, input_c, params, sequence_lengths=None,
+               is_training=True):
     """Runs the forward step for the Cudnn LSTM model.
 
     Args:
@@ -1666,18 +1666,18 @@ class CudnnLSTM(_CudnnRNN):
       input_c: the initial hidden state for c. A Tensor of the same shape as
         input_h.
       params: the parameter buffer created for this model.
-      is_training: whether this operation will be used in training or inference.
       sequence_lengths: an int32 array representing the variable sequence
-        lengths in a batch. The size of the array has to equal to the
+        lengths in a batch. The size of the array has to equal the
         batch_size. If not provided, the same sequence length will be assumed.
+      is_training: whether this operation will be used in training or inference.
     Returns:
       output: the output sequence.
       output_h: the final state for h.
       output_c: the final state for c.
     """
     output, output_h, output_c = super(CudnnLSTM, self).__call__(
-        input_data, input_h, input_c, params, is_training=is_training,
-        sequence_lengths=sequence_lengths)
+        input_data, input_h, input_c, params, sequence_lengths=sequence_lengths,
+        is_training=is_training)
     return (output, output_h, output_c)
 
 
@@ -1731,8 +1731,8 @@ class _CudnnRNNNoInputC(_CudnnRNN):
         dropout=dropout,
         seed=seed)
 
-  def __call__(self, input_data, input_h, params, is_training=True,
-               sequence_lengths=None):
+  def __call__(self, input_data, input_h, params, sequence_lengths=None,
+               is_training=True):
     """Runs the forward step for the Cudnn LSTM model.
 
     Args:
@@ -1741,10 +1741,10 @@ class _CudnnRNNNoInputC(_CudnnRNN):
       input_h: the initial hidden state for h. A Tensor of shape [num_layers,
         batch_size, num_units].
       params: the parameter buffer created for this model.
-      is_training: whether this operation will be used in training or inference.
       sequence_lengths: an int32 array representing the variable sequence
-        lengths in a batch. The size of the array has to equal to the
+        lengths in a batch. The size of the array has to equal the
         batch_size. If not provided, the same sequence length will be assumed.
+      is_training: whether this operation will be used in training or inference.
     Returns:
       output: the output sequence.
       output_h: the final state for h.
@@ -1755,11 +1755,11 @@ class _CudnnRNNNoInputC(_CudnnRNN):
         params,
         is_training,
         self._rnn_mode,
+        sequence_lengths=sequence_lengths,
         input_mode=self._input_mode,
         direction=self._direction,
         dropout=self._dropout,
-        seed=self._seed,
-        sequence_lengths=sequence_lengths)
+        seed=self._seed)
 
 
 class CudnnGRU(_CudnnRNNNoInputC):

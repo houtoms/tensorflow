@@ -74,7 +74,7 @@ def _cudnn_rnn_backward_v2(op, *grad):
 
 
 @ops.RegisterGradient("CudnnRNNV3")
-def _cudnn_rnn_backward_var_seq_len(op, *grads):
+def _cudnn_rnn_backwardv3(op, *grads):
   """Gradients for the CudnnRNNV3 op."""
   if not op.get_attr("is_training"):
     raise ValueError(
