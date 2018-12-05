@@ -391,6 +391,20 @@ StreamExecutor::createRnnDescriptor(
 port::StatusOr<std::unique_ptr<dnn::RnnSequenceTensorDescriptor>>
 StreamExecutor::createRnnSequenceTensorDescriptor(int max_seq_length,
                                                   int batch_size, int data_size,
+                                                  dnn::DataType data_type) {
+  dnn::DnnSupport *dnn_support = AsDnn();
+  if (!dnn_support) {
+    return port::Status(port::error::UNKNOWN,
+                        "Fail to find the dnn implementation.");
+  }
+  return dnn_support->createRnnSequenceTensorDescriptor(max_seq_length, batch_size,
+                                                        data_size,
+                                                        data_type);
+}
+
+port::StatusOr<std::unique_ptr<dnn::RnnSequenceTensorDescriptor>>
+StreamExecutor::createRnnSequenceTensorDescriptor(int max_seq_length,
+                                                  int batch_size, int data_size,
                                                   absl::Span<int> seq_lengths,
                                                   dnn::DataType data_type) {
   dnn::DnnSupport *dnn_support = AsDnn();

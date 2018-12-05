@@ -1238,6 +1238,22 @@ class CudnnRnnSequenceTensorDescriptor
 
   static port::StatusOr<CudnnRnnSequenceTensorDescriptor> Create(
       CUDAExecutor* parent, int max_seq_length, int batch_size, int data_size,
+      cudnnDataType_t data_type) {
+    CHECK_GT(max_seq_length, 0);
+    int dims[] = {batch_size, data_size, 1};
+    int strides[] = {dims[1] * dims[2], dims[2], 1};
+    TensorDescriptor tensor_desc = CreateTensorDescriptor();
+    RETURN_IF_CUDNN_ERROR(cudnnSetTensorNdDescriptor(
+        /*tensorDesc=*/tensor_desc.get(), /*dataType=*/data_type,
+        /*nbDims=*/sizeof(dims) / sizeof(dims[0]), /*dimA=*/dims,
+        /*strideA=*/strides));
+    return CudnnRnnSequenceTensorDescriptor(parent, max_seq_length, batch_size,
+                                            data_size, nullptr, data_type,
+                                            nullptr, std::move(tensor_desc));
+  }
+
+  static port::StatusOr<CudnnRnnSequenceTensorDescriptor> Create(
+      CUDAExecutor* parent, int max_seq_length, int batch_size, int data_size,
       absl::Span<int> seq_lengths,
       cudnnDataType_t data_type) {
     CHECK_GT(max_seq_length, 0);
@@ -1250,29 +1266,23 @@ class CudnnRnnSequenceTensorDescriptor
         /*strideA=*/strides));
     int* seq_lengths_array = seq_lengths.data();
 #if CUDNN_VERSION >= 7201
-    if (seq_lengths_array == nullptr) {
-      return CudnnRnnSequenceTensorDescriptor(parent, max_seq_length, batch_size,
-                                              data_size, nullptr, data_type,
-                                              nullptr, std::move(tensor_desc));
-    } else {
-      RNNDataDescriptor data_desc = CreateRNNDataDescriptor();
-      float padding_fill = 0.0f;
-      RETURN_IF_CUDNN_ERROR(cudnnSetRNNDataDescriptor(
-          /*RNNDataDesc=*/data_desc.get(), /*dataType*/ data_type,
-          /*layout=*/CUDNN_RNN_DATA_LAYOUT_SEQ_MAJOR_UNPACKED,
-          /*maxSeqLength=*/max_seq_length,
-          /*batchSize=*/batch_size, /*vectorSize=*/data_size,
-          /*seqLengthArray=*/seq_lengths_array,
-          /*paddingFill*/ (void*)&padding_fill));
-      return CudnnRnnSequenceTensorDescriptor(parent, max_seq_length, batch_size,
-                                              data_size, seq_lengths_array,
-                                              data_type, std::move(data_desc),
-                                              std::move(tensor_desc));
-    }
-#else
+    RNNDataDescriptor data_desc = CreateRNNDataDescriptor();
+    float padding_fill = 0.0f;
+    RETURN_IF_CUDNN_ERROR(cudnnSetRNNDataDescriptor(
+        /*RNNDataDesc=*/data_desc.get(), /*dataType*/ data_type,
+        /*layout=*/CUDNN_RNN_DATA_LAYOUT_SEQ_MAJOR_UNPACKED,
+        /*maxSeqLength=*/max_seq_length,
+        /*batchSize=*/batch_size, /*vectorSize=*/data_size,
+        /*seqLengthArray=*/seq_lengths_array,
+        /*paddingFill*/ (void*)&padding_fill));
     return CudnnRnnSequenceTensorDescriptor(parent, max_seq_length, batch_size,
-                                            data_size, nullptr, data_type,
-                                            nullptr, std::move(tensor_desc));
+                                            data_size, seq_lengths_array,
+                                            data_type, std::move(data_desc),
+                                            std::move(tensor_desc));
+#else
+    return port::Status(port::error::INVALID_ARGUMENT,
+                        "No supported cudnnSetRNNDataDescriptor when "
+                        "CUDNN_VERSION < 7.2.1");
 #endif
   }
 
@@ -1764,6 +1774,18 @@ CudnnSupport::createRnnDescriptor(
           algorithm_config, dropout, seed, state_allocator));
   return std::unique_ptr<dnn::RnnDescriptor>(
       new CudnnRnnDescriptor(std::move(rnn_desc)));
+}
+
+port::StatusOr<std::unique_ptr<dnn::RnnSequenceTensorDescriptor>>
+CudnnSupport::createRnnSequenceTensorDescriptor(int max_seq_length, int batch_size,
+                                                int data_size,
+                                                dnn::DataType data_type) {
+  SE_ASSIGN_OR_RETURN(CudnnRnnSequenceTensorDescriptor descriptor,
+                      CudnnRnnSequenceTensorDescriptor::Create(
+                          parent_, max_seq_length, batch_size, data_size,
+                          ToCudnnDataType(data_type)));
+  return std::unique_ptr<dnn::RnnSequenceTensorDescriptor>(
+      new CudnnRnnSequenceTensorDescriptor(std::move(descriptor)));
 }
 
 port::StatusOr<std::unique_ptr<dnn::RnnSequenceTensorDescriptor>>
