@@ -19,16 +19,16 @@ fi
 
 set_models() {
   models=(
-    #mobilenet_v1
+    #mobilenet_v1 disabled due to low accuracy: http://nvbugs/2369608
     mobilenet_v2
-    nasnet_large
+    #nasnet_large disabled due to calibration taking ~2 hours.
     nasnet_mobile
     resnet_v1_50
     resnet_v2_50
-    #vgg_16
-    #vgg_19
+    #vgg_16 disabled only on Jetson due to low perf.
+    #vgg_19 disabled only on Jetson due to low perf.
     inception_v3
-    #inception_v4
+    #inception_v4 disabled due to a non-deterministic bug in TF-TRT: http://nvbugs/2369615
   )
   if ! $JETSON ; then
     models+=(vgg_16)
