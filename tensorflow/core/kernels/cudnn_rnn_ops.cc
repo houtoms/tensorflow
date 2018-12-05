@@ -608,60 +608,17 @@ Status ExtractForwardInput(OpKernelContext* context,
   return Status::OK();
 }
 
-// Extract and checks the forward input tensors, parameters, and shapes from the
-// OpKernelContext. Support sequence_lengths.
+// Extract and checks the sequence_lengths, forward input tensors,
+// parameters, and shapes from the OpKernelContext.
 Status ExtractForwardInput(OpKernelContext* context,
                            const CudnnModelTypes& model_types,
                            const Tensor** input, const Tensor** input_h,
                            const Tensor** input_c, const Tensor** params,
                            CudnnRnnModelShapes* model_shapes,
                            const Tensor** sequence_lengths) {
-  TF_RETURN_IF_ERROR(context->input("input", input));
-  TF_RETURN_IF_ERROR(context->input("input_h", input_h));
-  if (model_types.HasInputC()) {
-    TF_RETURN_IF_ERROR(context->input("input_c", input_c));
-  }
-  TF_RETURN_IF_ERROR(context->input("params", params));
   TF_RETURN_IF_ERROR(context->input("sequence_lengths", sequence_lengths));
-
-  if ((*input)->dims() != 3) {
-    return errors::InvalidArgument("RNN input must be a 3-D vector.");
-  }
-  model_shapes->max_seq_length = (*input)->dim_size(0);
-  model_shapes->batch_size = (*input)->dim_size(1);
-  model_shapes->input_size = (*input)->dim_size(2);
-  model_shapes->input_shape = (*input)->shape();
-  model_shapes->dir_count =
-      (model_types.rnn_direction_mode == RnnDirectionMode::kRnnBidirectional)
-          ? 2
-          : 1;
-
-  if ((*input_h)->dims() != 3) {
-    return errors::InvalidArgument("RNN input_h must be a 3-D vector.");
-  }
-  model_shapes->num_layers = (*input_h)->dim_size(0) / model_shapes->dir_count;
-  model_shapes->num_units = (*input_h)->dim_size(2);
-
-  model_shapes->hidden_state_shape =
-      TensorShape({model_shapes->dir_count * model_shapes->num_layers,
-                   model_shapes->batch_size, model_shapes->num_units});
-  if ((*input_h)->shape() != model_shapes->hidden_state_shape) {
-    return errors::InvalidArgument(
-        "Invalid input_h shape: ", (*input_h)->shape().DebugString(), " ",
-        model_shapes->hidden_state_shape.DebugString());
-  }
-  if (model_types.HasInputC()) {
-    if ((*input_h)->shape() != (*input_c)->shape()) {
-      return errors::InvalidArgument(
-          "input_h and input_c must have the same shape: ",
-          (*input_h)->shape().DebugString(), " ",
-          (*input_c)->shape().DebugString());
-    }
-  }
-  model_shapes->output_shape =
-      TensorShape({model_shapes->max_seq_length, model_shapes->batch_size,
-                   model_shapes->dir_count * model_shapes->num_units});
-  return Status::OK();
+  return ExtractForwardInput(context, model_types, input, input_h, input_c,
+                              params, model_shapes);
 }
 
 template <typename T>
