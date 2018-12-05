@@ -68,11 +68,11 @@ def RunLSTM(sess,
             batch_size,
             time,
             num_layers=1,
+            variable_seq_lengths=False,
             is_training=True,
             dropout=0.,
             num_dirs=True,
-            dtype=dtypes.float32,
-            var_seq_len=False):
+            dtype=dtypes.float32):
   # TODO(jamesqin): add multi-layer tests.
   # TODO(jamesqin): add multi-dir tests
   assert num_layers == 1
@@ -100,7 +100,7 @@ def RunLSTM(sess,
                                  num_units).astype(dtype.as_numpy_dtype),
       dtype=dtype)
 
-  if var_seq_len:
+  if variable_seq_lengths:
     lengths_v = np.random.randint(low=1, high=time+1, size=batch_size)
     lengths_v[0] = time # make sure the max sequence has 'time' elems
     lengths = ops.convert_to_tensor(lengths_v.astype(np.int32))
@@ -335,14 +335,14 @@ class CudnnLSTMTest(TensorFlowTestCase, parameterized.TestCase):
                             time,
                             num_layers,
                             dtype,
+                            variable_seq_lengths,
                             rtol=3e-6,
-                            atol=3e-6,
-                            var_seq_len=False):
+                            atol=3e-6):
     with self.session(use_gpu=True) as sess:
       (outputs, cu_outputs, state_tuple, cu_state_tuple, inp_grad, cu_inp_grad,
        state_grad, cu_state_grad, wgrad, bgrad, cu_wgrad, cu_bgrad) = RunLSTM(
            sess, num_units, input_size, batch_size, time, num_layers,
-           var_seq_len=var_seq_len)
+           variable_seq_lengths=variable_seq_lengths)
 
       self.assertAllClose(outputs, cu_outputs, rtol=rtol, atol=atol)
       for s, cu_s in zip(state_tuple, cu_state_tuple):
@@ -353,135 +353,34 @@ class CudnnLSTMTest(TensorFlowTestCase, parameterized.TestCase):
       self.assertAllClose(bgrad, cu_bgrad, rtol=rtol, atol=atol)
       self.assertAllClose(wgrad, cu_wgrad, rtol=rtol, atol=atol)
 
-  @parameterized.named_parameters(*NAMED_RNN_TESTCASES)
+  @parameterized.named_parameters(
+      ExpandNamedTestCases(
+          NAMED_RNN_TESTCASES, **{
+              "variable_seq_lengths": [
+                  True, False 
+              ],
+          }))
   @unittest.skipUnless(test.is_built_with_cuda(),
                        "Test only applicable when running on GPUs")
-  def test_training(self, num_units, input_size, batch_size, time, num_layers):
+  def test_training(self, num_units, input_size, batch_size, time, num_layers,
+                    variable_seq_lengths):
     if not context.context().num_gpus():
       self.skipTest("No GPUs found")
     self._test_training_helper(num_units, input_size, batch_size, time,
-                               num_layers, dtypes.float32)
+                               num_layers, dtypes.float32,
+                               variable_seq_lengths=variable_seq_lengths)
 
-  @parameterized.named_parameters(*NAMED_RNN_TESTCASES)
+  @parameterized.named_parameters(
+      ExpandNamedTestCases(
+          NAMED_RNN_TESTCASES, **{
+              "variable_seq_lengths": [
+                  True, False 
+              ],
+          }))
   @unittest.skipUnless(test.is_built_with_cuda(),
                        "Test only applicable when running on GPUs")
   def test_training_fp16(self, num_units, input_size, batch_size, time,
-                         num_layers):
-    if not context.context().num_gpus():
-      self.skipTest("No GPUs found")
-    self._test_training_helper(
-        num_units,
-        input_size,
-        batch_size,
-        time,
-        num_layers,
-        dtypes.float16,
-        rtol=5e-3,
-        atol=5e-4)
-
-  @parameterized.named_parameters(*NAMED_RNN_TESTCASES)
-  @unittest.skipUnless(test.is_built_with_cuda(),
-                       "Test only applicable when running on GPUs")
-  def test_inference(self, num_units, input_size, batch_size, time, num_layers):
-    if not context.context().num_gpus():
-      self.skipTest("No GPUs found")
-    with self.session(use_gpu=True) as sess:
-      (outputs, cu_outputs, state_tuple, cu_state_tuple) = RunLSTM(
-          sess,
-          num_units,
-          input_size,
-          batch_size,
-          time,
-          num_layers,
-          is_training=False)
-
-      self.assertAllClose(outputs, cu_outputs)
-      # h
-      self.assertAllClose(state_tuple.h, cu_state_tuple.h)
-      # c
-      self.assertAllClose(state_tuple.c, cu_state_tuple.c)
-
-  @parameterized.named_parameters(*NAMED_RNN_TESTCASES)
-  @unittest.skipUnless(test.is_built_with_cuda(),
-                       "Test only applicable when running on GPUs")
-  def test_inference_fp16(self, num_units, input_size, batch_size, time,
-                          num_layers):
-    if not context.context().num_gpus():
-      self.skipTest("No GPUs found")
-    with self.session(use_gpu=True) as sess:
-      (outputs, cu_outputs, state_tuple, cu_state_tuple) = RunLSTM(
-          sess,
-          num_units,
-          input_size,
-          batch_size,
-          time,
-          num_layers,
-          is_training=False,
-          dtype=dtypes.float16)
-
-      rtol, atol = 5e-3, 5e-4
-      self.assertAllClose(outputs, cu_outputs, rtol=rtol, atol=atol)
-      # h
-      self.assertAllClose(
-          state_tuple.h, cu_state_tuple.h, rtol=rtol, atol=atol)
-      # c
-      self.assertAllClose(
-          state_tuple.c, cu_state_tuple.c, rtol=rtol, atol=atol)
-
-  @parameterized.named_parameters(*NAMED_RNN_TESTCASES)
-  @unittest.skipUnless(test.is_built_with_cuda(),
-                       "Test only applicable when running on GPUs")
-  def test_inference_with_dropout(self, num_units, input_size, batch_size, time,
-                                  num_layers):
-    """Validates that dropout does not affect Cudnn Rnn inference."""
-    if not context.context().num_gpus():
-      self.skipTest("No GPUs found")
-    # Hand-picked dropouts are used below (0. and 1.)
-    with ops.Graph().as_default() as g:
-      with self.session(use_gpu=True, graph=g) as sess:
-        # 1st time w/o dropout.
-        (_, cu_outputs, _, cu_state_tuple) = RunLSTM(
-            sess,
-            num_units,
-            input_size,
-            batch_size,
-            time,
-            num_layers,
-            is_training=False,
-            dropout=0.)
-
-    with ops.Graph().as_default() as g:
-      with self.session(use_gpu=True, graph=g) as sess:
-        (_, cu_outputs2, _, cu_state_tuple2) = RunLSTM(
-            sess,
-            num_units,
-            input_size,
-            batch_size,
-            time,
-            num_layers,
-            is_training=False,
-            dropout=1.)
-
-    self.assertAllClose(cu_outputs, cu_outputs2)
-    # h
-    self.assertAllClose(cu_state_tuple.h, cu_state_tuple2.h)
-    # c
-    self.assertAllClose(cu_state_tuple.c, cu_state_tuple2.c)
-
-  @parameterized.named_parameters(*NAMED_RNN_TESTCASES)
-  @unittest.skipUnless(test.is_built_with_cuda(),
-                       "Test only applicable when running on GPUs")
-  def test_training_v3(self, num_units, input_size, batch_size, time, num_layers):
-    if not context.context().num_gpus():
-      self.skipTest("No GPUs found")
-    self._test_training_helper(num_units, input_size, batch_size, time,
-                               num_layers, dtypes.float32, True)
-
-  @parameterized.named_parameters(*NAMED_RNN_TESTCASES)
-  @unittest.skipUnless(test.is_built_with_cuda(),
-                       "Test only applicable when running on GPUs")
-  def test_training_fp16_v3(self, num_units, input_size, batch_size, time,
-                         num_layers):
+                         num_layers, variable_seq_lengths):
     if not context.context().num_gpus():
       self.skipTest("No GPUs found")
     self._test_training_helper(
@@ -493,12 +392,19 @@ class CudnnLSTMTest(TensorFlowTestCase, parameterized.TestCase):
         dtypes.float16,
         rtol=5e-3,
         atol=5e-4,
-        var_seq_len=True)
+        variable_seq_lengths=variable_seq_lengths)
 
-  @parameterized.named_parameters(*NAMED_RNN_TESTCASES)
+  @parameterized.named_parameters(
+      ExpandNamedTestCases(
+          NAMED_RNN_TESTCASES, **{
+              "variable_seq_lengths": [
+                  True, False 
+              ],
+          }))
   @unittest.skipUnless(test.is_built_with_cuda(),
                        "Test only applicable when running on GPUs")
-  def test_inference_v3(self, num_units, input_size, batch_size, time, num_layers):
+  def test_inference(self, num_units, input_size, batch_size, time, num_layers,
+                     variable_seq_lengths):
     if not context.context().num_gpus():
       self.skipTest("No GPUs found")
     with self.session(use_gpu=True) as sess:
@@ -510,7 +416,7 @@ class CudnnLSTMTest(TensorFlowTestCase, parameterized.TestCase):
           time,
           num_layers,
           is_training=False,
-          var_seq_len=True)
+          variable_seq_lengths=variable_seq_lengths)
 
       self.assertAllClose(outputs, cu_outputs)
       # h
@@ -518,11 +424,17 @@ class CudnnLSTMTest(TensorFlowTestCase, parameterized.TestCase):
       # c
       self.assertAllClose(state_tuple.c, cu_state_tuple.c)
 
-  @parameterized.named_parameters(*NAMED_RNN_TESTCASES)
+  @parameterized.named_parameters(
+      ExpandNamedTestCases(
+          NAMED_RNN_TESTCASES, **{
+              "variable_seq_lengths": [
+                  True, False 
+              ],
+          }))
   @unittest.skipUnless(test.is_built_with_cuda(),
                        "Test only applicable when running on GPUs")
-  def test_inference_fp16_v3(self, num_units, input_size, batch_size, time,
-                          num_layers):
+  def test_inference_fp16(self, num_units, input_size, batch_size, time,
+                          num_layers, variable_seq_lengths):
     if not context.context().num_gpus():
       self.skipTest("No GPUs found")
     with self.session(use_gpu=True) as sess:
@@ -535,7 +447,7 @@ class CudnnLSTMTest(TensorFlowTestCase, parameterized.TestCase):
           num_layers,
           is_training=False,
           dtype=dtypes.float16,
-          var_seq_len=True)
+          variable_seq_lengths=variable_seq_lengths)
 
       rtol, atol = 5e-3, 5e-4
       self.assertAllClose(outputs, cu_outputs, rtol=rtol, atol=atol)
@@ -546,11 +458,17 @@ class CudnnLSTMTest(TensorFlowTestCase, parameterized.TestCase):
       self.assertAllClose(
           state_tuple.c, cu_state_tuple.c, rtol=rtol, atol=atol)
 
-  @parameterized.named_parameters(*NAMED_RNN_TESTCASES)
+  @parameterized.named_parameters(
+      ExpandNamedTestCases(
+          NAMED_RNN_TESTCASES, **{
+              "variable_seq_lengths": [
+                  True, False 
+              ],
+          }))
   @unittest.skipUnless(test.is_built_with_cuda(),
                        "Test only applicable when running on GPUs")
-  def test_inference_with_dropout_v3(self, num_units, input_size, batch_size, time,
-                                  num_layers):
+  def test_inference_with_dropout(self, num_units, input_size, batch_size, time,
+                                  num_layers, variable_seq_lengths):
     """Validates that dropout does not affect Cudnn Rnn inference."""
     if not context.context().num_gpus():
       self.skipTest("No GPUs found")
@@ -567,7 +485,7 @@ class CudnnLSTMTest(TensorFlowTestCase, parameterized.TestCase):
             num_layers,
             is_training=False,
             dropout=0.,
-            var_seq_len=True)
+            variable_seq_lengths=variable_seq_lengths)
 
     with ops.Graph().as_default() as g:
       with self.session(use_gpu=True, graph=g) as sess:
@@ -580,14 +498,13 @@ class CudnnLSTMTest(TensorFlowTestCase, parameterized.TestCase):
             num_layers,
             is_training=False,
             dropout=1.,
-            var_seq_len=True)
+            variable_seq_lengths=variable_seq_lengths)
 
     self.assertAllClose(cu_outputs, cu_outputs2)
     # h
     self.assertAllClose(cu_state_tuple.h, cu_state_tuple2.h)
     # c
     self.assertAllClose(cu_state_tuple.c, cu_state_tuple2.c)
-
 
 
 def RunGRU(sess,
@@ -597,10 +514,10 @@ def RunGRU(sess,
            time,
            num_layers=1,
            is_training=True,
+           variable_seq_lengths=False,
            dropout=0.,
            num_dirs=True,
-           dtype=dtypes.float32,
-           var_seq_len=False):
+           dtype=dtypes.float32):
   # TODO(jamesqin): add multi-layer tests.
   # TODO(jamesqin): add multi-dir tests
   assert num_layers == 1
@@ -623,7 +540,7 @@ def RunGRU(sess,
                                  num_units).astype(dtype.as_numpy_dtype),
       dtype=dtype)
 
-  if var_seq_len:
+  if variable_seq_lengths:
     lengths_v = np.random.randint(low=1, high=time+1, size=batch_size)
     lengths_v[0] = time # make sure the max sequence has 'time' elems
     lengths = ops.convert_to_tensor(lengths_v.astype(np.int32))
@@ -759,14 +676,14 @@ class CudnnGRUTest(TensorFlowTestCase, parameterized.TestCase):
                             time,
                             num_layers,
                             dtype,
+                            variable_seq_lengths,
                             rtol=3e-6,
-                            atol=3e-6,
-                            var_seq_len=False):
+                            atol=3e-6):
     with self.session(use_gpu=True) as sess:
       (outputs, cu_outputs, h, cu_h, inp_grad, cu_inp_grad, hgrad,
        cu_hgrad, wgrad, bgrad, cu_wgrad, cu_bgrad) = RunGRU(
            sess, num_units, input_size, batch_size, time, num_layers,
-           var_seq_len=var_seq_len)
+           variable_seq_lengths=variable_seq_lengths)
 
       self.assertAllClose(outputs, cu_outputs, rtol=rtol, atol=atol)
       self.assertAllClose(h, cu_h, rtol=rtol, atol=atol)
@@ -777,123 +694,34 @@ class CudnnGRUTest(TensorFlowTestCase, parameterized.TestCase):
       for wg, cu_wg in zip(wgrad, cu_wgrad):
         self.assertAllClose(wg, cu_wg, rtol=rtol, atol=atol)
 
-  @parameterized.named_parameters(*NAMED_RNN_TESTCASES)
+  @parameterized.named_parameters(
+      ExpandNamedTestCases(
+          NAMED_RNN_TESTCASES, **{
+              "variable_seq_lengths": [
+                  True, False 
+              ],
+          }))
   @unittest.skipUnless(test.is_built_with_cuda(),
                        "Test only applicable when running on GPUs")
-  def test_training(self, num_units, input_size, batch_size, time, num_layers):
+  def test_training(self, num_units, input_size, batch_size, time, num_layers,
+                    variable_seq_lengths):
     if not context.context().num_gpus():
       self.skipTest("No GPUs found")
     self._test_training_helper(num_units, input_size, batch_size, time,
-                               num_layers, dtypes.float32)
+                               num_layers, dtypes.float32,
+                               variable_seq_lengths=variable_seq_lengths)
 
-  @parameterized.named_parameters(*NAMED_RNN_TESTCASES)
+  @parameterized.named_parameters(
+      ExpandNamedTestCases(
+          NAMED_RNN_TESTCASES, **{
+              "variable_seq_lengths": [
+                  True, False 
+              ],
+          }))
   @unittest.skipUnless(test.is_built_with_cuda(),
                        "Test only applicable when running on GPUs")
   def test_training_fp16(self, num_units, input_size, batch_size, time,
-                         num_layers):
-    if not context.context().num_gpus():
-      self.skipTest("No GPUs found")
-    self._test_training_helper(
-        num_units,
-        input_size,
-        batch_size,
-        time,
-        num_layers,
-        dtypes.float16,
-        rtol=5e-3,
-        atol=5e-4)
-
-  @parameterized.named_parameters(*NAMED_RNN_TESTCASES)
-  @unittest.skipUnless(test.is_built_with_cuda(),
-                       "Test only applicable when running on GPUs")
-  def test_inference(self, num_units, input_size, batch_size, time, num_layers):
-    if not context.context().num_gpus():
-      self.skipTest("No GPUs found")
-    with self.session(use_gpu=True) as sess:
-      (outputs, cu_outputs, h, cu_h) = RunGRU(
-          sess,
-          num_units,
-          input_size,
-          batch_size,
-          time,
-          num_layers,
-          is_training=False)
-      self.assertAllClose(outputs, cu_outputs)
-      self.assertAllClose(h, cu_h)
-
-  @parameterized.named_parameters(*NAMED_RNN_TESTCASES)
-  @unittest.skipUnless(test.is_built_with_cuda(),
-                       "Test only applicable when running on GPUs")
-  def test_inference_fp16(self, num_units, input_size, batch_size, time,
-                          num_layers):
-    if not context.context().num_gpus():
-      self.skipTest("No GPUs found")
-    with self.session(use_gpu=True) as sess:
-      (outputs, cu_outputs, h, cu_h) = RunGRU(
-          sess,
-          num_units,
-          input_size,
-          batch_size,
-          time,
-          num_layers,
-          is_training=False,
-          dtype=dtypes.float16)
-
-      rtol, atol = 5e-3, 5e-4
-      self.assertAllClose(outputs, cu_outputs, rtol=rtol, atol=atol)
-      self.assertAllClose(h, cu_h, rtol=rtol, atol=atol)
-
-  @parameterized.named_parameters(*NAMED_RNN_TESTCASES)
-  @unittest.skipUnless(test.is_built_with_cuda(),
-                       "Test only applicable when running on GPUs")
-  def test_inference_with_dropout(self, num_units, input_size, batch_size, time,
-                                  num_layers):
-    """Validates that dropout does not affect Cudnn Rnn inference."""
-    # Hand-picked dropouts are used below (0. and 1.)
-    if not context.context().num_gpus():
-      self.skipTest("No GPUs found")
-    with ops.Graph().as_default() as g:
-      with self.session(use_gpu=True, graph=g) as sess:
-        # 1st time w/o dropout.
-        (_, cu_outputs, _, cu_h) = RunGRU(
-            sess,
-            num_units,
-            input_size,
-            batch_size,
-            time,
-            num_layers,
-            is_training=False,
-            dropout=0.)
-
-    with ops.Graph().as_default() as g:
-      with self.session(use_gpu=True, graph=g) as sess:
-        (_, cu_outputs2, _, cu_h2) = RunGRU(
-            sess,
-            num_units,
-            input_size,
-            batch_size,
-            time,
-            num_layers,
-            is_training=False,
-            dropout=1.)
-
-    self.assertAllClose(cu_outputs, cu_outputs2)
-    self.assertAllClose(cu_h[0], cu_h2[0])
-
-  @parameterized.named_parameters(*NAMED_RNN_TESTCASES)
-  @unittest.skipUnless(test.is_built_with_cuda(),
-                       "Test only applicable when running on GPUs")
-  def test_training_v3(self, num_units, input_size, batch_size, time, num_layers):
-    if not context.context().num_gpus():
-      self.skipTest("No GPUs found")
-    self._test_training_helper(num_units, input_size, batch_size, time,
-                               num_layers, dtypes.float32, True)
-
-  @parameterized.named_parameters(*NAMED_RNN_TESTCASES)
-  @unittest.skipUnless(test.is_built_with_cuda(),
-                       "Test only applicable when running on GPUs")
-  def test_training_fp16_v3(self, num_units, input_size, batch_size, time,
-                         num_layers):
+                         num_layers, variable_seq_lengths):
     if not context.context().num_gpus():
       self.skipTest("No GPUs found")
     self._test_training_helper(
@@ -905,12 +733,19 @@ class CudnnGRUTest(TensorFlowTestCase, parameterized.TestCase):
         dtypes.float16,
         rtol=5e-3,
         atol=5e-4,
-        var_seq_len=True)
+        variable_seq_lengths=variable_seq_lengths)
 
-  @parameterized.named_parameters(*NAMED_RNN_TESTCASES)
+  @parameterized.named_parameters(
+      ExpandNamedTestCases(
+          NAMED_RNN_TESTCASES, **{
+              "variable_seq_lengths": [
+                  True, False 
+              ],
+          }))
   @unittest.skipUnless(test.is_built_with_cuda(),
                        "Test only applicable when running on GPUs")
-  def test_inference_v3(self, num_units, input_size, batch_size, time, num_layers):
+  def test_inference(self, num_units, input_size, batch_size, time, num_layers,
+                     variable_seq_lengths):
     if not context.context().num_gpus():
       self.skipTest("No GPUs found")
     with self.session(use_gpu=True) as sess:
@@ -922,15 +757,21 @@ class CudnnGRUTest(TensorFlowTestCase, parameterized.TestCase):
           time,
           num_layers,
           is_training=False,
-          var_seq_len=True)
+          variable_seq_lengths=variable_seq_lengths)
       self.assertAllClose(outputs, cu_outputs)
       self.assertAllClose(h, cu_h)
 
-  @parameterized.named_parameters(*NAMED_RNN_TESTCASES)
+  @parameterized.named_parameters(
+      ExpandNamedTestCases(
+          NAMED_RNN_TESTCASES, **{
+              "variable_seq_lengths": [
+                  True, False 
+              ],
+          }))
   @unittest.skipUnless(test.is_built_with_cuda(),
                        "Test only applicable when running on GPUs")
-  def test_inference_fp16_v3(self, num_units, input_size, batch_size, time,
-                          num_layers):
+  def test_inference_fp16(self, num_units, input_size, batch_size, time,
+                          num_layers, variable_seq_lengths):
     if not context.context().num_gpus():
       self.skipTest("No GPUs found")
     with self.session(use_gpu=True) as sess:
@@ -943,17 +784,23 @@ class CudnnGRUTest(TensorFlowTestCase, parameterized.TestCase):
           num_layers,
           is_training=False,
           dtype=dtypes.float16,
-          var_seq_len=True)
+          variable_seq_lengths=variable_seq_lengths)
 
       rtol, atol = 5e-3, 5e-4
       self.assertAllClose(outputs, cu_outputs, rtol=rtol, atol=atol)
       self.assertAllClose(h, cu_h, rtol=rtol, atol=atol)
 
-  @parameterized.named_parameters(*NAMED_RNN_TESTCASES)
+  @parameterized.named_parameters(
+      ExpandNamedTestCases(
+          NAMED_RNN_TESTCASES, **{
+              "variable_seq_lengths": [
+                  True, False 
+              ],
+          }))
   @unittest.skipUnless(test.is_built_with_cuda(),
                        "Test only applicable when running on GPUs")
-  def test_inference_with_dropout_v3(self, num_units, input_size, batch_size, time,
-                                  num_layers):
+  def test_inference_with_dropout(self, num_units, input_size, batch_size, time,
+                                  num_layers, variable_seq_lengths):
     """Validates that dropout does not affect Cudnn Rnn inference."""
     # Hand-picked dropouts are used below (0. and 1.)
     if not context.context().num_gpus():
@@ -970,7 +817,7 @@ class CudnnGRUTest(TensorFlowTestCase, parameterized.TestCase):
             num_layers,
             is_training=False,
             dropout=0.,
-            var_seq_len=True)
+            variable_seq_lengths=variable_seq_lengths)
 
     with ops.Graph().as_default() as g:
       with self.session(use_gpu=True, graph=g) as sess:
@@ -983,11 +830,10 @@ class CudnnGRUTest(TensorFlowTestCase, parameterized.TestCase):
             num_layers,
             is_training=False,
             dropout=1.,
-            var_seq_len=True)
+            variable_seq_lengths=variable_seq_lengths)
 
     self.assertAllClose(cu_outputs, cu_outputs2)
     self.assertAllClose(cu_h[0], cu_h2[0])
-
 
 
 class CudnnParamsFormatConverterTest(TensorFlowTestCase,
