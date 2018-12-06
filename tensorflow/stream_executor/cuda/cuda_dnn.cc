@@ -1218,7 +1218,6 @@ class CudnnRnnSequenceTensorDescriptor
     : public dnn::RnnSequenceTensorDescriptor {
   CudnnRnnSequenceTensorDescriptor(CUDAExecutor* parent, int max_seq_length,
                                    int batch_size, int data_size,
-                                   int* seq_lengths,
                                    cudnnDataType_t data_type,
                                    RNNDataDescriptor data_handle,
                                    TensorDescriptor handle)
@@ -1226,7 +1225,6 @@ class CudnnRnnSequenceTensorDescriptor
         max_seq_length_(max_seq_length),
         batch_size_(batch_size),
         data_size_(data_size),
-        seq_lengths_(seq_lengths),
         data_type_(data_type),
         rnn_data_handle_(std::move(data_handle)),
         handle_(std::move(handle)),
@@ -1248,13 +1246,13 @@ class CudnnRnnSequenceTensorDescriptor
         /*nbDims=*/sizeof(dims) / sizeof(dims[0]), /*dimA=*/dims,
         /*strideA=*/strides));
     return CudnnRnnSequenceTensorDescriptor(parent, max_seq_length, batch_size,
-                                            data_size, nullptr, data_type,
+                                            data_size, data_type,
                                             nullptr, std::move(tensor_desc));
   }
 
   static port::StatusOr<CudnnRnnSequenceTensorDescriptor> Create(
       CUDAExecutor* parent, int max_seq_length, int batch_size, int data_size,
-      absl::Span<int> seq_lengths,
+      const absl::Span<const int>& seq_lengths,
       cudnnDataType_t data_type) {
     CHECK_GT(max_seq_length, 0);
     int dims[] = {batch_size, data_size, 1};
@@ -1264,7 +1262,7 @@ class CudnnRnnSequenceTensorDescriptor
         /*tensorDesc=*/tensor_desc.get(), /*dataType=*/data_type,
         /*nbDims=*/sizeof(dims) / sizeof(dims[0]), /*dimA=*/dims,
         /*strideA=*/strides));
-    int* seq_lengths_array = seq_lengths.data();
+    const int* seq_lengths_array = seq_lengths.data();
 #if CUDNN_VERSION >= 7201
     RNNDataDescriptor data_desc = CreateRNNDataDescriptor();
     float padding_fill = 0.0f;
@@ -1276,8 +1274,8 @@ class CudnnRnnSequenceTensorDescriptor
         /*seqLengthArray=*/seq_lengths_array,
         /*paddingFill*/ (void*)&padding_fill));
     return CudnnRnnSequenceTensorDescriptor(parent, max_seq_length, batch_size,
-                                            data_size, seq_lengths_array,
-                                            data_type, std::move(data_desc),
+                                            data_size, data_type,
+                                            std::move(data_desc),
                                             std::move(tensor_desc));
 #else
     return port::Status(port::error::INVALID_ARGUMENT,
@@ -1294,14 +1292,13 @@ class CudnnRnnSequenceTensorDescriptor
   int max_seq_length() const { return max_seq_length_; }
   int batch_size() const { return batch_size_; }
   int data_size() const { return data_size_; }
-  bool is_var_seq_lengths() const { return seq_lengths_ != nullptr; }
+  bool is_var_seq_lengths() const { return rnn_data_handle_ != nullptr; }
 
  private:
   CUDAExecutor* parent_;
   int max_seq_length_;
   int batch_size_;
   int data_size_;
-  int* seq_lengths_ = nullptr;
   cudnnDataType_t data_type_;
   TensorDescriptor handle_;
   RNNDataDescriptor rnn_data_handle_;
@@ -1789,10 +1786,10 @@ CudnnSupport::createRnnSequenceTensorDescriptor(int max_seq_length, int batch_si
 }
 
 port::StatusOr<std::unique_ptr<dnn::RnnSequenceTensorDescriptor>>
-CudnnSupport::createRnnSequenceTensorDescriptor(int max_seq_length, int batch_size,
-                                                int data_size,
-                                                absl::Span<int> seq_lengths,
-                                                dnn::DataType data_type) {
+CudnnSupport::createRnnSequenceTensorDescriptor(
+    int max_seq_length, int batch_size, int data_size,
+    const absl::Span<const int>& seq_lengths,
+    dnn::DataType data_type) {
   SE_ASSIGN_OR_RETURN(CudnnRnnSequenceTensorDescriptor descriptor,
                       CudnnRnnSequenceTensorDescriptor::Create(
                           parent_, max_seq_length, batch_size, data_size,
