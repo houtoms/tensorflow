@@ -82,7 +82,7 @@ REGISTER_OP("CudnnRNN")
     .SetShapeFn([](InferenceContext* c) {
       auto input_shape = c->input(0);
       auto input_h_shape = c->input(1);
-      auto max_seq_length = c->Dim(input_shape, 0);
+      auto seq_length = c->Dim(input_shape, 0);
       auto batch_size = c->Dim(input_shape, 1);
       auto num_units = c->Dim(input_h_shape, 2);
       string direction;
@@ -92,7 +92,7 @@ REGISTER_OP("CudnnRNN")
       int dir_count = (direction == "bidirectional") ? 2 : 1;
       DimensionHandle output_size;
       TF_RETURN_IF_ERROR(c->Multiply(num_units, dir_count, &output_size));
-      auto output_shape = c->MakeShape({max_seq_length, batch_size, output_size});
+      auto output_shape = c->MakeShape({seq_length, batch_size, output_size});
       auto output_h_shape = input_h_shape;
       auto output_c_shape TF_ATTRIBUTE_UNUSED =
           (rnn_mode == "lstm") ? output_h_shape : c->MakeShape({});
@@ -125,7 +125,7 @@ REGISTER_OP("CudnnRNNV2")
     .SetShapeFn([](InferenceContext* c) {
       auto input_shape = c->input(0);
       auto input_h_shape = c->input(1);
-      auto max_seq_length = c->Dim(input_shape, 0);
+      auto seq_length = c->Dim(input_shape, 0);
       auto batch_size = c->Dim(input_shape, 1);
       auto num_units = c->Dim(input_h_shape, 2);
       string direction;
@@ -135,7 +135,7 @@ REGISTER_OP("CudnnRNNV2")
       int dir_count = (direction == "bidirectional") ? 2 : 1;
       DimensionHandle output_size;
       TF_RETURN_IF_ERROR(c->Multiply(num_units, dir_count, &output_size));
-      auto output_shape = c->MakeShape({max_seq_length, batch_size, output_size});
+      auto output_shape = c->MakeShape({seq_length, batch_size, output_size});
       auto output_h_shape = input_h_shape;
       auto output_c_shape TF_ATTRIBUTE_UNUSED =
           (rnn_mode == "lstm") ? output_h_shape : c->MakeShape({});
