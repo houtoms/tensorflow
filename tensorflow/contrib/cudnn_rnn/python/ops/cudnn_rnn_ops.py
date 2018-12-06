@@ -974,8 +974,9 @@ def _cudnn_rnn(inputs,
     is_training: whether this operation will be used in training or inference
     rnn_mode: one of ('lstm', 'gru', 'rnn_relu', 'rnn_tanh').
     sequence_lengths: an int32 array representing the variable sequence lengths
-      in a batch. The size of the array has to equal the batch_size. If not
-      provided, the same sequence length will be assumed.
+      in a batch. The size of the array has to equal the batch_size. Default to
+      None, in which case sequences in the batch are assumed to have the same 
+      length, which is inferred from inputs. 
     input_mode: indicate whether there is a linear projection between the
       input and the actual computation before the first layer. It could be
       'linear_input', 'skip_input' or 'auto_select'.
@@ -1015,9 +1016,6 @@ def _cudnn_rnn(inputs,
       "name": name
   }
   if sequence_lengths is not None:
-    if sequence_lengths.dtype != dtypes.int32:
-      raise ValueError("Invalid sequence_lengths dtype: %s",
-                       sequence_lengths.dtype)
     args["sequence_lengths"] = sequence_lengths
     outputs, output_h, output_c, _, _ = gen_cudnn_rnn_ops.cudnn_rnnv3(
         **args)
@@ -1064,8 +1062,9 @@ def cudnn_lstm(inputs,
     seed: the op seed used for initializing dropout. See `tf.set_random_seed`
         for behavior.
     sequence_lengths: an int32 array representing the variable sequence lengths
-      in a batch. The size of the array has to equal the batch_size. If not
-      provided, the same sequence length will be assumed.
+      in a batch. The size of the array has to equal the batch_size. Default to
+      None, in which case sequences in the batch are assumed to have the same 
+      length, which is inferred from inputs. 
     name: name of the operation.
   Returns:
     outputs, output_h, output_c
@@ -1097,8 +1096,9 @@ def _cudnn_rnn_no_input_c(inputs,
     is_training: whether this operation will be used in training or inference
     rnn_mode: one of ('lstm', 'gru', 'rnn_relu', 'rnn_tanh').
     sequence_lengths: an int32 array representing the variable sequence lengths
-      in a batch. The size of the array has to equal the batch_size. If not
-      provided, the same sequence length will be assumed.
+      in a batch. The size of the array has to equal the batch_size. Default to
+      None, in which case sequences in the batch are assumed to have the same 
+      length, which is inferred from inputs. 
     input_mode: indicate whether there is a linear projection between the
       input and the actual computation before the first layer. It could be
       'linear_input', 'skip_input' or 'auto_select'.
@@ -1152,8 +1152,9 @@ def cudnn_gru(inputs,
         'auto_select' implies 'skip_input' when input_size == num_units;
         otherwise, it implies 'linear_input'.
     sequence_lengths: an int32 array representing the variable sequence lengths
-      in a batch. The size of the array has to equal the batch_size. If not
-      provided, the same sequence length will be assumed.
+      in a batch. The size of the array has to equal the batch_size. Default to
+      None, in which case sequences in the batch are assumed to have the same 
+      length, which is inferred from inputs. 
     direction: the direction model that the model operates. Could be either
         'unidirectional' or 'bidirectional'
     dropout: whether to enable dropout. With it is 0, dropout is disabled.
@@ -1240,8 +1241,9 @@ def cudnn_rnn_tanh(inputs,
         'auto_select' implies 'skip_input' when input_size == num_units;
         otherwise, it implies 'linear_input'.
     sequence_lengths: an int32 array representing the variable sequence lengths
-      in a batch. The size of the array has to equal the batch_size. If not
-      provided, the same sequence length will be assumed.
+      in a batch. The size of the array has to equal the batch_size. Default to
+      None, in which case sequences in the batch are assumed to have the same 
+      length, which is inferred from inputs. 
     direction: the direction model that the model operates. Could be either
         'unidirectional' or 'bidirectional'
     dropout: whether to enable dropout. With it is 0, dropout is disabled.
@@ -1544,9 +1546,10 @@ class _CudnnRNN(object):
         A Tensor of the same shape as input_h.
       params: the parameter buffer created for this model.
       is_training: whether this operation will be used in training or inference.
-      sequence_lengths: an int32 array representing the variable sequence
-        lengths in a batch. The size of the array has to equal the
-        batch_size. If not provided, the same sequence length will be assumed.
+      sequence_lengths: an int32 array representing the variable sequence lengths
+        in a batch. The size of the array has to equal the batch_size. Default to
+        None, in which case sequences in the batch are assumed to have the same 
+        length, which is inferred from inputs. 
     Returns:
       output: the output sequence.
       output_h: the final state for h.
@@ -1666,9 +1669,10 @@ class CudnnLSTM(_CudnnRNN):
       input_c: the initial hidden state for c. A Tensor of the same shape as
         input_h.
       params: the parameter buffer created for this model.
-      sequence_lengths: an int32 array representing the variable sequence
-        lengths in a batch. The size of the array has to equal the
-        batch_size. If not provided, the same sequence length will be assumed.
+      sequence_lengths: an int32 array representing the variable sequence lengths
+        in a batch. The size of the array has to equal the batch_size. Default to
+        None, in which case sequences in the batch are assumed to have the same 
+        length, which is inferred from inputs. 
       is_training: whether this operation will be used in training or inference.
     Returns:
       output: the output sequence.
@@ -1741,9 +1745,10 @@ class _CudnnRNNNoInputC(_CudnnRNN):
       input_h: the initial hidden state for h. A Tensor of shape [num_layers,
         batch_size, num_units].
       params: the parameter buffer created for this model.
-      sequence_lengths: an int32 array representing the variable sequence
-        lengths in a batch. The size of the array has to equal the
-        batch_size. If not provided, the same sequence length will be assumed.
+      sequence_lengths: an int32 array representing the variable sequence lengths
+        in a batch. The size of the array has to equal the batch_size. Default to
+        None, in which case sequences in the batch are assumed to have the same 
+        length, which is inferred from inputs. 
       is_training: whether this operation will be used in training or inference.
     Returns:
       output: the output sequence.
