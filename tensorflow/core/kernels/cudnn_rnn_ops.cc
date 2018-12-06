@@ -685,20 +685,19 @@ Status DoForward(OpKernelContext* context, const RnnDescriptor& rnn_desc,
                  const bool is_training,
                  /* forward outputs, outputs of the function */
                  Tensor* output, Tensor* output_h, Tensor* output_c,
+                 const Tensor* sequence_lengths,
                  ScratchAllocator* reserve_space_allocator,
                  ScratchAllocator* workspace_allocator,
-                 ProfileResult* output_profile_result,
-                 const Tensor* sequence_lengths=nullptr) {
+                 ProfileResult* output_profile_result) {
   std::unique_ptr<RnnSequenceTensorDescriptor> input_desc;
   std::unique_ptr<RnnStateTensorDescriptor> state_desc;
   std::unique_ptr<RnnSequenceTensorDescriptor> output_desc;
 
   absl::Span<const int> seq_lengths;
   if (sequence_lengths != nullptr) {
-    DeviceMemory<int> sequence_lengths_data = 
-        AsDeviceMemory<int>(sequence_lengths);
-    int* seq_lens = (int*)sequence_lengths_data.opaque();
-    seq_lengths = absl::Span<const int>(seq_lens, model_shapes.batch_size);
+    seq_lengths = absl::Span<const int>(
+        sequence_lengths->template flat<int>().data(),
+        model_shapes.batch_size);
   }
   TF_RETURN_IF_ERROR(CreateForwardAndBackwardIODescriptors<T>(
         context, model_shapes, &input_desc, &state_desc, &output_desc,
@@ -750,19 +749,18 @@ Status DoBackward(
     const Tensor* output_c_backprop, const Tensor* reserve_space,
     /* backprop outputs, output of the function */
     Tensor* input_backprop, Tensor* input_h_backprop, Tensor* input_c_backprop,
-    Tensor* params_backprop, ScratchAllocator* workspace_allocator,
-    ProfileResult* output_profile_result,
-    const Tensor* sequence_lengths=nullptr) {
+    Tensor* params_backprop, const Tensor* sequence_lengths,
+    ScratchAllocator* workspace_allocator,
+    ProfileResult* output_profile_result) {
   std::unique_ptr<RnnSequenceTensorDescriptor> input_desc;
   std::unique_ptr<RnnStateTensorDescriptor> state_desc;
   std::unique_ptr<RnnSequenceTensorDescriptor> output_desc;
 
   absl::Span<const int> seq_lengths;
   if (sequence_lengths != nullptr) {
-    DeviceMemory<int> sequence_lengths_data =
-        AsDeviceMemory<int>(sequence_lengths);
-    int* seq_lens = (int*)sequence_lengths_data.opaque();
-    seq_lengths = absl::Span<const int>(seq_lens, model_shapes.batch_size);
+    seq_lengths = absl::Span<const int>(
+        sequence_lengths->template flat<int>().data(),
+        model_shapes.batch_size);
   }
   TF_RETURN_IF_ERROR(CreateForwardAndBackwardIODescriptors<T>(
         context, model_shapes, &input_desc, &state_desc, &output_desc,
@@ -1285,13 +1283,13 @@ class CudnnRNNForwardOp<GPUDevice, T> : public CudnnRNNKernelCommon {
         launch_status = DoForward<T>(
             context, *rnn_desc_ptr, model_types(), model_shapes, input, input_h,
             input_c, params, is_training_, output, output_h, output_c,
-            &reserve_space_allocator, &workspace_allocator,
-            /*output_profile_result=*/nullptr, sequence_lengths);
+            sequence_lengths, &reserve_space_allocator, &workspace_allocator,
+            /*output_profile_result=*/nullptr);
       } else {
         launch_status = DoForward<T>(
             context, *rnn_desc_ptr, model_types(), model_shapes, input, input_h,
             input_c, params, is_training_, output, output_h, output_c,
-            &reserve_space_allocator, &workspace_allocator,
+            nullptr, &reserve_space_allocator, &workspace_allocator,
             /*output_profile_result=*/nullptr);
       }
     }
@@ -1496,7 +1494,8 @@ class CudnnRNNForwardOpV2<GPUDevice, T>
       status = DoForward<T>(
           context, *rnn_desc, model_types(), model_shapes, input, input_h,
           input_c, params, is_training(), output, output_h, output_c,
-          &reserve_space_allocator, &workspace_allocator, &fwd_profile_result);
+          nullptr, &reserve_space_allocator, &workspace_allocator,
+          &fwd_profile_result);
       if (!status.ok()) {
         continue;
       }
@@ -1509,7 +1508,8 @@ class CudnnRNNForwardOpV2<GPUDevice, T>
             input_c, params, output, output_h, output_c, &output_backprop,
             &output_h_backprop, &output_c_backprop, &reserve_space,
             &input_backprop, &input_h_backprop, &input_c_backprop,
-            &params_backprop, &workspace_allocator, &bak_profile_result);
+            &params_backprop, nullptr, &workspace_allocator,
+            &bak_profile_result);
         if (!status.ok()) {
           continue;
         }
@@ -1580,17 +1580,8 @@ class CudnnRNNForwardOpV3<GPUDevice, T>
     // TODO: Current V3 only uses the default standard algorithm to process 
     // batches with variable sequences and the inputs should be padded. 
     // Autotune is not supported yet.
-    if (is_training()) {
-      OP_REQUIRES_OK(context, context->allocate_output(4, TensorShape({2}),
-                                                       &output_host_reserved));
-      auto output_host_reserved_int8 = output_host_reserved->vec<int8>();
-      output_host_reserved_int8(0) = best_algo_config.algorithm()->algo_id();
-      output_host_reserved_int8(1) =
-          best_algo_config.algorithm()->tensor_ops_enabled();
-    } else {
-      OP_REQUIRES_OK(context,
-                     context->allocate_output(4, {}, &output_host_reserved));
-    }
+    OP_REQUIRES_OK(context,
+                   context->allocate_output(4, {}, &output_host_reserved));
   }
 };
 
@@ -1685,15 +1676,15 @@ class CudnnRNNBackwardOp<GPUDevice, T> : public CudnnRNNKernelCommon {
             input_c, params, output, output_h, output_c, output_backprop,
             output_h_backprop, output_c_backprop, reserve_space, input_backprop,
             input_h_backprop, input_c_backprop, params_backprop,
-            &workspace_allocator, /*output_profile_result=*/nullptr,
-            sequence_lengths);
+            sequence_lengths, &workspace_allocator,
+            /*output_profile_result=*/nullptr);
       } else {
         launch_status = DoBackward<T>(
             context, *rnn_desc_ptr, model_types(), model_shapes, input, input_h,
             input_c, params, output, output_h, output_c, output_backprop,
             output_h_backprop, output_c_backprop, reserve_space, input_backprop,
             input_h_backprop, input_c_backprop, params_backprop,
-            &workspace_allocator, /*output_profile_result=*/nullptr);
+            nullptr, &workspace_allocator, /*output_profile_result=*/nullptr);
       }
     }
     OP_REQUIRES_OK(context, launch_status);

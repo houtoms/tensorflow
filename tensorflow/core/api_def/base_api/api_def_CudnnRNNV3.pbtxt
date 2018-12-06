@@ -25,7 +25,7 @@ params: A 1-D tensor that contains the weights and biases in an opaque layout.
     The size must be created through CudnnRNNParamsSize, and initialized
     separately. Note that they might not be compatible across different
     generations. So it is a good idea to save and restore
-sequence_lengths: length of each input sequence.
+sequence_lengths: a vector of lengths of each input sequence.
 output: A 3-D tensor with the shape of [seq_length, batch_size,
     dir * num_units].
 output_h: The same shape has input_h.
