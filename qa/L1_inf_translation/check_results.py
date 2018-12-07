@@ -26,7 +26,10 @@ def parse_results_file(filename):
 
 def check_score(bleu_score, model, tol):
     dest = {
-        'Transformer-FP32-H-256': 26.40,
+        'transformer_config.py': 26.40,
+        'trt_transformer_config.py': 26.40,
+        'convs2s_config.py': 25.00,
+        'trt_convs2s_config.py': 25.00,
     }
     if abs(bleu_score - dest[model]) < tol:
         print("PASS")
