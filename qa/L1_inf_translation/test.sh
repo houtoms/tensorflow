@@ -44,8 +44,8 @@ run_and_check() {
   # Parse outputs and check score
   python -u "$TEST_DIR/check_results.py" --input_result $RESULT_FILE \
                                          --input_log $LOG_FILE \
-                                         --model $MODEL_LOGDIR
-  echo "DONE testing $MODEL_LOGDIR"
+                                         --model $MODEL_CONFIG
+  echo "DONE testing $MODEL_CONFIG"
 }
 
 for ((i=0; i<${#model_configs[@]}; ++i))
