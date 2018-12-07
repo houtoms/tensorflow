@@ -113,7 +113,7 @@ TEST(CudnnRNNOpsTest, ForwardV3Lstm_ShapeFn) {
                                     num_units};
   std::vector<int> output_shape = {max_seq_length, batch_size,
                                    num_units * dir_count};
-  std::vector<int> seq_lengths_shape = {batch_size}
+  std::vector<int> seq_lengths_shape = {batch_size};
   auto shape_to_str = [](const std::vector<int>& v) {
     return strings::StrCat("[", str_util::Join(v, ","), "]");
   };

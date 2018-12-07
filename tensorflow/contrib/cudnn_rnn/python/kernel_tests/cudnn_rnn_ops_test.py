@@ -105,7 +105,7 @@ def RunLSTM(sess,
     lengths_v[0] = time # make sure the max sequence has 'time' elems
     lengths = ops.convert_to_tensor(lengths_v.astype(np.int32))
   else:
-    lengths = None 
+    lengths = None
 
   initializer = init_ops.random_uniform_initializer(
       -0.01, 0.01, dtype=dtype, seed=19980904)
@@ -357,7 +357,7 @@ class CudnnLSTMTest(TensorFlowTestCase, parameterized.TestCase):
       ExpandNamedTestCases(
           NAMED_RNN_TESTCASES, **{
               "variable_seq_lengths": [
-                  True, False 
+                  True, False
               ],
           }))
   @unittest.skipUnless(test.is_built_with_cuda(),
@@ -374,7 +374,7 @@ class CudnnLSTMTest(TensorFlowTestCase, parameterized.TestCase):
       ExpandNamedTestCases(
           NAMED_RNN_TESTCASES, **{
               "variable_seq_lengths": [
-                  True, False 
+                  True, False
               ],
           }))
   @unittest.skipUnless(test.is_built_with_cuda(),
@@ -398,7 +398,7 @@ class CudnnLSTMTest(TensorFlowTestCase, parameterized.TestCase):
       ExpandNamedTestCases(
           NAMED_RNN_TESTCASES, **{
               "variable_seq_lengths": [
-                  True, False 
+                  True, False
               ],
           }))
   @unittest.skipUnless(test.is_built_with_cuda(),
@@ -428,7 +428,7 @@ class CudnnLSTMTest(TensorFlowTestCase, parameterized.TestCase):
       ExpandNamedTestCases(
           NAMED_RNN_TESTCASES, **{
               "variable_seq_lengths": [
-                  True, False 
+                  True, False
               ],
           }))
   @unittest.skipUnless(test.is_built_with_cuda(),
@@ -462,7 +462,7 @@ class CudnnLSTMTest(TensorFlowTestCase, parameterized.TestCase):
       ExpandNamedTestCases(
           NAMED_RNN_TESTCASES, **{
               "variable_seq_lengths": [
-                  True, False 
+                  True, False
               ],
           }))
   @unittest.skipUnless(test.is_built_with_cuda(),
@@ -545,7 +545,7 @@ def RunGRU(sess,
     lengths_v[0] = time # make sure the max sequence has 'time' elems
     lengths = ops.convert_to_tensor(lengths_v.astype(np.int32))
   else:
-    lengths = None 
+    lengths = None
 
   initializer = init_ops.random_uniform_initializer(
       -0.01, 0.01, dtype=dtype, seed=19980904)
@@ -698,7 +698,7 @@ class CudnnGRUTest(TensorFlowTestCase, parameterized.TestCase):
       ExpandNamedTestCases(
           NAMED_RNN_TESTCASES, **{
               "variable_seq_lengths": [
-                  True, False 
+                  True, False
               ],
           }))
   @unittest.skipUnless(test.is_built_with_cuda(),
@@ -715,7 +715,7 @@ class CudnnGRUTest(TensorFlowTestCase, parameterized.TestCase):
       ExpandNamedTestCases(
           NAMED_RNN_TESTCASES, **{
               "variable_seq_lengths": [
-                  True, False 
+                  True, False
               ],
           }))
   @unittest.skipUnless(test.is_built_with_cuda(),
@@ -739,7 +739,7 @@ class CudnnGRUTest(TensorFlowTestCase, parameterized.TestCase):
       ExpandNamedTestCases(
           NAMED_RNN_TESTCASES, **{
               "variable_seq_lengths": [
-                  True, False 
+                  True, False
               ],
           }))
   @unittest.skipUnless(test.is_built_with_cuda(),
@@ -765,7 +765,7 @@ class CudnnGRUTest(TensorFlowTestCase, parameterized.TestCase):
       ExpandNamedTestCases(
           NAMED_RNN_TESTCASES, **{
               "variable_seq_lengths": [
-                  True, False 
+                  True, False
               ],
           }))
   @unittest.skipUnless(test.is_built_with_cuda(),
@@ -794,7 +794,7 @@ class CudnnGRUTest(TensorFlowTestCase, parameterized.TestCase):
       ExpandNamedTestCases(
           NAMED_RNN_TESTCASES, **{
               "variable_seq_lengths": [
-                  True, False 
+                  True, False
               ],
           }))
   @unittest.skipUnless(test.is_built_with_cuda(),
