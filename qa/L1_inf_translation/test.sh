@@ -27,8 +27,8 @@ pushd /opt/tensorflow/nvidia-examples/OpenSeq2Seq
 
 run_and_check() {
   MODEL_CONFIG="$2${model_configs[$1]}"
-  RESULT_FILE="result_${model_logdirs[$1]}"
-  LOG_FILE="log_${model_logdirs[$1]}"
+  RESULT_FILE="$2${model_configs[$1]}.result"
+  LOG_FILE="$2${model_configs[$1]}.log"
   # Run inference
   common_args="--config_file="$TEST_DIR/$MODEL_CONFIG" \
                 --mode=infer \
@@ -48,7 +48,7 @@ run_and_check() {
   echo "DONE testing $MODEL_LOGDIR"
 }
 
-for ((i=0; i<${#model_logdirs[@]}; ++i))
+for ((i=0; i<${#model_configs[@]}; ++i))
 do
   run_and_check $i
   # Disable TF-TRT temporarily.
