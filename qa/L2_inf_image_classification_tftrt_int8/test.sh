@@ -10,6 +10,8 @@ python setup.py install
 popd
 
 OUTPUT_PATH=$PWD
+EXAMPLE_PATH="../../nvidia-examples/tensorrt/tftrt/examples/image-classification/"
+SCRIPTS_PATH="../inference/image_classification/"
 
 JETSON=false
 NATIVE_ARCH=`uname -m`
@@ -51,7 +53,7 @@ set_models
 for model in "${models[@]}"
 do
   echo "Testing $model..."
-  pushd ../third_party/tensorrt/tftrt/examples/image-classification/
+  pushd $EXAMPLE_PATH
   python -u image_classification.py \
       --data_dir "/data/imagenet/train-val-tfrecord" \
       --calib_data_dir "/data/imagenet/train-val-tfrecord" \
@@ -62,7 +64,7 @@ do
       --precision int8 \
       2>&1 | tee $OUTPUT_PATH/output_tftrt_int8_bs8_${model}_dynamic_op=False
   popd
-  pushd ../inference/image_classification/
+  pushd $SCRIPTS_PATH
   python -u check_accuracy.py --tolerance 1.0 --input_path $OUTPUT_PATH --precision tftrt_int8 --batch_size 8 --model $model
   if $JETSON ; then
     python -u check_performance.py --input_path $OUTPUT_PATH --model $model --batch_size 8 --precision tftrt_int8 

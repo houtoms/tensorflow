@@ -12,6 +12,8 @@ python setup.py install
 popd
 
 OUTPUT_PATH=$PWD
+EXAMPLE_PATH="../../nvidia-examples/tensorrt/tftrt/examples/image-classification/"
+SCRIPTS_PATH="../inference/image_classification/"
 
 set_allocator() {
   NATIVE_ARCH=`uname -m`
@@ -39,7 +41,7 @@ for use_trt_dynamic_op in ${dynamic_op[@]}; do
     fi;
 
     OUTPUT_FILE=$OUTPUT_PATH/output_tftrt_fp16_bs8_${model}_dynamic_op=${use_trt_dynamic_op}
-    pushd ../third_party/tensorrt/tftrt/examples/image-classification/
+    pushd $EXAMPLE_PATH
     python -u image_classification.py \
         --data_dir "/data/imagenet/train-val-tfrecord" \
         --model $model \
@@ -48,7 +50,7 @@ for use_trt_dynamic_op in ${dynamic_op[@]}; do
         $dynamic_op_params \
         2>&1 | tee $OUTPUT_FILE
     popd
-    pushd ../inference/image_classification/
+    pushd $SCRIPTS_PATH
     python -u check_accuracy.py --input_path $OUTPUT_PATH --batch_size 8 --model $model --dynamic_op $use_trt_dynamic_op --precision tftrt_fp16
     popd
     echo "DONE testing $model $use_trt_dynamic_op"
