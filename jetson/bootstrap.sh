@@ -107,7 +107,7 @@ esac
 
 # Register the gitlab runner
 pushd $HOME
-git clone https://gitlab-dl.nvidia.com/devops/gitlab-runner.git
+git clone https://gitlab-master.nvidia.com/DL/devops/gitlab-runner.git
 cd gitlab-runner
 ./run-jetson.sh 0 ${MODELNAME}
 popd
