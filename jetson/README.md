@@ -49,7 +49,7 @@ Clone the TF repository and checkout the appropriate release branch. Branches
 are named by two-digit year and month in which they will be released.
 
 ```
-git clone https://gitlab-master.nvidia.com/DL/dgx/tensorflow -b <YY>.<MM>-devel
+git clone https://gitlab-master.nvidia.com/dl/dgx/tensorflow -b <YY>.<MM>-devel
 ```
 
 The installation script will install all dependencies, compile TF from sources,
