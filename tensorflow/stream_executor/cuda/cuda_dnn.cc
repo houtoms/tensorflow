@@ -366,9 +366,11 @@ struct TensorDescriptorDeleter {
   }
 };
 struct RNNDataDescriptorDeleter {
+#if CUDNN_VERSION >= 7201
   void operator()(cudnnRNNDataDescriptor_t descriptor) const {
     CHECK_CUDNN_OK(cudnnDestroyRNNDataDescriptor(descriptor));
   }
+#endif
 };
 struct FilterDescriptorDeleter {
   void operator()(cudnnFilterDescriptor_t descriptor) const {
