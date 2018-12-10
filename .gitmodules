@@ -11,7 +11,7 @@
 	url = https://github.com/NVIDIA/OpenSeq2Seq
 [submodule "third_party/horovod"]
 	path = third_party/horovod
-	url = ../../nluehr/horovod.git
+	url = ../../../nluehr/horovod.git
 [submodule "qa/third_party/cocoapi"]
 	path = qa/third_party/cocoapi
 	url = https://github.com/cocodataset/cocoapi
