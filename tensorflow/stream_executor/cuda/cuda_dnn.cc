@@ -365,13 +365,13 @@ struct TensorDescriptorDeleter {
     CHECK_CUDNN_OK(cudnnDestroyTensorDescriptor(descriptor));
   }
 };
-struct RNNDataDescriptorDeleter {
 #if CUDNN_VERSION >= 7201
+struct RNNDataDescriptorDeleter {
   void operator()(cudnnRNNDataDescriptor_t descriptor) const {
     CHECK_CUDNN_OK(cudnnDestroyRNNDataDescriptor(descriptor));
   }
-#endif
 };
+#endif
 struct FilterDescriptorDeleter {
   void operator()(cudnnFilterDescriptor_t descriptor) const {
     CHECK_CUDNN_OK(cudnnDestroyFilterDescriptor(descriptor));
@@ -420,8 +420,6 @@ using TensorDescriptor =
 #if CUDNN_VERSION >= 7201
 using RNNDataDescriptor =
     std::unique_ptr<cudnnRNNDataStruct, RNNDataDescriptorDeleter>;
-#else
-using RNNDataDescriptor = void*;
 #endif
 using FilterDescriptor =
     std::unique_ptr<cudnnFilterStruct, FilterDescriptorDeleter>;
@@ -444,15 +442,14 @@ TensorDescriptor CreateTensorDescriptor() {
   CHECK_CUDNN_OK(cudnnCreateTensorDescriptor(&result));
   return TensorDescriptor(result);
 }
-RNNDataDescriptor CreateRNNDataDescriptor() {
 #if CUDNN_VERSION >= 7201
+RNNDataDescriptor CreateRNNDataDescriptor() {
   cudnnRNNDataDescriptor_t result;
   CHECK_CUDNN_OK(cudnnCreateRNNDataDescriptor(&result));
   return RNNDataDescriptor(result);
-#else
   return nullptr;
-#endif
 }
+#endif
 FilterDescriptor CreateFilterDescriptor() {
   cudnnFilterDescriptor_t result;
   CHECK_CUDNN_OK(cudnnCreateFilterDescriptor(&result));
@@ -1229,7 +1226,9 @@ class CudnnRnnSequenceTensorDescriptor
   CudnnRnnSequenceTensorDescriptor(CUDAExecutor* parent, int max_seq_length,
                                    int batch_size, int data_size,
                                    cudnnDataType_t data_type,
+#if CUDNN_VERSION >= 7201
                                    RNNDataDescriptor data_handle,
+#endif
                                    TensorDescriptor handle)
       : parent_(parent),
         max_seq_length_(max_seq_length),
@@ -1237,7 +1236,9 @@ class CudnnRnnSequenceTensorDescriptor
         data_size_(data_size),
         data_type_(data_type),
         handle_(std::move(handle)),
+#if CUDNN_VERSION >= 7201
         rnn_data_handle_(std::move(data_handle)),
+#endif
         handles_(max_seq_length, handle_.get()) {}
 
  public:
@@ -1313,7 +1314,9 @@ class CudnnRnnSequenceTensorDescriptor
   int data_size_;
   cudnnDataType_t data_type_;
   TensorDescriptor handle_;
+#if CUDNN_VERSION >= 7201
   RNNDataDescriptor rnn_data_handle_;
+#endif
   std::vector<cudnnTensorDescriptor_t> handles_;  // Copies of handle_.
   SE_DISALLOW_COPY_AND_ASSIGN(CudnnRnnSequenceTensorDescriptor);
 };
