@@ -39,6 +39,7 @@ limitations under the License.
 #if GOOGLE_CUDA
 #include "tensorflow/core/kernels/maxpooling_op_gpu.h"
 #include "tensorflow/core/kernels/pooling_ops_common_gpu.h"
+#include "cuda/include/cudnn.h"
 #endif  // GOOGLE_CUDA
 
 namespace tensorflow {
@@ -155,21 +156,10 @@ class AvgPoolingOp<GPUDevice, T> : public UnaryOp<T> {
 
     TensorShape output_shape = params.forward_output_shape();
 
-    if (data_format_ == FORMAT_NCHW) {
-      DnnPoolingOp<T>::Compute(context, se::dnn::PoolingMode::kAverage, ksize_,
-                               stride_, padding_, data_format_, tensor_in,
-                               output_shape,
-                               /*propagate_nans=*/false);
-    } else {
-      Tensor* output = nullptr;
-      OP_REQUIRES_OK(context,
-                     context->allocate_output(0, output_shape, &output));
-      Eigen::PaddingType pt = BrainPadding2EigenPadding(padding_);
-      functor::SpatialAvgPooling<Device, T>()(
-          context->eigen_device<Device>(), output->tensor<T, 4>(),
-          tensor_in.tensor<T, 4>(), params.window_rows, params.window_cols,
-          params.row_stride, params.col_stride, pt);
-    }
+    DnnPoolingOp<T>::Compute(context, se::dnn::PoolingMode::kAverage, ksize_,
+                             stride_, padding_, data_format_, tensor_in,
+                             output_shape,
+                             /*propagate_nans=*/false);
   }
 
  private:
@@ -496,6 +486,9 @@ class AvgPoolingGradOpCustomGPUKernel : public OpKernel {
       output_shape.AddDim(shape_vec(i));
     }
 
+    // Known issue (nvbugs/2452540): The cuDNN NHWC backward pooling 
+    // will give wrong results if CUDNN_VERSION == 7.4.1.5 
+#if CUDNN_VERSION == 7401
     if (data_format_ == FORMAT_NHWC) {
       const int64 out_backprop_batch = out_backprop.dim_size(0);
       const int64 out_backprop_rows = out_backprop.dim_size(1);
@@ -552,6 +545,12 @@ class AvgPoolingGradOpCustomGPUKernel : public OpKernel {
                                    nullptr, nullptr, out_backprop, output_shape,
                                    /*propagate_nans=*/false);
     }
+#else
+    DnnPoolingGradOp<T>::Compute(context, se::dnn::PoolingMode::kAverage,
+                                 ksize_, stride_, padding_, data_format_,
+                                 nullptr, nullptr, out_backprop, output_shape,
+                                 /*propagate_nans=*/false);
+#endif
   }
 
  private:

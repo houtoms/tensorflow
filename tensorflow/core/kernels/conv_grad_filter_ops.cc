@@ -801,6 +801,9 @@ void LaunchConv2DBackpropFilterOp<Eigen::GpuDevice, T>::operator()(
     compatible_input = input;
   }
 
+  bool useNHWC = (data_format == FORMAT_NHWC &&  (DataTypeToEnum<T>::value ==
+                  DT_FLOAT || DataTypeToEnum<T>::value==DT_HALF));
+
   CHECK(padding_rows >= 0 && padding_cols >= 0)
       << "Negative row or col paddings: (" << padding_rows << ", "
       << padding_cols << ")";
@@ -809,18 +812,25 @@ void LaunchConv2DBackpropFilterOp<Eigen::GpuDevice, T>::operator()(
       .set_height(GetTensorDim(compatible_input, data_format, 'H'))
       .set_width(GetTensorDim(compatible_input, data_format, 'W'))
       .set_feature_map_count(dims.in_depth)
-      .set_layout(se::dnn::DataLayout::kBatchDepthYX);
+      .set_layout(useNHWC ?
+                  (se::dnn::DataLayout::kBatchYXDepth) : 
+                  (se::dnn::DataLayout::kBatchDepthYX));
   se::dnn::BatchDescriptor output_desc;
   output_desc.set_count(dims.batch_size)
       .set_height(dims.spatial_dims[0].output_size)
       .set_width(dims.spatial_dims[1].output_size)
       .set_feature_map_count(dims.out_depth)
-      .set_layout(se::dnn::DataLayout::kBatchDepthYX);
+      .set_layout(useNHWC ?
+                  (se::dnn::DataLayout::kBatchYXDepth):
+                  (se::dnn::DataLayout::kBatchDepthYX));
   se::dnn::FilterDescriptor filter_desc;
   filter_desc.set_input_filter_height(dims.spatial_dims[0].filter_size)
       .set_input_filter_width(dims.spatial_dims[1].filter_size)
       .set_input_feature_map_count(filter_shape.dim_size(2))
-      .set_output_feature_map_count(filter_shape.dim_size(3));
+      .set_output_feature_map_count(filter_shape.dim_size(3))
+      .set_layout(useNHWC ?
+                  (se::dnn::FilterLayout::kOutputYXInput):
+                  (se::dnn::FilterLayout::kOutputInputYX));
   se::dnn::ConvolutionDescriptor conv_desc;
   conv_desc.set_vertical_dilation_rate(dims.spatial_dims[0].dilation)
       .set_horizontal_dilation_rate(dims.spatial_dims[1].dilation)
@@ -845,15 +855,21 @@ void LaunchConv2DBackpropFilterOp<Eigen::GpuDevice, T>::operator()(
   // (B x D x R x C) => (B x R x C x D).
 
   Tensor pre_transformed_filter_backprop;
+  TensorShape pre_transformed_filter_backprop_shape = (useNHWC ?
+                  TensorShape({dims.out_depth, 
+                               dims.spatial_dims[0].filter_size,
+                               dims.spatial_dims[1].filter_size,
+                               dims.in_depth}) :
+                  TensorShape({dims.out_depth, dims.in_depth,
+                               dims.spatial_dims[0].filter_size,
+                               dims.spatial_dims[1].filter_size}));
   OP_REQUIRES_OK(
       ctx, ctx->allocate_temp(DataTypeToEnum<T>::value,
-                              TensorShape({dims.out_depth, dims.in_depth,
-                                           dims.spatial_dims[0].filter_size,
-                                           dims.spatial_dims[1].filter_size}),
+                              pre_transformed_filter_backprop_shape,
                               &pre_transformed_filter_backprop));
 
   Tensor transformed_out_backprop;
-  if (data_format == FORMAT_NHWC) {
+  if (!useNHWC && data_format == FORMAT_NHWC) {
     TensorShape nchw_shape = ShapeFromFormat(
         FORMAT_NCHW, dims.batch_size, dims.spatial_dims[0].output_size,
         dims.spatial_dims[1].output_size, dims.out_depth);
@@ -873,7 +889,7 @@ void LaunchConv2DBackpropFilterOp<Eigen::GpuDevice, T>::operator()(
   }
 
   Tensor transformed_input;
-  if (data_format == FORMAT_NHWC) {
+  if (!useNHWC && data_format == FORMAT_NHWC) {
     TensorShape nchw_shape = ShapeFromFormat(
         FORMAT_NCHW, GetTensorDim(compatible_input, data_format, 'N'),
         GetTensorDim(compatible_input, data_format, 'H'),
@@ -913,7 +929,7 @@ void LaunchConv2DBackpropFilterOp<Eigen::GpuDevice, T>::operator()(
       dims.in_depth,                       // in_depths
       {{input_desc.height(),               // in_rows
         input_desc.width()}},              // in_cols
-      FORMAT_NCHW,                         // compute_data_format
+      (useNHWC?FORMAT_NHWC:FORMAT_NCHW),   // compute_data_format
       dims.out_depth,                      // out_depths
       {{dims.spatial_dims[0].filter_size,  // filter_rows
         dims.spatial_dims[1].filter_size,  // filter_cols
@@ -994,11 +1010,19 @@ void LaunchConv2DBackpropFilterOp<Eigen::GpuDevice, T>::operator()(
     return;
   }
 
-  auto toConstTensor = [](const Tensor& x) -> const Tensor { return x; };
-  functor::ReverseTransformFilter<GPUDevice, T, 4>()(
-      ctx->eigen_device<GPUDevice>(),
-      toConstTensor(pre_transformed_filter_backprop).template tensor<T, 4>(),
-      filter_backprop->tensor<T, 4>());
+  if (!useNHWC) {
+    auto toConstTensor = [](const Tensor& x) -> const Tensor { return x; };
+    functor::ReverseTransformFilter<GPUDevice, T, 4>()(
+        ctx->eigen_device<GPUDevice>(),
+        toConstTensor(pre_transformed_filter_backprop).template tensor<T, 4>(),
+        filter_backprop->tensor<T, 4>());
+  } else {
+    auto toConstTensor = [](const Tensor& x) -> const Tensor { return x; };
+    functor::ReverseTransformFilterV2<GPUDevice, T, 4>()(
+        ctx->eigen_device<GPUDevice>(),
+        toConstTensor(pre_transformed_filter_backprop).template tensor<T, 4>(),
+        filter_backprop->tensor<T, 4>());
+  }
 }
 
 // Forward declarations of the functor specializations for GPU.

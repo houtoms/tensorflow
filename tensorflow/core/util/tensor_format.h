@@ -89,6 +89,8 @@ enum FilterTensorFormat {
   // dimensions [O, I/4, H, W, 4] in OIHW_VECT_I format.
   // A pre-condition of this format is that I must be a multiple of 4.
   FORMAT_OIHW_VECT_I = 2,
+
+  FORMAT_OHWI = 3,
 };
 
 // Parse tensor format from the given string.
