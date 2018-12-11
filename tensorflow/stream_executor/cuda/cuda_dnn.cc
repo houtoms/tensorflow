@@ -1228,8 +1228,8 @@ class CudnnRnnSequenceTensorDescriptor
         batch_size_(batch_size),
         data_size_(data_size),
         data_type_(data_type),
-        rnn_data_handle_(std::move(data_handle)),
         handle_(std::move(handle)),
+        rnn_data_handle_(std::move(data_handle)),
         handles_(max_seq_length, handle_.get()) {}
 
  public:
