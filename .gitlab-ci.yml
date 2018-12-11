@@ -345,7 +345,7 @@ gather wheels:
     only:
     - /^.*-devel$/
 
-.T4_R410_1GPU: &T4_R410_1GPU_1GPU
+.T4_R410_1GPU: &T4_R410_1GPU
     tags:
     - T4
     - R410
