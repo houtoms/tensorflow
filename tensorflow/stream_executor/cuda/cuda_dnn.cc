@@ -447,7 +447,6 @@ RNNDataDescriptor CreateRNNDataDescriptor() {
   cudnnRNNDataDescriptor_t result;
   CHECK_CUDNN_OK(cudnnCreateRNNDataDescriptor(&result));
   return RNNDataDescriptor(result);
-  return nullptr;
 }
 #endif
 FilterDescriptor CreateFilterDescriptor() {
