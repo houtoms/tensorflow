@@ -1257,7 +1257,10 @@ class CudnnRnnSequenceTensorDescriptor
         /*strideA=*/strides));
     return CudnnRnnSequenceTensorDescriptor(parent, max_seq_length, batch_size,
                                             data_size, data_type,
-                                            nullptr, std::move(tensor_desc));
+#if CUDNN_VERSION >= 7201
+                                            nullptr,
+#endif
+                                            std::move(tensor_desc));
   }
 
   static port::StatusOr<CudnnRnnSequenceTensorDescriptor> Create(
