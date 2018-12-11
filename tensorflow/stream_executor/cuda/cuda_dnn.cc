@@ -417,8 +417,12 @@ struct PersistentRnnPlanDeleter {
 // RAII wrappers for cuDNN types.
 using TensorDescriptor =
     std::unique_ptr<cudnnTensorStruct, TensorDescriptorDeleter>;
+#if CUDNN_VERSION >= 7201
 using RNNDataDescriptor =
     std::unique_ptr<cudnnRNNDataStruct, RNNDataDescriptorDeleter>;
+#else
+using RNNDataDescriptor = void*;
+#endif
 using FilterDescriptor =
     std::unique_ptr<cudnnFilterStruct, FilterDescriptorDeleter>;
 using ConvolutionDescriptor =
@@ -441,9 +445,13 @@ TensorDescriptor CreateTensorDescriptor() {
   return TensorDescriptor(result);
 }
 RNNDataDescriptor CreateRNNDataDescriptor() {
+#if CUDNN_VERSION >= 7201
   cudnnRNNDataDescriptor_t result;
   CHECK_CUDNN_OK(cudnnCreateRNNDataDescriptor(&result));
   return RNNDataDescriptor(result);
+#else
+  return nullptr;
+#endif
 }
 FilterDescriptor CreateFilterDescriptor() {
   cudnnFilterDescriptor_t result;
