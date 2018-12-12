@@ -1,4 +1,4 @@
-FROM gitlab-master.nvidia.com:5005/dl/dgx/cuda:10.0-devel-ubuntu16.04--18.12
+FROM gitlab-master.nvidia.com:5005/dl/dgx/cuda:10.0-devel-ubuntu16.04--master
 
 ENV LD_LIBRARY_PATH /usr/local/cuda/extras/CUPTI/lib64:${LD_LIBRARY_PATH}
 
@@ -60,9 +60,6 @@ RUN DALI_VERSION=0.6.0 \
         h5py \
         keras_preprocessing==1.0.5 \
         keras_applications==1.0.6
-
-#it is needed for the DALI video
-ENV NVIDIA_DRIVER_CAPABILITIES=compute,utility,video
 
 # other OpenSeq2Seq dependencies
 RUN pip install --no-cache-dir --upgrade \
