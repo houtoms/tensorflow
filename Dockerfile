@@ -62,7 +62,7 @@ RUN DALI_VERSION=0.6.0 \
         keras_applications==1.0.6
 
 #it is needed for the DALI video
-ENV NVIDIA_DRIVER_CAPABILITIES=compute,utility
+ENV NVIDIA_DRIVER_CAPABILITIES=compute,utility,video
 
 # other OpenSeq2Seq dependencies
 RUN pip install --no-cache-dir --upgrade \
