@@ -1300,14 +1300,22 @@ class CudnnRnnSequenceTensorDescriptor
   const cudnnTensorDescriptor_t* handles() const {
     return handles_.data();
   }
+#if CUDNN_VERSION >= 7201
   const cudnnRNNDataDescriptor_t data_handle() const {
     return rnn_data_handle_.get(); 
   }
+#endif
 
   int max_seq_length() const { return max_seq_length_; }
   int batch_size() const { return batch_size_; }
   int data_size() const { return data_size_; }
-  bool is_var_seq_lengths() const { return rnn_data_handle_ != nullptr; }
+  bool is_var_seq_lengths() const {
+#if CUDNN_VERSION >= 7201
+      return rnn_data_handle_ != nullptr;
+#else
+      return false;
+#endif
+  }
 
  private:
   CUDAExecutor* parent_;
