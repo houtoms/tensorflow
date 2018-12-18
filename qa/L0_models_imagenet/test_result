@@ -1,0 +1,44 @@
+#!/bin/bash
+
+read line
+if [[ $line =~ ^"giant panda, panda, panda bear, coon bear, Ailuropoda melanoleuca (score = 0."(88|89|90)[0-9]*")"$ ]]
+then
+	echo $line
+else
+    echo "Failed: $line"
+	exit 1
+fi
+read line
+if [[ $line =~ ^"indri, indris, Indri indri, Indri brevicaudatus (score = 0."(00|01)[0-9]*")"$ ]]
+then
+	echo $line
+else
+    echo "Failed: $line"
+	exit 1
+fi
+read line
+if [[ $line =~ ^"lesser panda, red panda, panda, bear cat, cat bear, Ailurus fulgens (score = 0."(00[0-9]*|010[0-9]*)")"$ ]]
+then
+	echo $line
+else
+    echo "Failed: $line"
+	exit 1
+fi
+read line
+if [[ $line =~ ^"custard apple (score = 0.00"[0-9]*")"$ ]]
+then
+	echo $line
+else
+    echo "Failed: $line"
+	exit 1
+fi
+read line
+if [[ $line =~ ^"earthstar (score = 0.00"[0-5][0-9]*")"$ ]]
+then
+	echo $line
+else
+    echo "Failed: $line"
+	exit 1
+fi
+
+exit 0

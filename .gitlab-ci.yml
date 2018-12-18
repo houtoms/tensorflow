@@ -1,0 +1,1653 @@
+######################################################
+## Variables used by the test runs
+######################################################
+
+variables:
+    EXTRA_DOCKER_RUN_ARGS: "--shm-size=1G --ulimit memlock=-1 --ulimit stack=$$((1024*65536))"
+    DATADIR: /raid/dldata
+
+    # variables that may be overridden by the pipeline vars
+    API_LOGGING: 0
+    VIRTUAL: 0
+
+    # the following will be overridden by jobs of the pipeline that actually need to check out the sources
+    GIT_STRATEGY: none
+    GIT_SUBMODULE_STRATEGY: none
+
+######################################################
+## Build steps.
+##    DO NOT MODIFY THIS SECTION
+######################################################
+
+stages:
+    - build base
+    - build devel
+    - trigger
+    - test
+    - finalize
+
+#############################
+####### Docker builds #######
+#############################
+before_script:
+    - export PYVER=$(echo $CI_JOB_NAME | sed -n 's/\(^\|.*-\)py\([0-9][.0-9]*\)\(-.*\)*$/\2/p');
+      if [ -z "${PYVER}" -o "${PYVER}" == "3" ]; then
+        export PYVER="3.5";
+      elif [ "${PYVER}" == "2" ]; then
+        export PYVER="2.7";
+      fi;
+      echo "${PYVER}"
+    - export NV_DOCKER_ARGS="curl -s http://localhost:3476/docker/cli?dev=${RUNNER_GPUS//,/+}"     && echo "${NV_DOCKER_ARGS}"
+    - export RELEASE_BRANCH_NAME=${CI_COMMIT_REF_NAME%%-devel}                                     && echo "${RELEASE_BRANCH_NAME}"
+    - export IMAGE_NAME_ROOT="${CI_REGISTRY_IMAGE}:${RELEASE_BRANCH_NAME}-py${PYVER%.*}"           && echo "${IMAGE_NAME_PREFIX}"
+    - export MASTER_BASE_IMAGE_NAME="${CI_REGISTRY_IMAGE}:master-py${PYVER%.*}-base"               && echo "${MASTER_BASE_IMAGE_NAME}"
+    - export BASE_IMAGE_NAME="${IMAGE_NAME_ROOT}-base"                                             && echo "${BASE_IMAGE_NAME}"
+    - export BASE_IMAGE_NAME_VERSIONED="${IMAGE_NAME_ROOT}.${CI_PIPELINE_ID}"                      && echo "${BASE_IMAGE_NAME_VERSIONED}"
+    - export DEVEL_IMAGE_NAME="${IMAGE_NAME_ROOT}-devel"                                           && echo "${DEVEL_IMAGE_NAME}"
+    - export DEVEL_IMAGE_NAME_VERSIONED="${IMAGE_NAME_ROOT}.${CI_PIPELINE_ID}-devel"               && echo "${DEVEL_IMAGE_NAME_VERSIONED}"
+    - export STAGE_IMAGE_NAME="${IMAGE_NAME_ROOT}-stage"                                           && echo "${STAGE_IMAGE_NAME}"
+    - export QA_IMAGE_NAME="${IMAGE_NAME_ROOT}-qa"                                                 && echo "${QA_IMAGE_NAME}"
+    - export ORIGIN1="${CI_REPOSITORY_URL##*@}"
+    - export ORIGIN_SSH=git@${ORIGIN1/\//:}                                                        && echo "${ORIGIN_SSH}"
+    - export ORIGIN_HTTPS=https://${ORIGIN1}                                                       && echo "${ORIGIN_HTTPS}"
+
+.base_template : &BASE
+    variables:
+      GIT_STRATEGY: fetch
+      GIT_SUBMODULE_STRATEGY: recursive
+      GET_SOURCES_ATTEMPTS: 3
+    script:
+    - docker login -u gitlab-ci-token -p "${CI_JOB_TOKEN}" "${CI_REGISTRY}"
+    - echo -e "Dockerfile*\n"
+              ".git*\n"
+              ".dockerignore\n"
+              "jetson\n"
+              "qa" > .dockerignore
+    - docker pull "${BASE_IMAGE_NAME}" ||
+      docker pull "${MASTER_BASE_IMAGE_NAME}" || true
+    - docker build --pull
+                   --cache-from "${BASE_IMAGE_NAME}"
+                   --cache-from "${MASTER_BASE_IMAGE_NAME}"
+                   -t "${BASE_IMAGE_NAME}" -t "${BASE_IMAGE_NAME_VERSIONED}"
+                   --build-arg "NVIDIA_BUILD_REF=${CI_COMMIT_SHA}"
+                   --build-arg "NVIDIA_BUILD_ID=${CI_JOB_ID}"
+                   --build-arg "PYVER=${PYVER}" .
+    - test "${VIRTUAL}" -ne 1 && docker push "${BASE_IMAGE_NAME}"
+    - docker push "${BASE_IMAGE_NAME_VERSIONED}"
+    except:
+      refs:
+        - tags
+      variables:
+        - $TARGET == "jetson"
+
+py2-base:
+    stage: build base
+    <<: *BASE
+
+py3-base:
+    stage: build base
+    <<: *BASE
+
+.devel_template : &DEVEL
+    variables:
+      GIT_STRATEGY: fetch
+      GIT_SUBMODULE_STRATEGY: recursive
+      GET_SOURCES_ATTEMPTS: 3
+    script:
+    - docker login -u gitlab-ci-token -p "${CI_JOB_TOKEN}" "${CI_REGISTRY}"
+    - echo -e "FROM ${CI_REGISTRY}/dl/devops/build-scripts:latest AS build-scripts\n"
+              "FROM ${BASE_IMAGE_NAME_VERSIONED}\n"
+              "COPY Dockerfile* /opt/${CI_PROJECT_NAME}/\n"
+              "COPY .gitignore /opt/${CI_PROJECT_NAME}/\n"
+              "COPY .gitmodules /opt/${CI_PROJECT_NAME}/\n"
+              "COPY .gitlab-ci.yml /opt/${CI_PROJECT_NAME}/\n"
+              "COPY .git/ /opt/${CI_PROJECT_NAME}/.git/\n"
+              "COPY jetson/   /opt/${CI_PROJECT_NAME}/jetson/\n"
+              "COPY qa/   /opt/${CI_PROJECT_NAME}/qa/\n"
+              "COPY --from=build-scripts / /nvidia/\n"
+              "$(test "${VIRTUAL}" -eq 1 -a -n "${NCCL_VERSION}"   && echo "ENV NCCL_VERSION=\"${NCCL_VERSION}\"     NCCL_VIRTUAL=1"  )\n"
+              "$(test "${VIRTUAL}" -eq 1 -a -n "${CUBLAS_VERSION}" && echo "ENV CUBLAS_VERSION=\"${CUBLAS_VERSION}\" CUBLAS_VIRTUAL=1")\n"
+              "$(test "${VIRTUAL}" -eq 1 -a -n "${CUDNN_VERSION}"  && echo "ENV CUDNN_VERSION=\"${CUDNN_VERSION}\"   CUDNN_VIRTUAL=1" )\n"
+              "$(test "${VIRTUAL}" -eq 1 -a -n "${TRT_VERSION}"    && echo "ENV TRT_VERSION=\"${TRT_VERSION}\"       TRT_VIRTUAL=1"   )\n"
+              "RUN VIRTUAL=${VIRTUAL:-0} /nvidia/internal/install_internal.sh\n"
+              "ARG NVIDIA_PIPELINE_ID\n"
+              "ENV NVIDIA_PIPELINE_ID=\${NVIDIA_PIPELINE_ID:-'unknown'}\n"
+              "LABEL com.nvidia.pipeline.id=\"${NVIDIA_PIPELINE_ID}\"\n"
+        > Dockerfile.${CI_PROJECT_NAME}.${CI_COMMIT_REF_NAME}
+    - git remote set-url origin ${ORIGIN_HTTPS}
+    - docker build --pull -t "${DEVEL_IMAGE_NAME}" -t "${DEVEL_IMAGE_NAME_VERSIONED}"
+                   --build-arg "NVIDIA_PIPELINE_ID=${CI_PIPELINE_ID}"
+                   -f Dockerfile.${CI_PROJECT_NAME}.${CI_COMMIT_REF_NAME} .
+    - test "${VIRTUAL}" -ne 1 && docker push "${DEVEL_IMAGE_NAME}"
+    - docker push "${DEVEL_IMAGE_NAME_VERSIONED}"
+    except:
+      refs:
+        - tags
+      variables:
+        - $TARGET == "jetson"
+
+py2-devel:
+    stage: build devel
+    <<: *DEVEL
+
+py3-devel:
+    stage: build devel
+    <<: *DEVEL
+
+.stage_template : &STAGE
+    environment: staging
+    variables:
+      GIT_STRATEGY: fetch
+      GIT_SUBMODULE_STRATEGY: recursive
+      GET_SOURCES_ATTEMPTS: 3
+    dependencies: []
+    script:
+    - docker login -u gitlab-ci-token -p "${CI_JOB_TOKEN}" "${CI_REGISTRY}"
+    # push a xx.yy-stage tag that records the commit we staged from
+    - git remote set-url origin ${ORIGIN_SSH}
+    - git push --delete origin refs/tags/${CI_COMMIT_REF_NAME/%-devel/-stage}
+    - git push origin HEAD:refs/tags/${CI_COMMIT_REF_NAME/%-devel/-stage}
+    # create xx.yy-stage image
+    - docker pull "${BASE_IMAGE_NAME_VERSIONED}"
+    - docker tag "${BASE_IMAGE_NAME_VERSIONED}" "${STAGE_IMAGE_NAME}"
+    - docker push "${STAGE_IMAGE_NAME}"
+    # create xx.yy-qa image on top of -stage that adds the qa/* tests back in
+    - echo -e "FROM ${STAGE_IMAGE_NAME}\n"
+              "COPY qa/   /opt/${CI_PROJECT_NAME}/qa/\n"
+        > Dockerfile.${CI_PROJECT_NAME}.${CI_COMMIT_REF_NAME/%-devel/-qa}
+    - docker build --pull -t "${QA_IMAGE_NAME}" -f Dockerfile.${CI_PROJECT_NAME}.${CI_COMMIT_REF_NAME/%-devel/-qa} .
+    - docker push "${QA_IMAGE_NAME}"
+    only:
+    - /^.*-devel$/
+    except:
+    - api
+    - external
+    - pipelines
+    - schedules
+    - tags
+    - triggers
+    - web
+    when: manual
+
+py2-stage:
+    stage: finalize
+    <<: *STAGE
+
+py3-stage:
+    stage: finalize
+    <<: *STAGE
+
+.test_template: &TEST_TEMPLATE
+    environment: "${CI_JOB_NAME}"
+    variables:
+      TEST_WORK_DIR: "/opt/${CI_PROJECT_NAME}/qa/${CI_JOB_NAME}/"
+      TEST_SCRIPT: "./test.sh"
+    script:
+    - docker login -u gitlab-ci-token -p "${CI_JOB_TOKEN}" "${CI_REGISTRY}"
+    - export RUNNER="${CI_JOB_NAME##*--}"
+    - export TEST_WORK_DIR="${TEST_WORK_DIR%%--*}"
+    - export TEST_SCRIPT="${TEST_SCRIPT/--$RUNNER.sh/.sh}"
+    - export TEST_SCRIPT="${TEST_SCRIPT/--py[23].sh/.sh}"
+    - export CONTAINER_NAME="${CI_PROJECT_NAME}.${CI_JOB_ID}.${CI_JOB_NAME}"
+    - test "${CI_JOB_NAME:0:3}" == "L3_" && export TEST_TIMEOUT=$((24*60*60)) || export TEST_TIMEOUT=$((3*60*60))
+    - test "${API_LOGGING}" == "0" && export LOGGER="" || export LOGGER="cudnnLog.sh"
+    - echo Test timeout set to $TEST_TIMEOUT seconds
+    - cat /proc/driver/nvidia/version
+    - docker pull "${DEVEL_IMAGE_NAME_VERSIONED}"
+    - ( sleep $TEST_TIMEOUT && echo "******TIMEOUT EXPIRED******" && docker kill "${CONTAINER_NAME}" ) &
+      set -x &&
+      docker run $(eval ${NV_DOCKER_ARGS})
+             --name "${CONTAINER_NAME}"
+             -v $DATADIR:/data
+             $(eval echo ${EXTRA_DOCKER_RUN_ARGS})
+             -w ${TEST_WORK_DIR}
+             ${DEVEL_IMAGE_NAME_VERSIONED}
+             /bin/bash -c "nvidia-smi && exec ${LOGGER} bash -ex ${TEST_SCRIPT}" || RV=$?;
+      set +x;
+      rm -rf logs/;
+      docker cp "${CONTAINER_NAME}:/logs/" "logs/" 2>/dev/null || true;
+      for LOGNAME in logs/*; do
+          mv "${LOGNAME}" $(echo "${LOGNAME}" | sed "s/-.....\./-${CI_JOB_NAME}./") 2>/dev/null || true;
+      done;
+      if [ $(cat logs/cudnnapilog-*.txt 2>/dev/null | wc -l) -eq 0 ]; then rm -f logs/cudnnapilog-* 2>/dev/null; fi;
+      gzip logs/*.txt 2>/dev/null || true;
+      docker rm -f "${CONTAINER_NAME}" >/dev/null 2>&1;
+      pkill -HUP sleep >/dev/null 2>&1 || true;
+      exit ${RV:-0}
+    artifacts:
+      name: "${CI_JOB_NAME}"
+      paths:
+      - logs/*
+      expire_in: 3 days
+      when: always
+    tags:
+    - must_specify_runner
+    except:
+      refs:
+        - tags
+      variables:
+        - $TARGET == "jetson"
+    allow_failure: false
+
+.gather: &gather
+    stage: finalize
+    script:
+    - /bin/true
+
+gather logs:
+    <<: *gather
+    artifacts:
+      name: "${CI_PIPELINE_ID}"
+      paths:
+      - logs/*
+      expire_in: 1 month
+      when: always
+    except:
+      refs:
+        - tags
+      variables:
+        - $API_LOGGING == "0"
+
+gather wheels:
+    <<: *gather
+    artifacts:
+      name: "${CI_PIPELINE_ID}"
+      paths:
+      - wheelhouse/*
+      expire_in: 1 month
+      when: always
+    when: manual
+    only:
+      variables:
+        - $TARGET == "jetson"
+    except:
+      refs:
+        - tags
+
+
+.manual_test_trigger: &MANUAL_TEST_TRIGGER
+    stage: trigger
+    script:
+    - docker login -u gitlab-ci-token -p "${CI_JOB_TOKEN}" "${CI_REGISTRY}"
+    - export SCOPE1=${CI_JOB_NAME%% tests}; export SCOPE=${SCOPE1##Run all }
+    - docker pull ${CI_REGISTRY}/dl/devops/scripts:nvdl_nightly_test_scheduler
+    - docker run --rm ${CI_REGISTRY}/dl/devops/scripts:nvdl_nightly_test_scheduler ${CI_PIPELINE_ID} ${CI_PROJECT_PATH} ${SCOPE}
+    except:
+      refs:
+        - tags
+    when: manual
+
+.L0_test: &L0_TEST
+    stage: test
+    <<: *TEST_TEMPLATE
+
+.L1_test: &L1_TEST
+    stage: test
+    <<: *TEST_TEMPLATE
+    when: manual
+    allow_failure: true
+
+.L2_test: &L2_TEST
+    stage: test
+    <<: *TEST_TEMPLATE
+    when: manual
+    allow_failure: true
+
+.L3_test: &L3_TEST
+    stage: test
+    <<: *TEST_TEMPLATE
+    when: manual
+    allow_failure: true
+
+"Run all L1 tests":
+    <<: *MANUAL_TEST_TRIGGER
+
+"Run all L2 tests":
+    <<: *MANUAL_TEST_TRIGGER
+
+.P100_R384_4GPU: &P100_R384_4GPU
+    tags:
+    - P100
+    - R384
+    - 4GPU
+
+.V100_R384_1GPU: &V100_R384_1GPU
+    tags:
+    - V100
+    - R384
+    - 1GPU
+
+.V100_R384_4GPU: &V100_R384_4GPU
+    tags:
+    - V100
+    - R384
+    - 4GPU
+
+.V100_R384_8GPU: &V100_R384_8GPU
+    tags:
+    - V100
+    - R384
+    - 8GPU
+
+.P40_R384_1GPU: &P40_R384_1GPU
+    tags:
+    - P40
+    - R384
+    - 1GPU
+    only:
+    - /^.*-devel$/
+
+.P40_R384_2GPU: &P40_R384_2GPU
+    tags:
+    - P40
+    - R384
+    - 2GPU
+    only:
+    - /^.*-devel$/
+
+.T4_R410_1GPU: &T4_R410_1GPU
+    tags:
+    - T4
+    - R410
+    - 1GPU
+    only:
+    - /^.*-devel$/
+
+.T4_R410_2GPU: &T4_R410_2GPU
+    tags:
+    - T4
+    - R410
+    - 2GPU
+    only:
+    - /^.*-devel$/
+
+.TX2: &TX2
+    tags:
+    - TX2
+
+.XAVIER: &XAVIER
+    tags:
+    - XAVIER
+    - PY3
+
+.XAVIER_PY2: &XAVIER_PY2
+    tags:
+    - XAVIER
+    - PY2
+
+.V100_R410_16GPU: &V100_R410_16GPU
+    tags:
+    - V100
+    - R410
+    - 16GPU
+
+.TU102_R410_1GPU: &TU102_R410_1GPU
+    tags:
+    - TU102
+    - R410
+    - 1GPU
+
+############################
+####### Wheel builds #######
+############################
+
+.base_template_wheel_metal: &BASE_WHEEL_METAL
+    variables:
+      GIT_STRATEGY: fetch
+      GIT_SUBMODULE_STRATEGY: recursive
+      GET_SOURCES_ATTEMPTS: 3
+    cache:
+      paths:
+      - tf_env*/*
+    script:
+    - echo "---------------------------"
+    - echo "Number of online CPUs = $(cat /proc/cpuinfo |grep "model name" | wc -l)"
+    - for i in /sys/devices/system/cpu/cpu[0-9]; do echo "$(echo $i | cut -d / -f 6) current freq = $(cat $i/cpufreq/scaling_cur_freq)"; done
+    - echo "---------------------------"
+    - export TARGET=${TARGET:-$(echo ${CI_JOB_NAME} | cut -d - -f 1)}
+    - ./${TARGET}/build_pip_whl.sh
+    artifacts:
+      name: "${CI_JOB_NAME}"
+      paths:
+      - wheelhouse/*
+      expire_in: 1 week
+    only:
+      variables:
+        - $TARGET == "jetson"
+
+# jetson-tx2-py2-wheel:
+#     stage: build base
+#     <<: *BASE_WHEEL_METAL
+#     <<: *TX2
+
+# jetson-tx2-py3-wheel:
+#     stage: build base
+#     <<: *BASE_WHEEL_METAL
+#     <<: *TX2
+
+jetson-xavier-py2-wheel:
+    stage: build base
+    <<: *BASE_WHEEL_METAL
+    <<: *XAVIER_PY2
+
+jetson-xavier-py3.6-wheel:
+    stage: build base
+    <<: *BASE_WHEEL_METAL
+    <<: *XAVIER
+
+.test_template_wheel_metal: &TEST_TEMPLATE_WHEEL_METAL
+    variables:
+      GIT_STRATEGY: fetch
+      GIT_SUBMODULE_STRATEGY: recursive
+      GET_SOURCES_ATTEMPTS: 3
+      TEST_WORK_DIR: "./qa/${CI_JOB_NAME}/"
+      TEST_SCRIPT: "./test.sh"
+    cache:
+      paths:
+      - tf_env*/*
+    script:
+    - echo "---------------------------"
+    - echo "Number of online CPUs = $(cat /proc/cpuinfo |grep "model name" | wc -l)"
+    - for i in /sys/devices/system/cpu/cpu[0-9]; do echo "$(echo $i | cut -d / -f 6) current freq = $(cat $i/cpufreq/scaling_cur_freq)"; done
+    - echo "---------------------------"
+    - export RUNNER="${CI_JOB_NAME##*--}"
+    - export TEST_WORK_DIR="${TEST_WORK_DIR%%--*}"
+    - export TEST_SCRIPT="${TEST_SCRIPT/--$RUNNER.sh/.sh}"
+    - export TEST_SCRIPT="${TEST_SCRIPT/--py[23].sh/.sh}"
+    - export PIP_PACKAGE_NAME="${CI_PROJECT_NAME}-gpu"
+    - export JPVER=$(./jetson/get_jpver.sh)
+    - set -x &&
+      python${PYVER} -m virtualenv ./tf_env${PYVER} &&
+      source ./tf_env${PYVER}/bin/activate &&
+      pip install -U --find-links=file://$PWD/wheelhouse/${JPVER} ${PIP_PACKAGE_NAME} &&
+      cd ${TEST_WORK_DIR} && sync && echo 3 |sudo tee /proc/sys/vm/drop_caches && export LD_LIBRARY_PATH=/usr/local/cuda/extras/CUPTI/lib64:${LD_LIBRARY_PATH} &&
+      exec bash -ex ${TEST_SCRIPT} || RV=$?;
+      set +x;
+      exit ${RV:-0}
+    tags:
+    - must_specify_runner
+    only:
+      variables:
+        - $TARGET == "jetson"
+    allow_failure: false
+
+.l0_test_jetson: &L0_TEST_JETSON
+    stage: test
+    <<: *TEST_TEMPLATE_WHEEL_METAL
+    allow_failure: false
+
+.l1_test_jetson: &L1_TEST_JETSON
+    stage: test
+    <<: *TEST_TEMPLATE_WHEEL_METAL
+    when: manual
+    allow_failure: true
+
+.l2_test_jetson: &L2_TEST_JETSON
+    stage: test
+    <<: *TEST_TEMPLATE_WHEEL_METAL
+    when: manual
+    allow_failure: true
+
+.l3_test_jetson: &L3_TEST_JETSON
+    stage: test
+    <<: *TEST_TEMPLATE_WHEEL_METAL
+    when: manual
+    allow_failure: true
+
+######################################################
+##
+## Test definitions.
+##
+##   By convention, test names should be prefixed
+##   with "L0_" or "L1_" etc.
+##
+##   Normally qa/ will be a submodule that pulls in
+##   all of the stuff needed to run the tests into the
+##   *-devel images.
+##
+##   The CI script templates above expect each test to
+##   be defined in /opt/<project>/qa/<testname>/test.sh.
+##   This behavior is specified by the variables
+##   $TEST_WORK_DIR and $TEST_SCRIPT.  You can override
+##   either of those variables for a given test, but if
+##   you do, you have to override them both together,
+##   like this:
+##
+##   L0_mytest:
+##      <<: *L0_TEST
+##      variables:
+##        TEST_WORK_DIR: "/some/other/path"
+##        TEST_SCRIPT: "./test.sh"
+##
+######################################################
+
+############################################################
+## TEMPLATES
+##
+.L2_cnn_benchmarks: &L2_CNN_BENCHMARK
+    <<: *L2_TEST
+    variables:
+      TEST_WORK_DIR: "/opt/tensorflow/qa/L2_cnn_benchmarks"
+      TEST_SCRIPT: "./${CI_JOB_NAME}.sh"
+##
+.L3_cnn_convergence: &L3_CNN_CONVERGENCE
+    <<: *L3_TEST
+    variables:
+      TEST_WORK_DIR: "/opt/tensorflow/qa/L3_cnn_convergence"
+      TEST_SCRIPT: "./${CI_JOB_NAME}.sh"
+##
+############################################################
+
+L0_verify_sig:
+    <<: *L0_TEST
+    tags:
+    - 1GPU
+
+L0_tensorboard:
+    <<: *L0_TEST
+    tags:
+    - 1GPU
+
+#### P100_R384_4GPU ####
+
+L0_compat_lib--P100_R384_4GPU:
+    <<: *L0_TEST
+    <<: *P100_R384_4GPU
+
+L0_models_alexnet--P100_R384_4GPU:
+    <<: *L0_TEST
+    <<: *P100_R384_4GPU
+
+L0_horovod_self_test--P100_R384_4GPU:
+    <<: *L0_TEST
+    <<: *P100_R384_4GPU
+
+L0_models_imagenet--P100_R384_4GPU:
+    <<: *L0_TEST
+    <<: *P100_R384_4GPU
+
+L0_models_mnist--P100_R384_4GPU:
+    <<: *L0_TEST
+    <<: *P100_R384_4GPU
+
+L0_convnet_benchmarks_alexnet--P100_R384_4GPU:
+    <<: *L0_TEST
+    <<: *P100_R384_4GPU
+    variables:
+      TEST_WORK_DIR: "/opt/tensorflow/qa/L0_convnet_benchmarks"
+      TEST_SCRIPT: "./test-alexnet.sh"
+
+L0_convnet_benchmarks_googlenet--P100_R384_4GPU:
+    <<: *L0_TEST
+    <<: *P100_R384_4GPU
+    variables:
+      TEST_WORK_DIR: "/opt/tensorflow/qa/L0_convnet_benchmarks"
+      TEST_SCRIPT: "./test-googlenet.sh"
+
+L0_convnet_benchmarks_overfeat--P100_R384_4GPU:
+    <<: *L0_TEST
+    <<: *P100_R384_4GPU
+    variables:
+      TEST_WORK_DIR: "/opt/tensorflow/qa/L0_convnet_benchmarks"
+      TEST_SCRIPT: "./test-overfeat.sh"
+
+L0_convnet_benchmarks_vgga--P100_R384_4GPU:
+    <<: *L0_TEST
+    <<: *P100_R384_4GPU
+    variables:
+      TEST_WORK_DIR: "/opt/tensorflow/qa/L0_convnet_benchmarks"
+      TEST_SCRIPT: "./test-vgga.sh"
+
+L0_os2s_ctc--P100_R384_4GPU:
+    <<: *L0_TEST
+    <<: *P100_R384_4GPU
+
+L0_seq2seq--P100_R384_4GPU:
+    <<: *L0_TEST
+    <<: *P100_R384_4GPU
+
+L0_tftrt--P100_R384_4GPU:
+    <<: *L0_TEST
+    <<: *P100_R384_4GPU
+
+L0_inference--P100_R384_4GPU:
+    <<: *L0_TEST
+    <<: *P100_R384_4GPU
+
+L0_python_kernel_tests--P100_R384_4GPU:
+    <<: *L0_TEST
+    <<: *P100_R384_4GPU
+
+L1_inf_image_classification_tf--P100_R384_4GPU:
+    <<: *L1_TEST
+    <<: *P100_R384_4GPU
+
+L1_inf_image_classification_tftrt--P100_R384_4GPU:
+    <<: *L1_TEST
+    <<: *P100_R384_4GPU
+
+L1_inf_object_detection--P100_R384_4GPU:
+    <<: *L1_TEST
+    <<: *P100_R384_4GPU
+
+L1_inf_translation--P100_R384_4GPU:
+    <<: *L1_TEST
+    <<: *P100_R384_4GPU
+
+L1_tftrt--P100_R384_4GPU:
+    <<: *L1_TEST
+    <<: *P100_R384_4GPU
+
+####  NVIDIA CNN TESTS  ####
+L0_resnet_sanity--P100_R384_4GPU:
+    <<: *L0_TEST
+    <<: *P100_R384_4GPU
+
+L0_cnn_saved_model_sanity--P100_R384_4GPU:
+    <<: *L0_TEST
+    <<: *P100_R384_4GPU
+
+L0_resnet_dali_cpu_sanity--P100_R384_4GPU:
+    <<: *L0_TEST
+    <<: *P100_R384_4GPU
+
+L0_resnet_dali_gpu_sanity--P100_R384_4GPU:
+    <<: *L0_TEST
+    <<: *P100_R384_4GPU
+
+L1_cnn_sanity--P100_R384_4GPU:
+    <<: *L1_TEST
+    <<: *P100_R384_4GPU
+
+L2_bench_alexnet--P100_R384_4GPU:
+    <<: *L2_CNN_BENCHMARK
+    <<: *P100_R384_4GPU
+
+L2_bench_googlenet--P100_R384_4GPU:
+    <<: *L2_CNN_BENCHMARK
+    <<: *P100_R384_4GPU
+
+L2_bench_inception_v3--P100_R384_4GPU:
+    <<: *L2_CNN_BENCHMARK
+    <<: *P100_R384_4GPU
+
+L2_bench_inception_v4--P100_R384_4GPU:
+    <<: *L2_CNN_BENCHMARK
+    <<: *P100_R384_4GPU
+
+L2_bench_inception_resnet_v2--P100_R384_4GPU:
+    <<: *L2_CNN_BENCHMARK
+    <<: *P100_R384_4GPU
+
+L2_bench_overfeat--P100_R384_4GPU:
+    <<: *L2_CNN_BENCHMARK
+    <<: *P100_R384_4GPU
+
+L2_bench_resnet50--P100_R384_4GPU:
+    <<: *L2_CNN_BENCHMARK
+    <<: *P100_R384_4GPU
+
+L2_bench_resnet101--P100_R384_4GPU:
+    <<: *L2_CNN_BENCHMARK
+    <<: *P100_R384_4GPU
+
+L2_bench_resnet152--P100_R384_4GPU:
+    <<: *L2_CNN_BENCHMARK
+    <<: *P100_R384_4GPU
+
+L2_bench_vgg11--P100_R384_4GPU:
+    <<: *L2_CNN_BENCHMARK
+    <<: *P100_R384_4GPU
+
+L2_bench_vgg16--P100_R384_4GPU:
+    <<: *L2_CNN_BENCHMARK
+    <<: *P100_R384_4GPU
+
+L2_bench_vgg19--P100_R384_4GPU:
+    <<: *L2_CNN_BENCHMARK
+    <<: *P100_R384_4GPU
+############################
+
+L1_word2vec--P100_R384_4GPU:
+    <<: *L1_TEST
+    <<: *P100_R384_4GPU
+
+L1_kernel_tests--P100_R384_4GPU:
+    <<: *L1_TEST
+    <<: *P100_R384_4GPU
+
+L1_xla_tests--P100_R384_4GPU:
+    <<: *L1_TEST
+    <<: *P100_R384_4GPU
+
+L1_nccl_test--P100_R384_4GPU:
+    <<: *L1_TEST
+    <<: *P100_R384_4GPU
+
+L1_seq2seq--P100_R384_4GPU:
+    <<: *L1_TEST
+    <<: *P100_R384_4GPU
+
+L2_seq2seq--P100_R384_4GPU:
+    <<: *L2_TEST
+    <<: *P100_R384_4GPU
+
+L2_models_cifar10--P100_R384_4GPU:
+    <<: *L2_TEST
+    <<: *P100_R384_4GPU
+
+
+#### T40_R410 ####
+
+L0_models_alexnet--T4_R410_1GPU:
+    <<: *L0_TEST
+    <<: *T4_R410_1GPU
+
+L0_horovod_self_test--T4_R410_2GPU:
+    <<: *L0_TEST
+    <<: *T4_R410_2GPU
+
+L0_models_imagenet--T4_R410_1GPU:
+    <<: *L0_TEST
+    <<: *T4_R410_1GPU
+
+L0_models_mnist--T4_R410_1GPU:
+    <<: *L0_TEST
+    <<: *T4_R410_1GPU
+
+L0_convnet_benchmarks_alexnet--T4_R410_1GPU:
+    <<: *L0_TEST
+    <<: *T4_R410_1GPU
+    variables:
+      TEST_WORK_DIR: "/opt/tensorflow/qa/L0_convnet_benchmarks"
+      TEST_SCRIPT: "./test-alexnet.sh"
+
+L0_convnet_benchmarks_googlenet--T4_R410_1GPU:
+    <<: *L0_TEST
+    <<: *T4_R410_1GPU
+    variables:
+      TEST_WORK_DIR: "/opt/tensorflow/qa/L0_convnet_benchmarks"
+      TEST_SCRIPT: "./test-googlenet.sh"
+
+L0_convnet_benchmarks_overfeat--T4_R410_1GPU:
+    <<: *L0_TEST
+    <<: *T4_R410_1GPU
+    variables:
+      TEST_WORK_DIR: "/opt/tensorflow/qa/L0_convnet_benchmarks"
+      TEST_SCRIPT: "./test-overfeat.sh"
+
+L0_convnet_benchmarks_vgga--T4_R410_1GPU:
+    <<: *L0_TEST
+    <<: *T4_R410_1GPU
+    variables:
+      TEST_WORK_DIR: "/opt/tensorflow/qa/L0_convnet_benchmarks"
+      TEST_SCRIPT: "./test-vgga.sh"
+
+L0_os2s_ctc--T4_R410_1GPU:
+    <<: *L0_TEST
+    <<: *T4_R410_1GPU
+
+L0_seq2seq--T4_R410_1GPU:
+    <<: *L0_TEST
+    <<: *T4_R410_1GPU
+
+L0_tftrt--T4_R410_1GPU:
+    <<: *L0_TEST
+    <<: *T4_R410_1GPU
+
+L0_inference--T4_R410_1GPU:
+    <<: *L0_TEST
+    <<: *T4_R410_1GPU
+
+L0_python_kernel_tests--T4_R410_1GPU:
+    <<: *L0_TEST
+    <<: *T4_R410_1GPU
+
+####  NVIDIA CNN TESTS  ####
+L0_resnet_sanity--T4_R410_1GPU:
+    <<: *L0_TEST
+    <<: *T4_R410_1GPU
+
+L0_cnn_saved_model_sanity--T4_R410_1GPU:
+    <<: *L0_TEST
+    <<: *T4_R410_1GPU
+
+L0_resnet_dali_cpu_sanity--T4_R410_1GPU:
+    <<: *L0_TEST
+    <<: *T4_R410_1GPU
+
+L0_resnet_dali_gpu_sanity--T4_R410_1GPU:
+    <<: *L0_TEST
+    <<: *T4_R410_1GPU
+
+L1_cnn_sanity--T4_R410_1GPU:
+    <<: *L1_TEST
+    <<: *T4_R410_1GPU
+
+L2_bench_alexnet--T4_R410_1GPU:
+    <<: *L2_CNN_BENCHMARK
+    <<: *T4_R410_1GPU
+
+L2_bench_googlenet--T4_R410_1GPU:
+    <<: *L2_CNN_BENCHMARK
+    <<: *T4_R410_1GPU
+
+L2_bench_inception_v3--T4_R410_1GPU:
+    <<: *L2_CNN_BENCHMARK
+    <<: *T4_R410_1GPU
+
+L2_bench_inception_v4--T4_R410_1GPU:
+    <<: *L2_CNN_BENCHMARK
+    <<: *T4_R410_1GPU
+
+L2_bench_inception_resnet_v2--T4_R410_1GPU:
+    <<: *L2_CNN_BENCHMARK
+    <<: *T4_R410_1GPU
+
+L2_bench_overfeat--T4_R410_1GPU:
+    <<: *L2_CNN_BENCHMARK
+    <<: *T4_R410_1GPU
+
+L2_bench_resnet50--T4_R410_1GPU:
+    <<: *L2_CNN_BENCHMARK
+    <<: *T4_R410_1GPU
+
+L2_bench_resnet101--T4_R410_1GPU:
+    <<: *L2_CNN_BENCHMARK
+    <<: *T4_R410_1GPU
+
+L2_bench_resnet152--T4_R410_1GPU:
+    <<: *L2_CNN_BENCHMARK
+    <<: *T4_R410_1GPU
+
+L2_bench_vgg11--T4_R410_1GPU:
+    <<: *L2_CNN_BENCHMARK
+    <<: *T4_R410_1GPU
+
+L2_bench_vgg16--T4_R410_1GPU:
+    <<: *L2_CNN_BENCHMARK
+    <<: *T4_R410_1GPU
+
+L2_bench_vgg19--T4_R410_1GPU:
+    <<: *L2_CNN_BENCHMARK
+    <<: *T4_R410_1GPU
+############################
+
+L1_word2vec--T4_R410_1GPU:
+    <<: *L1_TEST
+    <<: *T4_R410_1GPU
+
+L1_kernel_tests--T4_R410_2GPU:
+    <<: *L1_TEST
+    <<: *T4_R410_2GPU
+
+L1_xla_tests--T4_R410_2GPU:
+    <<: *L1_TEST
+    <<: *T4_R410_2GPU
+
+L1_tftrt--T4_R410_2GPU:
+    <<: *L1_TEST
+    <<: *T4_R410_2GPU
+
+L2_models_cifar10--T4_R410_1GPU:
+    <<: *L2_TEST
+    <<: *T4_R410_1GPU
+
+L2_inf_image_classification_tftrt_int8--T4_R410_1GPU:
+    <<: *L2_TEST
+    <<: *T4_R410_1GPU
+
+
+#### V100_R410_16GPU ####
+
+####  NVIDIA CNN TESTS  ####
+
+L2_bench_inception_v4--V100_R410_16GPU:
+    <<: *L2_CNN_BENCHMARK
+    <<: *V100_R410_16GPU
+
+L2_bench_resnet50--V100_R410_16GPU:
+    <<: *L2_CNN_BENCHMARK
+    <<: *V100_R410_16GPU
+
+L3_converge_resnet50--V100_R410_16GPU:
+    <<: *L3_CNN_CONVERGENCE
+    <<: *V100_R410_16GPU
+
+L3_resnet50_dali--V100_R410_16GPU:
+    <<: *L3_CNN_CONVERGENCE
+    <<: *V100_R410_16GPU
+
+############################
+
+L3_self_tests--V100_R410_16GPU:
+    <<: *L3_TEST
+    <<: *V100_R410_16GPU
+
+L1_kernel_tests--V100_R410_16GPU:
+    <<: *L1_TEST
+    <<: *V100_R410_16GPU
+
+L1_xla_tests--V100_R410_16GPU:
+    <<: *L1_TEST
+    <<: *V100_R410_16GPU
+
+
+#### TU102_R410_1GPU ####
+
+####  NVIDIA CNN TESTS  ####
+
+L2_bench_alexnet--TU102_R410_1GPU:
+    <<: *L2_CNN_BENCHMARK
+    <<: *TU102_R410_1GPU
+
+L2_bench_googlenet--TU102_R410_1GPU:
+    <<: *L2_CNN_BENCHMARK
+    <<: *TU102_R410_1GPU
+
+L2_bench_inception_v3--TU102_R410_1GPU:
+    <<: *L2_CNN_BENCHMARK
+    <<: *TU102_R410_1GPU
+
+L2_bench_inception_v4--TU102_R410_1GPU:
+    <<: *L2_CNN_BENCHMARK
+    <<: *TU102_R410_1GPU
+
+L2_bench_inception_resnet_v2--TU102_R410_1GPU:
+    <<: *L2_CNN_BENCHMARK
+    <<: *TU102_R410_1GPU
+
+L2_bench_overfeat--TU102_R410_1GPU:
+    <<: *L2_CNN_BENCHMARK
+    <<: *TU102_R410_1GPU
+
+L2_bench_resnet50--TU102_R410_1GPU:
+    <<: *L2_CNN_BENCHMARK
+    <<: *TU102_R410_1GPU
+
+L2_bench_resnet101--TU102_R410_1GPU:
+    <<: *L2_CNN_BENCHMARK
+    <<: *TU102_R410_1GPU
+
+L2_bench_resnet152--TU102_R410_1GPU:
+    <<: *L2_CNN_BENCHMARK
+    <<: *TU102_R410_1GPU
+
+L2_bench_vgg11--TU102_R410_1GPU:
+    <<: *L2_CNN_BENCHMARK
+    <<: *TU102_R410_1GPU
+
+L2_bench_vgg16--TU102_R410_1GPU:
+    <<: *L2_CNN_BENCHMARK
+    <<: *TU102_R410_1GPU
+
+L2_bench_vgg19--TU102_R410_1GPU:
+    <<: *L2_CNN_BENCHMARK
+    <<: *TU102_R410_1GPU
+
+
+############################
+
+L0_inference--TU102_R410_1GPU:
+    <<: *L0_TEST
+    <<: *TU102_R410_1GPU
+
+L1_kernel_tests--TU102_R410_1GPU:
+    <<: *L1_TEST
+    <<: *TU102_R410_1GPU
+
+L1_xla_tests--TU102_R410_1GPU:
+    <<: *L1_TEST
+    <<: *TU102_R410_1GPU
+
+L1_tftrt--TU102_R410_1GPU:
+    <<: *L1_TEST
+    <<: *TU102_R410_1GPU
+
+L2_inf_image_classification_tftrt_int8--TU102_R410_1GPU:
+    <<: *L2_TEST
+    <<: *TU102_R410_1GPU
+
+#### V100_R384_4GPU Python 3 ####
+
+L0_compat_lib--V100_R384_4GPU:
+    <<: *L0_TEST
+    <<: *V100_R384_4GPU
+
+L0_models_alexnet--V100_R384_1GPU:
+    <<: *L0_TEST
+    <<: *V100_R384_1GPU
+
+L0_horovod_self_test--V100_R384_4GPU:
+    <<: *L0_TEST
+    <<: *V100_R384_4GPU
+
+L0_models_imagenet--V100_R384_1GPU:
+    <<: *L0_TEST
+    <<: *V100_R384_1GPU
+
+L0_models_mnist--V100_R384_1GPU:
+    <<: *L0_TEST
+    <<: *V100_R384_1GPU
+
+L0_convnet_benchmarks_alexnet--V100_R384_1GPU:
+    <<: *L0_TEST
+    <<: *V100_R384_1GPU
+    variables:
+      TEST_WORK_DIR: "/opt/tensorflow/qa/L0_convnet_benchmarks"
+      TEST_SCRIPT: "./test-alexnet.sh"
+
+L0_convnet_benchmarks_googlenet--V100_R384_1GPU:
+    <<: *L0_TEST
+    <<: *V100_R384_1GPU
+    variables:
+      TEST_WORK_DIR: "/opt/tensorflow/qa/L0_convnet_benchmarks"
+      TEST_SCRIPT: "./test-googlenet.sh"
+
+L0_convnet_benchmarks_overfeat--V100_R384_1GPU:
+    <<: *L0_TEST
+    <<: *V100_R384_1GPU
+    variables:
+      TEST_WORK_DIR: "/opt/tensorflow/qa/L0_convnet_benchmarks"
+      TEST_SCRIPT: "./test-overfeat.sh"
+
+L0_convnet_benchmarks_vgga--V100_R384_1GPU:
+    <<: *L0_TEST
+    <<: *V100_R384_1GPU
+    variables:
+      TEST_WORK_DIR: "/opt/tensorflow/qa/L0_convnet_benchmarks"
+      TEST_SCRIPT: "./test-vgga.sh"
+
+L0_os2s_ctc--V100_R384_1GPU:
+    <<: *L0_TEST
+    <<: *V100_R384_1GPU
+
+L0_seq2seq--V100_R384_1GPU:
+    <<: *L0_TEST
+    <<: *V100_R384_1GPU
+
+L0_tftrt--V100_R384_1GPU:
+    <<: *L0_TEST
+    <<: *V100_R384_1GPU
+
+L0_inference--V100_R384_1GPU:
+    <<: *L0_TEST
+    <<: *V100_R384_1GPU
+
+L0_python_kernel_tests--V100_R384_1GPU:
+    <<: *L0_TEST
+    <<: *V100_R384_1GPU
+
+L1_inf_image_classification_tf--V100_R384_1GPU:
+    <<: *L1_TEST
+    <<: *V100_R384_1GPU
+
+L1_inf_image_classification_tftrt--V100_R384_1GPU:
+    <<: *L1_TEST
+    <<: *V100_R384_1GPU
+
+L1_inf_image_classification_tftrt_fp16--V100_R384_1GPU:
+    <<: *L1_TEST
+    <<: *V100_R384_1GPU
+
+L1_inf_object_detection--V100_R384_1GPU:
+    <<: *L1_TEST
+    <<: *V100_R384_1GPU
+
+L1_inf_translation--V100_R384_1GPU:
+    <<: *L1_TEST
+    <<: *V100_R384_1GPU
+
+L1_tftrt--V100_R384_1GPU:
+    <<: *L1_TEST
+    <<: *V100_R384_1GPU
+
+####  NVIDIA CNN TESTS  ####
+L0_resnet_sanity--V100_R384_4GPU:
+    <<: *L0_TEST
+    <<: *V100_R384_4GPU
+
+L0_cnn_saved_model_sanity--V100_R384_4GPU:
+    <<: *L0_TEST
+    <<: *V100_R384_4GPU
+
+L0_resnet_dali_cpu_sanity--V100_R384_4GPU:
+    <<: *L0_TEST
+    <<: *V100_R384_4GPU
+
+L0_resnet_dali_gpu_sanity--V100_R384_4GPU:
+    <<: *L0_TEST
+    <<: *V100_R384_4GPU
+
+L1_cnn_sanity--V100_R384_4GPU:
+    <<: *L1_TEST
+    <<: *V100_R384_4GPU
+
+L2_bench_alexnet--V100_R384_4GPU:
+    <<: *L2_CNN_BENCHMARK
+    <<: *V100_R384_4GPU
+
+L2_bench_googlenet--V100_R384_4GPU:
+    <<: *L2_CNN_BENCHMARK
+    <<: *V100_R384_4GPU
+
+L2_bench_inception_v3--V100_R384_4GPU:
+    <<: *L2_CNN_BENCHMARK
+    <<: *V100_R384_4GPU
+
+L2_bench_inception_v4--V100_R384_4GPU:
+    <<: *L2_CNN_BENCHMARK
+    <<: *V100_R384_4GPU
+
+L2_bench_inception_resnet_v2--V100_R384_4GPU:
+    <<: *L2_CNN_BENCHMARK
+    <<: *V100_R384_4GPU
+
+L2_bench_overfeat--V100_R384_4GPU:
+    <<: *L2_CNN_BENCHMARK
+    <<: *V100_R384_4GPU
+
+L2_bench_resnet50--V100_R384_4GPU:
+    <<: *L2_CNN_BENCHMARK
+    <<: *V100_R384_4GPU
+
+L2_bench_resnet101--V100_R384_4GPU:
+    <<: *L2_CNN_BENCHMARK
+    <<: *V100_R384_4GPU
+
+L2_bench_resnet152--V100_R384_4GPU:
+    <<: *L2_CNN_BENCHMARK
+    <<: *V100_R384_4GPU
+
+L2_bench_vgg11--V100_R384_4GPU:
+    <<: *L2_CNN_BENCHMARK
+    <<: *V100_R384_4GPU
+
+L2_bench_vgg16--V100_R384_4GPU:
+    <<: *L2_CNN_BENCHMARK
+    <<: *V100_R384_4GPU
+
+L2_bench_vgg19--V100_R384_4GPU:
+    <<: *L2_CNN_BENCHMARK
+    <<: *V100_R384_4GPU
+
+L3_converge_resnet50--V100_R384_8GPU:
+    <<: *L3_CNN_CONVERGENCE
+    <<: *V100_R384_8GPU
+
+L3_resnet50_dali--V100_R384_8GPU:
+    <<: *L3_CNN_CONVERGENCE
+    <<: *V100_R384_8GPU
+
+L3_converge_inception_v3--V100_R384_8GPU:
+    <<: *L3_CNN_CONVERGENCE
+    <<: *V100_R384_8GPU
+
+############################
+
+L3_self_tests--V100_R384_8GPU:
+    <<: *L3_TEST
+    <<: *V100_R384_8GPU
+
+L1_word2vec--V100_R384_1GPU:
+    <<: *L1_TEST
+    <<: *V100_R384_1GPU
+
+L1_kernel_tests--V100_R384_4GPU:
+    <<: *L1_TEST
+    <<: *V100_R384_4GPU
+
+L1_xla_tests--V100_R384_4GPU:
+    <<: *L1_TEST
+    <<: *V100_R384_4GPU
+
+L1_nccl_test--V100_R384_4GPU:
+    <<: *L1_TEST
+    <<: *V100_R384_4GPU
+
+L1_seq2seq--V100_R384_1GPU:
+    <<: *L1_TEST
+    <<: *V100_R384_1GPU
+
+L2_seq2seq--V100_R384_4GPU:
+    <<: *L2_TEST
+    <<: *V100_R384_4GPU
+
+L2_models_cifar10--V100_R384_4GPU:
+    <<: *L2_TEST
+    <<: *V100_R384_4GPU
+
+L2_inf_image_classification_tftrt_int8--V100_R384_1GPU:
+    <<: *L2_TEST
+    <<: *V100_R384_4GPU
+
+L2_bench_resnet50--V100_R384_1GPU:
+    <<: *L2_CNN_BENCHMARK
+    <<: *V100_R384_1GPU
+
+
+#### V100_R384_4GPU Python 2 ####
+
+L0_models_alexnet--py2--V100_R384_1GPU:
+    <<: *L0_TEST
+    <<: *V100_R384_1GPU
+
+L0_horovod_self_test--py2--V100_R384_4GPU:
+    <<: *L0_TEST
+    <<: *P100_R384_4GPU
+
+L0_models_imagenet--py2--V100_R384_1GPU:
+    <<: *L0_TEST
+    <<: *V100_R384_1GPU
+
+L0_models_mnist--py2--V100_R384_1GPU:
+    <<: *L0_TEST
+    <<: *V100_R384_1GPU
+
+L0_convnet_benchmarks_alexnet--py2--V100_R384_1GPU:
+    <<: *L0_TEST
+    <<: *V100_R384_1GPU
+    variables:
+      TEST_WORK_DIR: "/opt/tensorflow/qa/L0_convnet_benchmarks"
+      TEST_SCRIPT: "./test-alexnet.sh"
+
+L0_convnet_benchmarks_googlenet--py2--V100_R384_1GPU:
+    <<: *L0_TEST
+    <<: *V100_R384_1GPU
+    variables:
+      TEST_WORK_DIR: "/opt/tensorflow/qa/L0_convnet_benchmarks"
+      TEST_SCRIPT: "./test-googlenet.sh"
+
+L0_convnet_benchmarks_overfeat--py2--V100_R384_1GPU:
+    <<: *L0_TEST
+    <<: *V100_R384_1GPU
+    variables:
+      TEST_WORK_DIR: "/opt/tensorflow/qa/L0_convnet_benchmarks"
+      TEST_SCRIPT: "./test-overfeat.sh"
+
+L0_convnet_benchmarks_vgga--py2--V100_R384_1GPU:
+    <<: *L0_TEST
+    <<: *V100_R384_1GPU
+    variables:
+      TEST_WORK_DIR: "/opt/tensorflow/qa/L0_convnet_benchmarks"
+      TEST_SCRIPT: "./test-vgga.sh"
+
+L0_tftrt--py2--V100_R384_1GPU:
+    <<: *L0_TEST
+    <<: *V100_R384_1GPU
+
+L0_inference--py2--V100_R384_1GPU:
+    <<: *L0_TEST
+    <<: *V100_R384_1GPU
+
+####  NVIDIA CNN TESTS  ####
+L0_resnet_sanity--py2--V100_R384_4GPU:
+    <<: *L0_TEST
+    <<: *V100_R384_4GPU
+
+L0_cnn_saved_model_sanity--py2--V100_R384_4GPU:
+    <<: *L0_TEST
+    <<: *V100_R384_4GPU
+
+L0_resnet_dali_cpu_sanity--py2--V100_R384_4GPU:
+    <<: *L0_TEST
+    <<: *V100_R384_4GPU
+
+L0_resnet_dali_gpu_sanity--py2--V100_R384_4GPU:
+    <<: *L0_TEST
+    <<: *V100_R384_4GPU
+
+L1_cnn_sanity--py2--V100_R384_4GPU:
+    <<: *L1_TEST
+    <<: *V100_R384_4GPU
+
+L2_bench_alexnet--py2--V100_R384_4GPU:
+    <<: *L2_CNN_BENCHMARK
+    <<: *V100_R384_4GPU
+
+L2_bench_googlenet--py2--V100_R384_4GPU:
+    <<: *L2_CNN_BENCHMARK
+    <<: *V100_R384_4GPU
+
+L2_bench_inception_v3--py2--V100_R384_4GPU:
+    <<: *L2_CNN_BENCHMARK
+    <<: *V100_R384_4GPU
+
+L2_bench_inception_v4--py2--V100_R384_4GPU:
+    <<: *L2_CNN_BENCHMARK
+    <<: *V100_R384_4GPU
+
+L2_bench_inception_resnet_v2--py2--V100_R384_4GPU:
+    <<: *L2_CNN_BENCHMARK
+    <<: *V100_R384_4GPU
+
+L2_bench_overfeat--py2--V100_R384_4GPU:
+    <<: *L2_CNN_BENCHMARK
+    <<: *V100_R384_4GPU
+
+L2_bench_resnet50--py2--V100_R384_4GPU:
+    <<: *L2_CNN_BENCHMARK
+    <<: *V100_R384_4GPU
+
+L2_bench_resnet101--py2--V100_R384_4GPU:
+    <<: *L2_CNN_BENCHMARK
+    <<: *V100_R384_4GPU
+
+L2_bench_resnet152--py2--V100_R384_4GPU:
+    <<: *L2_CNN_BENCHMARK
+    <<: *V100_R384_4GPU
+
+L2_bench_vgg11--py2--V100_R384_4GPU:
+    <<: *L2_CNN_BENCHMARK
+    <<: *V100_R384_4GPU
+
+L2_bench_vgg16--py2--V100_R384_4GPU:
+    <<: *L2_CNN_BENCHMARK
+    <<: *V100_R384_4GPU
+
+L2_bench_vgg19--py2--V100_R384_4GPU:
+    <<: *L2_CNN_BENCHMARK
+    <<: *V100_R384_4GPU
+############################
+
+L1_word2vec--py2--V100_R384_1GPU:
+    <<: *L1_TEST
+    <<: *V100_R384_1GPU
+
+L1_kernel_tests--py2--V100_R384_4GPU:
+    <<: *L1_TEST
+    <<: *V100_R384_4GPU
+
+L1_xla_tests--py2--V100_R384_4GPU:
+    <<: *L1_TEST
+    <<: *V100_R384_4GPU
+
+L1_nccl_test--py2--V100_R384_4GPU:
+    <<: *L1_TEST
+    <<: *V100_R384_4GPU
+
+L2_models_cifar10--py2--V100_R384_4GPU:
+    <<: *L2_TEST
+    <<: *V100_R384_4GPU
+
+#### P40_R384_1GPU ####
+
+L0_models_alexnet--P40_R384_1GPU:
+    <<: *L0_TEST
+    <<: *P40_R384_1GPU
+
+L0_horovod_self_test--P40_R384_2GPU:
+    <<: *L0_TEST
+    <<: *P40_R384_2GPU
+
+L0_models_imagenet--P40_R384_1GPU:
+    <<: *L0_TEST
+    <<: *P40_R384_1GPU
+
+L0_models_mnist--P40_R384_1GPU:
+    <<: *L0_TEST
+    <<: *P40_R384_1GPU
+
+L0_convnet_benchmarks_alexnet--P40_R384_1GPU:
+    <<: *L0_TEST
+    <<: *P40_R384_1GPU
+    variables:
+      TEST_WORK_DIR: "/opt/tensorflow/qa/L0_convnet_benchmarks"
+      TEST_SCRIPT: "./test-alexnet.sh"
+
+L0_convnet_benchmarks_googlenet--P40_R384_1GPU:
+    <<: *L0_TEST
+    <<: *P40_R384_1GPU
+    variables:
+      TEST_WORK_DIR: "/opt/tensorflow/qa/L0_convnet_benchmarks"
+      TEST_SCRIPT: "./test-googlenet.sh"
+
+L0_convnet_benchmarks_overfeat--P40_R384_1GPU:
+    <<: *L0_TEST
+    <<: *P40_R384_1GPU
+    variables:
+      TEST_WORK_DIR: "/opt/tensorflow/qa/L0_convnet_benchmarks"
+      TEST_SCRIPT: "./test-overfeat.sh"
+
+L0_convnet_benchmarks_vgga--P40_R384_1GPU:
+    <<: *L0_TEST
+    <<: *P40_R384_1GPU
+    variables:
+      TEST_WORK_DIR: "/opt/tensorflow/qa/L0_convnet_benchmarks"
+      TEST_SCRIPT: "./test-vgga.sh"
+
+L0_os2s_ctc--P40_R384_1GPU:
+    <<: *L0_TEST
+    <<: *P40_R384_1GPU
+
+L0_seq2seq--P40_R384_1GPU:
+    <<: *L0_TEST
+    <<: *P40_R384_1GPU
+
+L0_tftrt--P40_R384_1GPU:
+    <<: *L0_TEST
+    <<: *P40_R384_1GPU
+
+L0_inference--P40_R384_1GPU:
+    <<: *L0_TEST
+    <<: *P40_R384_1GPU
+
+L0_python_kernel_tests--P40_R384_1GPU:
+    <<: *L0_TEST
+    <<: *P40_R384_1GPU
+
+####  NVIDIA CNN TESTS  ####
+L0_resnet_sanity--P40_R384_1GPU:
+    <<: *L0_TEST
+    <<: *P40_R384_1GPU
+
+L0_cnn_saved_model_sanity--P40_R384_1GPU:
+    <<: *L0_TEST
+    <<: *P40_R384_1GPU
+
+L0_resnet_dali_cpu_sanity--P40_R384_1GPU:
+    <<: *L0_TEST
+    <<: *P40_R384_1GPU
+
+L0_resnet_dali_gpu_sanity--P40_R384_1GPU:
+    <<: *L0_TEST
+    <<: *P40_R384_1GPU
+
+L1_cnn_sanity--P40_R384_1GPU:
+    <<: *L1_TEST
+    <<: *P40_R384_1GPU
+
+L2_bench_alexnet--P40_R384_1GPU:
+    <<: *L2_CNN_BENCHMARK
+    <<: *P40_R384_1GPU
+
+L2_bench_googlenet--P40_R384_1GPU:
+    <<: *L2_CNN_BENCHMARK
+    <<: *P40_R384_1GPU
+
+L2_bench_inception_v3--P40_R384_1GPU:
+    <<: *L2_CNN_BENCHMARK
+    <<: *P40_R384_1GPU
+
+L2_bench_inception_v4--P40_R384_1GPU:
+    <<: *L2_CNN_BENCHMARK
+    <<: *P40_R384_1GPU
+
+L2_bench_inception_resnet_v2--P40_R384_1GPU:
+    <<: *L2_CNN_BENCHMARK
+    <<: *P40_R384_1GPU
+
+L2_bench_overfeat--P40_R384_1GPU:
+    <<: *L2_CNN_BENCHMARK
+    <<: *P40_R384_1GPU
+
+L2_bench_resnet50--P40_R384_1GPU:
+    <<: *L2_CNN_BENCHMARK
+    <<: *P40_R384_1GPU
+
+L2_bench_resnet101--P40_R384_1GPU:
+    <<: *L2_CNN_BENCHMARK
+    <<: *P40_R384_1GPU
+
+L2_bench_resnet152--P40_R384_1GPU:
+    <<: *L2_CNN_BENCHMARK
+    <<: *P40_R384_1GPU
+
+L2_bench_vgg11--P40_R384_1GPU:
+    <<: *L2_CNN_BENCHMARK
+    <<: *P40_R384_1GPU
+
+L2_bench_vgg16--P40_R384_1GPU:
+    <<: *L2_CNN_BENCHMARK
+    <<: *P40_R384_1GPU
+
+L2_bench_vgg19--P40_R384_1GPU:
+    <<: *L2_CNN_BENCHMARK
+    <<: *P40_R384_1GPU
+############################
+
+L1_word2vec--P40_R384_1GPU:
+    <<: *L1_TEST
+    <<: *P40_R384_1GPU
+
+L1_kernel_tests--P40_R384_2GPU:
+    <<: *L1_TEST
+    <<: *P40_R384_2GPU
+
+L1_xla_tests--P40_R384_2GPU:
+    <<: *L1_TEST
+    <<: *P40_R384_2GPU
+
+L1_tftrt--P40_R384_2GPU:
+    <<: *L1_TEST
+    <<: *P40_R384_2GPU
+
+L2_models_cifar10--P40_R384_1GPU:
+    <<: *L2_TEST
+    <<: *P40_R384_1GPU
+
+L2_inf_image_classification_tftrt_int8--P40_R384_1GPU:
+    <<: *L2_TEST
+    <<: *P40_R384_1GPU
+
+#### XAVIER ####
+
+L0_models_alexnet--py3.6--XAVIER:
+    <<: *L0_TEST_JETSON
+    <<: *XAVIER
+
+L0_models_imagenet--py3.6--XAVIER:
+    <<: *L0_TEST_JETSON
+    <<: *XAVIER
+
+L0_models_mnist--py3.6--XAVIER:
+    <<: *L0_TEST_JETSON
+    <<: *XAVIER
+
+L0_convnet_benchmarks_alexnet--py3.6--XAVIER:
+    <<: *L0_TEST_JETSON
+    <<: *XAVIER
+    variables:
+      TEST_WORK_DIR: "./qa/L0_convnet_benchmarks"
+      TEST_SCRIPT: "./test-alexnet.sh"
+
+L0_convnet_benchmarks_googlenet--py3.6--XAVIER:
+    <<: *L0_TEST_JETSON
+    <<: *XAVIER
+    variables:
+      TEST_WORK_DIR: "./qa/L0_convnet_benchmarks"
+      TEST_SCRIPT: "./test-googlenet.sh"
+
+L0_convnet_benchmarks_overfeat--py3.6--XAVIER:
+    <<: *L0_TEST_JETSON
+    <<: *XAVIER
+    variables:
+      TEST_WORK_DIR: "./qa/L0_convnet_benchmarks"
+      TEST_SCRIPT: "./test-overfeat.sh"
+
+L0_convnet_benchmarks_vgga--py3.6--XAVIER:
+    <<: *L0_TEST_JETSON
+    <<: *XAVIER
+    variables:
+      TEST_WORK_DIR: "./qa/L0_convnet_benchmarks"
+      TEST_SCRIPT: "./test-vgga.sh"
+
+L0_tftrt--py3.6--XAVIER:
+    <<: *L0_TEST_JETSON
+    <<: *XAVIER
+
+L0_inference--py3.6--XAVIER:
+    <<: *L0_TEST_JETSON
+    <<: *XAVIER
+
+L0_python_kernel_tests--py3.6--XAVIER:
+    <<: *L0_TEST_JETSON
+    <<: *XAVIER
+
+L1_kernel_tests--py3.6--XAVIER:
+    <<: *L1_TEST_JETSON
+    <<: *XAVIER
+
+L1_xla_tests--py3.6--XAVIER:
+    <<: *L1_TEST_JETSON
+    <<: *XAVIER
+
+L1_inf_object_detection--py3.6--XAVIER:
+    <<: *L1_TEST_JETSON
+    <<: *XAVIER
+
+L1_inf_image_classification_tftrt--py3.6--XAVIER:
+    <<: *L1_TEST_JETSON
+    <<: *XAVIER
+
+L1_inf_image_classification_tftrt_fp16--py3.6--XAVIER:
+    <<: *L1_TEST_JETSON
+    <<: *XAVIER
+
+L3_self_tests--py3.6--XAVIER:
+    <<: *L3_TEST_JETSON
+    <<: *XAVIER
+
+L0_models_alexnet--py2--XAVIER:
+    <<: *L0_TEST_JETSON
+    <<: *XAVIER_PY2
+
+L0_models_imagenet--py2--XAVIER:
+    <<: *L0_TEST_JETSON
+    <<: *XAVIER_PY2
+
+L0_models_mnist--py2--XAVIER:
+    <<: *L0_TEST_JETSON
+    <<: *XAVIER_PY2
+
+L0_tftrt--py2--XAVIER:
+    <<: *L0_TEST_JETSON
+    <<: *XAVIER_PY2
+
+L0_inference--py2--XAVIER:
+    <<: *L0_TEST_JETSON
+    <<: *XAVIER_PY2
+
+L0_python_kernel_tests--py2--XAVIER:
+    <<: *L0_TEST_JETSON
+    <<: *XAVIER_PY2
+
+L1_inf_image_classification_tf--py2--XAVIER:
+    <<: *L1_TEST_JETSON
+    <<: *XAVIER_PY2
+
+L1_inf_image_classification_tftrt--py2--XAVIER:
+    <<: *L1_TEST_JETSON
+    <<: *XAVIER_PY2
+
+L1_inf_image_classification_tftrt_fp16--py2--XAVIER:
+    <<: *L1_TEST_JETSON
+    <<: *XAVIER_PY2
+
+L1_inf_object_detection--py2--XAVIER:
+    <<: *L1_TEST_JETSON
+    <<: *XAVIER_PY2
+
+L2_inf_image_classification_tftrt_int8--py2--XAVIER:
+    <<: *L2_TEST_JETSON
+    <<: *XAVIER_PY2

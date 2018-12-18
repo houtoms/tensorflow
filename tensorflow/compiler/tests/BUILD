@@ -916,7 +916,7 @@ tf_xla_py_test(
 
 tf_xla_py_test(
     name = "variable_ops_test",
-    size = "small",
+    size = "medium",
     srcs = ["variable_ops_test.py"],
     tags = ["optonly"],
     deps = [
