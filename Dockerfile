@@ -142,7 +142,7 @@ RUN cd /opt/tensorflow/nvidia-examples/OpenSeq2Seq && \
         bazel-bin/ctc_decoder_with_lm/generate_trie \
         ctc_decoder_with_lm/ && \
     bazel clean --expunge && \
-    rm .tf_configure.bazelrc .bazelrc /usr/local/cuda/lib64/stubs/libcuda.so.1 && \
+    rm .tf_configure.bazelrc /usr/local/cuda/lib64/stubs/libcuda.so.1 && \
     rm -rf ${HOME}/.cache/bazel /tmp/*
 
 
