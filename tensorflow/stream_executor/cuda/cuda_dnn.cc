@@ -1106,7 +1106,7 @@ class CudnnRnnDescriptor : public dnn::RnnDescriptor {
     // The above bug nvbugs/2172799 has been covered from cuDNN v7.2.1.
     if (RnnTensorOpMathEnabled()) {
       cudnnMathType_t math_type =
-          algorithm_config.algorithm().tensor_ops_enabled()
+          algorithm_config.algorithm()->tensor_ops_enabled()
               ? CUDNN_TENSOR_OP_MATH
               : CUDNN_DEFAULT_MATH;
       if (math_type == CUDNN_TENSOR_OP_MATH && RnnTensorOpFp32MathEnabled()) {
