@@ -140,7 +140,8 @@ cuda_py_test(
         "//tensorflow/python:platform",
         "//tensorflow/python:platform_benchmark",
     ],
-    tags = ["no_windows"],
+    # TODO(mconley): remove 'no_arm' tag once ignored test lists are merged in
+    tags = ["no_windows","no_arm",],
 )
 
 cuda_py_test(
@@ -1514,6 +1515,8 @@ cuda_py_test(
         "//tensorflow/python:variables",
         "//tensorflow/python:while_v2",
     ],
+    # TODO(mconley): remove 'no_arm' tag once ignored test lists are merged in
+    tags = ["no_arm"],
 )
 
 tf_py_test(
@@ -1591,6 +1594,8 @@ cuda_py_test(
         "//tensorflow/python:framework_for_generated_wrappers",
         "//tensorflow/python:platform",
     ],
+    # TODO(mconley): remove 'no_arm' tag once ignored test lists are merged in
+    tags = ["no_arm"],
 )
 
 cuda_py_test(
@@ -2705,7 +2710,8 @@ cuda_py_test(
         "//tensorflow/python:framework_for_generated_wrappers",
         "//tensorflow/python:math_ops",
     ],
-    tags = ["no_windows"],
+    # TODO(mconley): remove 'no_arm' tag once ignored test lists are merged in
+    tags = ["no_windows","no_arm",],
 )
 
 cuda_py_test(
