@@ -52,11 +52,9 @@ case "${DETECTED_MOFED}" in
     echo "      Multi-node communication performance may be reduced."
     ;;
   *)
-    if [[ -d "/opt/mellanox/DEBS/${DETECTED_MOFED}/" && $(id -u) -eq 0 ]]; then
+    if test -d "/opt/mellanox/DEBS/${DETECTED_MOFED}/" && /opt/mellanox/change_mofed_version.sh "${DETECTED_MOFED}" >& /dev/null; then
       echo
-      echo "NOTE: Detected MOFED driver ${DETECTED_MOFED}; attempting to automatically upgrade."
-      echo
-      dpkg -i /opt/mellanox/DEBS/${DETECTED_MOFED}/*.deb || true
+      echo "NOTE: Detected MOFED driver ${DETECTED_MOFED}; version automatically upgraded."
     else
       echo
       echo "ERROR: Detected MOFED driver ${DETECTED_MOFED}, but this container has version ${MOFED_VERSION}."
