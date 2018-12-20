@@ -7,6 +7,7 @@ cat <<EOF
 ================
 
 NVIDIA Release ${NVIDIA_TENSORFLOW_VERSION} (build ${NVIDIA_BUILD_ID})
+TensorFlow Version ${TENSORFLOW_VERSION}
 
 Container image Copyright (c) 2018, NVIDIA CORPORATION.  All rights reserved.
 Copyright 2017-2018 The TensorFlow Authors.  All rights reserved.
