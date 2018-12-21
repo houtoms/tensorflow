@@ -55,6 +55,7 @@ RUN DALI_VERSION=0.6.0 \
         psutil \
         nltk==3.2.5 \
         future \
+        jupyterlab \
         mock \
         portpicker \
         h5py \
