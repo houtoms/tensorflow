@@ -64,6 +64,7 @@ do
   popd
   pushd $SCRIPTS_PATH
   python -u check_accuracy.py --input $OUTPUT_PATH --precision tftrt_fp16 --batch_size 8 --model $model
+  python -u check_nodes.py --input_path $OUTPUT_PATH --model $model --precision tftrt_fp16 --batch_size 8
   if $JETSON ; then
     python -u check_performance.py --input_path $OUTPUT_PATH --model $model --precision tftrt_fp16 --batch_size 8 
   fi

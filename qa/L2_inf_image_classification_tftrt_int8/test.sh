@@ -24,17 +24,19 @@ set_models() {
     #mobilenet_v1 disabled due to low accuracy: http://nvbugs/2369608
     mobilenet_v2
     #nasnet_large disabled due to calibration taking ~2 hours.
-    nasnet_mobile
+    #nasnet_mobile disabled only on Jetson due to memory issues
     resnet_v1_50
-    resnet_v2_50
+    #resnet_v2_50 disabled only on Jetson due to time limit for L2 tests
     #vgg_16 disabled only on Jetson due to low perf.
     #vgg_19 disabled only on Jetson due to low perf.
     inception_v3
-    #inception_v4 disabled due to a non-deterministic bug in TF-TRT: http://nvbugs/2369615
+    inception_v4
   )
   if ! $JETSON ; then
     models+=(vgg_16)
     models+=(vgg_19)
+    models+=(resnet_v2_50)
+    models+=(nasnet_mobile)
   fi
 }
 
@@ -61,11 +63,14 @@ do
       --model $model \
       --use_trt \
       --batch_size 8 \
+      --num_calib_inputs 8 \
       --precision int8 \
+      --num_calib_input 8 \
       2>&1 | tee $OUTPUT_PATH/output_tftrt_int8_bs8_${model}_dynamic_op=False
   popd
   pushd $SCRIPTS_PATH
   python -u check_accuracy.py --tolerance 1.0 --input_path $OUTPUT_PATH --precision tftrt_int8 --batch_size 8 --model $model
+  python -u check_nodes.py --input_path $OUTPUT_PATH --precision tftrt_int8 --batch_size 8 --model $model
   if $JETSON ; then
     python -u check_performance.py --input_path $OUTPUT_PATH --model $model --batch_size 8 --precision tftrt_int8 
   fi
