@@ -28,10 +28,10 @@ def check_nodes(res, filename, model, tol):
         'mobilenet_v2': 14,
         'nasnet_large': 50,
         'nasnet_mobile': 44,
-        'resnet_50_v1': 15,
-        'resnet_50_v2': 15,
-        'vgg16': 10,
-        'vgg19': 10,
+        'resnet_v1_50': 15,
+        'resnet_v2_50': 15,
+        'vgg_16': 10,
+        'vgg_19': 10,
         'inception_v3': 12,
         'inception_v4': 21
     }
@@ -41,10 +41,10 @@ def check_nodes(res, filename, model, tol):
         'mobilenet_v2': 1,
         'nasnet_large': 4,
         'nasnet_mobile': 4,
-        'resnet_50_v1': 2,
-        'resnet_50_v2': 2,
-        'vgg16': 1,
-        'vgg19': 1,
+        'resnet_v1_50': 2,
+        'resnet_v2_50': 2,
+        'vgg_16': 1,
+        'vgg_19': 1,
         'inception_v3': 1,
         'inception_v4': 2
     }
