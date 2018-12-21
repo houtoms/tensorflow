@@ -63,13 +63,12 @@ class _LogSessionRunHook(tf.train.SessionRunHook):
         self.elapsed_secs += time.time() - self.t0
         self.count += 1
         global_step, loss, total_loss, lr = run_values.results
-        print_step = global_step + 1 # One-based index for printing.
-        if print_step == 1 or print_step % self.display_every == 0:
+        if global_step == 1 or global_step % self.display_every == 0:
             dt = self.elapsed_secs / self.count
             img_per_sec = self.global_batch_size / dt
-            epoch = print_step * self.global_batch_size / self.num_records
+            epoch = global_step * self.global_batch_size / self.num_records
             print('%6i %5.1f %7.1f %6.3f %6.3f %7.5f' %
-                  (print_step, epoch, img_per_sec, loss, total_loss, lr))
+                  (global_step, epoch, img_per_sec, loss, total_loss, lr))
             self.elapsed_secs = 0.
             self.count = 0
 
