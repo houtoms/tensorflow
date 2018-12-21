@@ -30,9 +30,10 @@ for i in $(seq 0 $((GPUS-1))); do
     {
         FAILS=0
         export CUDA_VISIBLE_DEVICES=$i
-        while read -r INDEX SHARDS LINE; do
-            SCRIPT="${LINE%%.py*}"
+        while read -r INDEX SHARDS SCRIPT ARGS; do
+            SCRIPT="${SCRIPT%%.py*}"
             NAME="${SCRIPT##*/}"
+            SCRIPT="%{SCRIPT%_[gc]pu}.py"
 
             if [[ "$INDEX" != "NONE" ]]; then
                 export TEST_SHARD_INDEX=$INDEX
@@ -43,7 +44,7 @@ for i in $(seq 0 $((GPUS-1))); do
                 NAME=${NAME}_OF_$SHARDS
             fi
 
-            python $LINE &> "$THIS_DIR/outputs/$NAME"
+            python $SCRIPT $ARGS &> "$THIS_DIR/outputs/$NAME"
             if [[ $? -eq 0 ]]; then
                 echo PASS -- $NAME
             else
