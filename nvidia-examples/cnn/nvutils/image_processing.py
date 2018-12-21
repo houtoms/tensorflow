@@ -23,7 +23,10 @@ from tensorflow.contrib.data.python.ops import interleave_ops
 from tensorflow.contrib.data.python.ops import batching
 
 from nvidia import dali
-import nvidia.dali.plugin.tf as dali_tf
+try:
+    import nvidia.dali.plugin.tf as dali_tf
+except:
+    pass
 
 def _deserialize_image_record(record):
     feature_map = {
@@ -233,6 +236,8 @@ class DaliPreprocessor(object):
                  dtype=tf.uint8,
                  dali_pipeline_variant="GPU",
                  deterministic=False):
+        if 'dali_tf' not in sys.modules:
+            raise ImportError("Module dali_tf is not available.")
         pipe = HybridPipe(
             tfrec_filenames=filenames,
             tfrec_idx_filenames=idx_filenames,
