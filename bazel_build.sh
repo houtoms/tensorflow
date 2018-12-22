@@ -55,20 +55,20 @@ if [[ $TESTLIST -eq 1 ]]; then
   rm -f "${KERNEL_OUT}/tests.list" \
         "${XLA_OUT}/tests.list"
 
-  bazel test $(cat $BUILD_OPTS) --verbose_failures --local_test_jobs=1 \
+  bazel test --verbose_failures --local_test_jobs=1 \
              --run_under="$THIS_DIR/tools/test_grabber.sh $KERNEL_OUT" \
              --build_tests_only --test_tag_filters=-no_gpu,-benchmark-test \
-             --cache_test_results=no -- \
+             --cache_test_results=no $(cat $BUILD_OPTS) -- \
              //tensorflow/python/kernel_tests/... \
              `# The following tests are skipped becaues they depend on additional binaries.` \
              -//tensorflow/python/kernel_tests:ackermann_test \
              -//tensorflow/python/kernel_tests:duplicate_op_test \
              -//tensorflow/python/kernel_tests:invalid_op_test
       KERNEL_TEST_RETURN=$?  
-  bazel test $(cat $BUILD_OPTS) --verbose_failures --local_test_jobs=1 \
+  bazel test --verbose_failures --local_test_jobs=1 \
              --run_under="$THIS_DIR/tools/test_grabber.sh $XLA_OUT" \
              --build_tests_only --test_tag_filters=-no_gpu,-benchmark-test \
-             --cache_test_results=no -- \
+             --cache_test_results=no $(cat $BUILD_OPTS) -- \
              //tensorflow/compiler/tests/... \
              `# The following tests are skipped becaues they depend on additional binaries.` \
              -//tensorflow/compiler/tests:reduce_window_test \
