@@ -36,7 +36,7 @@ JPVER=$(${SCRIPT_DIR}/get_jpver.sh)
 export OUTPUT_DIRS="wheelhouse/${JPVER}/kernel_tests/ wheelhouse/${JPVER}/xla_tests/ wheelhouse/${JPVER}/"
 export IN_CONTAINER="0"
 export NOCLEAN="1"
-export TESTLIST="0"
+export TESTLIST="1"
 export LIBCUDA_FOUND="1"
 export BUILD_OPTS="jetson/bazelopts"
 export PYVER

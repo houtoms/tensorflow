@@ -48,7 +48,7 @@ before_script:
     - export STAGE_IMAGE_NAME="${IMAGE_NAME_ROOT}-stage"                                           && echo "${STAGE_IMAGE_NAME}"
     - export QA_IMAGE_NAME="${IMAGE_NAME_ROOT}-qa"                                                 && echo "${QA_IMAGE_NAME}"
     - export ORIGIN1="${CI_REPOSITORY_URL##*@}"
-    - export ORIGIN_SSH=git@${ORIGIN1/\//:}                                                        && echo "${ORIGIN_SSH}"
+    - export ORIGIN_SSH=ssh://git@${ORIGIN1/\//:12051\/}                                           && echo "${ORIGIN_SSH}"
     - export ORIGIN_HTTPS=https://${ORIGIN1}                                                       && echo "${ORIGIN_HTTPS}"
 
 .base_template : &BASE

@@ -4,7 +4,7 @@ ENV LD_LIBRARY_PATH /usr/local/cuda/extras/CUPTI/lib64:${LD_LIBRARY_PATH}
 
 ENV TENSORFLOW_VERSION r1.13
 LABEL com.nvidia.tensorflow.version="${TENSORFLOW_VERSION}"
-ENV NVIDIA_TENSORFLOW_VERSION 18.12
+ENV NVIDIA_TENSORFLOW_VERSION 19.01
 
 ARG PYVER=3.5
 
@@ -55,6 +55,7 @@ RUN DALI_VERSION=0.7.0.dev0 \
         psutil \
         nltk==3.2.5 \
         future \
+        jupyterlab \
         mock \
         portpicker \
         h5py \
