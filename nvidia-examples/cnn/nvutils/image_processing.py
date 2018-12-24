@@ -236,7 +236,7 @@ class DaliPreprocessor(object):
                  dtype=tf.uint8,
                  dali_pipeline_variant="GPU",
                  deterministic=False):
-        if 'dali_tf' not in sys.modules:
+        if 'nvidia.dali.plugin.tf' not in sys.modules:
             raise ImportError("Module dali_tf is not available.")
         pipe = HybridPipe(
             tfrec_filenames=filenames,
