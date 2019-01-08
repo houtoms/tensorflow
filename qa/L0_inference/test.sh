@@ -2,18 +2,27 @@
 
 set +e
 
-# IMAGE CLASSIFICATION
-
-pip install requests
-MODELS="$PWD/../third_party/tensorflow_models/"
-export PYTHONPATH="$PYTHONPATH:$MODELS"
-pushd $MODELS/research/slim
+echo Setup tensorflow/tensorrt...
+TRT_PATH="$PWD/../../nvidia-examples/tensorrt/"
+pushd $TRT_PATH
 python setup.py install
 popd
 
+# IMAGE CLASSIFICATION
+
 OUTPUT_PATH=$PWD
-EXAMPLE_PATH="../../nvidia-examples/tensorrt/tftrt/examples/image-classification/"
-SCRIPTS_PATH="../inference/image_classification/"
+EXAMPLE_PATH="$TRT_PATH/tftrt/examples/image-classification/"
+TF_MODELS_PATH="$TRT_PATH/tftrt/examples/third_party/models/"
+SCRIPTS_PATH="$PWD/../inference/image_classification/"
+
+export PYTHONPATH="$PYTHONPATH:$TF_MODELS_PATH"
+
+echo Install dependencies of image_classification...
+pushd $EXAMPLE_PATH
+./install_dependencies.sh
+popd
+
+echo PYTHONPATH $PYTHONPATH
 
 set_allocator() {
   NATIVE_ARCH=`uname -m`
@@ -29,8 +38,8 @@ set_allocator
 model="mobilenet_v1"
 
 dynamic_op=(
-True
 False
+True
 )
 
 for use_trt_dynamic_op in ${dynamic_op[@]}; do
@@ -59,17 +68,12 @@ done
 
 # OBJECT DETECTION
 
-EXAMPLE_PATH="../../nvidia-examples/tensorrt/tftrt/examples/object_detection/"
-SCRIPTS_PATH="../inference/object_detection/"
+EXAMPLE_PATH="$TRT_PATH/tftrt/examples/object_detection/"
+SCRIPTS_PATH="$PWD/../inference/object_detection/"
 
 echo Install dependencies of object_detection...
 pushd $EXAMPLE_PATH
 ./install_dependencies.sh
-popd
-
-echo Setup tensorflow/tensorrt...
-pushd $PWD/../../nvidia-examples/tensorrt
-python setup.py install
 popd
 
 test_case="$SCRIPTS_PATH/tests/generic_acc/ssd_mobilenet_v1_coco_trt_fp16.json"
