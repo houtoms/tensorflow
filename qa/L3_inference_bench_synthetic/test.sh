@@ -1,16 +1,24 @@
 #!/bin/bash
 
-set -e
+set +e
 
-pip install requests
-MODELS="$PWD/../third_party/tensorflow_models/"
-export PYTHONPATH="$PYTHONPATH:$MODELS"
-pushd $MODELS/research/slim
+echo Setup tensorflow/tensorrt...
+TRT_PATH="$PWD/../../nvidia-examples/tensorrt/"
+pushd $TRT_PATH
 python setup.py install
 popd
 
 OUTPUT_PATH=$PWD
-EXAMPLE_PATH="../../nvidia-examples/tensorrt/tftrt/examples/image-classification/"
+EXAMPLE_PATH="$TRT_PATH/tftrt/examples/image-classification/"
+TF_MODELS_PATH="$TRT_PATH/tftrt/examples/third_party/models/"
+SCRIPTS_PATH="$PWD/../inference/image_classification/"
+
+export PYTHONPATH="$PYTHONPATH:$TF_MODELS_PATH"
+
+echo Install dependencies of image_classification...
+pushd $EXAMPLE_PATH
+./install_dependencies.sh
+popd
 
 JETSON=false
 NATIVE_ARCH=`uname -m`
