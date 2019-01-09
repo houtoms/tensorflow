@@ -1,17 +1,24 @@
 #!/bin/bash
 
-set -e
+set +e
 
-pip install requests
-MODELS="$PWD/../third_party/tensorflow_models/"
-export PYTHONPATH="$PYTHONPATH:$MODELS"
-pushd $MODELS/research/slim
+echo Setup tensorflow/tensorrt...
+TRT_PATH="$PWD/../../nvidia-examples/tensorrt/"
+pushd $TRT_PATH
 python setup.py install
 popd
 
 OUTPUT_PATH=$PWD
-EXAMPLE_PATH="../../nvidia-examples/tensorrt/tftrt/examples/image-classification/"
-SCRIPTS_PATH="../inference/image_classification/"
+EXAMPLE_PATH="$TRT_PATH/tftrt/examples/image-classification/"
+TF_MODELS_PATH="$TRT_PATH/tftrt/examples/third_party/models/"
+SCRIPTS_PATH="$PWD/../inference/image_classification/"
+
+export PYTHONPATH="$PYTHONPATH:$TF_MODELS_PATH"
+
+echo Install dependencies of image_classification...
+pushd $EXAMPLE_PATH
+./install_dependencies.sh
+popd
 
 JETSON=false
 NATIVE_ARCH=`uname -m`
@@ -23,20 +30,19 @@ set_models() {
   models=(
     #mobilenet_v1 disabled due to low accuracy: http://nvbugs/2369608
     mobilenet_v2
-    #nasnet_large disabled due to calibration taking ~2 hours.
+    #nasnet_large disabled due to calibration taking too long
     #nasnet_mobile disabled only on Jetson due to memory issues
     resnet_v1_50
-    #resnet_v2_50 disabled only on Jetson due to time limit for L2 tests
-    #vgg_16 disabled only on Jetson due to low perf.
-    #vgg_19 disabled only on Jetson due to low perf.
-    inception_v3
+    #resnet_v2_50 disabled due to calibration taking too long
+    #vgg_16 disabled only on Jetson due to low perf
+    #vgg_19 disabled due to calibration taking too long
+      #(Jetson has additional perf problems for VGG)
+    #inception_v3 disabled due to calibration taking too long
     inception_v4
   )
   if ! $JETSON ; then
-    models+=(vgg_16)
-    models+=(vgg_19)
-    models+=(resnet_v2_50)
     models+=(nasnet_mobile)
+    models+=(vgg_16)
   fi
 }
 
