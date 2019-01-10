@@ -72,7 +72,7 @@ RUN pip install --no-cache-dir --upgrade \
         librosa==0.6.1 \
         matplotlib \
         joblib==0.11 \
-        sentencepiece
+        sentencepiece==0.1.6
 # sacrebleu does not install cleanly with python2.
 RUN test ${PYVER%.*} -eq 2 || pip install --no-cache-dir --upgrade sacrebleu
 
