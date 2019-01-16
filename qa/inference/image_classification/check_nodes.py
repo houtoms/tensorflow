@@ -50,20 +50,16 @@ def check_nodes(res, filename, model, tol):
     }
 
     if dest_res_trt_only[model] == int(res['num_nodes(trt_only)']):
-        print("trt nodes only")
-        print("PASS")
+        print("PASS: trt nodes only")
     else:
-        print("FAIL")
-        print("number of trt nodes {} vs. {}".format(res['num_nodes(trt_only)'], dest_res_trt_only[model]))
+        print("FAIL: number of trt nodes {} vs. {}".format(res['num_nodes(trt_only)'], dest_res_trt_only[model]))
         sys.exit(1)
 
     
     if abs(int(res['num_nodes(tftrt_total)']) - int(dest_res_tftrt_total[model])) < tol*dest_res_tftrt_total[model]:
-        print("tftrt nodes total")
-        print("PASS")
+        print("PASS: tftrt nodes total")
     else:
-        print("FAIL")
-        print("total number of nodes {} vs. {}".format(res['num_nodes(tftrt_total)'], dest_res_tftrt_total[model]))
+        print("FAIL: total number of nodes {} vs. {}".format(res['num_nodes(tftrt_total)'], dest_res_tftrt_total[model]))
         sys.exit(1)
 
 
