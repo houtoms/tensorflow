@@ -255,7 +255,7 @@ class DepthwiseConv2DTest(xla_test.XLATestCase):
             t1, t2, strides=[1, stride, stride, 1], padding=padding)
       value = sess.run(conv, {t1: x1, t2: x2})
     print("value = ", value)
-    self.assertArrayNear(expected, np.ravel(value), 1e-5)
+    self.assertArrayNear(expected, np.ravel(value), 1e-4)
     self.assertShapeEqual(value, conv)
 
   def testConv2D2x2Filter(self):
@@ -379,8 +379,8 @@ class DepthwiseConv2DTest(xla_test.XLATestCase):
     for index, (input_size, filter_size, output_size, stride,
                 padding) in enumerate(ConfigsToTest()):
       print("Testing DepthwiseConv2DFilterGradCompare,", index, "th config:",
-            input_size, "*", filter_size, "stride:", stride, "padding:",
-            padding)
+            input_size, "*", filter_size, "producing output", output_size,
+            "stride:", stride, "padding:", padding)
       self._CompareBackpropFilter(input_size, filter_size, output_size,
                                   stride, padding)
 

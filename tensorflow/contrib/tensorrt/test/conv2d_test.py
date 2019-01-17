@@ -90,7 +90,7 @@ class Conv2DNCHWTest(trt_test.TfTrtIntegrationTestBase):
 
   def ExpectedEnginesToBuild(self, run_params):
     """Return the expected engines to build."""
-    return ["my_trt_op_0"]
+    return ["TRTEngineOp_0"]
 
 
 class Conv2DStridedNCHWTest(trt_test.TfTrtIntegrationTestBase):
@@ -130,7 +130,7 @@ class Conv2DStridedNCHWTest(trt_test.TfTrtIntegrationTestBase):
 
   def ExpectedEnginesToBuild(self, run_params):
     """Return the expected engines to build."""
-    return ["my_trt_op_0"]
+    return ["TRTEngineOp_0"]
 
 
 class Conv2DNHWCTest(trt_test.TfTrtIntegrationTestBase):
@@ -167,7 +167,7 @@ class Conv2DNHWCTest(trt_test.TfTrtIntegrationTestBase):
 
   def ExpectedEnginesToBuild(self, run_params):
     """Return the expected engines to build."""
-    return ["my_trt_op_0"]
+    return ["TRTEngineOp_0"]
 
 
 if __name__ == "__main__":

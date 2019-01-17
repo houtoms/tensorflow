@@ -89,7 +89,7 @@ pip$PYVER install --no-cache-dir --upgrade $WHL_OUT/tensorflow_gpu-*.whl
 if [[ $NOCLEAN -eq 0 ]]; then
   rm -f $WHL_OUT/tensorflow_gpu-*.whl
   bazel clean --expunge
-  rm .tf_configure.bazelrc .bazelrc
+  rm .tf_configure.bazelrc
   rm -rf ${HOME}/.cache/bazel /tmp/*
   if [[ "$LIBCUDA_FOUND" -eq 0 ]]; then
     rm /usr/local/cuda/lib64/stubs/libcuda.so.1

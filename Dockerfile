@@ -2,7 +2,7 @@ FROM gitlab-master.nvidia.com:5005/dl/dgx/cuda:10.0-devel-ubuntu16.04--master
 
 ENV LD_LIBRARY_PATH /usr/local/cuda/extras/CUPTI/lib64:${LD_LIBRARY_PATH}
 
-ENV TENSORFLOW_VERSION 1.12.0+
+ENV TENSORFLOW_VERSION r1.13
 LABEL com.nvidia.tensorflow.version="${TENSORFLOW_VERSION}"
 ENV NVIDIA_TENSORFLOW_VERSION 19.01
 
@@ -55,7 +55,8 @@ RUN pip install --no-cache-dir --upgrade \
         portpicker \
         h5py \
         keras_preprocessing==1.0.5 \
-        keras_applications==1.0.6
+        keras_applications==1.0.6 \
+        tensorflow_estimator
 
 # other OpenSeq2Seq dependencies
 RUN pip install --no-cache-dir --upgrade \
@@ -79,7 +80,7 @@ ENV BAZELRC /root/.bazelrc
 RUN echo "startup --batch" >> $BAZELRC && \
     echo "build --spawn_strategy=standalone --genrule_strategy=standalone" >> $BAZELRC
 
-RUN BAZEL_VERSION=0.15.0 && \
+RUN BAZEL_VERSION=0.19.2 && \
     mkdir /bazel && cd /bazel && \
     curl -fSsL -O https://github.com/bazelbuild/bazel/releases/download/$BAZEL_VERSION/bazel-$BAZEL_VERSION-installer-linux-x86_64.sh && \
     curl -fSsL -o /bazel/LICENSE.txt https://raw.githubusercontent.com/bazelbuild/bazel/master/LICENSE && \
@@ -146,7 +147,7 @@ RUN cd /opt/tensorflow/nvidia-examples/OpenSeq2Seq && \
         bazel-bin/ctc_decoder_with_lm/generate_trie \
         ctc_decoder_with_lm/ && \
     bazel clean --expunge && \
-    rm .tf_configure.bazelrc .bazelrc /usr/local/cuda/lib64/stubs/libcuda.so.1 && \
+    rm .tf_configure.bazelrc /usr/local/cuda/lib64/stubs/libcuda.so.1 && \
     rm -rf ${HOME}/.cache/bazel /tmp/*
 
 

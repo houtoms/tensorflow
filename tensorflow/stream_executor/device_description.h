@@ -25,7 +25,6 @@ limitations under the License.
 #include "absl/base/macros.h"
 #include "tensorflow/stream_executor/launch_dim.h"
 #include "tensorflow/stream_executor/platform/port.h"
-#include "tensorflow/stream_executor/cuda/cuda_driver.h"
 
 namespace stream_executor {
 namespace internal {
@@ -78,10 +77,6 @@ class DeviceDescription {
   // respective dimensions. These limits may affect what constitutes a
   // legitimate kernel launch request.
   const BlockDim &block_dim_limit() const { return block_dim_limit_; }
-
-  // Returns the limit on the number of simultaneously resident blocks
-  // on a multiprocessor.
-  //uint64 blocks_per_core_limit() const { return blocks_per_core_limit_; }
 
   // Returns the limit on the total number of threads that can be launched in a
   // single block; i.e. the limit on x * y * z dimensions of a ThreadDim.
@@ -326,23 +321,6 @@ void CalculateDimensionality(const DeviceDescription &device_description,
                              uint64 element_count, uint64 *threads_per_block,
                              uint64 *block_count);
 
-// Compute and return maximum blocks per core (occupancy) based on the
-// device description, some kernel characteristics and the number of threads per
-// block.  If unable to compute occupancy, zero is returned.
-int CalculateOccupancy(const DeviceDescription &device_description,
-                          uint64 registers_per_thread,
-                          uint64 shared_memory_per_block,
-                          const ThreadDim &thread_dims,
-                          CUfunction func);
-
-// Compute and return the suggested thread count to acheive ideal occupancy.
-// If the provided thread dimensions match this number, zero is returned.
-int CompareOccupancy(int* initial_blocks,
-                          const DeviceDescription &device_description,
-                          uint64 registers_per_thread,
-                          uint64 shared_memory_per_block,
-                          const ThreadDim &thread_dims,
-                          CUfunction func);
 }  // namespace stream_executor
 
 #endif  // TENSORFLOW_STREAM_EXECUTOR_DEVICE_DESCRIPTION_H_

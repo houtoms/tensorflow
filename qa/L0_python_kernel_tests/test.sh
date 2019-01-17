@@ -59,10 +59,10 @@ string_split_op_test.py
 string_strip_op_test.py
 string_to_hash_bucket_op_test.py
 substr_op_test.py
-summary_audio_op_test.py
-summary_image_op_test.py
-summary_ops_test.py
-summary_tensor_op_test.py
+summary_v1_audio_op_test.py
+summary_v1_image_op_test.py
+summary_v1_ops_test.py
+summary_v1_tensor_op_test.py
 accumulate_n_test.py
 aggregate_ops_test.py
 argmax_op_test.py
@@ -153,7 +153,6 @@ atrous_convolution_test.py
 functional_ops_test.py
 pad_op_test.py
 sets_test.py
-dct_ops_test.py
 shape_ops_test.py
 scatter_nd_ops_test.py
 cholesky_op_test.py
