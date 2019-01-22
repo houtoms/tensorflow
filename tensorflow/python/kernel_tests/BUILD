@@ -2639,7 +2639,7 @@ cuda_py_test(
 
 cuda_py_test(
     name = "conv_ops_test",
-    size = "medium",
+    size = "large",
     srcs = ["conv_ops_test.py"],
     additional_deps = [
         "//third_party/py/numpy",
@@ -2657,7 +2657,7 @@ cuda_py_test(
         "//tensorflow/python:random_ops",
         "//tensorflow/python:variables",
     ],
-    shard_count = 4,
+    shard_count = 8,
     tags = [
         # TODO(b/118887316): Re-enable this test in Kokoro.
         "no_oss",

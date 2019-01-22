@@ -751,7 +751,7 @@ tf_xla_py_test(
 
 tf_xla_py_test(
     name = "scan_ops_test",
-    size = "small",
+    size = "medium",
     srcs = ["scan_ops_test.py"],
     tags = ["optonly"],
     deps = [
@@ -882,8 +882,9 @@ tf_xla_py_test(
 
 tf_xla_py_test(
     name = "unary_ops_test",
-    size = "medium",
+    size = "large",
     srcs = ["unary_ops_test.py"],
+    shard_count = 3,
     deps = [
         ":xla_test",
         "//tensorflow/python:array_ops",
