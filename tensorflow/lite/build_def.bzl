@@ -262,7 +262,7 @@ def generated_test_models():
         "logical_and",
         "logical_or",
         "logical_xor",
-        "lstm",
+        #"lstm", TODO(b/122889684): Resolve toco structured line parsing in oss.
         "max_pool",
         "maximum",
         "mean",
@@ -324,6 +324,7 @@ def generated_test_models_failing(conversion_mode):
     if conversion_mode == "toco-flex":
         return [
             "lstm",  # TODO(b/117510976): Restore when lstm flex conversion works.
+            "unroll_batch_matmul",  # TODO(b/123030774): Fails in 1.13 tests.
         ]
 
     return []
