@@ -33,7 +33,7 @@ for i in $(seq 0 $((GPUS-1))); do
         while read -r INDEX SHARDS SCRIPT ARGS; do
             SCRIPT="${SCRIPT%%.py*}"
             NAME="${SCRIPT##*/}"
-            SCRIPT="%{SCRIPT%_[gc]pu}.py"
+            SCRIPT="${SCRIPT%_[gc]pu}.py"
 
             if [[ "$INDEX" != "NONE" ]]; then
                 export TEST_SHARD_INDEX=$INDEX
