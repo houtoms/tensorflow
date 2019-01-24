@@ -325,8 +325,8 @@ class CudnnLSTMTest(TensorFlowTestCase, parameterized.TestCase):
                             time,
                             num_layers,
                             dtype,
-                            rtol=2e-6,
-                            atol=2e-6):
+                            rtol=4e-6,
+                            atol=4e-6):
     with self.session(use_gpu=True) as sess:
       (outputs, cu_outputs, state_tuple, cu_state_tuple, inp_grad, cu_inp_grad,
        state_grad, cu_state_grad, wgrad, bgrad, cu_wgrad, cu_bgrad) = RunLSTM(
