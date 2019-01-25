@@ -79,11 +79,6 @@ bazel test --config=cuda -c opt --verbose_failures --local_test_jobs=$GPUS \
               -//tensorflow/contrib/distribute/python:mirrored_strategy_multigpu_test \
               -//tensorflow/contrib/distribute/python:mirrored_strategy_multigpu_test_gpu \
               -//tensorflow/contrib/saved_model:keras_saved_model_test \
-              `# cudnn rnn failures ` \
-              -//tensorflow/contrib/cudnn_rnn:cudnn_rnn_test_gpu \
-              -//tensorflow/contrib/cudnn_rnn:cudnn_rnn_test \
-              -//tensorflow/contrib/cudnn_rnn:cudnn_rnn_ops_test_gpu \
-              -//tensorflow/contrib/cudnn_rnn:cudnn_rnn_ops_test \
 2>&1 | tee testresult.tmp | grep '^\[\|^FAIL\|^Executed\|Build completed'
 
 FAILS=$?
