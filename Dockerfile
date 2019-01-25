@@ -84,7 +84,7 @@ RUN BAZEL_VERSION=0.19.2 && \
     mkdir /bazel && cd /bazel && \
     curl -fSsL -O https://github.com/bazelbuild/bazel/releases/download/$BAZEL_VERSION/bazel-$BAZEL_VERSION-installer-linux-x86_64.sh && \
     curl -fSsL -o /bazel/LICENSE.txt https://raw.githubusercontent.com/bazelbuild/bazel/master/LICENSE && \
-    bash ./bazel-$BAZEL_VERSION-installer-linux-x85_64.sh && \
+    bash ./bazel-$BAZEL_VERSION-installer-linux-x86_64.sh && \
     rm -rf /bazel
 
 # Download and build TensorFlow.
