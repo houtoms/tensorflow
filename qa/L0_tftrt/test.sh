@@ -34,8 +34,13 @@ echo tests ${tests[@]}
 #    It's currently broken. We don't use plugins yet. Once we
 #    start using plugins from the registry, then we should
 #    write some tests.
+#./test/quantization_mnist_test.py
+#    It's ignored because it uses data from testdata directory
+#    and it's too complicated to set that path of that dir
+#    such that it works for both bazel and python.
 ignored_tests="
 ./custom_plugin_examples/plugin_test.py
+./test/quantization_mnist_test.py
 "
 
 tmp_logfile="/tmp/tf_trt_test.log"

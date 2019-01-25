@@ -270,11 +270,7 @@ class QuantizationAwareTrainingMNISTTest(test_util.TensorFlowTestCase):
     if not trt_convert.is_tensorrt_enabled():
       return
 
-    # We don't run this test using bazel, and thus test_src_dir_path doesn't work.
-    # test.test_src_dir_path(PATH) returns the follwing path:
-    #     $TEST_SRCDIR/org_tensorflow/tensorflow/PATH
-    # model_dir = test.test_src_dir_path('contrib/tensorrt/test/testdata')
-    model_dir = 'test/testdata'
+    model_dir = test.test_src_dir_path('contrib/tensorrt/test/testdata')
 
     accuracy_tf_native = self._Run(
         is_training=False,
