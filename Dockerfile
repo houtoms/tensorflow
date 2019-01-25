@@ -2,9 +2,9 @@ FROM gitlab-master.nvidia.com:5005/dl/dgx/cuda:10.0-devel-ubuntu16.04--master
 
 ENV LD_LIBRARY_PATH /usr/local/cuda/extras/CUPTI/lib64:${LD_LIBRARY_PATH}
 
-ENV TENSORFLOW_VERSION r1.13
+ENV TENSORFLOW_VERSION v1.13.0-rc0
 LABEL com.nvidia.tensorflow.version="${TENSORFLOW_VERSION}"
-ENV NVIDIA_TENSORFLOW_VERSION 19.01
+ENV NVIDIA_TENSORFLOW_VERSION 19.02
 
 ARG PYVER=3.5
 
