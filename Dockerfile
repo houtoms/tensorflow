@@ -84,7 +84,7 @@ RUN BAZEL_VERSION=0.19.2 && \
     mkdir /bazel && cd /bazel && \
     curl -fSsL -O https://github.com/bazelbuild/bazel/releases/download/$BAZEL_VERSION/bazel-$BAZEL_VERSION-installer-linux-x86_64.sh && \
     curl -fSsL -o /bazel/LICENSE.txt https://raw.githubusercontent.com/bazelbuild/bazel/master/LICENSE && \
-    bash ./bazel-$BAZEL_VERSION-installer-linux-x86_64.sh && \
+    bash ./bazel-$BAZEL_VERSION-installer-linux-x85_64.sh && \
     rm -rf /bazel
 
 # Download and build TensorFlow.
@@ -102,6 +102,13 @@ ENV CUDA_TOOLKIT_PATH=/usr/local/cuda \
 
 # Build and install TF
 RUN ./nvbuild.sh --testlist --python$PYVER
+
+RUN git clone https://github.com/tensorflow/estimator -b r1.13 /opt/estimator && \
+    cd /opt/estimator && \
+    bazel build //tensorflow_estimator/tools/pip_package:build_pip_package && \
+    bazel-bin/tensorflow_estimator/tools/pip_package/build_pip_package /tmp/estimator_pip && \
+    pip install --no-cache-dir --upgrade /tmp/estimator_pip/*.whl && \
+    rm -rf ${HOME}/.cache/bazel /tmp/estimator_pip && bazel clean --expunge
 
 # Install DALI and build TF plugin, we need to have TF present already
 RUN DALI_VERSION=0.6.1 \
