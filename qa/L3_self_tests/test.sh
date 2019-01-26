@@ -45,7 +45,7 @@ bazel test --config=cuda -c opt --verbose_failures --local_test_jobs=$GPUS \
               -- \
               //tensorflow/core/... \
               //tensorflow/compiler/... \
-              //tensorflow/stream_executor/...
+              //tensorflow/stream_executor/... \
               //tensorflow/python/... \
               //tensorflow/contrib/... \
               `# data_utils_test known to hang` \
