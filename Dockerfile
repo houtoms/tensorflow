@@ -105,10 +105,13 @@ RUN ./nvbuild.sh --testlist --python$PYVER
 
 RUN git clone https://github.com/tensorflow/estimator -b r1.13 /opt/estimator && \
     cd /opt/estimator && \
+    ln -fs /usr/local/cuda/lib64/stubs/libcuda.so /usr/local/cuda/lib64/stubs/libcuda.so.1 && \
+    export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/cuda/lib64/stubs && \
     bazel build //tensorflow_estimator/tools/pip_package:build_pip_package && \
     bazel-bin/tensorflow_estimator/tools/pip_package/build_pip_package /tmp/estimator_pip && \
     pip install --no-cache-dir --upgrade /tmp/estimator_pip/*.whl && \
-    rm -rf ${HOME}/.cache/bazel /tmp/estimator_pip && bazel clean --expunge
+    rm -rf ${HOME}/.cache/bazel /tmp/estimator_pip /usr/local/cuda/lib64/stubs/libcuda.so.1 && \
+    bazel clean --expunge
 
 # Install DALI and build TF plugin, we need to have TF present already
 RUN DALI_VERSION=0.6.1 \
