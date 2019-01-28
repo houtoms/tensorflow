@@ -26,26 +26,15 @@ if [ ${NATIVE_ARCH} == 'aarch64' ]; then
   bash ./jetson/auto_conf.sh
 else
   PYVER=$(python -c 'import sys; print("{}.{}".format(sys.version_info[0], sys.version_info[1]))')
-  ./nvbuild.sh --configonly --python$PYVER
+  CHECK ./nvbuild.sh --configonly --python$PYVER
 
-  echo "Installing test dependencies..."
-  CHECK tensorflow/tools/ci_build/install/install_bootstrap_deb_packages.sh
-  CHECK tensorflow/tools/ci_build/install/install_deb_packages.sh
-  CHECK add-apt-repository -y ppa:openjdk-r/ppa
-  CHECK add-apt-repository -y ppa:george-edison55/cmake-3.x
-  if [[ "${PYVER%.*}" == "3" ]]; then
-    CHECK tensorflow/tools/ci_build/install/install_python${PYVER}_pip_packages.sh
-  else
-    CHECK tensorflow/tools/ci_build/install/install_pip_packages.sh
-  fi
-  CHECK tensorflow/tools/ci_build/install/install_proto3.sh
-  CHECK tensorflow/tools/ci_build/install/install_auditwheel.sh
+  CHECK apt-get update
+  CHECK apt-get install -y openjdk-8-jdk
 fi #aarch64 check
 
 
 echo "Building and running tests..."
 set +e
-FAILS=0
 
 bazel test --config=cuda -c opt --verbose_failures --local_test_jobs=$GPUS \
               --run_under=//tensorflow/tools/ci_build/gpu_build:parallel_gpu_execute \
@@ -55,7 +44,7 @@ bazel test --config=cuda -c opt --verbose_failures --local_test_jobs=$GPUS \
               //tensorflow/contrib/tensorrt/... \
 2>&1 | tee testresult.tmp | grep '^\[\|^FAIL\|^Executed\|Build completed'
 
-FAILS=$((FAILS+$?))
+FAILS=$?
 
 set -e
 { grep "test\.log" testresult.tmp || true; } | ./qa/show_testlogs
