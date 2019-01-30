@@ -24,25 +24,25 @@ def parse_file(filename):
 
 def check_nodes(res, filename, model, tol):
     dest_res_tftrt_total = {
-        'mobilenet_v1': 12,
-        'mobilenet_v2': 14,
-        'nasnet_large': 50,
-        'nasnet_mobile': 44,
-        'resnet_v1_50': 15,
-        'resnet_v2_50': 15,
-        'vgg_16': 10,
-        'vgg_19': 10,
-        'inception_v3': 12,
-        'inception_v4': 21
+        'mobilenet_v1': 7,
+        'mobilenet_v2': 7,
+        'nasnet_large': 29,
+        'nasnet_mobile': 23,
+        'resnet_v1_50': 10,
+        'resnet_v2_50': 10,
+        'vgg_16': 5,
+        'vgg_19': 5,
+        'inception_v3': 7,
+        'inception_v4': 17
     }
 
     dest_res_trt_only = {
         'mobilenet_v1': 1,
         'mobilenet_v2': 1,
-        'nasnet_large': 4,
-        'nasnet_mobile': 4,
-        'resnet_v1_50': 2,
-        'resnet_v2_50': 2,
+        'nasnet_large': 1,
+        'nasnet_mobile': 1,
+        'resnet_v1_50': 1,
+        'resnet_v2_50': 1,
         'vgg_16': 1,
         'vgg_19': 1,
         'inception_v3': 1,
