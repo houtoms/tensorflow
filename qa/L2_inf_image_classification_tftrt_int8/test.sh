@@ -81,7 +81,6 @@ do
   if $JETSON ; then
     python -u check_performance.py --input_path $OUTPUT_PATH --model $model --batch_size 8 --precision tftrt_int8 ; rv=$(($rv+$?))
   fi
-  set +e
   popd
 
   echo "DONE testing $model"
