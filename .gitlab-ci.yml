@@ -25,6 +25,7 @@ stages:
     - trigger
     - test
     - finalize
+    - release_to_akamai
 
 #############################
 ####### Docker builds #######
@@ -266,6 +267,18 @@ gather wheels:
     except:
       refs:
         - tags
+
+deploy web:
+    stage: release_to_akamai
+    script:
+    - docker pull gitlab-master.nvidia.com:5005/dl/devops/deploy_to_web:latest
+    - docker run  --privileged -v $(pwd)/wheelhouse:/workspace/wheelhouse --rm gitlab-master.nvidia.com:5005/dl/devops/deploy_to_web:latest /bin/bash -c "./main.sh"
+    when: manual
+    only:
+      variables:
+        - $TARGET == "jetson"
+    tags:
+    - deploy-web
 
 
 .manual_test_trigger: &MANUAL_TEST_TRIGGER
