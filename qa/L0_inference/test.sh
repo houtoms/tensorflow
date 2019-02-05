@@ -42,6 +42,7 @@ False
 True
 )
 
+rv=0
 for use_trt_dynamic_op in ${dynamic_op[@]}; do
     echo "Testing $model $use_trt_dynamic_op"
     dynamic_op_params=""
@@ -60,8 +61,8 @@ for use_trt_dynamic_op in ${dynamic_op[@]}; do
         2>&1 | tee $OUTPUT_FILE
     popd
     pushd $SCRIPTS_PATH
-    python -u check_accuracy.py --input_path $OUTPUT_PATH --batch_size 8 --model $model --dynamic_op $use_trt_dynamic_op --precision tftrt_fp16
-    python -u check_nodes.py --input_path $OUTPUT_PATH --batch_size 8 --model $model --dynamic_op $use_trt_dynamic_op --precision tftrt_fp16
+    python -u check_accuracy.py --input_path $OUTPUT_PATH --batch_size 8 --model $model --dynamic_op $use_trt_dynamic_op --precision tftrt_fp16 ; rv=$(($rv+$?))
+    python -u check_nodes.py --input_path $OUTPUT_PATH --batch_size 8 --model $model --dynamic_op $use_trt_dynamic_op --precision tftrt_fp16 ; rv=$(($rv+$?))
     popd
     echo "DONE testing $model $use_trt_dynamic_op"
 done
@@ -78,7 +79,6 @@ popd
 
 test_case="$SCRIPTS_PATH/tests/generic_acc/ssd_mobilenet_v1_coco_trt_fp16.json"
 echo "Testing $test_case..."
-python -m tftrt.examples.object_detection.test ${test_case}
+python -m tftrt.examples.object_detection.test ${test_case} ; rv=$(($rv+$?))
 echo "DONE testing $test_case"
-failure=$?
-exit $failure
+exit $rv
