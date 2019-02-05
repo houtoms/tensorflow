@@ -57,6 +57,7 @@ set_allocator() {
 set_allocator
 set_models
 
+rv=0
 for model in "${models[@]}"
 do
   echo "Testing $model..."
@@ -70,12 +71,13 @@ do
       2>&1 | tee $OUTPUT_PATH/output_tftrt_fp16_bs8_${model}_dynamic_op=False
   popd
   pushd $SCRIPTS_PATH
-  python -u check_accuracy.py --input $OUTPUT_PATH --precision tftrt_fp16 --batch_size 8 --model $model
-  python -u check_nodes.py --input_path $OUTPUT_PATH --model $model --precision tftrt_fp16 --batch_size 8
+  python -u check_accuracy.py --input $OUTPUT_PATH --precision tftrt_fp16 --batch_size 8 --model $model ; rv=$(($rv+$?))
+  python -u check_nodes.py --input_path $OUTPUT_PATH --model $model --precision tftrt_fp16 --batch_size 8 ; rv=$(($rv+$?))
   if $JETSON ; then
-    python -u check_performance.py --input_path $OUTPUT_PATH --model $model --precision tftrt_fp16 --batch_size 8 
+    python -u check_performance.py --input_path $OUTPUT_PATH --model $model --precision tftrt_fp16 --batch_size 8 ; rv=$(($rv+$?))
   fi
   popd
 
   echo "DONE testing $model"
 done
+exit $rv

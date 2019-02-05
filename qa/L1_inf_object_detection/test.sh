@@ -31,12 +31,11 @@ else
 fi
 
 echo Run all tests...
-failure=0
+rv=0
 for test_case in "${TEST_CASES[@]}"
 do
   echo "Testing $test_case..."
-  python -m tftrt.examples.object_detection.test ${test_case}
+  python -m tftrt.examples.object_detection.test ${test_case} ; rv=$(($rv+$?))
   echo "DONE testing $test_case"
-  failure=$[$failure || $?]
 done
-exit $failure
+exit $rv

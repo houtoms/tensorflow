@@ -70,11 +70,11 @@ def main():
     parser.add_argument('--batch_size', default=8)
     parser.add_argument('--precision', default='tf_fp32')
     parser.add_argument('--input_path')
-    parser.add_argument('--dynamic_op', default=False)
+    parser.add_argument('--dynamic_op', type=str, default='False')
 
     args = parser.parse_args()
 
-    fn = 'output_' + args.precision + '_bs' + str(args.batch_size) + '_' + args.model + '_dynamic_op=' + str(args.dynamic_op)
+    fn = 'output_' + args.precision + '_bs' + str(args.batch_size) + '_' + args.model + '_dynamic_op=' + args.dynamic_op
 
     print()
     print('checking nodes...')
