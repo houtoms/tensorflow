@@ -2,9 +2,11 @@ FROM gitlab-master.nvidia.com:5005/dl/dgx/cuda:10.0-devel-ubuntu16.04--master
 
 ENV LD_LIBRARY_PATH /usr/local/cuda/extras/CUPTI/lib64:${LD_LIBRARY_PATH}
 
-ENV TENSORFLOW_VERSION v1.13.0-rc0
+ARG TENSORFLOW_VERSION
+ENV TENSORFLOW_VERSION=${TENSORFLOW_VERSION}
 LABEL com.nvidia.tensorflow.version="${TENSORFLOW_VERSION}"
-ENV NVIDIA_TENSORFLOW_VERSION 19.02
+ARG NVIDIA_TENSORFLOW_VERSION
+ENV NVIDIA_TENSORFLOW_VERSION=${NVIDIA_TENSORFLOW_VERSION}
 
 ARG PYVER=3.5
 
@@ -114,9 +116,9 @@ RUN git clone https://github.com/tensorflow/estimator -b r1.13 /opt/estimator &&
     bazel clean --expunge
 
 # Install DALI and build TF plugin, we need to have TF present already
-RUN DALI_VERSION=0.6.1 \
- && DALI_BUILD=608405 \
- && pip install --no-cache-dir --upgrade \
+ENV DALI_VERSION=0.6.1 \
+    DALI_BUILD=608405
+RUN pip install --no-cache-dir --upgrade \
                 --extra-index-url https://developer.download.nvidia.com/compute/redist \
                 --extra-index-url http://sqrl/dldata/pip-simple --trusted-host sqrl \
         nvidia-dali==${DALI_VERSION} \
