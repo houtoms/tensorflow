@@ -1,10 +1,13 @@
 {
   "source_model": {
-    "model_name": "ssdlite_mobilenet_v2_coco",
+    "model_name": "faster_rcnn_resnet50_coco",
     "output_dir": "models"
   },
   "optimization_config": {
-    "use_trt": false,
+    "use_trt": true,
+    "precision_mode": "FP16",
+    "minimum_segment_size": 2,
+    "is_dynamic_op": true,
     "force_nms_cpu": true,
     "replace_relu6": false,
     "remove_assert": false,
@@ -17,9 +20,9 @@
     "batch_size": 1,
     "image_shape": [600, 600],
     "num_images": 4096,
-    "output_path": "stats/ssdlite_mobilenet_v2_coco_tf.json"
+    "output_path": "stats/faster_rcnn_resnet50_coco_trt_fp16.json"
   },
   "assertions": [
-    "statistics['map'] > (0.234 - 0.005)"
+    "statistics['map'] > (0.259 - 0.005)"
   ]
 }

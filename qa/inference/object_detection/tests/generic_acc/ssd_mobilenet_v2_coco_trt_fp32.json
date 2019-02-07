@@ -6,9 +6,11 @@
   "optimization_config": {
     "use_trt": true,
     "precision_mode": "FP32",
+    "minimum_segment_size": 2,
+    "is_dynamic_op": true,
     "force_nms_cpu": true,
-    "replace_relu6": true,
-    "remove_assert": true,
+    "replace_relu6": false,
+    "remove_assert": false,
     "override_nms_score_threshold": 0.3,
     "max_batch_size": 1
   },
