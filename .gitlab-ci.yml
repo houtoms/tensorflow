@@ -428,7 +428,7 @@ deploy web:
       name: "${CI_JOB_NAME}"
       paths:
       - wheelhouse/*
-      expire_in: 1 week
+      expire_in: 4 week
     only:
       variables:
         - $TARGET == "jetson"
