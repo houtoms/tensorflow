@@ -371,11 +371,13 @@ gather wheels:
 .XAVIER: &XAVIER
     tags:
     - XAVIER
+    - JP42
     - PY3
 
 .XAVIER_PY2: &XAVIER_PY2
     tags:
     - XAVIER
+    - JP42
     - PY2
 
 .V100_R410_16GPU: &V100_R410_16GPU
