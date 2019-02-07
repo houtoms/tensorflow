@@ -72,7 +72,8 @@ run_inference() {
       common_args="
         --model $i
         --default_models_dir /data/tensorflow/models
-        --data_dir /data/imagenet/train-val-tfrecord
+        --data_dir /data/imagenet/val-jpeg
+        --mode benchmark
         --calib_data_dir /data/imagenet/train-val-tfrecord
         --use_synthetic
         --batch_size $bs
