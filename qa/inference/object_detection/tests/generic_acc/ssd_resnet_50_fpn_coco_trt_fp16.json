@@ -7,7 +7,6 @@
     "use_trt": true,
     "precision_mode": "FP16",
     "minimum_segment_size": 2,
-    "is_dynamic_op": true,
     "force_nms_cpu": true,
     "replace_relu6": false,
     "remove_assert": false,
