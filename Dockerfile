@@ -1,4 +1,4 @@
-FROM gitlab-master.nvidia.com:5005/dl/dgx/cuda:10.0-devel-ubuntu16.04--master
+FROM gitlab-master.nvidia.com:5005/dl/dgx/cuda:10.1-devel-ubuntu16.04--master
 
 ENV LD_LIBRARY_PATH /usr/local/cuda/extras/CUPTI/lib64:${LD_LIBRARY_PATH}
 
