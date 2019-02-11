@@ -983,7 +983,7 @@ def _get_cuda_config(repository_ctx):
     """
   cpu_value = get_cpu_value(repository_ctx)
   toolkit_path = cuda_toolkit_path(repository_ctx)
-  (cuda_version, cuda_lib_version) = _cuda_version(repository_ctx, cuda_toolkit_path, cpu_value)
+  (cuda_version, cuda_lib_version) = _cuda_version(repository_ctx, toolkit_path, cpu_value)
   cudnn_install_basedir = _cudnn_install_basedir(repository_ctx)
   cudnn_version = _cudnn_version(repository_ctx, cudnn_install_basedir,
                                  cpu_value)
