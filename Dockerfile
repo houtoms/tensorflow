@@ -93,6 +93,19 @@ RUN BAZEL_VERSION=0.19.2 && \
 WORKDIR /opt/tensorflow
 COPY . .
 
+# MKL-DNN patch for floating point exception bug
+# Create mkl-dnn-${MKL_DNN_COMMIT}-patched.tar.gz for use by tensorflow/workspace.bzl
+RUN MKL_DNN_COMMIT=733fc908874c71a5285043931a1cf80aa923165c && \
+    curl -fSsL -O https://mirror.bazel.build/github.com/intel/mkl-dnn/archive/${MKL_DNN_COMMIT}.tar.gz && \
+    tar -xf ${MKL_DNN_COMMIT}.tar.gz && \
+    rm -f ${MKL_DNN_COMMIT}.tar.gz && \
+    cd mkl-dnn-${MKL_DNN_COMMIT} && \
+    patch -p0 < ../mkl-dnn.patch && \
+    cd .. && \
+    tar --mtime='1970-01-01' -cf mkl-dnn-${MKL_DNN_COMMIT}-patched.tar mkl-dnn-${MKL_DNN_COMMIT}/ && \
+    rm -rf mkl-dnn-${MKL_DNN_COMMIT}/ && \
+    gzip -n mkl-dnn-${MKL_DNN_COMMIT}-patched.tar
+
 # Link examples to workspace
 RUN mkdir -p /workspace/nvidia-examples && \
      ln -s /opt/tensorflow/nvidia-examples/* /workspace/nvidia-examples/
@@ -161,7 +174,6 @@ RUN cd /opt/tensorflow/nvidia-examples/OpenSeq2Seq && \
     bazel clean --expunge && \
     rm .tf_configure.bazelrc /usr/local/cuda/lib64/stubs/libcuda.so.1 && \
     rm -rf ${HOME}/.cache/bazel /tmp/*
-
 
 WORKDIR /workspace
 COPY NVREADME.md README.md

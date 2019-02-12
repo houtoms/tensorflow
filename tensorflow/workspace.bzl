@@ -114,11 +114,12 @@ def tf_workspace(path_prefix = "", tf_repo_name = ""):
     tf_http_archive(
         name = "mkl_dnn",
         build_file = clean_dep("//third_party/mkl_dnn:mkldnn.BUILD"),
-        sha256 = "b100f57af4a2b59a3a37a1ba38f77b644d2107d758a1a7f4e51310063cd21e73",
         strip_prefix = "mkl-dnn-733fc908874c71a5285043931a1cf80aa923165c",
         urls = [
-            "https://mirror.bazel.build/github.com/intel/mkl-dnn/archive/733fc908874c71a5285043931a1cf80aa923165c.tar.gz",
-            "https://github.com/intel/mkl-dnn/archive/733fc908874c71a5285043931a1cf80aa923165c.tar.gz",
+            # This is required by Bazel but does not actually exist.
+            "https://mirror.bazel.build/github.com/intel/mkl-dnn/archive/733fc908874c71a5285043931a1cf80aa923165c-patched.tar.gz",
+            # This is the local patched copy we generate during the docker build.
+            "file:///opt/tensorflow/mkl-dnn-733fc908874c71a5285043931a1cf80aa923165c-patched.tar.gz",
         ],
     )
 
