@@ -50,6 +50,7 @@ CUDA_LIB_PATHS = [
     "lib64/stubs/",
     "lib/powerpc64le-linux-gnu/",
     "lib/x86_64-linux-gnu/",
+    "lib/aarch64-linux-gnu/",
     "lib/x64/",
     "lib/",
     "",
@@ -847,7 +848,7 @@ def _find_libs(repository_ctx, cuda_config):
               "cublas",
               repository_ctx,
               cpu_value,
-              cuda_config.cublas_path,
+              cuda_config.cublas_install_basedir,
               cuda_config.cuda_lib_version,
           ),
       "cublasLt":
@@ -855,7 +856,7 @@ def _find_libs(repository_ctx, cuda_config):
               "cublasLt",
               repository_ctx,
               cpu_value,
-              cuda_config.cublas_path,
+              cuda_config.cublas_install_basedir,
               cuda_config.cuda_lib_version,
           ),
       "cusolver":
@@ -974,7 +975,7 @@ def _get_cuda_config(repository_ctx):
     Returns:
       A struct containing the following fields:
         cuda_toolkit_path: The CUDA toolkit installation directory.
-        cublas_path: The CUBLAS installation directory.
+        cublas_install_basedir: The CUBLAS installation directory.
         cudnn_install_basedir: The cuDNN installation directory.
         cuda_version: The version of CUDA on the system.
         cuda_lib_version: The version of the CUDA libraries on the system.
@@ -988,9 +989,14 @@ def _get_cuda_config(repository_ctx):
   cudnn_install_basedir = _cudnn_install_basedir(repository_ctx)
   cudnn_version = _cudnn_version(repository_ctx, cudnn_install_basedir,
                                  cpu_value)
+  if cuda_version != cuda_lib_version and cpu_value == "Linux":
+    cublas_install_basedir = "/usr" # libs will show up in system paths for CUDA >= 10.1 on Linux
+  else:
+    cublas_install_basedir = toolkit_path
+
   return struct(
       cuda_toolkit_path=toolkit_path,
-      cublas_path = "/usr/lib/x86_64-linux-gnu", # HACK
+      cublas_install_basedir=cublas_install_basedir,
       cudnn_install_basedir=cudnn_install_basedir,
       cuda_version=cuda_version,
       cuda_lib_version = cuda_lib_version,
