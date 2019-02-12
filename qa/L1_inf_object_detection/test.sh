@@ -27,7 +27,22 @@ if [[ "$is_xavier" == 1 ]]
 then
   TEST_CASES=(`ls $SCRIPTS_PATH/tests/xavier_acc_perf/*`)
 else
-  TEST_CASES=(`ls $SCRIPTS_PATH/tests/generic_acc/*`)
+  TEST_CASES=(
+    faster_rcnn_resnet50_coco.json
+    mask_rcnn_resnet50_atrous_coco.json
+    ssd_inception_v2_coco_tf.json
+    ssd_inception_v2_coco_trt_fp16.json
+    ssd_inception_v2_coco_trt_fp32.json
+    ssd_mobilenet_v1_coco_tf.json
+    ssd_mobilenet_v1_coco_trt_fp16.json
+    ssd_mobilenet_v1_coco_trt_fp32.json
+    ssd_mobilenet_v2_coco_tf.json
+    ssd_mobilenet_v2_coco_trt_fp16.jso
+    ssd_mobilenet_v2_coco_trt_fp32.json
+    ssdlite_mobilenet_v2_coco_tf.json
+    ssdlite_mobilenet_v2_coco_trt_fp16.json
+    ssdlite_mobilenet_v2_coco_trt_fp32.json
+    )
 fi
 
 echo Run all tests...
