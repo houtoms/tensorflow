@@ -974,6 +974,7 @@ def _get_cuda_config(repository_ctx):
     Returns:
       A struct containing the following fields:
         cuda_toolkit_path: The CUDA toolkit installation directory.
+        cublas_path: The CUBLAS installation directory.
         cudnn_install_basedir: The cuDNN installation directory.
         cuda_version: The version of CUDA on the system.
         cuda_lib_version: The version of the CUDA libraries on the system.
@@ -1072,6 +1073,8 @@ def _create_dummy_repository(repository_ctx):
               _lib_name("cudart", cpu_value),
           "%{cublas_lib}":
               _lib_name("cublas", cpu_value),
+          "%{cublasLt_lib}":
+              _lib_name("cublasLt", cpu_value),
           "%{cusolver_lib}":
               _lib_name("cusolver", cpu_value),
           "%{nvtools_lib}":
@@ -1102,6 +1105,7 @@ def _create_dummy_repository(repository_ctx):
   repository_ctx.file(
       "cuda/cuda/lib/%s" % _lib_name("cudart_static", cpu_value))
   repository_ctx.file("cuda/cuda/lib/%s" % _lib_name("cublas", cpu_value))
+  repository_ctx.file("cuda/cuda/lib/%s" % _lib_name("cublasLt", cpu_value))
   repository_ctx.file("cuda/cuda/lib/%s" % _lib_name("cusolver", cpu_value))
   repository_ctx.file("cuda/cuda/lib/%s" % _lib_name("cudnn", cpu_value))
   repository_ctx.file("cuda/cuda/lib/%s" % _lib_name("curand", cpu_value))
@@ -1116,6 +1120,8 @@ def _create_dummy_repository(repository_ctx):
       "cuda:cuda_config.h",
       {
           "%{cuda_version}":
+              _DEFAULT_CUDA_VERSION,
+          "%{cuda_lib_version}":
               _DEFAULT_CUDA_VERSION,
           "%{cudnn_version}":
               _DEFAULT_CUDNN_VERSION,
@@ -1552,6 +1558,8 @@ def _create_local_cuda_repository(repository_ctx):
       {
           "%{cuda_version}":
               cuda_config.cuda_version,
+          "%{cuda_lib_version}":
+              cuda_config.cuda_lib_version,
           "%{cudnn_version}":
               cuda_config.cudnn_version,
           "%{cuda_compute_capabilities}":
