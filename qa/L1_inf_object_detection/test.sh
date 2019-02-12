@@ -25,7 +25,26 @@ is_xavier=$[$is_aarch64 && $is_8cpu]
 echo Find all test cases...
 if [[ "$is_xavier" == 1 ]]
 then
-  TEST_CASES=(`ls $SCRIPTS_PATH/tests/xavier_acc_perf/*`)
+  TEST_CASES=(
+    faster_rcnn_resnet50_coco.json
+    ssd_inception_v2_coco_trt_fp16.json
+    ssdlite_mobilenet_v2_coco_trt_fp16.json
+    ssd_mobilenet_v1_coco_trt_fp16.json
+    ssd_mobilenet_v2_coco_trt_fp16.json
+    mask_rcnn_resnet50_atrous_coco.json
+    ssd_inception_v2_coco_trt_fp32.json
+    ssdlite_mobilenet_v2_coco_trt_fp32.json
+    ssd_mobilenet_v1_coco_trt_fp32.json
+    ssd_mobilenet_v2_coco_trt_fp32.json
+    ssd_inception_v2_coco_tf.json
+    ssdlite_mobilenet_v2_coco_tf.json
+    ssd_mobilenet_v1_coco_tf.json
+    ssd_mobilenet_v2_coco_tf.json
+    )
+  for (( i=0; i<${#array[@]}; i++ ));
+  do
+    TEST_CASES[$i]="$SCRIPTS_PATH/tests/xavier_acc_perf/${TEST_CASES[$i]}"
+  done
 else
   TEST_CASES=(
     faster_rcnn_resnet50_coco.json
@@ -43,6 +62,10 @@ else
     ssdlite_mobilenet_v2_coco_trt_fp16.json
     ssdlite_mobilenet_v2_coco_trt_fp32.json
     )
+  for (( i=0; i<${#array[@]}; i++ ));
+  do
+    TEST_CASES[$i]="$SCRIPTS_PATH/tests/generic_acc/${TEST_CASES[$i]}"
+  done
 fi
 
 echo Run all tests...
