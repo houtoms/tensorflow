@@ -851,14 +851,6 @@ def _find_libs(repository_ctx, cuda_config):
               cuda_config.cublas_install_basedir,
               cuda_config.cuda_lib_version,
           ),
-      "cublasLt":
-          _find_cuda_lib(
-              "cublasLt",
-              repository_ctx,
-              cpu_value,
-              cuda_config.cublas_install_basedir,
-              cuda_config.cuda_lib_version,
-          ),
       "cusolver":
           _find_cuda_lib(
               "cusolver",
@@ -1079,8 +1071,6 @@ def _create_dummy_repository(repository_ctx):
               _lib_name("cudart", cpu_value),
           "%{cublas_lib}":
               _lib_name("cublas", cpu_value),
-          "%{cublasLt_lib}":
-              _lib_name("cublasLt", cpu_value),
           "%{cusolver_lib}":
               _lib_name("cusolver", cpu_value),
           "%{nvtools_lib}":
@@ -1111,7 +1101,6 @@ def _create_dummy_repository(repository_ctx):
   repository_ctx.file(
       "cuda/cuda/lib/%s" % _lib_name("cudart_static", cpu_value))
   repository_ctx.file("cuda/cuda/lib/%s" % _lib_name("cublas", cpu_value))
-  repository_ctx.file("cuda/cuda/lib/%s" % _lib_name("cublasLt", cpu_value))
   repository_ctx.file("cuda/cuda/lib/%s" % _lib_name("cusolver", cpu_value))
   repository_ctx.file("cuda/cuda/lib/%s" % _lib_name("cudnn", cpu_value))
   repository_ctx.file("cuda/cuda/lib/%s" % _lib_name("curand", cpu_value))
@@ -1421,8 +1410,6 @@ def _create_local_cuda_repository(repository_ctx):
               cuda_libs["cudart"].file_name,
           "%{cublas_lib}":
               cuda_libs["cublas"].file_name,
-          "%{cublasLt_lib}":
-              cuda_libs["cublasLt"].file_name,
           "%{cusolver_lib}":
               cuda_libs["cusolver"].file_name,
           "%{cudnn_lib}":
@@ -1439,8 +1426,7 @@ def _create_local_cuda_repository(repository_ctx):
                               '        ":cublas-include",\n' +
                               '        ":cudnn-include",'
                              ),
-          "%{cublasLt_deps}": 'deps = [ ":cublasLt", ],',
-            "%{nvtools_lib}": cuda_libs["nvToolsExt"].file_name,
+          "%{nvtools_lib}": cuda_libs["nvToolsExt"].file_name,
       },
       "cuda/BUILD",
   )

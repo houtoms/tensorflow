@@ -109,19 +109,6 @@ cc_library(
         ".",
         "cuda/include",
     ],
-    %{cublasLt_deps}
-    linkstatic = 1,
-    visibility = ["//visibility:public"],
-)
-
-cc_library(
-    name = "cublasLt",
-    srcs = ["cuda/lib/%{cublasLt_lib}"],
-    data = ["cuda/lib/%{cublasLt_lib}"],
-    includes = [
-        ".",
-        "cuda/include",
-    ],
     linkstatic = 1,
     visibility = ["//visibility:public"],
 )
