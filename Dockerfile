@@ -58,8 +58,7 @@ RUN pip install --no-cache-dir --upgrade \
         portpicker \
         h5py \
         keras_preprocessing==1.0.5 \
-        keras_applications==1.0.6 \
-        tensorflow_estimator
+        keras_applications==1.0.6
 
 # other OpenSeq2Seq dependencies
 RUN pip install --no-cache-dir --upgrade \
