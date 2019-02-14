@@ -120,6 +120,8 @@ def tf_workspace(path_prefix = "", tf_repo_name = ""):
             "https://mirror.bazel.build/github.com/intel/mkl-dnn/archive/733fc908874c71a5285043931a1cf80aa923165c-patched.tar.gz",
             # This is the local patched copy we generate during the docker build.
             "file:///opt/tensorflow/mkl-dnn-733fc908874c71a5285043931a1cf80aa923165c-patched.tar.gz",
+            # Fall back to the original if the patched version can't be found -- like on desktop or on ARM
+            "https://mirror.bazel.build/github.com/intel/mkl-dnn/archive/733fc908874c71a5285043931a1cf80aa923165c.tar.gz",
         ],
     )
 
