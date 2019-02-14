@@ -483,6 +483,7 @@ jetson-xavier-py3.6-wheel:
     - set -x &&
       python${PYVER} -m virtualenv ./tf_env${PYVER} &&
       source ./tf_env${PYVER}/bin/activate &&
+      pip uninstall -y ${PIP_PACKAGE_NAME} &&
       pip install -U --find-links=file://$PWD/wheelhouse/${JPVER} ${PIP_PACKAGE_NAME} &&
       cd ${TEST_WORK_DIR} && sync && echo 3 |sudo tee /proc/sys/vm/drop_caches && export LD_LIBRARY_PATH=/usr/local/cuda/extras/CUPTI/lib64:${LD_LIBRARY_PATH} &&
       exec bash -ex ${TEST_SCRIPT} || RV=$?;
