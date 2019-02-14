@@ -69,9 +69,16 @@ bazel test --config=cuda -c opt --verbose_failures --local_test_jobs=$GPUS \
               -//tensorflow/python/keras:training_generator_test \
               `# Check failed: IsAligned()` \
               -//tensorflow/python/data/experimental/kernel_tests/optimization:map_vectorization_test \
-              `# As of 1.13.0-rc0 distribute mirrored multi-gpu fails with IndexError: pop from empty list` \
+              `# Tests waiting on updated estimator` \
+              -//tensorflow/contrib/distribute/python:estimator_training_test \
+              -//tensorflow/contrib/distribute/python:estimator_training_test_gpu \
+              -//tensorflow/contrib/distribute/python:estimator_integration_test \
+              -//tensorflow/contrib/distribute/python:estimator_integration_test_gpu \
+              -//tensorflow/contrib/distribute/python:keras_test \
+              -//tensorflow/contrib/distribute/python:keras_test_gpu \
               -//tensorflow/contrib/distribute/python:mirrored_strategy_multigpu_test \
               -//tensorflow/contrib/distribute/python:mirrored_strategy_multigpu_test_gpu \
+              -//tensorflow/contrib/saved_model:keras_saved_model_test \
 2>&1 | tee testresult.tmp | grep '^\[\|^FAIL\|^Executed\|Build completed'
 
 FAILS=$?
