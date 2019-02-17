@@ -16,7 +16,8 @@ def _fp32_trainvar_getter(getter, name, shape=None, dtype=None,
             cast_variable = tf.get_default_graph().get_tensor_by_name(
                 cast_name + ':0')
         except KeyError:
-            cast_variable = tf.cast(variable, dtype, name=cast_name)
+            with tf.control_dependencies(None):
+                cast_variable = tf.cast(variable, dtype, name=cast_name)
         cast_variable._ref = variable._ref
         variable = cast_variable
     return variable

@@ -42,12 +42,12 @@ systemctl disable ondemand nvpmodel
 
 # Install base system packages
 apt-get update && apt-get install libpng12-dev || echo "libpng12-dev not found" && 
-	apt-get install -y build-essential openjdk-8-jdk zip python-pip python3-pip libfreetype6-dev libjpeg8-dev
+	apt-get install -y build-essential openjdk-8-jdk zip python-pip python3-pip libfreetype6-dev libjpeg8-dev libhdf5-dev
 pip install virtualenv
 pip3 install virtualenv
 
 # Install bazel
-BAZEL_VERSION=0.15.0
+BAZEL_VERSION=0.20.0
 mkdir -p /tmp/bazel
 pushd /tmp/bazel
 wget https://github.com/bazelbuild/bazel/releases/download/${BAZEL_VERSION}/bazel-${BAZEL_VERSION}-dist.zip
@@ -107,7 +107,7 @@ esac
 
 # Register the gitlab runner
 pushd $HOME
-git clone https://gitlab-dl.nvidia.com/devops/gitlab-runner.git
+git clone https://gitlab-master.nvidia.com/dl/devops/gitlab-runner.git
 cd gitlab-runner
 ./run-jetson.sh 0 ${MODELNAME}
 popd

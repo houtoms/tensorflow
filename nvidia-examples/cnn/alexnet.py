@@ -29,6 +29,7 @@ default_args = {
     'batch_size' : 256,
     'data_dir' : None,
     'log_dir' : None,
+    'export_dir' : None,
     'precision' : 'fp16',
     'momentum' : 0.9,
     'learning_rate_init' : 1.0,
@@ -67,8 +68,11 @@ def alexnet_owt(inputs, training):
     x = builder.dropout(x)
     return x
 
-nvutils.train(alexnet_owt, args)
-
-if args['log_dir'] is not None and args['data_dir'] is not None:
-    nvutils.validate(alexnet_owt, args)
+if args['predict']:
+    if args['log_dir'] is not None and args['data_dir'] is not None:
+        nvutils.predict(alexnet_owt, args)
+else:
+    nvutils.train(alexnet_owt, args)
+    if args['log_dir'] is not None and args['data_dir'] is not None:
+        nvutils.validate(alexnet_owt, args)
 

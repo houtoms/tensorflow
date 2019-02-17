@@ -1,0 +1,1 @@
+-c opt --verbose_failures --config=opt --config=noaws --config=noignite --config=nokafka --config=nohdfs  --config=nonccl --test_tag_filters=-no_arm,-no_gpu,-benchmark-test --cpu=arm --host_cpu=arm --copt=-DEIGEN_HAS_CXX11_MATH=1 --cxxopt=-DEIGEN_HAS_CXX11_MATH=1 --host_copt=-DEIGEN_HAS_CXX11_MATH=1 --host_cxxopt=-DEIGEN_HAS_CXX11_MATH=1

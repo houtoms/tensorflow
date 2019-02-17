@@ -80,6 +80,11 @@ def parse_cmdline(init_vals, custom_parser=None):
                    required=_required(init_vals, 'log_dir'),
                    help="""Directory in which to write training
                    summaries and checkpoints.""")
+    p.add_argument('--export_dir',
+                   default=_default(init_vals, 'export_dir'),
+                   required=_required(init_vals, 'export_dir'),
+                   help="""Directory in which to write the saved
+                   model.""")
     p.add_argument('--display_every', type=int,
                    default=_default(init_vals, 'display_every'),
                    required=_required(init_vals, 'display_every'),
@@ -89,9 +94,16 @@ def parse_cmdline(init_vals, custom_parser=None):
                    default=_default(init_vals, 'precision'),
                    required=_required(init_vals, 'precision'),
                    help="""Select single or half precision arithmetic.""")
-    p.add_argument('--use_dali', action='store_true',
+    p.add_argument('--use_dali', choices=['CPU', 'GPU'],
+                   default=_default(init_vals, 'use_dali'),
+                   required=_required(init_vals, 'use_dali'),
+                   nargs='?', const='GPU',
+                   help="""Use DALI for input pipeline, available values are
+                   [CPU|GPU] which tell which version of the pipeline run.
+                   Default is GPU""")
+    p.add_argument('--predict', action='store_true',
                    default=False,
-                   help="""Use DALI for input pipeline""")
+                   help="""Use the script only for prediction""")
 
     FLAGS, unknown_args = p.parse_known_args()
     if len(unknown_args) > 0:
@@ -104,7 +116,7 @@ def parse_cmdline(init_vals, custom_parser=None):
         for flag, val in vars(FLAGS).items():
             if val is not None:
                 print("  --{} {}".format(flag, val))
-   
+
     vals = init_vals
     vals['data_dir'] = FLAGS.data_dir
     del FLAGS.data_dir
@@ -118,12 +130,15 @@ def parse_cmdline(init_vals, custom_parser=None):
     del FLAGS.iter_unit
     vals['log_dir'] = FLAGS.log_dir
     del FLAGS.log_dir
+    vals['export_dir'] = FLAGS.export_dir
+    del FLAGS.export_dir
     vals['display_every'] = FLAGS.display_every
     del FLAGS.display_every
     vals['precision'] = FLAGS.precision
     del FLAGS.precision
     vals['use_dali'] = FLAGS.use_dali
     del FLAGS.use_dali
+    vals['predict'] = FLAGS.predict
+    del FLAGS.predict
 
     return vals, FLAGS
-

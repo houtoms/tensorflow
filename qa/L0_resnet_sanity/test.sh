@@ -1,5 +1,9 @@
 #!/bin/bash
 
+# Script has explicit error logging
+set +x
+set +e
+
 echo '--------------------------------------------------------------------------------'
 echo TensorFlow Container $NVIDIA_TENSORFLOW_VERSION
 echo Container Build ID $NVIDIA_BUILD_ID
@@ -13,7 +17,7 @@ DATA="--data_dir=/data/imagenet/train-val-tfrecord-480"
 get_PERF() {
     PRECISION=$1
     
-    mpiexec --bind-to socket --allow-run-as-root -np $GPUS python -u \
+    mpiexec --bind-to none --allow-run-as-root -np $GPUS python -u \
         ../../nvidia-examples/cnn/resnet.py \
         --layers=50 \
         --num_iter=101 \

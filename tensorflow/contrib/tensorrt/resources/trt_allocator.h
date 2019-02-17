@@ -16,36 +16,34 @@ limitations under the License.
 #ifndef TENSORFLOW_CONTRIB_TENSORRT_RESOURCES_TRT_ALLOCATOR_H_
 #define TENSORFLOW_CONTRIB_TENSORRT_RESOURCES_TRT_ALLOCATOR_H_
 
-#include "tensorflow/contrib/tensorrt/log/trt_logger.h"
+#include <unordered_map>
+
 #include "tensorflow/core/framework/allocator.h"
 
 #if GOOGLE_CUDA
 #if GOOGLE_TENSORRT
 #include "tensorrt/include/NvInfer.h"
-
-#if NV_TENSORRT_MAJOR == 3
-// Define interface here temporarily until TRT 4.0 is released
-namespace nvinfer1 {
-class IGpuAllocator {
- public:
-  virtual void* allocate(uint64_t size, uint64_t alignment, uint32_t flags) = 0;
-  virtual void free(void* memory) = 0;
-};
-}  // namespace nvinfer1
-#endif
+#endif  // GOOGLE_TENSORRT
+#endif  // GOOGLE_CUDA
 
 namespace tensorflow {
 namespace tensorrt {
+// std::align is not supported, so this function mimic its behavior.
+void* Align(uint64_t alignment, uint64_t size, void*& ptr, uint64_t& space);
+}  // namespace tensorrt
+}  // namespace tensorflow
 
+#if GOOGLE_CUDA
+#if GOOGLE_TENSORRT
+
+namespace tensorflow {
+namespace tensorrt {
 
 class TRTBaseAllocator : public nvinfer1::IGpuAllocator {
   // Base allocator class so we can have a virtual destructor;
  public:
   // python wrapper seems to be not happy with an pure virtual destructor;
   virtual ~TRTBaseAllocator() = default;
-  uint64_t getGpuMemAlignment() {
-    return 512;
-  }
 };
 
 class TRTCudaAllocator : public TRTBaseAllocator {
@@ -73,6 +71,7 @@ class TRTDeviceAllocator : public TRTBaseAllocator {
 
  private:
   tensorflow::Allocator* allocator_;
+
   // supporting alignment from allocation request requires a map to free;
   std::unordered_map<void*, void*> mem_map_;
 };

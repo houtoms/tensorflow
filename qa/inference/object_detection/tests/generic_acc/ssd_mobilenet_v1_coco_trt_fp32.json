@@ -1,0 +1,26 @@
+{
+  "source_model": {
+    "model_name": "ssd_mobilenet_v1_coco",
+    "output_dir": "models"
+  },
+  "optimization_config": {
+    "use_trt": true,
+    "precision_mode": "FP32",
+    "force_nms_cpu": true,
+    "replace_relu6": true,
+    "remove_assert": true,
+    "override_nms_score_threshold": 0.3,
+    "max_batch_size": 1
+  },
+  "benchmark_config": {
+    "images_dir": "/data/coco/coco-2017/coco2017/val2017",
+    "annotation_path": "/data/coco/coco-2017/coco2017/annotations/instances_val2017.json",
+    "batch_size": 1,
+    "image_shape": [600, 600],
+    "num_images": 4096,
+    "output_path": "stats/ssd_mobilenet_v1_coco_trt_fp32.json"
+  },
+  "assertions": [
+    "statistics['map'] > (0.224 - 0.005)"
+  ]
+}

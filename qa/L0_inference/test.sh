@@ -1,19 +1,28 @@
 #!/bin/bash
 
-set -e
-set -v
+set +e
 
-# IMAGE CLASSIFICATION
-
-pip install requests
-MODELS="$PWD/../third_party/tensorflow_models/"
-export PYTHONPATH="$PYTHONPATH:$MODELS"
-pushd $MODELS/research/slim
+echo Setup tensorflow/tensorrt...
+TRT_PATH="$PWD/../../nvidia-examples/tensorrt/"
+pushd $TRT_PATH
 python setup.py install
 popd
 
+# IMAGE CLASSIFICATION
+
 OUTPUT_PATH=$PWD
-pushd ../../nvidia-examples/inference/image-classification/scripts
+EXAMPLE_PATH="$TRT_PATH/tftrt/examples/image-classification/"
+TF_MODELS_PATH="$TRT_PATH/tftrt/examples/third_party/models/"
+SCRIPTS_PATH="$PWD/../inference/image_classification/"
+
+export PYTHONPATH="$PYTHONPATH:$TF_MODELS_PATH"
+
+echo Install dependencies of image_classification...
+pushd $EXAMPLE_PATH
+./install_dependencies.sh
+popd
+
+echo PYTHONPATH $PYTHONPATH
 
 set_allocator() {
   NATIVE_ARCH=`uname -m`
@@ -27,40 +36,49 @@ set_allocator() {
 set_allocator
 
 model="mobilenet_v1"
-for use_trt_dynamic_op in "" "--use_trt_dynamic_op"; do
+
+dynamic_op=(
+False
+True
+)
+
+rv=0
+for use_trt_dynamic_op in ${dynamic_op[@]}; do
     echo "Testing $model $use_trt_dynamic_op"
-    OUTPUT_FILE=$OUTPUT_PATH/output_tftrt_fp16_${model}${use_trt_dynamic_op}
-    python -u inference.py --model $model --use_trt $use_trt_dynamic_op --precision fp16 2>&1 | tee $OUTPUT_FILE
-    python -u check_accuracy.py --input $OUTPUT_FILE
+    dynamic_op_params=""
+    if [ ${use_trt_dynamic_op} == True ] ; then
+        dynamic_op_params=--use_trt_dynamic_op
+    fi;
+
+    OUTPUT_FILE=$OUTPUT_PATH/output_tftrt_fp16_bs8_${model}_dynamic_op=${use_trt_dynamic_op}
+    pushd $EXAMPLE_PATH
+    python -u image_classification.py \
+        --data_dir "/data/imagenet/train-val-tfrecord" \
+        --model $model \
+        --use_trt \
+        --precision fp16 \
+        $dynamic_op_params \
+        2>&1 | tee $OUTPUT_FILE
+    popd
+    pushd $SCRIPTS_PATH
+    python -u check_accuracy.py --input_path $OUTPUT_PATH --batch_size 8 --model $model --dynamic_op $use_trt_dynamic_op --precision tftrt_fp16 ; rv=$(($rv+$?))
+    python -u check_nodes.py --input_path $OUTPUT_PATH --batch_size 8 --model $model --dynamic_op $use_trt_dynamic_op --precision tftrt_fp16 ; rv=$(($rv+$?))
+    popd
     echo "DONE testing $model $use_trt_dynamic_op"
 done
-popd
 
 # OBJECT DETECTION
 
-MAP_ERROR_THRESHOLD=0.001
+EXAMPLE_PATH="$TRT_PATH/tftrt/examples/object_detection/"
+SCRIPTS_PATH="$PWD/../inference/object_detection/"
 
-source $PWD/../inference/object_detection/setup_env.sh
-
-pushd $PWD/../../nvidia-examples/inference/object-detection
-
-./setup.sh
-
-model=ssd_mobilenet_v1_coco
-precision_mode=FP16
-
-python -u -m object_detection_benchmark.test $model \
-  --use_trt \
-  --precision_mode $precision_mode \
-  --minimum_segment_size 50 \
-  --force_nms_cpu \
-  --remove_assert \
-  --coco_dir $COCO_DIR \
-  --coco_year $COCO_YEAR \
-  --static_data_dir $STATIC_DATA_DIR \
-  --data_dir $DATA_DIR \
-  --image_ids_path $IMAGE_IDS_PATH \
-  --reference_map_path $REFERENCE_MAP_PATH \
-  --map_error_threshold $MAP_ERROR_THRESHOLD
-
+echo Install dependencies of object_detection...
+pushd $EXAMPLE_PATH
+./install_dependencies.sh
 popd
+
+test_case="$SCRIPTS_PATH/tests/generic_acc/ssd_mobilenet_v1_coco_trt_fp16.json"
+echo "Testing $test_case..."
+python -m tftrt.examples.object_detection.test ${test_case} ; rv=$(($rv+$?))
+echo "DONE testing $test_case"
+exit $rv

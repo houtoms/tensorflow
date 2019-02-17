@@ -14,6 +14,7 @@
 # ==============================================================================
 """Simple MNIST classifier example with JIT XLA and timelines.
 
+  Note: Please see further comments in the BUILD file to invoke XLA.
 """
 from __future__ import absolute_import
 from __future__ import division
@@ -23,7 +24,7 @@ import argparse
 import sys
 
 import tensorflow as tf
-
+import platform
 from tensorflow.examples.tutorials.mnist import input_data
 from tensorflow.python.client import timeline
 
@@ -56,7 +57,7 @@ def main(_):
   train_step = tf.train.GradientDescentOptimizer(0.5).minimize(cross_entropy)
 
   config = tf.ConfigProto()
-  jit_level = 0
+  jit_level = tf.OptimizerOptions.DEFAULT
   if FLAGS.xla:
     # Turns on XLA JIT compilation.
     jit_level = tf.OptimizerOptions.ON_1
@@ -72,14 +73,14 @@ def main(_):
 
     # Create a timeline for the last loop and export to json to view with
     # chrome://tracing/.
-    if i == train_loops - 1:
+    if i == train_loops - 1 and platform.machine() != "aarch64": #cupti is broken on jp 4.1.1 on xavier
       sess.run(train_step,
                feed_dict={x: batch_xs,
                           y_: batch_ys},
                options=tf.RunOptions(trace_level=tf.RunOptions.FULL_TRACE),
                run_metadata=run_metadata)
       trace = timeline.Timeline(step_stats=run_metadata.step_stats)
-      with open('timeline.ctf.json', 'w') as trace_file:
+      with open('/tmp/timeline.ctf.json', 'w') as trace_file:
         trace_file.write(trace.generate_chrome_trace_format())
     else:
       sess.run(train_step, feed_dict={x: batch_xs, y_: batch_ys})

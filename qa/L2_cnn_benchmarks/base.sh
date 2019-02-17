@@ -62,64 +62,65 @@ function run_config {
                 fi
                 local TMP_DIR="$(mktemp -d dir.XXXXXX)"
 
-                echo mpiexec --bind-to socket --allow-run-as-root -np $G python -u \
-                    $CNN_SCRIPT \
-                    $DATA_FLAG \
-                    --log_dir="$TMP_DIR" \
-                    --precision=$M \
-                    --num_iter=$((RUN_TO+1)) \
-                    --iter_unit=batch \
-                    --display_every=$WARMUP \
-                    --batch=$BATCH > "$TMPFILE"
-                echo "==================================================" >> "$TMPFILE"
-            
-                SECONDS=0
-                mpiexec --allow-run-as-root --bind-to socket -np $G python -u \
-                    $CNN_SCRIPT \
-                    $DATA_FLAG \
-                    --log_dir="$TMP_DIR" \
-                    --precision=$M \
-                    --num_iter=$((RUN_TO+1)) \
-                    --iter_unit=batch \
-                    --display_every=$WARMUP \
-                    --batch=$BATCH >> "$TMPFILE" 2>&1
-                WALLTIME=$SECONDS
+                MAX_RUNS=2
+                for RUN in $(seq 1 $MAX_RUNS); do
+                    echo mpiexec --bind-to none --allow-run-as-root -np $G python -u \
+                        $CNN_SCRIPT \
+                        $DATA_FLAG \
+                        --log_dir="$TMP_DIR" \
+                        --precision=$M \
+                        --num_iter=$((RUN_TO+1)) \
+                        --iter_unit=batch \
+                        --display_every=$WARMUP \
+                        --batch=$BATCH > "$TMPFILE"
+                    echo "==================================================" >> "$TMPFILE"
+           
+                    SECONDS=0
+                    mpiexec --allow-run-as-root --bind-to none -np $G python -u \
+                        $CNN_SCRIPT \
+                        $DATA_FLAG \
+                        --log_dir="$TMP_DIR" \
+                        --precision=$M \
+                        --num_iter=$((RUN_TO+1)) \
+                        --iter_unit=batch \
+                        --display_every=$WARMUP \
+                        --batch=$BATCH >> "$TMPFILE" 2>&1
+                    local FAILURE=$?
+                    WALLTIME=$SECONDS
 
-                if [[ $? -ne 0 ]]; then
+                    if [[ $FAILURE -eq 0 ]]; then
+                        local PERF=$(cat "$TMPFILE" | grep "^ *[0-9]\+ " | awk "
+                            {
+                                if (\$1 == $((WARMUP*2))) {start=1};
+                                if (start == 1) {sum += \$3; count+=1}
+                            }
+                            END {if (count == $((RUN_TO/WARMUP-1))) {print sum/count}}")
+                        [[ -z "$PERF" ]] && FAILURE=1
+                    fi
+                   
+                    NANLOSS=$(grep NanLossDuringTrainingError "$TMPFILE" | wc -l)
+                    if [[ $FAILURE -eq 0 || $NANLOSS -eq 0 ]]; then
+                        break
+                    fi
+                done
+
+                if [[ $FAILURE -ne 0 ]]; then
                     if [[ -z "$LOG_DIR" ]]; then
                         cat "$TMPFILE"
-                        echo TRAINING SCRIPT FAILED
+                        echo TRAINING SCRIPT FAILED ON RUN $RUN
                         rm -f "$TMPFILE"
                         rm -rf "$TMP_DIR"
                         exit 1
                     fi
-                    local PERF="FAIL"
-                else
-                    local PERF=$(cat "$TMPFILE" | grep "^ *[0-9]\+ " | awk "
-                        {
-                            if (\$1 == $((WARMUP*2))) {start=1};
-                            if (start == 1) {sum += \$3; count+=1}
-                        }
-                        END {if (count == $((RUN_TO/WARMUP-1))) {print sum/count}}")
-
-                    if [[ -z "$PERF" ]]; then
-                        if [[ -z "$LOG_DIR" ]]; then
-                            cat "$TMPFILE"
-                            echo UNEXPECTED END OF LOG
-                            rm -f "$TMPFILE"
-                            rm -rf "$TMP_DIR"
-                            exit 1
-                        fi
-                        PERF="FAIL"
-                    fi
                 fi
+
                 [[ -z "$LOG_DIR" ]] && rm -f "$TMPFILE"
                 rm -rf "$TMP_DIR"
 
-                if [[ "$PERF" == "FAIL" ]]; then
-                    printf "%-30s %4s %4s %5d %4d %9s %8d\n" "$BASE_NAME" $D $M $BATCH $G $PERF $WALLTIME
-                else
+                if [[ "$FAILURE" -eq 0 ]]; then
                     printf "%-30s %4s %4s %5d %4d %9.3f %8d\n" "$BASE_NAME" $D $M $BATCH $G $PERF $WALLTIME
+                else
+                    printf "%-30s %4s %4s %5d %4d %9s %8d\n" "$BASE_NAME" $D $M $BATCH $G "FAIL" $WALLTIME
                 fi
             done
         done

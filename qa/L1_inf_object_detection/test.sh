@@ -1,70 +1,41 @@
 #!/bin/bash
 
-set -v
-set -e
+set +e
 
-MAP_ERROR_THRESHOLD=0.001
+EXAMPLE_PATH="../../nvidia-examples/tensorrt/tftrt/examples/object_detection/"
+SCRIPTS_PATH="../inference/object_detection/"
 
-source $PWD/../inference/object_detection/setup_env.sh
-
-pushd $PWD/../../nvidia-examples/inference/object-detection
-
-./setup.sh
-
-# TENSORFLOW TESTS
-
-MODELS=(
-  ssd_mobilenet_v1_coco
-  ssd_mobilenet_v2_coco
-  ssd_inception_v2_coco
-  faster_rcnn_resnet50_coco
-  mask_rcnn_resnet50_atrous_coco
-)
-
-for model in "${MODELS[@]}"
-do
-  python -u -m object_detection_benchmark.test $model \
-    --force_nms_cpu \
-    --coco_dir $COCO_DIR \
-    --coco_year $COCO_YEAR \
-    --static_data_dir $STATIC_DATA_DIR \
-    --data_dir $DATA_DIR \
-    --image_ids_path $IMAGE_IDS_PATH \
-    --reference_map_path $REFERENCE_MAP_PATH \
-    --map_error_threshold $MAP_ERROR_THRESHOLD
-done
-
-# TENSORRT TESTS
-
-MODELS=(
-  ssd_mobilenet_v1_coco
-  ssd_mobilenet_v2_coco
-  ssd_inception_v2_coco
-)
-
-PRECISION_MODES=(
-  FP32
-  FP16
-)
-
-for model in "${MODELS[@]}"
-do
-  for precision_mode in "${PRECISION_MODES[@]}"
-  do
-  python -u -m object_detection_benchmark.test $model \
-    --use_trt \
-    --precision_mode $precision_mode \
-    --minimum_segment_size 50 \
-    --force_nms_cpu \
-    --remove_assert \
-    --coco_dir $COCO_DIR \
-    --coco_year $COCO_YEAR \
-    --static_data_dir $STATIC_DATA_DIR \
-    --data_dir $DATA_DIR \
-    --image_ids_path $IMAGE_IDS_PATH \
-    --reference_map_path $REFERENCE_MAP_PATH \
-    --map_error_threshold $MAP_ERROR_THRESHOLD
-  done
-done
-
+echo Install dependencies of object_detection...
+pushd $EXAMPLE_PATH
+./install_dependencies.sh
 popd
+
+echo Setup tensorflow/tensorrt...
+pushd $PWD/../../nvidia-examples/tensorrt
+python setup.py install
+popd
+
+echo Detect arch...
+lscpu | grep -q ^Architecture:.*aarch64
+is_aarch64=$[!$?]
+lscpu | grep -q ^CPU\(s\):.*8
+is_8cpu=$[!$?]
+is_xavier=$[$is_aarch64 && $is_8cpu]
+
+echo Find all test cases...
+if [[ "$is_xavier" == 1 ]]
+then
+  TEST_CASES=(`ls $SCRIPTS_PATH/tests/xavier_acc_perf/*`)
+else
+  TEST_CASES=(`ls $SCRIPTS_PATH/tests/generic_acc/*`)
+fi
+
+echo Run all tests...
+rv=0
+for test_case in "${TEST_CASES[@]}"
+do
+  echo "Testing $test_case..."
+  python -m tftrt.examples.object_detection.test ${test_case} ; rv=$(($rv+$?))
+  echo "DONE testing $test_case"
+done
+exit $rv

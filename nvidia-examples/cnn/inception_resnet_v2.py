@@ -29,6 +29,7 @@ default_args = {
     'batch_size' : 256,
     'data_dir' : None,
     'log_dir' : None,
+    'export_dir' : None,
     'precision' : 'fp16',
     'momentum' : 0.9,
     'learning_rate_init' : 0.045,
@@ -124,8 +125,11 @@ def inception_resnet_v2(inputs, training):
     x = builder.dropout(x, 0.8)
     return x
 
-nvutils.train(inception_resnet_v2, args)
-
-if args['log_dir'] is not None and args['data_dir'] is not None:
-    nvutils.validate(inception_resnet_v2, args)
+if args['predict']:
+    if args['log_dir'] is not None and args['data_dir'] is not None:
+        nvutils.predict(inception_resnet_v2, args)
+else:
+    nvutils.train(inception_resnet_v2, args)
+    if args['log_dir'] is not None and args['data_dir'] is not None:
+        nvutils.validate(inception_resnet_v2, args)
 

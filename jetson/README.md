@@ -6,7 +6,7 @@ Jetpack SDK image installed.
 ## Prerequisites
 
 In order to access this repository, the user must add the CA certificate for
-gitlab-dl.nvidia.com. Running the following commands will accomplish this.
+gitlab-master.nvidia.com. Running the following commands will accomplish this.
 
 ```
 cat <<EOF | sudo tee /usr/local/share/ca-certificates/RapidSSL_TLS_RSA_CA_G1.crt
@@ -49,7 +49,7 @@ Clone the TF repository and checkout the appropriate release branch. Branches
 are named by two-digit year and month in which they will be released.
 
 ```
-git clone https://gitlab-dl.nvidia.com/dgx/tensorflow -b <YY>.<MM>-devel
+git clone https://gitlab-master.nvidia.com/dl/dgx/tensorflow -b <YY>.<MM>-devel
 ```
 
 The installation script will install all dependencies, compile TF from sources,

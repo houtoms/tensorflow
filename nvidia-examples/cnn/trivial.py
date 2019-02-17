@@ -29,6 +29,7 @@ default_args = {
     'batch_size' : 256,
     'data_dir' : None,
     'log_dir' : None,
+    'export_dir' : None,
     'precision' : 'fp16',
     'momentum' : 0.9,
     'learning_rate_init' : 0.001,
@@ -53,8 +54,11 @@ def trivial(inputs, training=False):
     x = builder.dense_linear(x, 1)
     return x
 
-nvutils.train(trivial, args)
-
-if args['log_dir'] is not None and args['data_dir'] is not None:
-    nvutils.validate(trivial, args)
+if args['predict']:
+    if args['log_dir'] is not None and args['data_dir'] is not None:
+        nvutils.predict(trivial, args)
+else:
+    nvutils.train(trivial, args)
+    if args['log_dir'] is not None and args['data_dir'] is not None:
+        nvutils.validate(trivial, args)
 

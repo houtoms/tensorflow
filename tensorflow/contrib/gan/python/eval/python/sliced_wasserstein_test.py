@@ -65,21 +65,21 @@ class ClassifierMetricsTest(test.TestCase):
     pyramid = np_laplacian_pyramid(data, 3)
     data_tf = array_ops.placeholder(dtypes.float32, [256, 32, 32, 3])
     pyramid_tf = swd._laplacian_pyramid(data_tf, 3)
-    with self.test_session() as sess:
+    with self.cached_session() as sess:
       pyramid_tf = sess.run(
           pyramid_tf, feed_dict={
               data_tf: data.transpose(0, 2, 3, 1)
           })
     for x in range(3):
       self.assertAllClose(
-          pyramid[x].transpose(0, 2, 3, 1), pyramid_tf[x], atol=1e-6)
+          pyramid[x].transpose(0, 2, 3, 1), pyramid_tf[x], rtol=1e-5, atol=1e-5)
 
   def test_sliced_wasserstein_distance(self):
     """Test the distance."""
     d1 = random_ops.random_uniform([256, 32, 32, 3])
     d2 = random_ops.random_normal([256, 32, 32, 3])
     wfunc = swd.sliced_wasserstein_distance(d1, d2)
-    with self.test_session() as sess:
+    with self.cached_session() as sess:
       wscores = [sess.run(x) for x in wfunc]
     self.assertAllClose(
         np.array([0.014, 0.014], 'f'),
@@ -95,7 +95,7 @@ class ClassifierMetricsTest(test.TestCase):
     d1 = random_ops.random_uniform([256, 32, 32, 3])
     d2 = random_ops.random_normal([256, 32, 32, 3])
     wfunc = swd.sliced_wasserstein_distance(d1, d2, use_svd=True)
-    with self.test_session() as sess:
+    with self.cached_session() as sess:
       wscores = [sess.run(x) for x in wfunc]
     self.assertAllClose(
         np.array([0.013, 0.013], 'f'),

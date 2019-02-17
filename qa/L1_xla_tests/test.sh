@@ -1,11 +1,20 @@
 #!/bin/bash
 set +x
-set -e
+set +e
 set -o pipefail
 
 THIS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null && pwd)"
 TEST_LIST="$THIS_DIR/../../tensorflow/compiler/tests/tests.list"
-GPUS=$(nvidia-smi -L 2>/dev/null| wc -l || echo 1)
+NATIVE_ARCH=`uname -m`
+if [ ${NATIVE_ARCH} == 'aarch64' ]; then
+    export LD_LIBRARY_PATH=/usr/local/cuda/extras/CUPTI/lib64:$LD_LIBRARY_PATH
+    pip install portpicker
+    JPVER=$(${THIS_DIR}/../../jetson/get_jpver.sh)
+    cp "$THIS_DIR/../../wheelhouse/$JPVER/xla_tests/tests.list" "$THIS_DIR/../../tensorflow/compiler/tests/tests.list"
+    GPUS=1
+else
+    GPUS=$(nvidia-smi -L | wc -l)
+fi
 NUM_TESTS=$(wc -l "$TEST_LIST" | cut -d' ' -f1)
 rm -rf "$THIS_DIR/outputs"
 mkdir "$THIS_DIR/outputs"
@@ -35,12 +44,13 @@ for i in $(seq 0 $((GPUS-1))); do
                 NAME=${NAME}_OF_$SHARDS
             fi
 
-            sed 's/^ *from tensorflow\.compiler\.tests import/import /'
-                python - $ARGS &> "$THIS_DIR/outputs/$NAME"
+            sed -i 's/^ *from tensorflow\.compiler\.tests import/import /' $SCRIPT
+            python $SCRIPT $ARGS &> "$THIS_DIR/outputs/$NAME"
             if [[ $? -eq 0 ]]; then
                 echo PASS -- $NAME
             else
                 FAILS=$((FAILS+1))
+                tail -n 30 "$THIS_DIR/outputs/$NAME"
                 echo FAIL -- $NAME
             fi
             unset TEST_TOTAL_SHARDS TEST_SHARD_INDEX

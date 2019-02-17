@@ -23,17 +23,18 @@ limitations under the License.
 #include <initializer_list>
 #include <vector>
 
+#include "absl/strings/str_cat.h"
 #include "tensorflow/core/platform/load_library.h"
 #include "tensorflow/stream_executor/lib/env.h"
 #include "tensorflow/stream_executor/lib/error.h"
 #include "tensorflow/stream_executor/lib/path.h"
 #include "tensorflow/stream_executor/lib/str_util.h"
-#include "tensorflow/stream_executor/lib/strcat.h"
 #include "tensorflow/stream_executor/lib/stringprintf.h"
 #include "tensorflow/stream_executor/platform/logging.h"
 #include "tensorflow/stream_executor/platform/port.h"
 
 #if !defined(PLATFORM_GOOGLE)
+#include "absl/strings/string_view.h"
 #include "cuda/cuda_config.h"
 #endif
 
@@ -41,11 +42,12 @@ namespace stream_executor {
 namespace internal {
 
 string GetCudaVersion() { return TF_CUDA_VERSION; }
+string GetCudaLibVersion() { return TF_CUDA_LIB_VERSION; }
 string GetCudnnVersion() { return TF_CUDNN_VERSION; }
 
 /* static */ port::Status DsoLoader::GetCublasDsoHandle(void** dso_handle) {
   return GetDsoHandle(FindDsoPath(port::Env::Default()->FormatLibraryFileName(
-                                      "cublas", GetCudaVersion()),
+                                      "cublas", GetCudaLibVersion()),
                                   GetCudaLibraryDirPath()),
                       dso_handle);
 }
@@ -62,14 +64,14 @@ string GetCudnnVersion() { return TF_CUDNN_VERSION; }
 
 /* static */ port::Status DsoLoader::GetCufftDsoHandle(void** dso_handle) {
   return GetDsoHandle(FindDsoPath(port::Env::Default()->FormatLibraryFileName(
-                                      "cufft", GetCudaVersion()),
+                                      "cufft", GetCudaLibVersion()),
                                   GetCudaLibraryDirPath()),
                       dso_handle);
 }
 
 /* static */ port::Status DsoLoader::GetCurandDsoHandle(void** dso_handle) {
   return GetDsoHandle(FindDsoPath(port::Env::Default()->FormatLibraryFileName(
-                                      "curand", GetCudaVersion()),
+                                      "curand", GetCudaLibVersion()),
                                   GetCudaLibraryDirPath()),
                       dso_handle);
 }
@@ -119,19 +121,19 @@ static mutex& GetRpathMutex() {
   return *mu;
 }
 
-/* static */ void DsoLoader::RegisterRpath(port::StringPiece path) {
+/* static */ void DsoLoader::RegisterRpath(absl::string_view path) {
   mutex_lock lock{GetRpathMutex()};
-  GetRpaths()->push_back(path.ToString());
+  GetRpaths()->emplace_back(path);
 }
 
-/* static */ port::Status DsoLoader::GetDsoHandle(port::StringPiece path,
+/* static */ port::Status DsoLoader::GetDsoHandle(absl::string_view path,
                                                   void** dso_handle,
                                                   LoadKind load_kind) {
   if (load_kind != LoadKind::kLocal) {
     return port::Status(port::error::INVALID_ARGUMENT,
                         "Only LoadKind::kLocal is currently supported");
   }
-  string path_string = path.ToString();
+  string path_string(path);
   port::Status s =
       port::Env::Default()->LoadLibrary(path_string.c_str(), dso_handle);
   if (!s.ok()) {
@@ -145,7 +147,7 @@ static mutex& GetRpathMutex() {
 #endif
     ;
     return port::Status(port::error::FAILED_PRECONDITION,
-                        port::StrCat("could not dlopen DSO: ", path,
+                        absl::StrCat("could not dlopen DSO: ", path,
                                      "; dlerror: ", s.error_message()));
   }
   LOG(INFO) << "successfully opened CUDA library " << path << " locally";
@@ -154,7 +156,7 @@ static mutex& GetRpathMutex() {
 
 /* static */ string DsoLoader::GetBinaryDirectory(bool strip_executable_name) {
   string exe_path = port::Env::Default()->GetExecutablePath();
-  return strip_executable_name ? port::Dirname(exe_path).ToString() : exe_path;
+  return strip_executable_name ? string(port::Dirname(exe_path)) : exe_path;
 }
 
 // Creates a heap-allocated vector for initial rpaths.
@@ -190,13 +192,13 @@ static std::vector<string>* CreatePrimordialRpaths() {
 #endif
 }
 
-/* static */ string DsoLoader::FindDsoPath(port::StringPiece library_name,
-                                           port::StringPiece runfiles_relpath) {
+/* static */ string DsoLoader::FindDsoPath(absl::string_view library_name,
+                                           absl::string_view runfiles_relpath) {
   // Keep a record of the paths we attempted so we can dump out meaningful
   // diagnostics if no path is found.
   std::vector<string> attempted;
 
-  using StringPieces = std::vector<port::StringPiece>;
+  using StringPieces = std::vector<absl::string_view>;
   string candidate;
 
   // Otherwise, try binary-plus-rpath locations.
@@ -212,7 +214,7 @@ static std::vector<string>* CreatePrimordialRpaths() {
   }
   attempted.push_back(candidate);
 
-  return library_name.ToString();
+  return string(library_name);
 }
 
 /* static */ string DsoLoader::GetCudaLibraryDirPath() {

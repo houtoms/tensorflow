@@ -11,10 +11,13 @@
 	url = https://github.com/NVIDIA/OpenSeq2Seq
 [submodule "third_party/horovod"]
 	path = third_party/horovod
-	url = ../../nluehr/horovod.git
+	url = ../../../nluehr/horovod.git
 [submodule "qa/third_party/cocoapi"]
 	path = qa/third_party/cocoapi
 	url = https://github.com/cocodataset/cocoapi
+[submodule "nvidia-examples/tensorrt"]
+	path = nvidia-examples/tensorrt
+	url = https://github.com/tensorflow/tensorrt.git
 [submodule "nvidia-examples/resnet50v1.5"]
-	path = nvidia-examples/resnet50v1.5
-	url = ../../JoC/RN50v15_TF
+        path = nvidia-examples/resnet50v1.5
+        url = ../../JoC/RN50v15_TF

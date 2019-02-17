@@ -63,13 +63,12 @@ class _LogSessionRunHook(tf.train.SessionRunHook):
         self.elapsed_secs += time.time() - self.t0
         self.count += 1
         global_step, loss, total_loss, lr = run_values.results
-        print_step = global_step + 1 # One-based index for printing.
-        if print_step == 1 or print_step % self.display_every == 0:
+        if global_step == 1 or global_step % self.display_every == 0:
             dt = self.elapsed_secs / self.count
             img_per_sec = self.global_batch_size / dt
-            epoch = print_step * self.global_batch_size / self.num_records
+            epoch = global_step * self.global_batch_size / self.num_records
             print('%6i %5.1f %7.1f %6.3f %6.3f %7.5f' %
-                  (print_step, epoch, img_per_sec, loss, total_loss, lr))
+                  (global_step, epoch, img_per_sec, loss, total_loss, lr))
             self.elapsed_secs = 0.
             self.count = 0
 
@@ -90,7 +89,8 @@ def _cnn_model_function(features, labels, mode, params):
     use_dali      = params['use_dali']
 
     device        = '/gpu:0'
-    labels = tf.reshape(labels, (-1,)) # Squash unnecessary unary dim
+    if mode != tf.estimator.ModeKeys.PREDICT:
+        labels = tf.reshape(labels, (-1,)) # Squash unnecessary unary dim
     inputs = features # TODO: Should be using feature columns?
     is_training = (mode == tf.estimator.ModeKeys.TRAIN)
 
@@ -117,7 +117,7 @@ def _cnn_model_function(features, labels, mode, params):
         predicted_classes = tf.argmax(logits, axis=1, output_type=tf.int32)
         logits = tf.cast(logits, tf.float32)
         if mode == tf.estimator.ModeKeys.PREDICT:
-            probabilities = tf.softmax(logits)
+            probabilities = tf.nn.softmax(logits)
             predictions = {
                 'class_ids': predicted_classes[:, None],
                 'probabilities': probabilities,
@@ -258,7 +258,7 @@ def train(infer_func, params):
             'larc_mode' : larc_mode,
             'deterministic' : deterministic,
             'n_classes':     1000,
-            'use_dali': use_dali,
+            'use_dali': use_dali
         },
         config=tf.estimator.RunConfig(
             tf_random_seed=2 * (1 + hvd.rank()) if deterministic else None,
@@ -268,12 +268,12 @@ def train(infer_func, params):
             keep_checkpoint_every_n_hours=3))
 
     print("Training")
-    if not deterministic and not use_dali:
+    if deterministic:
+        num_preproc_threads = 1
+    elif use_dali:
+        num_preproc_threads = 4
+    else:
         num_preproc_threads = 10
-    elif not deterministic and use_dali:
-        num_preproc_threads = 2 
-    elif deterministic:
-        num_preproc_threads = 1 
 
     training_hooks = [hvd.BroadcastGlobalVariablesHook(0),
                       _PrefillStagingAreasHook()]
@@ -301,7 +301,120 @@ def train(infer_func, params):
     except KeyboardInterrupt:
         print("Keyboard interrupt")
 
+def _build_serving_input_receiver_fn(shape, dtype=tf.float32,
+                                           batch_size=None):
+  def serving_input_receiver_fn():
+    features = tf.placeholder(
+        dtype=dtype, shape=[batch_size] + shape, name='input_tensor')
+    return tf.estimator.export.TensorServingInputReceiver(
+        features=features, receiver_tensors=features)
+  return serving_input_receiver_fn
+
+
 def validate(infer_func, params):
+    image_width = params['image_width']
+    image_height = params['image_height']
+    image_format = params['image_format']
+    batch_size = params['batch_size']
+    data_dir = params['data_dir']
+    log_dir = params['log_dir']
+    precision = params['precision']
+    momentum = params['momentum']
+    learning_rate_init = params['learning_rate_init']
+    learning_rate_power = params['learning_rate_power']
+    weight_decay = params['weight_decay']
+    loss_scale = params['loss_scale']
+    larc_eta = params['larc_eta']
+    larc_mode = params['larc_mode']
+    num_iter = params['num_iter']
+    checkpoint_secs = params['checkpoint_secs']
+    display_every = params['display_every']
+    iter_unit = params['iter_unit']
+    use_dali = params['use_dali']
+    export_dir = params['export_dir']
+
+    # Determinism is not fully supported by all TF ops.
+    # Disabling until remaining wrinkles can be ironed out.
+    deterministic = False
+    if deterministic:
+        tf.set_random_seed(2 * (1 + hvd.rank()))
+        random.seed(3 * (1 + hvd.rank()))
+        np.random.seed(2)
+
+    log_dir  = None if log_dir  == "" else log_dir
+    data_dir = None if data_dir == "" else data_dir
+    if data_dir is None:
+        raise ValueError("data_dir must be specified")
+    if log_dir is None:
+        raise ValueError("log_dir must be specified")
+
+    filename_pattern = os.path.join(data_dir, '%s-*')
+    eval_filenames  = sorted(tf.gfile.Glob(filename_pattern % 'validation'))
+
+    # Horovod: pin GPU to be used to process local rank (one GPU per process)
+    config = tf.ConfigProto()
+    #config.gpu_options.allow_growth = True
+    config.gpu_options.visible_device_list = str(hvd.local_rank())
+    config.gpu_options.force_gpu_compatible = True # Force pinned memory
+    config.intra_op_parallelism_threads = 1 # Avoid pool of Eigen threads
+    config.inter_op_parallelism_threads = 40 // hvd.size() - 2 # HACK TESTING
+
+    classifier = tf.estimator.Estimator(
+        model_fn=_cnn_model_function,
+        model_dir=log_dir,
+        params={
+            'model':         infer_func,
+            'format':        image_format,
+            'dtype' : tf.float16 if precision == 'fp16' else tf.float32,
+            'momentum' : momentum,
+            'learning_rate_init' : learning_rate_init,
+            'learning_rate_power' : learning_rate_power,
+            'decay_steps' : None,
+            'weight_decay' : weight_decay,
+            'loss_scale' : loss_scale,
+            'larc_eta' : larc_eta,
+            'larc_mode' : larc_mode,
+            'deterministic' : deterministic,
+            'n_classes':     1000,
+            'use_dali': False,
+        },
+        config=tf.estimator.RunConfig(
+            tf_random_seed=2 * (1 + hvd.rank()) if deterministic else None,
+            session_config=config,
+            save_checkpoints_secs=None,
+            save_checkpoints_steps=None,
+            keep_checkpoint_every_n_hours=3))
+
+    if not deterministic and not use_dali:
+        num_preproc_threads = 10
+    elif not deterministic and use_dali:
+        num_preproc_threads = 2 
+    elif deterministic:
+        num_preproc_threads = 1 
+
+    if hvd.rank() == 0:
+        print("Evaluating")
+        try:
+            eval_result = classifier.evaluate(
+                input_fn=lambda: nvutils.image_set(
+                    eval_filenames, batch_size, image_height, image_width,
+                    training=False, distort_color=False,
+                    deterministic=deterministic,
+                    num_threads=num_preproc_threads))
+            print('Top-1 accuracy:', eval_result['top1_accuracy']*100, '%')
+            print('Top-5 accuracy:', eval_result['top5_accuracy']*100, '%')
+        except KeyboardInterrupt:
+            print("Keyboard interrupt")
+
+    if hvd.rank() == 0:
+        if export_dir is not None:
+            input_receiver_fn = _build_serving_input_receiver_fn(
+                shape=[image_height, image_width, 3], 
+                dtype=tf.float16 if precision == 'fp16' else tf.float32, 
+                batch_size=None)
+            classifier.export_savedmodel(export_dir, input_receiver_fn)
+
+def predict(infer_func, params):
     image_width = params['image_width']
     image_height = params['image_height']
     image_format = params['image_format']
@@ -382,15 +495,19 @@ def validate(infer_func, params):
         num_preproc_threads = 1 
 
     if hvd.rank() == 0:
-        print("Evaluating")
+        print("Predicting")
         try:
-            eval_result = classifier.evaluate(
+            pred_result = classifier.predict(
                 input_fn=lambda: nvutils.image_set(
                     eval_filenames, batch_size, image_height, image_width,
                     training=False, distort_color=False,
                     deterministic=deterministic,
                     num_threads=num_preproc_threads))
-            print('Top-1 accuracy:', eval_result['top1_accuracy']*100, '%')
-            print('Top-5 accuracy:', eval_result['top5_accuracy']*100, '%')
         except KeyboardInterrupt:
             print("Keyboard interrupt")
+
+    for idx, pred_dict in enumerate(pred_result):
+        class_id = pred_dict['class_ids'][0]
+        probability = pred_dict['probabilities'][class_id]
+        class_name = class_id
+        print(idx, "Class:", "'" + str(class_name) + "'", "Prob.:", probability)

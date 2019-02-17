@@ -7,22 +7,23 @@ cat <<EOF
 ================
 
 NVIDIA Release ${NVIDIA_TENSORFLOW_VERSION} (build ${NVIDIA_BUILD_ID})
+TensorFlow Version ${TENSORFLOW_VERSION}
 
 Container image Copyright (c) 2018, NVIDIA CORPORATION.  All rights reserved.
-Copyright 2017 The TensorFlow Authors.  All rights reserved.
+Copyright 2017-2018 The TensorFlow Authors.  All rights reserved.
 
 Various files include modifications (c) NVIDIA CORPORATION.  All rights reserved.
 NVIDIA modifications are covered by the license terms that apply to the underlying project or file.
 EOF
 
-if [[ "$(find /usr -name libcuda.so.1) " == " " || "$(ls /dev/nvidiactl 2>/dev/null) " == " " ]]; then
+if [[ "$(find /usr -name libcuda.so.1 | grep -v "compat") " == " " || "$(ls /dev/nvidiactl 2>/dev/null) " == " " ]]; then
   echo
   echo "WARNING: The NVIDIA Driver was not detected.  GPU functionality will not be available."
   echo "   Use 'nvidia-docker run' to start this container; see"
   echo "   https://github.com/NVIDIA/nvidia-docker/wiki/nvidia-docker ."
 else
   ( /usr/local/bin/checkSMVER.sh )  
-  DRIVER_VERSION=$(sed -n 's/^NVRM.*Kernel Module *\([0-9.]*\).*$/\1/p' /proc/driver/nvidia/version)
+  DRIVER_VERSION=$(sed -n 's/^NVRM.*Kernel Module *\([0-9.]*\).*$/\1/p' /proc/driver/nvidia/version 2>/dev/null || true)
   if [[ ! "$DRIVER_VERSION" =~ ^[0-9]*.[0-9]*$ ]]; then
     echo "Failed to detect NVIDIA driver version."
   elif [[ "${DRIVER_VERSION%.*}" -lt "${CUDA_DRIVER_VERSION%.*}" ]]; then
@@ -48,14 +49,13 @@ case "${DETECTED_MOFED}" in
     ;;
   "")
     echo
-    echo "WARNING: MOFED driver was not detected.  RDMA functionality will not be available."
+    echo "NOTE: MOFED driver for multi-node communication was not detected."
+    echo "      Multi-node communication performance may be reduced."
     ;;
   *)
-    if [[ -d "/opt/mellanox/DEBS/${DETECTED_MOFED}/" && $(id -u) -eq 0 ]]; then
+    if test -d "/opt/mellanox/DEBS/${DETECTED_MOFED}/" && /opt/mellanox/change_mofed_version.sh "${DETECTED_MOFED}" >& /dev/null; then
       echo
-      echo "NOTE: Detected MOFED driver ${DETECTED_MOFED}; attempting to automatically upgrade."
-      echo
-      dpkg -i /opt/mellanox/DEBS/${DETECTED_MOFED}/*.deb || true
+      echo "NOTE: Detected MOFED driver ${DETECTED_MOFED}; version automatically upgraded."
     else
       echo
       echo "ERROR: Detected MOFED driver ${DETECTED_MOFED}, but this container has version ${MOFED_VERSION}."
@@ -69,7 +69,8 @@ esac
 DETECTED_NVPEERMEM=$(cat /sys/module/nv_peer_mem/version 2>/dev/null || true)
 if [[ "${DETECTED_MOFED} " != " " && "${DETECTED_NVPEERMEM} " == " " ]]; then
   echo
-  echo "ERROR: nv_peer_mem driver was not detected.  GPUDirect RDMA functionality will not be available."
+  echo "NOTE: MOFED driver was detected, but nv_peer_mem driver was not detected."
+  echo "      Multi-node communication performance may be reduced."
 fi
 
 if [[ "$(df -k /dev/shm |grep ^shm |awk '{print $2}') " == "65536 " ]]; then
