@@ -11,5 +11,7 @@ fi
 
 export PYTHONPATH=/opt/tensorflow/nvidia-examples/resnet50v1.5/
 
-bash ./qa/DGX1V_trainbench_fp32.sh imagenet-tfrecord
+mkdir /tmp/results
+
+bash ./qa/DGX1V_trainbench_fp32.sh imagenet-tfrecord /tmp/results
 
