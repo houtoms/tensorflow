@@ -271,6 +271,7 @@ gather wheels:
 deploy web:
     stage: release_to_akamai
     script:
+    - docker login -u gitlab-ci-token -p "${CI_JOB_TOKEN}" "${CI_REGISTRY}"
     - docker pull gitlab-master.nvidia.com:5005/dl/devops/deploy_to_web:latest
     - docker run  --privileged -v $(pwd)/wheelhouse:/workspace/wheelhouse --rm gitlab-master.nvidia.com:5005/dl/devops/deploy_to_web:latest /bin/bash -c "./main.sh"
     when: manual
