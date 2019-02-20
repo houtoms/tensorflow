@@ -2,7 +2,7 @@ set -o nounset
 set -o errexit
 set -o pipefail
 
-cd /opt/tensorflow/nvidia-examples/resnet50v1.5/
+cd /opt/tensorflow/qa/joc_qa
 
 # Setup dataset directory
 if [ ! -d "imagenet-tfrecord" ]; then
@@ -11,5 +11,7 @@ fi
 
 export PYTHONPATH=/opt/tensorflow/nvidia-examples/resnet50v1.5/
 
-bash ./qa/DGX1V_accuracy_fp32.sh imagenet-tfrecord
+mkdir -p /tmp/results
+
+python ./qa/test_accuracy.py --precision fp32 --iterations 90 --ngpus 8 --bs 128 --top1-baseline 76 --top5-baseline 92 --data_dir imagenet-tfrecord --results_dir /tmp/results
 
