@@ -1211,6 +1211,32 @@ L3_converge_inception_v3--V100_R384_8GPU:
 
 ############################
 
+L2_joc_RN50_inferbench_fp16--V100_R384_1GPU:
+    <<: *L2_TEST
+    <<: *V100_R384_1GPU
+
+L2_joc_RN50_inferbench_fp32--V100_R384_1GPU:
+    <<: *L2_TEST
+    <<: *V100_R384_1GPU
+
+L2_joc_RN50_trainbench_fp16--V100_R384_8GPU:
+    <<: *L2_TEST
+    <<: *V100_R384_8GPU
+
+L2_joc_RN50_trainbench_fp32--V100_R384_8GPU:
+    <<: *L2_TEST
+    <<: *V100_R384_8GPU
+
+L3_joc_RN50_convergence_fp16--V100_R384_8GPU:
+    <<: *L3_TEST
+    <<: *V100_R384_8GPU
+
+L3_joc_RN50_convergence_fp32--V100_R384_8GPU:
+    <<: *L3_TEST
+    <<: *V100_R384_8GPU
+    
+############################
+
 L3_self_tests--V100_R384_8GPU:
     <<: *L3_TEST
     <<: *V100_R384_8GPU
