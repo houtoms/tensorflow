@@ -118,7 +118,7 @@ ENV CUDA_TOOLKIT_PATH=/usr/local/cuda \
 # Build and install TF
 RUN ./nvbuild.sh --testlist --python$PYVER
 
-RUN git clone https://github.com/tensorflow/estimator -b r1.13 /opt/estimator && \
+RUN git clone https://github.com/tensorflow/estimator -b v1.13.0 /opt/estimator && \
     cd /opt/estimator && \
     ln -fs /usr/local/cuda/lib64/stubs/libcuda.so /usr/local/cuda/lib64/stubs/libcuda.so.1 && \
     export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/cuda/lib64/stubs && \
