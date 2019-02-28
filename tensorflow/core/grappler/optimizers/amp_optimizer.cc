@@ -1003,7 +1003,8 @@ Status AMPOptimizerImpl::PrintDebugLogs(bool preop, size_t timestamp) {
 }
 
 void AMPOptimizerImpl::LogSkippedNode(const NodeDef& node) const {
-  VLOG(2) << "Skipping node " << node.name() << " because it is "
+  VLOG(2) << "Skipping " << node.op() << " node " << node.name()
+          << " because it is "
           << (MustPreserve(node) ? "on the fetch list" : "not on the GPU");
 }
 
@@ -1053,12 +1054,12 @@ void AMPOptimizerImpl::ConvertBatchNormOpsToV2() {
     if (!ShouldProcess(*node)) continue;
     bool changed = false;
     if (node->op() == "FusedBatchNorm") {
-      VLOG(2) << "Changing op of node " << node->name()
+      VLOG(2) << "Changing op of " << node->op() << " node " << node->name()
               << " to FusedBatchNormV2";
       node->set_op("FusedBatchNormV2");
       changed = true;
     } else if (node->op() == "FusedBatchNormGrad") {
-      VLOG(2) << "Changing op of node " << node->name()
+      VLOG(2) << "Changing op of " << node->op() << " node " << node->name()
               << " to FusedBatchNormGradV2";
       node->set_op("FusedBatchNormGradV2");
       changed = true;
@@ -1194,8 +1195,9 @@ Status AMPOptimizerImpl::AddDataStructureOpsToMap(
     if (is_writer || is_reader) {
       NodeDef* object_node = GetTailOfChain(node, data_structure_op);
       if (!object_node) {
-        return errors::FailedPrecondition(
-            "No ", data_structure_op, " found upstream of node ", node.name());
+        return errors::FailedPrecondition("No ", data_structure_op,
+                                          " found upstream of ", node.op(),
+                                          " node ", node.name());
       }
       NodeTypeId object_node_type(object_node, data_structure_type_attr);
       TypeAttrId type_attr = is_writer ? write_iter->second : read_iter->second;
@@ -1270,7 +1272,8 @@ void AMPOptimizerImpl::PropagateBlackFwdThroughClearAndGray(
           if (VLOG_IS_ON(2) && inserted) {
             const NodeTypeId& item = *graph_type_view_.GetNode(idx);
             VLOG(2) << "Painting type " << item.type_attr.DebugString()
-                    << " of node " << item.node->name() << " BLACK";
+                    << " of " << item.node->op() << " node "
+                    << item.node->name() << " BLACK";
           }
         }));
   }
@@ -1323,7 +1326,8 @@ void AMPOptimizerImpl::AddClearAndGrayToWhiteIfBetweenWhite(
           if (VLOG_IS_ON(2) && inserted) {
             const NodeTypeId& item = *graph_type_view_.GetNode(idx);
             VLOG(2) << "Painting type " << item.type_attr.DebugString()
-                    << " of node " << item.node->name() << " WHITE";
+                    << " of " << item.node->op() << " node "
+                    << item.node->name() << " WHITE";
           }
         }));
   }
@@ -1358,7 +1362,8 @@ void AMPOptimizerImpl::PropagateWhiteThroughClear(
           if (VLOG_IS_ON(2) && inserted) {
             const NodeTypeId& item = *graph_type_view_.GetNode(idx);
             VLOG(2) << "Painting type " << item.type_attr.DebugString()
-                    << " of node " << item.node->name() << " WHITE";
+                    << " of " << item.node->op() << " node "
+                    << item.node->name() << " WHITE";
           }
         }));
   }
@@ -1385,8 +1390,8 @@ Status AMPOptimizerImpl::ForceColorMatchOnRecurrentEdges(
           graph_type_view_.GetNodeIndex(merge_node.name(), TypeAttrId("T"))
               .value();
       bool merge_is_white = white_set->count(merge_idx);
-      VLOG(2) << "Painting type T of node " << node.name() << " "
-              << (merge_is_white ? "WHITE" : "BLACK")
+      VLOG(2) << "Painting type T of " << node.op() << " node " << node.name()
+              << " " << (merge_is_white ? "WHITE" : "BLACK")
               << " to match the color of its output Merge node "
               << merge_node.name();
       int nextiter_idx =
@@ -1444,7 +1449,8 @@ void AMPOptimizerImpl::ForceColorMatchBetweenDataStructureOps(
     if (any_black || any_white) {
       for (const NodeTypeId& node_type : all_client_nodes) {
         VLOG(2) << "Painting type " << node_type.type_attr.DebugString()
-                << " of node " << node_type.node->name() << " "
+                << " of " << node_type.node->op() << " node "
+                << node_type.node->name() << " "
                 << (any_black ? "BLACK" : "WHITE")
                 << " because at least one of its siblings is "
                 << (any_black ? "BLACK" : "WHITE");
@@ -1521,8 +1527,8 @@ Status AMPOptimizerImpl::ChangeTypeAttrsAndAddCasts(
       if (!IsFloat32(*graph_type_view_.GetNode(node_type_idx))) continue;
       bool src_is_white = white_set.count(node_type_idx);
       if (src_is_white) {
-        VLOG(1) << "Changing type " << type_attr.DebugString() << " of node "
-                << node->name() << " to DT_HALF";
+        VLOG(1) << "Changing type " << type_attr.DebugString() << " of "
+                << node->op() << " node " << node->name() << " to DT_HALF";
         if (!SetDataType(node, type_attr, DT_HALF)) {
           return errors::Internal("Failed to set type attribute");
         }
@@ -1545,7 +1551,8 @@ Status AMPOptimizerImpl::ChangeTypeAttrsAndAddCasts(
               bool to_fp16 = dst_is_white;
               VLOG(1) << "Inserting cast to "
                       << (to_fp16 ? "DT_HALF" : "DT_FLOAT") << " at "
-                      << src.node->name() << ":" << src.port_id;
+                      << src.node->op() << " " << src.node->name() << ":"
+                      << src.port_id;
               added_cast_node = graph_view_.AddNode(
                   BuildCastNode(src, to_fp16, src.node->device()));
               if (to_fp16 && !IsConstant(*node) && !IsVariable(*node) &&
