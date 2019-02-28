@@ -494,6 +494,46 @@ tf_cuda_cc_test(
 )
 
 cc_library(
+    name = "amp_optimizer",
+    srcs = ["amp_optimizer.cc"],
+    hdrs = [
+        "amp_optimizer.h",
+        "amp_optimizer_lists.h",
+    ],
+    visibility = ["//visibility:public"],
+    deps = [
+        ":custom_graph_optimizer_registry",
+        "//tensorflow/core:framework",
+        "//tensorflow/core:lib",
+        "//tensorflow/core:protos_all_cc",
+        "//tensorflow/core/grappler:devices",
+        "//tensorflow/core/grappler:grappler_item",
+        "//tensorflow/core/grappler:mutable_graph_view",
+        "//tensorflow/core/grappler:op_types",
+        "//tensorflow/core/grappler:utils",
+        "//tensorflow/core/grappler/clusters:cluster",
+        "//tensorflow/core/grappler/costs:virtual_placer",
+        "//tensorflow/core/grappler/utils:frame",
+    ],
+)
+
+tf_cuda_cc_test(
+    name = "amp_optimizer_test",
+    srcs = ["amp_optimizer_test.cc"],
+    deps = [
+        ":amp_optimizer",
+        "//tensorflow/core:framework",
+        "//tensorflow/core:lib",
+        "//tensorflow/core:test",
+        "//tensorflow/core:test_main",
+        "//tensorflow/core:testlib",
+        "//tensorflow/core/grappler/clusters:single_machine",
+        "//tensorflow/core/grappler/clusters:virtual_cluster",
+        "//tensorflow/core/grappler/utils:grappler_test",
+    ],
+)
+
+cc_library(
     name = "meta_optimizer",
     srcs = ["meta_optimizer.cc"],
     hdrs = [
@@ -501,6 +541,7 @@ cc_library(
     ],
     visibility = ["//visibility:public"],
     deps = [
+        ":amp_optimizer",
         ":arithmetic_optimizer",
         ":auto_parallel",
         ":constant_folding",
