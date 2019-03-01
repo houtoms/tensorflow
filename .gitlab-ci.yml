@@ -378,6 +378,17 @@ deploy web:
     only:
     - /^.*-devel$/
 
+
+.NANO_PY2: &NANO_PY2
+    tags:
+    - NANO
+    - PY2
+
+.NANO_PY3: &NANO_PY3
+    tags:
+    - NANO
+    - PY3
+
 .TX2_PY2: &TX2_PY2
     tags:
     - TX2
@@ -1589,6 +1600,24 @@ L2_models_cifar10--P40_R384_1GPU:
 L2_inf_image_classification_tftrt_int8--P40_R384_1GPU:
     <<: *L2_TEST
     <<: *P40_R384_1GPU
+
+#### NANO ####
+
+L0_tftrt--py2.7--NANO:
+    <<: *L0_TEST_JETSON
+    <<: *NANO_PY2
+
+L0_inference--py2.7--NANO:
+    <<: *L0_TEST_JETSON
+    <<: *NANO_PY2
+
+L0_tftrt--py3.6--NANO:
+    <<: *L0_TEST_JETSON
+    <<: *NANO_PY3
+
+L0_inference--py3.6--NANO:
+    <<: *L0_TEST_JETSON
+    <<: *NANO_PY3
 
 #### TX2 ####
 
