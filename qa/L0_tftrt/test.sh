@@ -38,9 +38,17 @@ echo tests ${tests[@]}
 #    It's ignored because it uses data from testdata directory
 #    and it's too complicated to set that path of that dir
 #    such that it works for both bazel and python.
+#./test/base_test.py
+#    Disabling this only for 19.02 because it fails after
+#    disabling Transpose converter.
+#./test/reshape_transpose_test.py
+#    Disabling this only for 19.02 because it fails after
+#    disabling Transpose converter.
 ignored_tests="
 ./custom_plugin_examples/plugin_test.py
 ./test/quantization_mnist_test.py
+./test/base_test.py
+./test/reshape_transpose_test.py
 "
 
 tmp_logfile="/tmp/tf_trt_test.log"
