@@ -130,8 +130,8 @@ RUN ./nvbuild.sh --testlist --python$PYVER
 #    bazel clean --expunge
 
 # Install DALI and build TF plugin, we need to have TF present already
-ENV DALI_VERSION=0.6.1 \
-    DALI_BUILD=608405
+ENV DALI_VERSION=0.7.0 \
+    DALI_BUILD=624544
 RUN pip install --no-cache-dir --upgrade \
                 --extra-index-url https://developer.download.nvidia.com/compute/redist \
                 --extra-index-url http://sqrl/dldata/pip-simple --trusted-host sqrl \
