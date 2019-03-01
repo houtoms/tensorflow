@@ -102,6 +102,7 @@ fi
 case $machine in
   quill)         MODELNAME="TX2";;
   jetson-xavier) MODELNAME="XAVIER";;
+  jetson-nano) MODELNAME="NANO";;
   *)             echo "Unknown machine type $machine"; exit 1;;
 esac
 
