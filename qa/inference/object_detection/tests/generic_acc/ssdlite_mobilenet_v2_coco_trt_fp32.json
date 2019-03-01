@@ -6,7 +6,7 @@
   "optimization_config": {
     "use_trt": true,
     "precision_mode": "FP32",
-    "minimum_segment_size": 2,
+    "minimum_segment_size": 15,
     "force_nms_cpu": true,
     "replace_relu6": false,
     "remove_assert": false,
