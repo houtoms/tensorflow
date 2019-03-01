@@ -52,7 +52,7 @@ elif [[ "$is_nano" == 1 ]]
 then
   TEST_CASES=(
     ssd_mobilenet_v2_coco_trt_fp16.json
-    ssd_mobilenet_v2_coco_tf.json
+    ssdlite_mobilenet_v2_coco_trt_fp16.json
     )
   for (( i=0; i<${#array[@]}; i++ ));
   do
