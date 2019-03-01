@@ -411,6 +411,18 @@ deploy web:
     - JP42
     - PY2
 
+.NANO_PY2: &NANO_PY2
+    tags:
+    - NANO
+    - JP42
+    - PY2
+
+.NANO_PY3: &NANO_PY3
+    tags:
+    - NANO
+    - JP42
+    - PY3
+
 .V100_R410_16GPU: &V100_R410_16GPU
     tags:
     - V100
@@ -1644,6 +1656,16 @@ L0_inference--py3.6--TX2:
 L0_python_kernel_tests--py3.6--TX2:
     <<: *L0_TEST_JETSON
     <<: *TX2_PY3
+
+#### NANO ####
+
+L1_inf_object_detection--py3.6--NANO:
+    <<: *L1_INF_OBJECT_DETECTION
+    <<: *NANO_PY3
+
+L1_inf_object_detection--py2.7--NANO:
+    <<: *L1_INF_OBJECT_DETECTION
+    <<: *NANO_PY2
 
 #### XAVIER ####
 
