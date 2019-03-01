@@ -1592,46 +1592,6 @@ L2_inf_image_classification_tftrt_int8--P40_R384_1GPU:
 
 #### TX2 ####
 
-L0_models_alexnet--py2.7--TX2:
-    <<: *L0_TEST_JETSON
-    <<: *TX2_PY2
-
-L0_models_imagenet--py2.7--TX2:
-    <<: *L0_TEST_JETSON
-    <<: *TX2_PY2
-
-L0_models_mnist--py2.7--TX2:
-    <<: *L0_TEST_JETSON
-    <<: *TX2_PY2
-
-L0_convnet_benchmarks_alexnet--py2.7--TX2:
-    <<: *L0_TEST_JETSON
-    <<: *TX2_PY2
-    variables:
-      TEST_WORK_DIR: "./qa/L0_convnet_benchmarks"
-      TEST_SCRIPT: "./test-alexnet.sh"
-
-L0_convnet_benchmarks_googlenet--py2.7--TX2:
-    <<: *L0_TEST_JETSON
-    <<: *TX2_PY2
-    variables:
-      TEST_WORK_DIR: "./qa/L0_convnet_benchmarks"
-      TEST_SCRIPT: "./test-googlenet.sh"
-
-L0_convnet_benchmarks_overfeat--py2.7--TX2:
-    <<: *L0_TEST_JETSON
-    <<: *TX2_PY2
-    variables:
-      TEST_WORK_DIR: "./qa/L0_convnet_benchmarks"
-      TEST_SCRIPT: "./test-overfeat.sh"
-
-L0_convnet_benchmarks_vgga--py2.7--TX2:
-    <<: *L0_TEST_JETSON
-    <<: *TX2_PY2
-    variables:
-      TEST_WORK_DIR: "./qa/L0_convnet_benchmarks"
-      TEST_SCRIPT: "./test-vgga.sh"
-
 L0_tftrt--py2.7--TX2:
     <<: *L0_TEST_JETSON
     <<: *TX2_PY2
@@ -1643,46 +1603,6 @@ L0_inference--py2.7--TX2:
 L0_python_kernel_tests--py2.7--TX2:
     <<: *L0_TEST_JETSON
     <<: *TX2_PY2
-
-L0_models_alexnet--py3.6--TX2:
-    <<: *L0_TEST_JETSON
-    <<: *TX2_PY3
-
-L0_models_imagenet--py3.6--TX2:
-    <<: *L0_TEST_JETSON
-    <<: *TX2_PY3
-
-L0_models_mnist--py3.6--TX2:
-    <<: *L0_TEST_JETSON
-    <<: *TX2_PY3
-
-L0_convnet_benchmarks_alexnet--py3.6--TX2:
-    <<: *L0_TEST_JETSON
-    <<: *TX2_PY3
-    variables:
-      TEST_WORK_DIR: "./qa/L0_convnet_benchmarks"
-      TEST_SCRIPT: "./test-alexnet.sh"
-
-L0_convnet_benchmarks_googlenet--py3.6--TX2:
-    <<: *L0_TEST_JETSON
-    <<: *TX2_PY3
-    variables:
-      TEST_WORK_DIR: "./qa/L0_convnet_benchmarks"
-      TEST_SCRIPT: "./test-googlenet.sh"
-
-L0_convnet_benchmarks_overfeat--py3.6--TX2:
-    <<: *L0_TEST_JETSON
-    <<: *TX2_PY3
-    variables:
-      TEST_WORK_DIR: "./qa/L0_convnet_benchmarks"
-      TEST_SCRIPT: "./test-overfeat.sh"
-
-L0_convnet_benchmarks_vgga--py3.6--TX2:
-    <<: *L0_TEST_JETSON
-    <<: *TX2_PY3
-    variables:
-      TEST_WORK_DIR: "./qa/L0_convnet_benchmarks"
-      TEST_SCRIPT: "./test-vgga.sh"
 
 L0_tftrt--py3.6--TX2:
     <<: *L0_TEST_JETSON
@@ -1709,34 +1629,6 @@ L0_models_imagenet--py3.6--XAVIER:
 L0_models_mnist--py3.6--XAVIER:
     <<: *L0_TEST_JETSON
     <<: *XAVIER
-
-L0_convnet_benchmarks_alexnet--py3.6--XAVIER:
-    <<: *L0_TEST_JETSON
-    <<: *XAVIER
-    variables:
-      TEST_WORK_DIR: "./qa/L0_convnet_benchmarks"
-      TEST_SCRIPT: "./test-alexnet.sh"
-
-L0_convnet_benchmarks_googlenet--py3.6--XAVIER:
-    <<: *L0_TEST_JETSON
-    <<: *XAVIER
-    variables:
-      TEST_WORK_DIR: "./qa/L0_convnet_benchmarks"
-      TEST_SCRIPT: "./test-googlenet.sh"
-
-L0_convnet_benchmarks_overfeat--py3.6--XAVIER:
-    <<: *L0_TEST_JETSON
-    <<: *XAVIER
-    variables:
-      TEST_WORK_DIR: "./qa/L0_convnet_benchmarks"
-      TEST_SCRIPT: "./test-overfeat.sh"
-
-L0_convnet_benchmarks_vgga--py3.6--XAVIER:
-    <<: *L0_TEST_JETSON
-    <<: *XAVIER
-    variables:
-      TEST_WORK_DIR: "./qa/L0_convnet_benchmarks"
-      TEST_SCRIPT: "./test-vgga.sh"
 
 L0_tftrt--py3.6--XAVIER:
     <<: *L0_TEST_JETSON
