@@ -47,15 +47,15 @@ then
   done
 else
   TEST_CASES=(
-    faster_rcnn_nas_tf.json
-    faster_rcnn_nas_trt_fp16.json
-    faster_rcnn_nas_trt_fp32.json
+    #faster_rcnn_nas_tf.json
+    #faster_rcnn_nas_trt_fp16.json
+    #faster_rcnn_nas_trt_fp32.json
     faster_rcnn_resnet50_coco_tf.json
-    faster_rcnn_resnet50_coco_trt_fp16.json
-    faster_rcnn_resnet50_coco_trt_fp32.json
+    #faster_rcnn_resnet50_coco_trt_fp16.json
+    #faster_rcnn_resnet50_coco_trt_fp32.json
     mask_rcnn_resnet50_atrous_coco_tf.json
-    mask_rcnn_resnet50_atrous_coco_trt_fp16.json
-    mask_rcnn_resnet50_atrous_coco_trt_fp32.json
+    #mask_rcnn_resnet50_atrous_coco_trt_fp16.json
+    #mask_rcnn_resnet50_atrous_coco_trt_fp32.json
     ssd_inception_v2_coco_tf.json
     ssd_inception_v2_coco_trt_fp16.json
     ssd_inception_v2_coco_trt_fp32.json
