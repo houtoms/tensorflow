@@ -20,6 +20,9 @@ lscpu | grep -q ^Architecture:.*aarch64
 is_aarch64=$[!$?]
 lscpu | grep -q ^CPU\(s\):.*8
 is_8cpu=$[!$?]
+lscpu | grep -q ^CPU\(s\):.*4
+is_4cpu=$[!$?]
+is_nano=$[$is_aarch64 && $is_4cpu]
 is_xavier=$[$is_aarch64 && $is_8cpu]
 
 echo Find all test cases...
@@ -44,6 +47,16 @@ then
   for (( i=0; i<${#array[@]}; i++ ));
   do
     TEST_CASES[$i]="$SCRIPTS_PATH/tests/xavier_acc_perf/${TEST_CASES[$i]}"
+  done
+elif [[ "$is_nano" == 1]]
+then
+  TEST_CASES=(
+    ssd_mobilenet_v2_coco_trt_fp16.json
+    ssd_mobilenet_v2_coco_tf.json
+    )
+  for (( i=0; i<${#array[@]}; i++ ));
+  do
+    TEST_CASES[$i]="$SCRIPTS_PATH/tests/generic_acc/${TEST_CASES[$i]}"
   done
 else
   TEST_CASES=(
