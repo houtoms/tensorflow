@@ -152,6 +152,7 @@ class HybridPipe(dali.pipeline.Pipeline):
                  batch_size,
                  num_threads,
                  device_id,
+                 shard_id,
                  num_gpus,
                  deterministic=False,
                  dali_pipeline_variant="GPU"):
@@ -165,7 +166,7 @@ class HybridPipe(dali.pipeline.Pipeline):
             path=tfrec_filenames,
             index_path=tfrec_idx_filenames,
             random_shuffle=True,
-            shard_id=device_id,
+            shard_id=shard_id,
             num_shards=num_gpus,
             initial_fill=10000,
             features={
@@ -238,6 +239,9 @@ class DaliPreprocessor(object):
                  deterministic=False):
         if 'nvidia.dali.plugin.tf' not in sys.modules:
             raise ImportError("Module dali_tf is not available.")
+        device_id=hvd.local_rank()
+        shard_id=hvd.rank()
+        num_gpus=hvd.size()
         pipe = HybridPipe(
             tfrec_filenames=filenames,
             tfrec_idx_filenames=idx_filenames,
@@ -245,8 +249,9 @@ class DaliPreprocessor(object):
             width=width,
             batch_size=batch_size,
             num_threads=num_threads,
-            device_id=hvd.rank(),
-            num_gpus=hvd.size(),
+            device_id=device_id,
+            shard_id=shard_id,
+            num_gpus=num_gpus,
             deterministic=deterministic,
             dali_pipeline_variant=dali_pipeline_variant)
         serialized_pipe = pipe.serialize()
@@ -259,7 +264,7 @@ class DaliPreprocessor(object):
                 serialized_pipeline=serialized_pipe,
                 shapes=[(batch_size, height, width, 3), ()],
                 dtypes=[tf.float32, tf.int64],
-                device_id=hvd.rank())
+                device_id=device_id)
 
     def get_device_minibatches(self):
         with tf.device("/gpu:0"):
