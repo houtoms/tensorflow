@@ -48,7 +48,7 @@ then
   do
     TEST_CASES[$i]="$SCRIPTS_PATH/tests/xavier_acc_perf/${TEST_CASES[$i]}"
   done
-elif [[ "$is_nano" == 1]]
+elif [[ "$is_nano" == 1 ]]
 then
   TEST_CASES=(
     ssd_mobilenet_v2_coco_trt_fp16.json
