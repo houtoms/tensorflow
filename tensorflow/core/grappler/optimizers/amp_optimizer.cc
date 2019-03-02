@@ -195,6 +195,16 @@ TypeAttrId GetTypeAttrId(const OpDef::ArgDef& arg_def, int arg_type_index) {
   }
 }
 
+std::vector<int> NonControlInputs(const NodeDef& node) {
+  std::vector<int> pos;
+  for (int i = 0; i < node.input_size(); i++) {
+    if (!IsControlInput(node.input(i))) {
+      pos.push_back(i);
+    }
+  }
+  return pos;
+}
+
 // A utility class to lookup node type attributes and type attribute <->
 // input/output port mappings.
 class NodeTypeAttrMap {
@@ -267,6 +277,12 @@ class NodeTypeAttrMap {
     auto& type2io_entry = type2io_[&node];
     auto& io2type_entry = io2type_[&node];
     auto input_arg_inds = InputPortArgDefIndexes(node, op_def);
+    if (NonControlInputs(node).size() != input_arg_inds.size()) {
+      return errors::InvalidArgument(
+          "Expected ", node.op(), " node ", node.name(), " to have ",
+          input_arg_inds.size(), " non-control input(s), but got ",
+          node.input_size());
+    }
     io2type_entry.first.reserve(input_arg_inds.size());
     for (int i = 0; i < (int)input_arg_inds.size(); ++i) {
       const auto& arg_inds = input_arg_inds[i];
@@ -1237,8 +1253,7 @@ void AMPOptimizerImpl::PropagateBlackFwdThroughClearAndGray(
   absl::flat_hash_set<int> upstream_of_black_or_gray_set;
   for (int root_idx = 0; root_idx < graph_type_view_.num_nodes(); ++root_idx) {
     const NodeTypeId& root = *graph_type_view_.GetNode(root_idx);
-    if (  // upstream_of_black_or_gray_set.count(root_idx) ||
-        !(fp16_blacklist_.count(root.node->op()) ||
+    if (!(fp16_blacklist_.count(root.node->op()) ||
           fp16_graylist_.count(root.node->op()))) {
       continue;
     }
