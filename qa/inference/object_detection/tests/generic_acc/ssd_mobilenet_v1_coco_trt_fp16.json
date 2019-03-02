@@ -6,9 +6,10 @@
   "optimization_config": {
     "use_trt": true,
     "precision_mode": "FP16",
+    "minimum_segment_size": 15,
     "force_nms_cpu": true,
-    "replace_relu6": true,
-    "remove_assert": true,
+    "replace_relu6": false,
+    "remove_assert": false,
     "override_nms_score_threshold": 0.3,
     "max_batch_size": 1
   },

@@ -1,6 +1,6 @@
 {
   "source_model": {
-    "model_name": "ssdlite_mobilenet_v2_coco",
+    "model_name": "mask_rcnn_resnet50_atrous_coco",
     "output_dir": "models"
   },
   "optimization_config": {
@@ -17,9 +17,9 @@
     "batch_size": 1,
     "image_shape": [600, 600],
     "num_images": 4096,
-    "output_path": "stats/ssdlite_mobilenet_v2_coco_tf.json"
+    "output_path": "stats/mask_rcnn_resnet50_atrous_coco_tf.json"
   },
   "assertions": [
-    "statistics['map'] > (0.234 - 0.005)"
+    "statistics['map'] > (0.273 - 0.005)"
   ]
 }

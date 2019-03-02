@@ -411,6 +411,18 @@ deploy web:
     - JP42
     - PY2
 
+.NANO_PY2: &NANO_PY2
+    tags:
+    - NANO
+    - JP42
+    - PY2
+
+.NANO_PY3: &NANO_PY3
+    tags:
+    - NANO
+    - JP42
+    - PY3
+
 .V100_R410_16GPU: &V100_R410_16GPU
     tags:
     - V100
@@ -1603,20 +1615,20 @@ L2_inf_image_classification_tftrt_int8--P40_R384_1GPU:
 
 #### NANO ####
 
-L0_tftrt--py2.7--NANO:
-    <<: *L0_TEST_JETSON
-    <<: *NANO_PY2
-
 L0_inference--py2.7--NANO:
     <<: *L0_TEST_JETSON
     <<: *NANO_PY2
 
-L0_tftrt--py3.6--NANO:
-    <<: *L0_TEST_JETSON
-    <<: *NANO_PY3
+L1_inf_object_detection--py2.7--NANO:
+    <<: *L1_TEST_JETSON
+    <<: *NANO_PY2
 
 L0_inference--py3.6--NANO:
     <<: *L0_TEST_JETSON
+    <<: *NANO_PY3
+
+L1_inf_object_detection--py3.6--NANO:
+    <<: *L1_TEST_JETSON
     <<: *NANO_PY3
 
 #### TX2 ####
@@ -1629,10 +1641,6 @@ L0_inference--py2.7--TX2:
     <<: *L0_TEST_JETSON
     <<: *TX2_PY2
 
-L0_python_kernel_tests--py2.7--TX2:
-    <<: *L0_TEST_JETSON
-    <<: *TX2_PY2
-
 L0_tftrt--py3.6--TX2:
     <<: *L0_TEST_JETSON
     <<: *TX2_PY3
@@ -1641,23 +1649,7 @@ L0_inference--py3.6--TX2:
     <<: *L0_TEST_JETSON
     <<: *TX2_PY3
 
-L0_python_kernel_tests--py3.6--TX2:
-    <<: *L0_TEST_JETSON
-    <<: *TX2_PY3
-
 #### XAVIER ####
-
-L0_models_alexnet--py3.6--XAVIER:
-    <<: *L0_TEST_JETSON
-    <<: *XAVIER
-
-L0_models_imagenet--py3.6--XAVIER:
-    <<: *L0_TEST_JETSON
-    <<: *XAVIER
-
-L0_models_mnist--py3.6--XAVIER:
-    <<: *L0_TEST_JETSON
-    <<: *XAVIER
 
 L0_tftrt--py3.6--XAVIER:
     <<: *L0_TEST_JETSON
@@ -1665,18 +1657,6 @@ L0_tftrt--py3.6--XAVIER:
 
 L0_inference--py3.6--XAVIER:
     <<: *L0_TEST_JETSON
-    <<: *XAVIER
-
-L0_python_kernel_tests--py3.6--XAVIER:
-    <<: *L0_TEST_JETSON
-    <<: *XAVIER
-
-L1_kernel_tests--py3.6--XAVIER:
-    <<: *L1_TEST_JETSON
-    <<: *XAVIER
-
-L1_xla_tests--py3.6--XAVIER:
-    <<: *L1_TEST_JETSON
     <<: *XAVIER
 
 L1_inf_object_detection--py3.6--XAVIER:
@@ -1695,27 +1675,11 @@ L3_self_tests--py3.6--XAVIER:
     <<: *L3_TEST_JETSON
     <<: *XAVIER
 
-L0_models_alexnet--py2--XAVIER:
-    <<: *L0_TEST_JETSON
-    <<: *XAVIER_PY2
-
-L0_models_imagenet--py2--XAVIER:
-    <<: *L0_TEST_JETSON
-    <<: *XAVIER_PY2
-
-L0_models_mnist--py2--XAVIER:
-    <<: *L0_TEST_JETSON
-    <<: *XAVIER_PY2
-
 L0_tftrt--py2--XAVIER:
     <<: *L0_TEST_JETSON
     <<: *XAVIER_PY2
 
 L0_inference--py2--XAVIER:
-    <<: *L0_TEST_JETSON
-    <<: *XAVIER_PY2
-
-L0_python_kernel_tests--py2--XAVIER:
     <<: *L0_TEST_JETSON
     <<: *XAVIER_PY2
 

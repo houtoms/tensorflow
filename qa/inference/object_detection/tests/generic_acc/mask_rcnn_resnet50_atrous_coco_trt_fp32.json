@@ -4,9 +4,11 @@
     "output_dir": "models"
   },
   "optimization_config": {
-    "use_trt": false,
+    "use_trt": true,
+    "precision_mode": "FP32",
+    "minimum_segment_size": 15,
     "force_nms_cpu": true,
-    "replace_relu6": true,
+    "replace_relu6": false,
     "remove_assert": false,
     "override_nms_score_threshold": 0.3,
     "max_batch_size": 1
@@ -17,7 +19,7 @@
     "batch_size": 1,
     "image_shape": [600, 600],
     "num_images": 4096,
-    "output_path": "stats/mask_rcnn_resnet50_atrous_coco_tf.json"
+    "output_path": "stats/mask_rcnn_resnet50_atrous_coco_trt_fp32.json"
   },
   "assertions": [
     "statistics['map'] > (0.273 - 0.005)"
