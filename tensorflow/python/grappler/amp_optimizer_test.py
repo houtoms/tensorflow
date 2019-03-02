@@ -258,6 +258,7 @@ def _build_node_map(nodes):
 
 class AMPOptimizerTest(test.TestCase):
   """Tests the Grappler AMP optimizer."""
+  MIN_GPU_ARCH = (7, 0)
 
   def _assert_output_fp16(self, node_map, node_name, output_port=0):
       self.assertEqual(node_map[node_name].output_info[output_port].dtype,
@@ -290,7 +291,8 @@ class AMPOptimizerTest(test.TestCase):
               |            :
     inpB -> loop [ bodyB ] -> outB
     """
-    if test.is_gpu_available(cuda_only=True):
+    if test.is_gpu_available(cuda_only=True,
+                             min_cuda_compute_capability=self.MIN_GPU_ARCH):
       random_seed.set_random_seed(0)
       expected_types = []
       for section in [inpA, inpB, bodyA, bodyB, outA, outB]:
@@ -326,7 +328,8 @@ class AMPOptimizerTest(test.TestCase):
       self.assertAllClose(output_val_ref, output_val, atol=1e-3, rtol=1e-3)
 
   def testConvBN(self):
-    if test.is_gpu_available(cuda_only=True):
+    if test.is_gpu_available(cuda_only=True,
+                             min_cuda_compute_capability=self.MIN_GPU_ARCH):
       random_seed.set_random_seed(0)
       x = _input([2, 8, 8, 1])
       x = _conv_bn(x)
@@ -344,7 +347,8 @@ class AMPOptimizerTest(test.TestCase):
       self.assertAllClose(output_val_ref, output_val, atol=1e-3, rtol=1e-3)
 
   def testConvBNDropout(self):
-    if test.is_gpu_available(cuda_only=True):
+    if test.is_gpu_available(cuda_only=True,
+                             min_cuda_compute_capability=self.MIN_GPU_ARCH):
       random_seed.set_random_seed(0)
       x = _input([2, 8, 8, 1])
       y = _conv_bn(x)
@@ -358,7 +362,8 @@ class AMPOptimizerTest(test.TestCase):
       self.assertAllClose(output_val_ref, output_val, atol=1e-3, rtol=1e-3)
 
   def testConvPool(self):
-    if test.is_gpu_available(cuda_only=True):
+    if test.is_gpu_available(cuda_only=True,
+                             min_cuda_compute_capability=self.MIN_GPU_ARCH):
       random_seed.set_random_seed(0)
       x = _input([2, 8, 8, 1])
       output = _conv_pool(x)
@@ -374,7 +379,8 @@ class AMPOptimizerTest(test.TestCase):
       self.assertAllClose(output_val_ref, output_val, atol=1e-3, rtol=1e-3)
 
   def testSimpleLoop(self):
-    if test.is_gpu_available(cuda_only=True):
+    if test.is_gpu_available(cuda_only=True,
+                             min_cuda_compute_capability=self.MIN_GPU_ARCH):
       random_seed.set_random_seed(0)
       x = _input([8, 8])
       y = _simple_loop(x, _matmul_act)[1]
@@ -390,7 +396,8 @@ class AMPOptimizerTest(test.TestCase):
       self.assertAllClose(output_val_ref, output_val, atol=1e-3, rtol=1e-3)
 
   def testLoopWithVarsIntertwined(self):
-    if test.is_gpu_available(cuda_only=True):
+    if test.is_gpu_available(cuda_only=True,
+                             min_cuda_compute_capability=self.MIN_GPU_ARCH):
       random_seed.set_random_seed(0)
       x = _input([8, 8])
       i, j, k, l = _loop_vars_intertwined(array_ops.ones(array_ops.shape(x)),
@@ -409,7 +416,8 @@ class AMPOptimizerTest(test.TestCase):
       self.assertAllClose(output_val_ref, output_val, atol=1e-3, rtol=1e-3)
 
   def testMultiPaths(self):
-    if test.is_gpu_available(cuda_only=True):
+    if test.is_gpu_available(cuda_only=True,
+                             min_cuda_compute_capability=self.MIN_GPU_ARCH):
       random_seed.set_random_seed(0)
       x = _input([2, 8, 8, 3])
       x1, x2, x3 = array_ops.split(x, num_or_size_splits=3, axis=3)
@@ -434,7 +442,8 @@ class AMPOptimizerTest(test.TestCase):
       self.assertAllClose(output_val_ref, output_val, atol=1e-3, rtol=1e-3)
 
   def testMultiPaths2(self):
-    if test.is_gpu_available(cuda_only=True):
+    if test.is_gpu_available(cuda_only=True,
+                             min_cuda_compute_capability=self.MIN_GPU_ARCH):
       random_seed.set_random_seed(0)
       x = _input([8, 8])
       y1 = _matmul_act(x)
@@ -454,7 +463,8 @@ class AMPOptimizerTest(test.TestCase):
       self.assertAllClose(output_val_ref, output_val, atol=1e-3, rtol=1e-3)
 
   def testRecurrentLSTM(self):
-    if test.is_gpu_available(cuda_only=True):
+    if test.is_gpu_available(cuda_only=True,
+                             min_cuda_compute_capability=self.MIN_GPU_ARCH):
       random_seed.set_random_seed(0)
       init_c = _input([8, 4])
       init_h = _input([8, 4])

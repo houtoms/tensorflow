@@ -30,17 +30,22 @@ namespace tensorflow {
 namespace grappler {
 namespace {
 
+const std::pair<int, int> kMinGPUArch = {7, 0};
+
 class AMPOptimizerTest : public GrapplerTest {
  protected:
   void SetUp() override {
-    gpu_available_ = GetNumAvailableGPUs() > 0;
+    int num_gpus = GetNumAvailableGPUs();
+    // If GPUs are available, require that they all satisfy the min arch.
+    gpu_available_ =
+        num_gpus > 0 && num_gpus == GetNumAvailableGPUs(kMinGPUArch);
 
     if (gpu_available_) {
       virtual_cluster_.reset(new SingleMachine(/* timeout_s = */ 10, 1, 1));
     } else {
       DeviceProperties device_properties;
       device_properties.set_type("GPU");
-      device_properties.mutable_environment()->insert({"architecture", "6"});
+      device_properties.mutable_environment()->insert({"architecture", "7"});
       virtual_cluster_.reset(
           new VirtualCluster({{"/GPU:1", device_properties}}));
     }

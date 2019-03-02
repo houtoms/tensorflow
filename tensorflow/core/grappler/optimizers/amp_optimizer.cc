@@ -45,6 +45,8 @@ namespace tensorflow {
 namespace grappler {
 namespace {
 
+const std::pair<int, int> kMinGPUArch = {7, 0};
+
 const char kSuffix[] = "AMPOptimizer";
 const char kCastToFp16[] = "CastToFp16";
 const char kCastToFp32[] = "CastToFp32";
@@ -908,6 +910,7 @@ class AMPOptimizerImpl {
   void LogSkippedNode(const NodeDef& node) const;
   bool MustPreserve(const NodeDef& node) const;
   bool IsOnGPU(const NodeDef& node) const;
+  bool IsOnSuitableGPUArch(const NodeDef& node) const;
   bool ShouldProcess(const NodeDef& node) const;
   bool NodeHasFP16KernelForTypeAttr(const NodeDef& node, TypeAttrId taid) const;
   bool IsIdentityAfterVariable(const NodeDef& node) const;
@@ -1021,7 +1024,9 @@ Status AMPOptimizerImpl::PrintDebugLogs(bool preop, size_t timestamp) {
 void AMPOptimizerImpl::LogSkippedNode(const NodeDef& node) const {
   VLOG(2) << "Skipping " << node.op() << " node " << node.name()
           << " because it is "
-          << (MustPreserve(node) ? "on the fetch list" : "not on the GPU");
+          << (MustPreserve(node)
+                  ? "on the fetch list"
+                  : "not on the GPU, or the GPU arch is not suitable");
 }
 
 bool AMPOptimizerImpl::MustPreserve(const NodeDef& node) const {
@@ -1043,6 +1048,27 @@ bool AMPOptimizerImpl::IsOnGPU(const NodeDef& node) const {
     return true;
   }
   return false;
+}
+
+// Returns the GPU architecture (compute capability) as a (major, minor) pair.
+std::pair<int, int> GetDeviceGPUArch(
+    const DeviceProperties& device_properties) {
+  if (device_properties.type() != "GPU") return {0, 0};
+  string arch_str = device_properties.environment().at("architecture");
+  std::vector<int32> arch_pieces;
+  if (!str_util::SplitAndParseAsInts(arch_str, '.', &arch_pieces) ||
+      arch_pieces.empty()) {
+    return {0, 0};
+  }
+  std::pair<int, int> arch(arch_pieces[0], 0);
+  if (arch_pieces.size() > 1) {
+    arch.second = arch_pieces[1];
+  }
+  return arch;
+}
+
+bool AMPOptimizerImpl::IsOnSuitableGPUArch(const NodeDef& node) const {
+  return GetDeviceGPUArch(virtual_placer_.get_device(node)) >= kMinGPUArch;
 }
 
 bool AMPOptimizerImpl::ShouldProcess(const NodeDef& node) const {
@@ -1086,6 +1112,20 @@ void AMPOptimizerImpl::ConvertBatchNormOpsToV2() {
   }
 }
 
+// A helper function to decide whether to ignore the effect on performance when
+// rewriting the graph. This can be useful for testing the numerical effects of
+// reduced precision on systems that have poor mixed precision performance.
+bool ShouldIgnorePerformance() {
+  static bool is_enabled = [] {
+    bool ret = false;
+    TF_CHECK_OK(ReadBoolFromEnvVar(
+        "TF_AUTO_MIXED_PRECISION_GRAPH_REWRITE_IGNORE_PERFORMANCE",
+        /*default_val=*/false, &ret));
+    return ret;
+  }();
+  return is_enabled;
+}
+
 Status AMPOptimizerImpl::Optimize() {
   string optimization_level;
   TF_RETURN_IF_ERROR(ReadStringFromEnvVar(
@@ -1107,7 +1147,8 @@ Status AMPOptimizerImpl::Optimize() {
 
   VLOG(2) << "Identifying nodes that should be processed";
   for (const NodeDef& node : graph_->node()) {
-    if (!MustPreserve(node) && IsOnGPU(node)) {
+    if (!MustPreserve(node) && IsOnGPU(node) &&
+        (ShouldIgnorePerformance() || IsOnSuitableGPUArch(node))) {
       should_process_nodes_.insert(&node);
     } else {
       LogSkippedNode(node);
@@ -1587,11 +1628,14 @@ Status AMPOptimizerImpl::ChangeTypeAttrsAndAddCasts(
   return Status::OK();
 }
 
-int GetNumGPUs(const Cluster& cluster) {
+int GetNumGPUs(const Cluster& cluster,
+               const std::pair<int, int>& min_arch = {0, 0}) {
   auto devices = cluster.GetDevices();
   int num_gpus = 0;
   for (const auto& device : devices) {
-    if (device.second.type() == "GPU") {
+    const DeviceProperties& device_properties = device.second;
+    std::pair<int, int> arch = GetDeviceGPUArch(device_properties);
+    if (device_properties.type() == "GPU" && arch >= min_arch) {
       num_gpus++;
     }
   }
@@ -1609,9 +1653,11 @@ Status AMPOptimizer::Optimize(Cluster* cluster, const GrapplerItem& item,
   // Start by copying input graph to output.
   *output = item.graph;
 
-  if (GetNumGPUs(*cluster) < 1) {
+  int num_gpus = ShouldIgnorePerformance() ? GetNumGPUs(*cluster)
+                                           : GetNumGPUs(*cluster, kMinGPUArch);
+  if (num_gpus < 1) {
     // AMPOptimizer is currently only tuned for GPU.
-    LOG(WARNING) << "No GPUs detected, skipping " << name()
+    LOG(WARNING) << "No (suitable) GPUs detected, skipping " << name()
                  << " graph optimizer";
     return Status::OK();
   }
