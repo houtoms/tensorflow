@@ -803,7 +803,7 @@ class Optimizer(
 
   def _shift_loss(self, loss_tensor):
     if self._gradient_shift == self.AUTO_GRADIENT_SHIFT:
-      scalar = self._create_non_slot_variable(float(2.**24), # Initial value
+      scalar = self._create_non_slot_variable(float(2.**16), # Initial value
                                               'grad_shift_scalar', loss_tensor)
     else:
       scalar = self._create_non_slot_variable(self._gradient_shift,
