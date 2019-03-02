@@ -54,8 +54,9 @@ class AMPOptimizerTest : public GrapplerTest {
 
   void TearDown() override { TF_CHECK_OK(virtual_cluster_->Shutdown()); }
 
-  void AddSimpleNode(const string& name, const string& op,
-                     const std::vector<string>& inputs, GraphDef* graph) const {
+  NodeDef* AddSimpleNode(const string& name, const string& op,
+                         const std::vector<string>& inputs,
+                         GraphDef* graph) const {
     std::vector<std::pair<string, AttrValue>> attributes;
     if (op == "AddN") {
       AttrValue num_inputs;
@@ -75,10 +76,15 @@ class AMPOptimizerTest : public GrapplerTest {
         type_list.mutable_list()->add_type(DT_FLOAT);
       }
       attributes.emplace_back("T", type_list);
+    } else if (op == "StackV2" || op == "StackPopV2") {
+      attributes.emplace_back("elem_type", type);
+    } else if (op == "Cast") {
+      attributes.emplace_back("SrcT", type);
+      attributes.emplace_back("DstT", type);
     } else {
       attributes.emplace_back("T", type);
     }
-    AddNode(name, op, inputs, attributes, graph);
+    return AddNode(name, op, inputs, attributes, graph);
   }
 
   std::unique_ptr<Cluster> virtual_cluster_;
@@ -127,6 +133,39 @@ TEST_F(AMPOptimizerTest, NoOp) {
   EXPECT_EQ(output_view.GetNode("B1")->attr().at("T").type(), DT_FLOAT);
   EXPECT_EQ(output_view.GetNode("C1")->attr().at("T").type(), DT_FLOAT);
   EXPECT_EQ(output_view.GetNode("G1")->attr().at("T").type(), DT_FLOAT);
+  EXPECT_EQ(output_view.GetNode("C2")->attr().at("T").type(), DT_FLOAT);
+}
+
+TEST_F(AMPOptimizerTest, AlreadyFp16) {
+  GraphDef graph;
+  AddSimpleNode("In", "Placeholder", {}, &graph);
+  NodeDef* cast1 = AddSimpleNode("Cast1", "Cast", {"In"}, &graph);
+  cast1->mutable_attr()->at("DstT").set_type(DT_HALF);
+  NodeDef* w1 = AddSimpleNode("W1", "MatMul", {"Cast1", "Cast1"}, &graph);
+  w1->mutable_attr()->at("T").set_type(DT_HALF);
+  NodeDef* c1 = AddSimpleNode("C1", "Relu", {"W1"}, &graph);
+  c1->mutable_attr()->at("T").set_type(DT_HALF);
+  NodeDef* cast2 = AddSimpleNode("Cast2", "Cast", {"C1"}, &graph);
+  cast2->mutable_attr()->at("SrcT").set_type(DT_HALF);
+  AddSimpleNode("C2", "Relu", {"Cast2"}, &graph);
+
+  GrapplerItem item;
+  item.graph = graph;
+  AMPOptimizer optimizer;
+  GraphDef output;
+  TF_ASSERT_OK(optimizer.Optimize(virtual_cluster_.get(), item, &output));
+
+  VLOG(1) << output.DebugString();
+
+  VerifyGraphsEquivalent(item.graph, output, __FUNCTION__);
+
+  GraphView output_view(&output);
+  EXPECT_EQ(output_view.GetNode("In")->attr().at("dtype").type(), DT_FLOAT);
+  EXPECT_EQ(output_view.GetNode("Cast1")->attr().at("DstT").type(), DT_HALF);
+  EXPECT_EQ(output_view.GetNode("W1")->attr().at("T").type(), DT_HALF);
+  EXPECT_EQ(output_view.GetNode("C1")->attr().at("T").type(), DT_HALF);
+  EXPECT_EQ(output_view.GetNode("Cast2")->attr().at("SrcT").type(), DT_HALF);
+  EXPECT_EQ(output_view.GetNode("Cast2")->attr().at("DstT").type(), DT_FLOAT);
   EXPECT_EQ(output_view.GetNode("C2")->attr().at("T").type(), DT_FLOAT);
 }
 
@@ -270,6 +309,72 @@ TEST_F(AMPOptimizerTest, ListTypeAttrs) {
   }
   EXPECT_EQ(output_view.GetNode("G1")->attr().at("T").type(), DT_HALF);
   EXPECT_EQ(output_view.GetNode("W2")->attr().at("T").type(), DT_HALF);
+}
+
+TEST_F(AMPOptimizerTest, ExistingCast) {
+  GraphDef graph;
+  NodeDef* ph = AddSimpleNode("In", "Placeholder", {}, &graph);
+  ph->mutable_attr()->at("dtype").set_type(DT_BOOL);
+  NodeDef* cast = AddSimpleNode("Cast1", "Cast", {"In"}, &graph);
+  cast->mutable_attr()->at("SrcT").set_type(DT_BOOL);
+  AddSimpleNode("W1", "MatMul", {"Cast1", "Cast1"}, &graph);
+
+  GrapplerItem item;
+  item.graph = graph;
+  AMPOptimizer optimizer;
+  GraphDef output;
+  TF_ASSERT_OK(optimizer.Optimize(virtual_cluster_.get(), item, &output));
+
+  VLOG(1) << output.DebugString();
+
+  GraphView output_view(&output);
+  EXPECT_EQ(output.node_size(), graph.node_size());
+  EXPECT_EQ(output_view.GetNode("Cast1")->attr().at("DstT").type(), DT_HALF);
+  EXPECT_EQ(output_view.GetNode("W1")->attr().at("T").type(), DT_HALF);
+}
+
+TEST_F(AMPOptimizerTest, StackV2) {
+  GraphDef graph;
+  AddSimpleNode("Handle1", "Const", {}, &graph);
+  AddSimpleNode("Stack1", "StackV2", {"Handle1"}, &graph);
+  AddSimpleNode("In", "Placeholder", {}, &graph);
+  AddSimpleNode("Push1", "StackPushV2", {"Stack1", "In"}, &graph);
+  AddSimpleNode("W1", "MatMul", {"In", "In"}, &graph);
+  AddSimpleNode("Push2", "StackPushV2", {"Stack1", "W1"}, &graph);
+  AddSimpleNode("Pop1", "StackPopV2", {"Stack1"}, &graph);
+  AddSimpleNode("G1", "Tanh", {"Pop1"}, &graph);
+  AddSimpleNode("W2", "MatMul", {"G1", "G1"}, &graph);
+  AddSimpleNode("Push3", "StackPushV2", {"Stack1", "W2"}, &graph);
+  AddSimpleNode("Handle2", "Const", {}, &graph);
+  AddSimpleNode("Stack2", "StackV2", {"Handle2"}, &graph);
+  AddSimpleNode("Push1-2", "StackPushV2", {"Stack2", "In"}, &graph);
+  AddSimpleNode("Pop1-2", "StackPopV2", {"Stack2"}, &graph);
+
+  GrapplerItem item;
+  item.graph = graph;
+  AMPOptimizer optimizer;
+  GraphDef output;
+  TF_ASSERT_OK(optimizer.Optimize(virtual_cluster_.get(), item, &output));
+
+  VLOG(1) << output.DebugString();
+
+  GraphView output_view(&output);
+  EXPECT_EQ(output.node_size(), graph.node_size() + 1);
+  EXPECT_EQ(output_view.GetNode("Stack1")->attr().at("elem_type").type(),
+            DT_HALF);
+  EXPECT_EQ(output_view.GetNode("Push1")->attr().at("T").type(), DT_HALF);
+  EXPECT_EQ(output_view.GetNode("W1")->attr().at("T").type(), DT_HALF);
+  EXPECT_EQ(output_view.GetNode("Push2")->attr().at("T").type(), DT_HALF);
+  EXPECT_EQ(output_view.GetNode("Pop1")->attr().at("elem_type").type(),
+            DT_HALF);
+  EXPECT_EQ(output_view.GetNode("G1")->attr().at("T").type(), DT_HALF);
+  EXPECT_EQ(output_view.GetNode("W2")->attr().at("T").type(), DT_HALF);
+  EXPECT_EQ(output_view.GetNode("Push3")->attr().at("T").type(), DT_HALF);
+  EXPECT_EQ(output_view.GetNode("Stack2")->attr().at("elem_type").type(),
+            DT_FLOAT);
+  EXPECT_EQ(output_view.GetNode("Push1-2")->attr().at("T").type(), DT_FLOAT);
+  EXPECT_EQ(output_view.GetNode("Pop1-2")->attr().at("elem_type").type(),
+            DT_FLOAT);
 }
 
 }  // namespace

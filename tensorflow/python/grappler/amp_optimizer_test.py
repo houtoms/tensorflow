@@ -352,11 +352,22 @@ class AMPOptimizerTest(test.TestCase):
       random_seed.set_random_seed(0)
       x = _input([2, 8, 8, 1])
       y = _conv_bn(x)
-      # Our algo. currently does not convert this dropout
       y = nn.dropout(y, rate=0.5)
+      y = _conv_bn(y)
+      y = array_ops.identity(y)
       optimizer = gradient_descent.GradientDescentOptimizer(learning_rate=0.01)
       g = optimizer.compute_gradients(y, [x])
       output = (y, g)
+
+      output_val_ref, output_val, cost_graph = self._run(output)
+      node_map = _build_node_map(cost_graph.node)
+      num_to_fp16, num_to_fp32 = _count_casts(cost_graph.node)
+      self._assert_output_fp16(node_map, 'Conv2D')
+      self._assert_output_fp16(node_map, 'FusedBatchNorm')
+      self._assert_output_fp16(node_map, 'dropout/mul')
+      self._assert_output_fp16(node_map, 'dropout/Cast')
+      self._assert_output_fp16(node_map, 'dropout/mul_1')
+      self._assert_output_fp16(node_map, 'Conv2D_1')
 
       output_val_ref, output_val, cost_graph = self._run(output)
       self.assertAllClose(output_val_ref, output_val, atol=1e-3, rtol=1e-3)
