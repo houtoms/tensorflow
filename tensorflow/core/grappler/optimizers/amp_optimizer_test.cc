@@ -58,14 +58,20 @@ class AMPOptimizerTest : public GrapplerTest {
                          const std::vector<string>& inputs,
                          GraphDef* graph) const {
     std::vector<std::pair<string, AttrValue>> attributes;
-    if (op == "AddN") {
+    if (op == "AddN" || op == "ShapeN") {
       AttrValue num_inputs;
       num_inputs.set_i(inputs.size());
       attributes.emplace_back("N", num_inputs);
     }
+    if (op == "ShapeN") {
+      AttrValue out_type;
+      out_type.set_type(DT_INT32);
+      attributes.emplace_back("out_type", out_type);
+    }
     AttrValue type;
     type.set_type(DT_FLOAT);
-    if (op == "Const" || op == "Placeholder") {
+    if (op == "Const" || op == "Placeholder" || op == "VariableV2" ||
+        op == "VarHandleOp" || op == "ReadVariableOp") {
       attributes.emplace_back("dtype", type);
     } else if (op == "SparseMatMul") {
       attributes.emplace_back("Ta", type);
@@ -169,7 +175,7 @@ TEST_F(AMPOptimizerTest, AlreadyFp16) {
   EXPECT_EQ(output_view.GetNode("C2")->attr().at("T").type(), DT_FLOAT);
 }
 
-TEST_F(AMPOptimizerTest, Simple1) {
+TEST_F(AMPOptimizerTest, Simple) {
   GraphDef graph;
   AddSimpleNode("In", "Placeholder", {}, &graph);
   AddSimpleNode("B1", "Exp", {"In"}, &graph);
@@ -206,6 +212,33 @@ TEST_F(AMPOptimizerTest, Simple1) {
   EXPECT_EQ(output_view.GetNode("B4")->attr().at("Tb").type(), DT_FLOAT);
   EXPECT_EQ(output_view.GetNode("C5")->attr().at("T").type(), DT_FLOAT);
 }
+
+TEST_F(AMPOptimizerTest, BidirectionalClearChain) {
+  GraphDef graph;
+  AddSimpleNode("In", "Placeholder", {}, &graph);
+  AddSimpleNode("C1", "Relu", {"In"}, &graph);
+  AddSimpleNode("C2", "Relu", {"In"}, &graph);
+  AddSimpleNode("W1", "MatMul", {"C1", "C1"}, &graph);
+  AddSimpleNode("C3", "ShapeN", {"C1", "C2"}, &graph);
+  AddSimpleNode("C4", "Relu", {"C2"}, &graph);
+
+  GrapplerItem item;
+  item.graph = graph;
+  AMPOptimizer optimizer;
+  GraphDef output;
+  TF_ASSERT_OK(optimizer.Optimize(virtual_cluster_.get(), item, &output));
+
+  VLOG(1) << output.DebugString();
+
+  GraphView output_view(&output);
+  EXPECT_EQ(output.node_size(), graph.node_size() + 1);
+  EXPECT_EQ(output_view.GetNode("In")->attr().at("dtype").type(), DT_FLOAT);
+  EXPECT_EQ(output_view.GetNode("C1")->attr().at("T").type(), DT_HALF);
+  EXPECT_EQ(output_view.GetNode("C2")->attr().at("T").type(), DT_HALF);
+  EXPECT_EQ(output_view.GetNode("W1")->attr().at("T").type(), DT_HALF);
+  EXPECT_EQ(output_view.GetNode("C3")->attr().at("T").type(), DT_HALF);
+  EXPECT_EQ(output_view.GetNode("C4")->attr().at("T").type(), DT_HALF);
+};
 
 TEST_F(AMPOptimizerTest, PreserveFetches) {
   GraphDef graph;
@@ -247,6 +280,70 @@ TEST_F(AMPOptimizerTest, PreserveFetches) {
   EXPECT_EQ(output_view.GetNode("C4")->attr().at("T").type(), DT_FLOAT);
 }
 
+TEST_F(AMPOptimizerTest, PreserveCPUNodes) {
+  GraphDef graph;
+  AddSimpleNode("In", "Placeholder", {}, &graph);
+  AddSimpleNode("C1", "Relu", {"In"}, &graph);
+  AddSimpleNode("W1", "MatMul", {"C1", "C1"}, &graph);
+  AddSimpleNode("G1", "Tanh", {"W1"}, &graph);
+  NodeDef* w2 = AddSimpleNode("W2", "MatMul", {"G1", "G1"}, &graph);
+  w2->set_device("/job:localhost/replica:0/task:0/device:CPU:0");
+  AddSimpleNode("C2", "Relu", {"W2"}, &graph);
+
+  GrapplerItem item;
+  item.graph = graph;
+  AMPOptimizer optimizer;
+  GraphDef output;
+  TF_ASSERT_OK(optimizer.Optimize(virtual_cluster_.get(), item, &output));
+
+  VLOG(1) << output.DebugString();
+
+  GraphView output_view(&output);
+  EXPECT_EQ(output.node_size(), graph.node_size() + 2);
+  EXPECT_EQ(output_view.GetNode("In")->attr().at("dtype").type(), DT_FLOAT);
+  EXPECT_EQ(output_view.GetNode("C1")->attr().at("T").type(), DT_HALF);
+  EXPECT_EQ(output_view.GetNode("W1")->attr().at("T").type(), DT_HALF);
+  EXPECT_EQ(output_view.GetNode("G1")->attr().at("T").type(), DT_FLOAT);
+  EXPECT_EQ(output_view.GetNode("W2")->attr().at("T").type(), DT_FLOAT);
+  EXPECT_EQ(output_view.GetNode("C2")->attr().at("T").type(), DT_FLOAT);
+}
+
+TEST_F(AMPOptimizerTest, PreserveIdentityAfterVariable) {
+  GraphDef graph;
+  AddSimpleNode("In", "Placeholder", {}, &graph);
+  AddSimpleNode("V1", "VariableV2", {}, &graph);
+  AddSimpleNode("C1", "Identity", {"V1"}, &graph);
+  AddSimpleNode("W1", "MatMul", {"In", "C1"}, &graph);
+  AddSimpleNode("VarHandle1", "VarHandleOp", {}, &graph);
+  AddSimpleNode("V2", "ReadVariableOp", {"VarHandle1"}, &graph);
+  AddSimpleNode("W2", "MatMul", {"In", "V2"}, &graph);
+  AddSimpleNode("Const1", "Const", {}, &graph);
+  AddSimpleNode("C2", "Identity", {"Const1"}, &graph);
+  AddSimpleNode("W3", "MatMul", {"In", "C2"}, &graph);
+
+  GrapplerItem item;
+  item.graph = graph;
+  AMPOptimizer optimizer;
+  GraphDef output;
+  TF_ASSERT_OK(optimizer.Optimize(virtual_cluster_.get(), item, &output));
+
+  VLOG(1) << output.DebugString();
+
+  GraphView output_view(&output);
+  EXPECT_EQ(output.node_size(), graph.node_size() + 4);
+  EXPECT_EQ(output_view.GetNode("In")->attr().at("dtype").type(), DT_FLOAT);
+  EXPECT_EQ(output_view.GetNode("V1")->attr().at("dtype").type(), DT_FLOAT);
+  EXPECT_EQ(output_view.GetNode("C1")->attr().at("T").type(), DT_FLOAT);
+  EXPECT_EQ(output_view.GetNode("W1")->attr().at("T").type(), DT_HALF);
+  EXPECT_EQ(output_view.GetNode("VarHandle1")->attr().at("dtype").type(),
+            DT_FLOAT);
+  EXPECT_EQ(output_view.GetNode("V2")->attr().at("dtype").type(), DT_FLOAT);
+  EXPECT_EQ(output_view.GetNode("W2")->attr().at("T").type(), DT_HALF);
+  EXPECT_EQ(output_view.GetNode("Const1")->attr().at("dtype").type(), DT_FLOAT);
+  EXPECT_EQ(output_view.GetNode("C2")->attr().at("T").type(), DT_HALF);
+  EXPECT_EQ(output_view.GetNode("W3")->attr().at("T").type(), DT_HALF);
+}
+
 TEST_F(AMPOptimizerTest, FusedBatchNorm) {
   GraphDef graph;
   AddSimpleNode("X", "Placeholder", {}, &graph);
@@ -284,7 +381,7 @@ TEST_F(AMPOptimizerTest, FusedBatchNorm) {
   EXPECT_EQ(output_view.GetNode("W2")->attr().at("T").type(), DT_HALF);
 }
 
-TEST_F(AMPOptimizerTest, ListTypeAttrs) {
+TEST_F(AMPOptimizerTest, RepeatedAndListTypeAttrs) {
   GraphDef graph;
   AddSimpleNode("In", "Placeholder", {}, &graph);
   AddSimpleNode("W1", "MatMul", {"In", "In"}, &graph);
