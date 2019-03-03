@@ -16,7 +16,7 @@ else
 fi
 
 cd $SCRIPT_DIR/../..
-bazel query "attr(size, small, $TARGETS) union attr(size, medium, $TARGETS) except (attr(tags, no_gpu, $TARGETS) $ARM_EXCEPT union attr(data, '/*\.so', $TARGETS))" > "$TEST_LIST"
+bazel query "attr(size, small, $TARGETS) union attr(size, medium, $TARGETS)" > "$TEST_LIST"
 
 GPUS=$(nvidia-smi -L | wc -l)
 echo Running tests on $GPUS GPUs
