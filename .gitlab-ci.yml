@@ -1127,6 +1127,7 @@ L0_os2s_ctc--V100_R384_1GPU:
 L0_seq2seq--V100_R384_1GPU:
     <<: *L0_TEST
     <<: *V100_R384_1GPU
+    allow_failure: false
 
 L0_tftrt--V100_R384_1GPU:
     <<: *L0_TEST
