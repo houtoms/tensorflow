@@ -13,8 +13,8 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
-#ifndef TENSORFLOW_CORE_GRAPPLER_OPTIMIZERS_AMP_OPTIMIZER_LISTS_H_
-#define TENSORFLOW_CORE_GRAPPLER_OPTIMIZERS_AMP_OPTIMIZER_LISTS_H_
+#ifndef TENSORFLOW_CORE_GRAPPLER_OPTIMIZERS_AUTO_MIXED_PRECISION_LISTS_H_
+#define TENSORFLOW_CORE_GRAPPLER_OPTIMIZERS_AUTO_MIXED_PRECISION_LISTS_H_
 
 #include <set>
 #include "tensorflow/core/lib/strings/str_util.h"
@@ -29,7 +29,7 @@ limitations under the License.
 namespace tensorflow {
 namespace grappler {
 
-class AMPOptimizerLists {
+class AutoMixedPrecisionLists {
  private:
   static void UpdateList(std::set<string>* list, const string& to_add,
                          const string& to_remove) {
@@ -52,8 +52,11 @@ class AMPOptimizerLists {
  public:
   static std::set<string> WhiteList() {
     string to_add, to_remove;
-    ReadStringFromEnvVar("TF_AMP_WHITELIST_ADD", "", &to_add);
-    ReadStringFromEnvVar("TF_AMP_WHITELIST_REMOVE", "", &to_remove);
+    ReadStringFromEnvVar("TF_AUTO_MIXED_PRECISION_GRAPH_REWRITE_WHITELIST_ADD",
+                         "", &to_add);
+    ReadStringFromEnvVar(
+        "TF_AUTO_MIXED_PRECISION_GRAPH_REWRITE_WHITELIST_REMOVE", "",
+        &to_remove);
 
     auto list = std::set<string> {
 #if CUDA_VERSION >= 9010 // Fp16 BatchMatMul is slow before CUDA 9.1.
@@ -92,8 +95,11 @@ class AMPOptimizerLists {
       return std::set<string>{};
     }
     string to_add, to_remove;
-    ReadStringFromEnvVar("TF_AMP_GRAYLIST_ADD", "", &to_add);
-    ReadStringFromEnvVar("TF_AMP_GRAYLIST_REMOVE", "", &to_remove);
+    ReadStringFromEnvVar("TF_AUTO_MIXED_PRECISION_GRAPH_REWRITE_GRAYLIST_ADD",
+                         "", &to_add);
+    ReadStringFromEnvVar(
+        "TF_AUTO_MIXED_PRECISION_GRAPH_REWRITE_GRAYLIST_REMOVE", "",
+        &to_remove);
 
     auto list = std::set<string>{
         "Add",
@@ -139,8 +145,11 @@ class AMPOptimizerLists {
       return std::set<string>{};
     }
     string to_add, to_remove;
-    ReadStringFromEnvVar("TF_AMP_BLACKLIST_ADD", "", &to_add);
-    ReadStringFromEnvVar("TF_AMP_BLACKLIST_REMOVE", "", &to_remove);
+    ReadStringFromEnvVar("TF_AUTO_MIXED_PRECISION_GRAPH_REWRITE_BLACKLIST_ADD",
+                         "", &to_add);
+    ReadStringFromEnvVar(
+        "TF_AUTO_MIXED_PRECISION_GRAPH_REWRITE_BLACKLIST_REMOVE", "",
+        &to_remove);
 
     auto list = std::set<string>{
         "Exp",
@@ -160,13 +169,17 @@ class AMPOptimizerLists {
     return list;
   }
 
-  static std::set<string> PassThroughList() {
+  static std::set<string> ClearList() {
     if (IsPseudoFastMath()) {
       return std::set<string>{};
     }
     string to_add, to_remove;
-    ReadStringFromEnvVar("TF_AMP_PASSTHROUGHLIST_ADD", "", &to_add);
-    ReadStringFromEnvVar("TF_AMP_PASSTHROUGHLIST_REMOVE", "", &to_remove);
+    ReadStringFromEnvVar(
+        "TF_AUTO_MIXED_PRECISION_GRAPH_REWRITE_CLEARLIST_ADD", "",
+        &to_add);
+    ReadStringFromEnvVar(
+        "TF_AUTO_MIXED_PRECISION_GRAPH_REWRITE_CLEARLIST_REMOVE", "",
+        &to_remove);
 
     auto list = std::set<string> {
         "Abs",
@@ -278,4 +291,4 @@ class AMPOptimizerLists {
 }
 }
 
-#endif  // TENSORFLOW_CORE_GRAPPLER_OPTIMIZERS_AMP_OPTIMIZER_LISTS_H_
+#endif  // TENSORFLOW_CORE_GRAPPLER_OPTIMIZERS_AUTO_MIXED_PRECISION_LISTS_H_

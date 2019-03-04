@@ -29,8 +29,8 @@ limitations under the License.
 #include "tensorflow/core/grappler/grappler_item.h"
 #include "tensorflow/core/grappler/mutable_graph_view.h"
 #include "tensorflow/core/grappler/op_types.h"
-#include "tensorflow/core/grappler/optimizers/amp_optimizer.h"
-#include "tensorflow/core/grappler/optimizers/amp_optimizer_lists.h"
+#include "tensorflow/core/grappler/optimizers/auto_mixed_precision.h"
+#include "tensorflow/core/grappler/optimizers/auto_mixed_precision_lists.h"
 #include "tensorflow/core/grappler/optimizers/custom_graph_optimizer_registry.h"
 #include "tensorflow/core/grappler/utils.h"
 #include "tensorflow/core/grappler/utils.h"
@@ -47,7 +47,7 @@ namespace {
 
 const std::pair<int, int> kMinGPUArch = {7, 0};
 
-const char kSuffix[] = "AMPOptimizer";
+const char kSuffix[] = "AutoMixedPrecision";
 const char kCastToFp16[] = "CastToFp16";
 const char kCastToFp32[] = "CastToFp32";
 
@@ -840,9 +840,9 @@ NodeDef BuildCastNode(const MutableGraphView::OutputPort& src, bool to_fp16,
 Status ValidateLists(const std::set<string>& white_list,
                      const std::set<string>& black_list,
                      const std::set<string>& gray_list,
-                     const std::set<string>& passthrough_list) {
+                     const std::set<string>& clear_list) {
   std::vector<std::set<string>> lists{white_list, black_list, gray_list,
-                                      passthrough_list};
+                                      clear_list};
   std::multiset<string> counts;
   for (auto list : lists) {
     counts.insert(list.begin(), list.end());
@@ -851,11 +851,11 @@ Status ValidateLists(const std::set<string>& white_list,
   for (auto s : counts) {
     if (counts.count(s) > 1) {
       duplicates = true;
-      LOG(ERROR) << "Op present in multiple AMP lists: " << s;
+      LOG(ERROR) << "Op present in multiple lists: " << s;
     }
   }
   if (duplicates) {
-    return errors::InvalidArgument("AMP op lists have conflicting entries.");
+    return errors::InvalidArgument("Op lists have conflicting entries");
   } else {
     return Status::OK();
   }
@@ -886,11 +886,11 @@ bool CanForceFP16(const NodeDef& node) {
          !IsStateful(node) && !HasInputOrOutputRefs(node);
 }
 
-class AMPOptimizerImpl {
+class AutoMixedPrecisionImpl {
  public:
-  AMPOptimizerImpl(Cluster* cluster,
-                   const std::unordered_set<string>& nodes_to_preserve,
-                   GraphDef* graph, string id)
+  AutoMixedPrecisionImpl(Cluster* cluster,
+                         const std::unordered_set<string>& nodes_to_preserve,
+                         GraphDef* graph, string id)
       : virtual_placer_(cluster),
         nodes_to_preserve_(nodes_to_preserve),
         graph_(graph),
@@ -956,8 +956,8 @@ class AMPOptimizerImpl {
   absl::flat_hash_set<const NodeDef*> should_process_nodes_;
 };
 
-bool AMPOptimizerImpl::NodeHasFP16KernelForTypeAttr(const NodeDef& node,
-                                                    TypeAttrId taid) const {
+bool AutoMixedPrecisionImpl::NodeHasFP16KernelForTypeAttr(
+    const NodeDef& node, TypeAttrId taid) const {
   NodeDef node_copy(node);
   if (node.device().empty()) {
     string device_name = virtual_placer_.get_canonical_device_name(node);
@@ -969,14 +969,14 @@ bool AMPOptimizerImpl::NodeHasFP16KernelForTypeAttr(const NodeDef& node,
   return IsKernelRegisteredForNode(node_copy).ok();
 }
 
-Status AMPOptimizerImpl::PrintDebugLogs(bool preop, size_t timestamp) {
+Status AutoMixedPrecisionImpl::PrintDebugLogs(bool preop, size_t timestamp) {
   string prepend_path;
-  TF_RETURN_IF_ERROR(
-      ReadStringFromEnvVar("TF_AMP_LOG_PATH", "", &prepend_path));
+  TF_RETURN_IF_ERROR(ReadStringFromEnvVar(
+      "TF_AUTO_MIXED_PRECISION_GRAPH_REWRITE_LOG_PATH", "", &prepend_path));
   if (prepend_path == "") return Status::OK();
 
-  string suffix = strings::StrCat(preop ? "_preop_" : "_AMPOptimizer_", id_,
-                                  "_", timestamp);
+  string suffix =
+      strings::StrCat("_", preop ? "preop" : kSuffix, "_", id_, "_", timestamp);
 
   string fname =
       io::JoinPath(prepend_path, strings::StrCat("graphdef", suffix, ".pb"));
@@ -1000,19 +1000,19 @@ Status AMPOptimizerImpl::PrintDebugLogs(bool preop, size_t timestamp) {
                          strings::StrCat("paintbuckets", suffix, ".txt"));
     f.open(fname.c_str(), std::fstream::out);
     f << "WhiteList:\n";
-    for (auto x : AMPOptimizerLists::WhiteList()) {
+    for (auto x : AutoMixedPrecisionLists::WhiteList()) {
       f << x << "\n";
     }
     f << "\nBlackList:\n";
-    for (auto x : AMPOptimizerLists::BlackList()) {
+    for (auto x : AutoMixedPrecisionLists::BlackList()) {
       f << x << "\n";
     }
     f << "\nGrayList:\n";
-    for (auto x : AMPOptimizerLists::GrayList()) {
+    for (auto x : AutoMixedPrecisionLists::GrayList()) {
       f << x << "\n";
     }
-    f << "\nPassThroughList:\n";
-    for (auto x : AMPOptimizerLists::PassThroughList()) {
+    f << "\nClearList:\n";
+    for (auto x : AutoMixedPrecisionLists::ClearList()) {
       f << x << "\n";
     }
     f.close();
@@ -1021,7 +1021,7 @@ Status AMPOptimizerImpl::PrintDebugLogs(bool preop, size_t timestamp) {
   return Status::OK();
 }
 
-void AMPOptimizerImpl::LogSkippedNode(const NodeDef& node) const {
+void AutoMixedPrecisionImpl::LogSkippedNode(const NodeDef& node) const {
   VLOG(2) << "Skipping " << node.op() << " node " << node.name()
           << " because it is "
           << (MustPreserve(node)
@@ -1029,11 +1029,11 @@ void AMPOptimizerImpl::LogSkippedNode(const NodeDef& node) const {
                   : "not on the GPU, or the GPU arch is not suitable");
 }
 
-bool AMPOptimizerImpl::MustPreserve(const NodeDef& node) const {
+bool AutoMixedPrecisionImpl::MustPreserve(const NodeDef& node) const {
   return nodes_to_preserve_.count(node.name());
 }
 
-bool AMPOptimizerImpl::IsOnGPU(const NodeDef& node) const {
+bool AutoMixedPrecisionImpl::IsOnGPU(const NodeDef& node) const {
   string device_name;
   if (node.device().empty()) {
     device_name = virtual_placer_.get_canonical_device_name(node);
@@ -1067,11 +1067,11 @@ std::pair<int, int> GetDeviceGPUArch(
   return arch;
 }
 
-bool AMPOptimizerImpl::IsOnSuitableGPUArch(const NodeDef& node) const {
+bool AutoMixedPrecisionImpl::IsOnSuitableGPUArch(const NodeDef& node) const {
   return GetDeviceGPUArch(virtual_placer_.get_device(node)) >= kMinGPUArch;
 }
 
-bool AMPOptimizerImpl::ShouldProcess(const NodeDef& node) const {
+bool AutoMixedPrecisionImpl::ShouldProcess(const NodeDef& node) const {
   return should_process_nodes_.count(&node);
 }
 
@@ -1080,7 +1080,8 @@ bool IsFloat32(const NodeTypeId& node_type) {
          DataType::DT_FLOAT;
 }
 
-bool AMPOptimizerImpl::SupportsFloat16(const NodeTypeId& node_type) const {
+bool AutoMixedPrecisionImpl::SupportsFloat16(
+    const NodeTypeId& node_type) const {
   const OpDef* op_def;
   OpRegistry::Global()->LookUpOpDef(node_type.node->op(), &op_def);
   return AllowedDataTypes(*op_def, node_type.type_attr)
@@ -1090,7 +1091,7 @@ bool AMPOptimizerImpl::SupportsFloat16(const NodeTypeId& node_type) const {
 
 // TODO(mconley): Make this change the node's name (to aid debugging). Need to
 // make sure that doing this won't break anything.
-void AMPOptimizerImpl::ConvertBatchNormOpsToV2() {
+void AutoMixedPrecisionImpl::ConvertBatchNormOpsToV2() {
   for (int node_idx = 0; node_idx < (int)graph_->node_size(); ++node_idx) {
     NodeDef* node = graph_->mutable_node(node_idx);
     if (!ShouldProcess(*node)) continue;
@@ -1126,17 +1127,17 @@ bool ShouldIgnorePerformance() {
   return is_enabled;
 }
 
-Status AMPOptimizerImpl::Optimize() {
+Status AutoMixedPrecisionImpl::Optimize() {
   string optimization_level;
   TF_RETURN_IF_ERROR(ReadStringFromEnvVar(
       "TF_AUTO_MIXED_PRECISION_GRAPH_REWRITE_LEVEL", "", &optimization_level));
   optimization_level = str_util::Uppercase(optimization_level);
   force_all_fp16_ = optimization_level == "UNSAFE_FORCE_ALL";
 
-  fp16_whitelist_ = AMPOptimizerLists::WhiteList();
-  fp16_blacklist_ = AMPOptimizerLists::BlackList();
-  fp16_graylist_ = AMPOptimizerLists::GrayList();
-  fp16_clearlist_ = AMPOptimizerLists::PassThroughList();
+  fp16_whitelist_ = AutoMixedPrecisionLists::WhiteList();
+  fp16_blacklist_ = AutoMixedPrecisionLists::BlackList();
+  fp16_graylist_ = AutoMixedPrecisionLists::GrayList();
+  fp16_clearlist_ = AutoMixedPrecisionLists::ClearList();
   TF_RETURN_IF_ERROR(ValidateLists(fp16_whitelist_, fp16_blacklist_,
                                    fp16_graylist_, fp16_clearlist_));
 
@@ -1239,7 +1240,7 @@ Status AMPOptimizerImpl::Optimize() {
 
 // Finds data structure object ops (e.g., StackV2) and the sets of nodes that
 // write (e.g., StackPushV2) and read (e.g., StackPopV2) from them.
-Status AMPOptimizerImpl::AddDataStructureOpsToMap(
+Status AutoMixedPrecisionImpl::AddDataStructureOpsToMap(
     const string& data_structure_op, TypeAttrId data_structure_type_attr,
     const absl::flat_hash_map<string, TypeAttrId>& write_ops,
     const absl::flat_hash_map<string, TypeAttrId>& read_ops,
@@ -1267,7 +1268,7 @@ Status AMPOptimizerImpl::AddDataStructureOpsToMap(
   return Status::OK();
 }
 
-void AMPOptimizerImpl::AddWhitelistOps(
+void AutoMixedPrecisionImpl::AddWhitelistOps(
     absl::flat_hash_set<int>* white_set) const {
   // First add whitelisted ops to white_set.
   for (int root_idx = 0; root_idx < graph_type_view_.num_nodes(); ++root_idx) {
@@ -1285,7 +1286,7 @@ void AMPOptimizerImpl::AddWhitelistOps(
   }
 }
 
-void AMPOptimizerImpl::PropagateBlackFwdThroughClearAndGray(
+void AutoMixedPrecisionImpl::PropagateBlackFwdThroughClearAndGray(
     const absl::flat_hash_set<int>& white_set,
     absl::flat_hash_set<int>* black_set) const {
   if (force_all_fp16_) return;
@@ -1335,7 +1336,7 @@ void AMPOptimizerImpl::PropagateBlackFwdThroughClearAndGray(
   }
 }
 
-void AMPOptimizerImpl::AddClearAndGrayToWhiteIfBetweenWhite(
+void AutoMixedPrecisionImpl::AddClearAndGrayToWhiteIfBetweenWhite(
     const absl::flat_hash_set<int>& black_set,
     absl::flat_hash_set<int>* white_set) const {
   // Find clear/graylist ops that are downstream of white ops.
@@ -1389,7 +1390,7 @@ void AMPOptimizerImpl::AddClearAndGrayToWhiteIfBetweenWhite(
   }
 }
 
-void AMPOptimizerImpl::PropagateWhiteThroughClear(
+void AutoMixedPrecisionImpl::PropagateWhiteThroughClear(
     const absl::flat_hash_set<int>& black_set,
     absl::flat_hash_set<int>* white_set) const {
   // Propagate white from white nodes through clearlist ops.
@@ -1426,7 +1427,7 @@ void AMPOptimizerImpl::PropagateWhiteThroughClear(
 }
 
 // Forces NextIteration nodes to have the same color as their output Merge node.
-Status AMPOptimizerImpl::ForceColorMatchOnRecurrentEdges(
+Status AutoMixedPrecisionImpl::ForceColorMatchOnRecurrentEdges(
     absl::flat_hash_set<int>* white_set) const {
   for (const NodeDef& node : graph_->node()) {
     if (node.op() == "NextIteration") {
@@ -1465,8 +1466,8 @@ Status AMPOptimizerImpl::ForceColorMatchOnRecurrentEdges(
 // Returns the last node in the simple chain starting at node and traversing
 // backwards through the input(0) edge from each node until one with a matching
 // op is found, or nullptr if no matching node is found.
-NodeDef* AMPOptimizerImpl::GetTailOfChain(const NodeDef& node,
-                                          const string& op) const {
+NodeDef* AutoMixedPrecisionImpl::GetTailOfChain(const NodeDef& node,
+                                                const string& op) const {
   NodeDef* node_ptr = const_cast<NodeDef*>(&node);
   do {
     GraphView::InputPort node_input(node_ptr, 0);
@@ -1479,7 +1480,7 @@ NodeDef* AMPOptimizerImpl::GetTailOfChain(const NodeDef& node,
 
 // Ensures that data structure nodes (e.g., StackV2) and all of their associated
 // client nodes (e.g., StackPushV2 and StackPopV2) are in the same color set.
-void AMPOptimizerImpl::ForceColorMatchBetweenDataStructureOps(
+void AutoMixedPrecisionImpl::ForceColorMatchBetweenDataStructureOps(
     const DataStructureOpsMap& object_clients_map,
     absl::flat_hash_set<int>* white_set,
     absl::flat_hash_set<int>* black_set) const {
@@ -1522,7 +1523,8 @@ void AMPOptimizerImpl::ForceColorMatchBetweenDataStructureOps(
   }
 }
 
-bool AMPOptimizerImpl::IsIdentityAfterVariable(const NodeDef& node) const {
+bool AutoMixedPrecisionImpl::IsIdentityAfterVariable(
+    const NodeDef& node) const {
   if (node.op() == "Identity" && node.input_size() == 1) {
     GraphView::InputPort node_input(&node, 0);
     MutableGraphView::OutputPort prev_output =
@@ -1536,7 +1538,7 @@ bool AMPOptimizerImpl::IsIdentityAfterVariable(const NodeDef& node) const {
 
 // This adds existing Cast nodes to white_set if all of their outputs are white,
 // avoiding the need to add a new Cast node after an existing Cast.
-void AMPOptimizerImpl::MakeCastsWhiteIfAllOutputsWhite(
+void AutoMixedPrecisionImpl::MakeCastsWhiteIfAllOutputsWhite(
     absl::flat_hash_set<int>* white_set) const {
   int num_nodes_preop = graph_->node_size();
   for (int node_idx = 0; node_idx < num_nodes_preop; ++node_idx) {
@@ -1570,7 +1572,7 @@ void AMPOptimizerImpl::MakeCastsWhiteIfAllOutputsWhite(
 // Changes all white-painted type attributes to DT_HALF, and inserts Cast nodes
 // at node outputs for all edges that connect white-painted <->
 // non-white-painted type attributes.
-Status AMPOptimizerImpl::ChangeTypeAttrsAndAddCasts(
+Status AutoMixedPrecisionImpl::ChangeTypeAttrsAndAddCasts(
     const absl::flat_hash_set<int>& white_set) {
   int num_nodes_changed = 0;
   int num_nonvar_casts_to_fp16 = 0;
@@ -1644,8 +1646,8 @@ int GetNumGPUs(const Cluster& cluster,
 
 }  // end namespace
 
-Status AMPOptimizer::Optimize(Cluster* cluster, const GrapplerItem& item,
-                              GraphDef* output) {
+Status AutoMixedPrecision::Optimize(Cluster* cluster, const GrapplerItem& item,
+                                    GraphDef* output) {
   if (cluster == nullptr) {
     return errors::InvalidArgument("cluster == nullptr");
   }
@@ -1656,14 +1658,15 @@ Status AMPOptimizer::Optimize(Cluster* cluster, const GrapplerItem& item,
   int num_gpus = ShouldIgnorePerformance() ? GetNumGPUs(*cluster)
                                            : GetNumGPUs(*cluster, kMinGPUArch);
   if (num_gpus < 1) {
-    // AMPOptimizer is currently only tuned for GPU.
+    // AutoMixedPrecision is currently only tuned for GPU.
     LOG(WARNING) << "No (suitable) GPUs detected, skipping " << name()
                  << " graph optimizer";
     return Status::OK();
   }
 
   // Optimize the output graph in-place.
-  AMPOptimizerImpl optimizer(cluster, item.NodesToPreserve(), output, item.id);
+  AutoMixedPrecisionImpl optimizer(cluster, item.NodesToPreserve(), output,
+                                   item.id);
   if (item.id == "tf_graph") {
     LOG(INFO) << "Running " << name() << " graph optimizer";
   } else {
@@ -1678,9 +1681,10 @@ Status AMPOptimizer::Optimize(Cluster* cluster, const GrapplerItem& item,
   return status;
 }
 
-void AMPOptimizer::Feedback(Cluster* cluster, const GrapplerItem& item,
-                            const GraphDef& optimize_output, double result) {
-  // Nothing to do for AMPOptimizer.
+void AutoMixedPrecision::Feedback(Cluster* cluster, const GrapplerItem& item,
+                                  const GraphDef& optimize_output,
+                                  double result) {
+  // Nothing to do for AutoMixedPrecision.
 }
 
 }  // end namespace grappler

@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-"""Tests for Grappler AMPOptimizer."""
+"""Tests for Grappler AutoMixedPrecision."""
 
 import numpy as np
 
@@ -211,8 +211,8 @@ def _build_intertwined_loop_graph(inpA_colors, inpB_colors, bodyA_colors,
   return a, b
 
 
-def _get_config(amp_optimizer=True):
-  if amp_optimizer:
+def _get_config(auto_mixed_precision=True):
+  if auto_mixed_precision:
     rewrite_config = rwcpb2.RewriterConfig(
         auto_mixed_precision=rwcpb2.RewriterConfig.ON,
         # do not remove duplicated nodes
@@ -231,11 +231,11 @@ def _get_config(amp_optimizer=True):
 
 
 def _is_cast_to_fp16(node_name):
-  return node_name.endswith('-CastToFp16-AMPOptimizer')
+  return node_name.endswith('-CastToFp16-AutoMixedPrecision')
 
 
 def _is_cast_to_fp32(node_name):
-  return node_name.endswith('-CastToFp32-AMPOptimizer')
+  return node_name.endswith('-CastToFp32-AutoMixedPrecision')
 
 
 def _count_casts(nodes):
@@ -256,8 +256,8 @@ def _build_node_map(nodes):
   return node_map
 
 
-class AMPOptimizerTest(test.TestCase):
-  """Tests the Grappler AMP optimizer."""
+class AutoMixedPrecisionTest(test.TestCase):
+  """Tests the Grappler auto mixed precision optimizer."""
   MIN_GPU_ARCH = (7, 0)
 
   def _assert_output_fp16(self, node_map, node_name, output_port=0):

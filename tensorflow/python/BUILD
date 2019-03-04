@@ -5864,10 +5864,10 @@ py_test(
 )
 
 cuda_py_test(
-    name = "amp_optimizer_test",
+    name = "auto_mixed_precision_test",
     size = "small",
     srcs = [
-        "grappler/amp_optimizer_test.py",
+        "grappler/auto_mixed_precision_test.py",
     ],
     additional_deps = [
         ":client_testlib",

@@ -18,8 +18,8 @@ limitations under the License.
 #include "tensorflow/core/common_runtime/function.h"
 #include "tensorflow/core/framework/function.pb.h"
 #include "tensorflow/core/framework/versions.pb.h"
-#include "tensorflow/core/grappler/optimizers/amp_optimizer.h"
 #include "tensorflow/core/grappler/optimizers/arithmetic_optimizer.h"
+#include "tensorflow/core/grappler/optimizers/auto_mixed_precision.h"
 #include "tensorflow/core/grappler/optimizers/auto_parallel.h"
 #include "tensorflow/core/grappler/optimizers/constant_folding.h"
 #include "tensorflow/core/grappler/optimizers/custom_graph_optimizer_registry.h"
@@ -103,7 +103,7 @@ uint64 DeadlineMicroSeconds(const RewriterConfig& cfg) {
 
 // A helper function to decide whether to enable the automatic mixed precision
 // optimizer.
-bool AMPOptimizerEnabled(RewriterConfig::Toggle opt_level) {
+bool AutoMixedPrecisionEnabled(RewriterConfig::Toggle opt_level) {
   if (opt_level == RewriterConfig::ON ||
       opt_level == RewriterConfig::AGGRESSIVE) {
     return true;
@@ -141,7 +141,8 @@ std::unique_ptr<GraphOptimizer> MetaOptimizer::MakeNewOptimizer(
   MK_OPT("shape", new ShapeOptimizer());
   MK_OPT("remap", new Remapper(cfg_.remapping()));
   MK_OPT("layout", new LayoutOptimizer());
-  MK_OPT("auto_mixed_precision", new AMPOptimizer(cfg_.auto_mixed_precision()));
+  MK_OPT("auto_mixed_precision",
+         new AutoMixedPrecision(cfg_.auto_mixed_precision()));
   MK_OPT("memory", new MemoryOptimizer(RewriterConfig::MANUAL));
   MK_OPT("arithmetic", new ArithmeticOptimizer(cfg_.arithmetic_optimization()));
   MK_OPT("autoparallel", new AutoParallel(cfg_.auto_parallel().num_replicas()));
@@ -174,9 +175,9 @@ Status MetaOptimizer::InitializeOptimizers(
   if (!cfg_.disable_model_pruning()) {
     optimizers->push_back(MakeUnique<ModelPruner>());
   }
-  if (AMPOptimizerEnabled(cfg_.auto_mixed_precision())) {
+  if (AutoMixedPrecisionEnabled(cfg_.auto_mixed_precision())) {
     optimizers->push_back(
-        MakeUnique<AMPOptimizer>(cfg_.auto_mixed_precision()));
+        MakeUnique<AutoMixedPrecision>(cfg_.auto_mixed_precision()));
   }
   if (cfg_.function_optimization() != RewriterConfig::OFF) {
     optimizers->push_back(
@@ -643,7 +644,7 @@ bool MetaOptimizerEnabled(const ConfigProto& cfg) {
          rewrite_cfg.debug_stripper() == RewriterConfig::ON ||
          rewrite_cfg.scoped_allocator_optimization() == RewriterConfig::ON ||
          rewrite_cfg.pin_to_host_optimization() == RewriterConfig::ON ||
-         AMPOptimizerEnabled(rewrite_cfg.auto_mixed_precision()) ||
+         AutoMixedPrecisionEnabled(rewrite_cfg.auto_mixed_precision()) ||
          !rewrite_cfg.optimizers().empty() ||
          !rewrite_cfg.custom_optimizers().empty();
 }

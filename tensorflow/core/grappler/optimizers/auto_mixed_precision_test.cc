@@ -22,7 +22,7 @@ limitations under the License.
 #include "tensorflow/core/grappler/clusters/virtual_cluster.h"
 #include "tensorflow/core/grappler/devices.h"
 #include "tensorflow/core/grappler/graph_view.h"
-#include "tensorflow/core/grappler/optimizers/amp_optimizer.h"
+#include "tensorflow/core/grappler/optimizers/auto_mixed_precision.h"
 #include "tensorflow/core/grappler/utils/grappler_test.h"
 #include "tensorflow/core/lib/core/status_test_util.h"
 
@@ -32,7 +32,7 @@ namespace {
 
 const std::pair<int, int> kMinGPUArch = {7, 0};
 
-class AMPOptimizerTest : public GrapplerTest {
+class AutoMixedPrecisionTest : public GrapplerTest {
  protected:
   void SetUp() override {
     int num_gpus = GetNumAvailableGPUs();
@@ -116,7 +116,7 @@ void VerifyGraphsEquivalent(const GraphDef& original_graph,
   }
 }
 
-TEST_F(AMPOptimizerTest, NoOp) {
+TEST_F(AutoMixedPrecisionTest, NoOp) {
   GraphDef graph;
   AddSimpleNode("In", "Placeholder", {}, &graph);
   AddSimpleNode("B1", "Exp", {"In"}, &graph);
@@ -126,7 +126,7 @@ TEST_F(AMPOptimizerTest, NoOp) {
 
   GrapplerItem item;
   item.graph = graph;
-  AMPOptimizer optimizer;
+  AutoMixedPrecision optimizer;
   GraphDef output;
   TF_ASSERT_OK(optimizer.Optimize(virtual_cluster_.get(), item, &output));
 
@@ -142,7 +142,7 @@ TEST_F(AMPOptimizerTest, NoOp) {
   EXPECT_EQ(output_view.GetNode("C2")->attr().at("T").type(), DT_FLOAT);
 }
 
-TEST_F(AMPOptimizerTest, AlreadyFp16) {
+TEST_F(AutoMixedPrecisionTest, AlreadyFp16) {
   GraphDef graph;
   AddSimpleNode("In", "Placeholder", {}, &graph);
   NodeDef* cast1 = AddSimpleNode("Cast1", "Cast", {"In"}, &graph);
@@ -157,7 +157,7 @@ TEST_F(AMPOptimizerTest, AlreadyFp16) {
 
   GrapplerItem item;
   item.graph = graph;
-  AMPOptimizer optimizer;
+  AutoMixedPrecision optimizer;
   GraphDef output;
   TF_ASSERT_OK(optimizer.Optimize(virtual_cluster_.get(), item, &output));
 
@@ -175,7 +175,7 @@ TEST_F(AMPOptimizerTest, AlreadyFp16) {
   EXPECT_EQ(output_view.GetNode("C2")->attr().at("T").type(), DT_FLOAT);
 }
 
-TEST_F(AMPOptimizerTest, Simple) {
+TEST_F(AutoMixedPrecisionTest, Simple) {
   GraphDef graph;
   AddSimpleNode("In", "Placeholder", {}, &graph);
   AddSimpleNode("B1", "Exp", {"In"}, &graph);
@@ -191,7 +191,7 @@ TEST_F(AMPOptimizerTest, Simple) {
 
   GrapplerItem item;
   item.graph = graph;
-  AMPOptimizer optimizer;
+  AutoMixedPrecision optimizer;
   GraphDef output;
   TF_ASSERT_OK(optimizer.Optimize(virtual_cluster_.get(), item, &output));
 
@@ -213,7 +213,7 @@ TEST_F(AMPOptimizerTest, Simple) {
   EXPECT_EQ(output_view.GetNode("C5")->attr().at("T").type(), DT_FLOAT);
 }
 
-TEST_F(AMPOptimizerTest, BidirectionalClearChain) {
+TEST_F(AutoMixedPrecisionTest, BidirectionalClearChain) {
   GraphDef graph;
   AddSimpleNode("In", "Placeholder", {}, &graph);
   AddSimpleNode("C1", "Relu", {"In"}, &graph);
@@ -224,7 +224,7 @@ TEST_F(AMPOptimizerTest, BidirectionalClearChain) {
 
   GrapplerItem item;
   item.graph = graph;
-  AMPOptimizer optimizer;
+  AutoMixedPrecision optimizer;
   GraphDef output;
   TF_ASSERT_OK(optimizer.Optimize(virtual_cluster_.get(), item, &output));
 
@@ -240,7 +240,7 @@ TEST_F(AMPOptimizerTest, BidirectionalClearChain) {
   EXPECT_EQ(output_view.GetNode("C4")->attr().at("T").type(), DT_HALF);
 };
 
-TEST_F(AMPOptimizerTest, PreserveFetches) {
+TEST_F(AutoMixedPrecisionTest, PreserveFetches) {
   GraphDef graph;
   AddSimpleNode("In", "Placeholder", {}, &graph);
   AddSimpleNode("Const1", "Const", {}, &graph);
@@ -259,7 +259,7 @@ TEST_F(AMPOptimizerTest, PreserveFetches) {
   item.fetch.push_back("W1");
   item.fetch.push_back("C2");
   item.fetch.push_back("C3");
-  AMPOptimizer optimizer;
+  AutoMixedPrecision optimizer;
   GraphDef output;
   TF_ASSERT_OK(optimizer.Optimize(virtual_cluster_.get(), item, &output));
 
@@ -280,7 +280,7 @@ TEST_F(AMPOptimizerTest, PreserveFetches) {
   EXPECT_EQ(output_view.GetNode("C4")->attr().at("T").type(), DT_FLOAT);
 }
 
-TEST_F(AMPOptimizerTest, PreserveCPUNodes) {
+TEST_F(AutoMixedPrecisionTest, PreserveCPUNodes) {
   GraphDef graph;
   AddSimpleNode("In", "Placeholder", {}, &graph);
   AddSimpleNode("C1", "Relu", {"In"}, &graph);
@@ -292,7 +292,7 @@ TEST_F(AMPOptimizerTest, PreserveCPUNodes) {
 
   GrapplerItem item;
   item.graph = graph;
-  AMPOptimizer optimizer;
+  AutoMixedPrecision optimizer;
   GraphDef output;
   TF_ASSERT_OK(optimizer.Optimize(virtual_cluster_.get(), item, &output));
 
@@ -308,7 +308,7 @@ TEST_F(AMPOptimizerTest, PreserveCPUNodes) {
   EXPECT_EQ(output_view.GetNode("C2")->attr().at("T").type(), DT_FLOAT);
 }
 
-TEST_F(AMPOptimizerTest, PreserveIdentityAfterVariable) {
+TEST_F(AutoMixedPrecisionTest, PreserveIdentityAfterVariable) {
   GraphDef graph;
   AddSimpleNode("In", "Placeholder", {}, &graph);
   AddSimpleNode("V1", "VariableV2", {}, &graph);
@@ -323,7 +323,7 @@ TEST_F(AMPOptimizerTest, PreserveIdentityAfterVariable) {
 
   GrapplerItem item;
   item.graph = graph;
-  AMPOptimizer optimizer;
+  AutoMixedPrecision optimizer;
   GraphDef output;
   TF_ASSERT_OK(optimizer.Optimize(virtual_cluster_.get(), item, &output));
 
@@ -344,7 +344,7 @@ TEST_F(AMPOptimizerTest, PreserveIdentityAfterVariable) {
   EXPECT_EQ(output_view.GetNode("W3")->attr().at("T").type(), DT_HALF);
 }
 
-TEST_F(AMPOptimizerTest, FusedBatchNorm) {
+TEST_F(AutoMixedPrecisionTest, FusedBatchNorm) {
   GraphDef graph;
   AddSimpleNode("X", "Placeholder", {}, &graph);
   AddSimpleNode("Const1", "Const", {}, &graph);
@@ -362,7 +362,7 @@ TEST_F(AMPOptimizerTest, FusedBatchNorm) {
 
   GrapplerItem item;
   item.graph = graph;
-  AMPOptimizer optimizer;
+  AutoMixedPrecision optimizer;
   GraphDef output;
   TF_ASSERT_OK(optimizer.Optimize(virtual_cluster_.get(), item, &output));
 
@@ -381,7 +381,7 @@ TEST_F(AMPOptimizerTest, FusedBatchNorm) {
   EXPECT_EQ(output_view.GetNode("W2")->attr().at("T").type(), DT_HALF);
 }
 
-TEST_F(AMPOptimizerTest, RepeatedAndListTypeAttrs) {
+TEST_F(AutoMixedPrecisionTest, RepeatedAndListTypeAttrs) {
   GraphDef graph;
   AddSimpleNode("In", "Placeholder", {}, &graph);
   AddSimpleNode("W1", "MatMul", {"In", "In"}, &graph);
@@ -391,7 +391,7 @@ TEST_F(AMPOptimizerTest, RepeatedAndListTypeAttrs) {
 
   GrapplerItem item;
   item.graph = graph;
-  AMPOptimizer optimizer;
+  AutoMixedPrecision optimizer;
   GraphDef output;
   TF_ASSERT_OK(optimizer.Optimize(virtual_cluster_.get(), item, &output));
 
@@ -408,7 +408,7 @@ TEST_F(AMPOptimizerTest, RepeatedAndListTypeAttrs) {
   EXPECT_EQ(output_view.GetNode("W2")->attr().at("T").type(), DT_HALF);
 }
 
-TEST_F(AMPOptimizerTest, ExistingCast) {
+TEST_F(AutoMixedPrecisionTest, ExistingCast) {
   GraphDef graph;
   NodeDef* ph = AddSimpleNode("In", "Placeholder", {}, &graph);
   ph->mutable_attr()->at("dtype").set_type(DT_BOOL);
@@ -418,7 +418,7 @@ TEST_F(AMPOptimizerTest, ExistingCast) {
 
   GrapplerItem item;
   item.graph = graph;
-  AMPOptimizer optimizer;
+  AutoMixedPrecision optimizer;
   GraphDef output;
   TF_ASSERT_OK(optimizer.Optimize(virtual_cluster_.get(), item, &output));
 
@@ -430,7 +430,7 @@ TEST_F(AMPOptimizerTest, ExistingCast) {
   EXPECT_EQ(output_view.GetNode("W1")->attr().at("T").type(), DT_HALF);
 }
 
-TEST_F(AMPOptimizerTest, StackV2) {
+TEST_F(AutoMixedPrecisionTest, StackV2) {
   GraphDef graph;
   AddSimpleNode("Handle1", "Const", {}, &graph);
   AddSimpleNode("Stack1", "StackV2", {"Handle1"}, &graph);
@@ -449,7 +449,7 @@ TEST_F(AMPOptimizerTest, StackV2) {
 
   GrapplerItem item;
   item.graph = graph;
-  AMPOptimizer optimizer;
+  AutoMixedPrecision optimizer;
   GraphDef output;
   TF_ASSERT_OK(optimizer.Optimize(virtual_cluster_.get(), item, &output));
 

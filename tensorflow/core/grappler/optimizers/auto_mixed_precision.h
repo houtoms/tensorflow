@@ -13,8 +13,8 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
-#ifndef TENSORFLOW_CORE_GRAPPLER_OPTIMIZERS_AMP_OPTIMIZER_H_
-#define TENSORFLOW_CORE_GRAPPLER_OPTIMIZERS_AMP_OPTIMIZER_H_
+#ifndef TENSORFLOW_CORE_GRAPPLER_OPTIMIZERS_AUTO_MIXED_PRECISION_H_
+#define TENSORFLOW_CORE_GRAPPLER_OPTIMIZERS_AUTO_MIXED_PRECISION_H_
 
 #include "tensorflow/core/grappler/optimizers/graph_optimizer.h"
 #include "tensorflow/core/protobuf/rewriter_config.pb.h"
@@ -24,12 +24,12 @@ namespace grappler {
 
 // Convert data types to float16 where appropriate to improve performance on
 // GPUs.
-class AMPOptimizer : public GraphOptimizer {
+class AutoMixedPrecision : public GraphOptimizer {
  public:
-  explicit AMPOptimizer(RewriterConfig::Toggle opt_level = RewriterConfig::ON) {
-  }
+  explicit AutoMixedPrecision(
+      RewriterConfig::Toggle opt_level = RewriterConfig::ON) {}
 
-  ~AMPOptimizer() override {}
+  ~AutoMixedPrecision() override {}
 
   string name() const override { return "auto_mixed_precision"; };
 
@@ -43,4 +43,4 @@ class AMPOptimizer : public GraphOptimizer {
 }  // end namespace grappler
 }  // end namespace tensorflow
 
-#endif  // TENSORFLOW_CORE_GRAPPLER_OPTIMIZERS_AMP_OPTIMIZER_H_
+#endif  // TENSORFLOW_CORE_GRAPPLER_OPTIMIZERS_AUTO_MIXED_PRECISION_H_
