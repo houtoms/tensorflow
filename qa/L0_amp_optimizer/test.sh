@@ -4,7 +4,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null && pwd)"
 OUTPUT_DIR="$SCRIPT_DIR/outputs"
 mkdir -p $OUTPUT_DIR
 TEST_LIST="$OUTPUT_DIR/tests.list"
-TARGETS="tests(//tensorflow/python:amp_optimizer_test)"
+TARGETS="tests(//tensorflow/python:auto_mixed_precision_test)"
 
 current_arch=`uname -m`
 if [[ $current_arch == "aarch64" ]]; then
