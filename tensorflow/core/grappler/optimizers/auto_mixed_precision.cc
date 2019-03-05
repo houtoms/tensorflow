@@ -1193,6 +1193,34 @@ Status AutoMixedPrecisionImpl::Optimize() {
   TF_RETURN_IF_ERROR(graph_type_view_.InitializeFromGraph(
       *graph_, node_type_map_, ephemeral_edges));
 
+  // The goal here is to change performance-critical ops to fp16, and to do so
+  // with the minimal number of casts, subject to the constraint that the
+  // model's convergence is not affected. This is achieved by first identifying
+  // which nodes should be changed to fp16 and then inserting casts at the
+  // boundaries between fp16/non-fp16 nodes.
+
+  // The algorithm for deciding which nodes to change to fp16 is as follows:
+  // 1) Add all performance-critical ops (aka "whitelist" ops) to the white_set.
+  //    This is done under the assumption that whitelist ops are always
+  //    numerically-safe in fp16 and that they are the most important ops for
+  //    improving performance.
+  // 2) Starting from numerically-dangerous ops (aka "blacklist" ops), add them
+  //    and all downstream ops to the black_set, stopping if a white node is
+  //    reached or if there can be no further impact on numerics (because the
+  //    ops downstream do not have numerically-significant effects, aka
+  //    "clearlist" ops).
+  //    This is done to prevent numerically-dangerous ops and their downstream
+  //    effects from being changed to fp16, which would risk breaking the
+  //    convergence of the model.
+  // 3) For all remaining nodes that are not considered dangerous (aka
+  //    "greylist" and clearlist ops), find those that are between (i.e., both
+  //    upstream and downstream of) white nodes, and add them to the white_set.
+  //    This is done to avoid unnecessary casts between whitelist ops.
+  // 4) For all remaining clearlist nodes, add them to the white_set if they are
+  //    connected to a node in the white_set via other clearlist nodes.
+  //    This is done to increase the number of ops in the white_set without
+  //    affecting numerical stability.
+
   absl::flat_hash_set<int> white_set;
   VLOG(2) << "Beginning pass 1 to add whitelist ops";
   AddWhitelistOps(&white_set);

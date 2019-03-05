@@ -50,6 +50,8 @@ class AutoMixedPrecisionLists {
   }
 
  public:
+  // Returns the set of ops that are considered numerically-safe (for execution
+  // in fp16) and performance-critical. These ops are always converted to fp16.
   static std::set<string> WhiteList() {
     string to_add, to_remove;
     ReadStringFromEnvVar("TF_AUTO_MIXED_PRECISION_GRAPH_REWRITE_WHITELIST_ADD",
@@ -89,6 +91,8 @@ class AutoMixedPrecisionLists {
     return list;
   }
 
+  // Returns the set of ops that are considered numerically-safe (for execution
+  // in fp16), but which may be made unsafe by an upstream blacklist op.
   static std::set<string> GrayList() {
     if (IsPseudoFastMath()) {
       return std::set<string>{};
@@ -139,6 +143,9 @@ class AutoMixedPrecisionLists {
     return list;
   }
 
+  // Returns the set of ops that are considered numerically-dangerous (i.e.,
+  // unsafe for execution in fp16) and whose effects may also be observed in
+  // downstream nodes (e.g., in Exp -> Add, the Add is unsafe due to the Exp).
   static std::set<string> BlackList() {
     if (IsPseudoFastMath()) {
       return std::set<string>{};
@@ -168,6 +175,8 @@ class AutoMixedPrecisionLists {
     return list;
   }
 
+  // Returns the set of ops that do not have numerically-significant effects
+  // (i.e., they are always considered safe for execution in fp16 precision).
   static std::set<string> ClearList() {
     if (IsPseudoFastMath()) {
       return std::set<string>{};
