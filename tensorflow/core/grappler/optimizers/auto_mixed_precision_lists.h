@@ -65,25 +65,24 @@ class AutoMixedPrecisionLists {
         "Conv2D",
         "Conv2DBackpropFilter",
         "Conv2DBackpropInput",
-        "Conv3D",
-        "Conv3DBackpropFilter",
-        "Conv3DBackpropFilterV2",
-        "Conv3DBackpropInput",
-        "Conv3DBackpropInputV2",
+        // TODO(benbarsdell): Enable these when Tensor Core kernels are
+        // available for 3D convolutions.
+        // "Conv3D",
+        // "Conv3DBackpropFilter",
+        // "Conv3DBackpropFilterV2",
+        // "Conv3DBackpropInput",
+        // "Conv3DBackpropInputV2",
         "CudnnRNN",
         "CudnnRNNBackprop",
         "CudnnRNNBackpropV2",
         "CudnnRNNBackpropV3",
         "CudnnRNNV2",
         "CudnnRNNV3",
-        // TODO(carl): when Tensor Core kernels for DepthwiseConv are available,
-        // re-consider adding to whitelist. For now, avoid fp16 execution
-        // because TF kernels use internal fp16 accumulation.
+        // TODO(benbarsdell): Enable these when fast and safe fp16 kernels are
+        // available for depthwise convolutions.
         // "DepthwiseConv2dNative",
         // "DepthwiseConv2dNativeBackpropFilter",
         // "DepthwiseConv2dNativeBackpropInput",
-        "FusedPadConv2D",
-        "FusedResizeAndPadConv2D",
         "MatMul",
     };
     UpdateList(&list, to_add, to_remove);
