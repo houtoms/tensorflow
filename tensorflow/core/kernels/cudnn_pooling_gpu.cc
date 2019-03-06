@@ -45,24 +45,39 @@ void DnnPooling3dOp<T>::Compute(OpKernelContext* context,
   const int64 in_features = GetTensorDim(tensor_in, data_format, 'C');
 
   Tensor transformed_input;
-  transformed_input = tensor_in;
+  if (data_format == FORMAT_NHWC) {
+    OP_REQUIRES_OK(context, context->allocate_temp(
+                                DataTypeToEnum<T>::value,
+                                ShapeFromFormat(FORMAT_NCHW, tensor_in.shape(),
+                                                data_format),
+                                &transformed_input));
+    functor::NHWCToNCHW<GPUDevice, T, 5>()(context->eigen_device<GPUDevice>(),
+                                           tensor_in.tensor<T, 5>(),
+                                           transformed_input.tensor<T, 5>());
+  } else {
+    transformed_input = tensor_in;
+  }
   Tensor transformed_output;
-  transformed_output = *output;
-  
+  if (data_format == FORMAT_NHWC) {
+    OP_REQUIRES_OK(context,
+                   context->allocate_temp(
+                       DataTypeToEnum<T>::value,
+                       ShapeFromFormat(FORMAT_NCHW, out_shape, data_format),
+                       &transformed_output));
+  } else {
+    transformed_output = *output;
+  }
+
   se::dnn::PoolingDescriptor pooling_desc(3);
   pooling_desc.set_pooling_mode(pooling_mode);
   se::dnn::BatchDescriptor input_desc(3);
   input_desc.set_count(in_batch)
       .set_feature_map_count(in_features)
-      .set_layout(data_format == FORMAT_NCHW ?
-                  (se::dnn::DataLayout::kBatchDepthYX) :
-                  (se::dnn::DataLayout::kBatchYXDepth));
+      .set_layout(se::dnn::DataLayout::kBatchDepthYX);
   se::dnn::BatchDescriptor output_desc(3);
   output_desc.set_count(in_batch)
       .set_feature_map_count(in_features)
-      .set_layout(data_format == FORMAT_NCHW ?
-                  (se::dnn::DataLayout::kBatchDepthYX) :
-                  (se::dnn::DataLayout::kBatchYXDepth));
+      .set_layout(se::dnn::DataLayout::kBatchDepthYX);
   for (size_t i = 0; i < window.size(); ++i) {
     const auto dim_i = static_cast<se::dnn::DimIndex>(i);
     pooling_desc.set_window(dim_i, window[i]);
@@ -89,6 +104,14 @@ void DnnPooling3dOp<T>::Compute(OpKernelContext* context,
                     .ok();
   OP_REQUIRES(context, status,
               errors::Internal("cudnn PoolForward launch failed"));
+
+  if (data_format == FORMAT_NHWC) {
+    auto toConstTensor = [](const Tensor& x) -> const Tensor { return x; };
+    functor::NCHWToNHWC<GPUDevice, T, 5>()(
+        context->eigen_device<GPUDevice>(),
+        toConstTensor(transformed_output).template tensor<T, 5>(),
+        output->tensor<T, 5>());
+  }
 }
 
 template <typename T>
@@ -109,8 +132,9 @@ void DnnPooling3dGradOp<T>::Compute(
 
   Tensor transformed_input;
   TensorShape transformed_input_shape;
-  if (tensor_in == nullptr) {
-    transformed_input_shape = tensor_in_shape;
+  if (data_format == FORMAT_NHWC || tensor_in == nullptr) {
+    transformed_input_shape =
+        ShapeFromFormat(FORMAT_NCHW, tensor_in_shape, data_format);
     OP_REQUIRES_OK(context, context->allocate_temp(DataTypeToEnum<T>::value,
                                                    transformed_input_shape,
                                                    &transformed_input));
@@ -119,8 +143,9 @@ void DnnPooling3dGradOp<T>::Compute(
   }
   Tensor transformed_output;
   TensorShape transformed_output_shape;
-  if (tensor_out == nullptr) {
-    transformed_output_shape = out_backprop.shape();
+  if (data_format == FORMAT_NHWC || tensor_out == nullptr) {
+    transformed_output_shape =
+        ShapeFromFormat(FORMAT_NCHW, out_backprop.shape(), data_format);
     OP_REQUIRES_OK(context, context->allocate_temp(DataTypeToEnum<T>::value,
                                                    transformed_output_shape,
                                                    &transformed_output));
@@ -128,9 +153,38 @@ void DnnPooling3dGradOp<T>::Compute(
     transformed_output = *tensor_out;
   }
   Tensor transformed_input_backprop;
-  transformed_input_backprop = *input_backprop;
+  if (data_format == FORMAT_NHWC) {
+    OP_REQUIRES_OK(context,
+                   context->allocate_temp(DataTypeToEnum<T>::value,
+                                          transformed_input_shape,
+                                          &transformed_input_backprop));
+  } else {
+    transformed_input_backprop = *input_backprop;
+  }
   Tensor transformed_output_backprop;
-  transformed_output_backprop = out_backprop;
+  if (data_format == FORMAT_NHWC) {
+    OP_REQUIRES_OK(context,
+                   context->allocate_temp(DataTypeToEnum<T>::value,
+                                          transformed_output_shape,
+                                          &transformed_output_backprop));
+  } else {
+    transformed_output_backprop = out_backprop;
+  }
+  if (data_format == FORMAT_NHWC) {
+    if (tensor_in != nullptr) {
+      functor::NHWCToNCHW<GPUDevice, T, 5>()(context->eigen_device<GPUDevice>(),
+                                             tensor_in->tensor<T, 5>(),
+                                             transformed_input.tensor<T, 5>());
+    }
+    if (tensor_out != nullptr) {
+      functor::NHWCToNCHW<GPUDevice, T, 5>()(context->eigen_device<GPUDevice>(),
+                                             tensor_out->tensor<T, 5>(),
+                                             transformed_output.tensor<T, 5>());
+    }
+    functor::NHWCToNCHW<GPUDevice, T, 5>()(
+        context->eigen_device<GPUDevice>(), out_backprop.tensor<T, 5>(),
+        transformed_output_backprop.tensor<T, 5>());
+  }
 
   se::dnn::PoolingDescriptor pooling_desc(3);
   pooling_desc.set_pooling_mode(pooling_mode);
@@ -138,16 +192,12 @@ void DnnPooling3dGradOp<T>::Compute(
   se::dnn::BatchDescriptor orig_output_desc(3);
   orig_output_desc.set_count(in_batch)
       .set_feature_map_count(in_features)
-      .set_layout(data_format == FORMAT_NCHW ?
-                  (se::dnn::DataLayout::kBatchDepthYX) :
-                  (se::dnn::DataLayout::kBatchYXDepth));
+      .set_layout(se::dnn::DataLayout::kBatchDepthYX);
 
   se::dnn::BatchDescriptor orig_input_desc(3);
   orig_input_desc.set_count(in_batch)
       .set_feature_map_count(in_features)
-      .set_layout(data_format == FORMAT_NCHW ?
-                  (se::dnn::DataLayout::kBatchDepthYX) :
-                  (se::dnn::DataLayout::kBatchYXDepth));
+      .set_layout(se::dnn::DataLayout::kBatchDepthYX);
 
   for (size_t i = 0; i < window.size(); ++i) {
     const auto dim_i = static_cast<se::dnn::DimIndex>(i);
@@ -183,6 +233,14 @@ void DnnPooling3dGradOp<T>::Compute(
           .ok();
   OP_REQUIRES(context, status,
               errors::Internal("cudnn PoolBackward launch failed"));
+
+  if (data_format == FORMAT_NHWC) {
+    auto toConstTensor = [](const Tensor& x) -> const Tensor { return x; };
+    functor::NCHWToNHWC<GPUDevice, T, 5>()(
+        context->eigen_device<GPUDevice>(),
+        toConstTensor(transformed_input_backprop).template tensor<T, 5>(),
+        input_backprop->tensor<T, 5>());
+  }
 }
 
 #define DEFINE_DNN_OPS(T)           \

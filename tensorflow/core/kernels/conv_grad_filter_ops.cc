@@ -51,6 +51,7 @@ limitations under the License.
 #if GOOGLE_CUDA
 #include "tensorflow/core/kernels/conv_ops_gpu.h"
 #include "tensorflow/core/platform/stream_executor.h"
+#include "cuda/include/cudnn.h"
 #endif  // GOOGLE_CUDA
 
 namespace {
@@ -801,8 +802,11 @@ void LaunchConv2DBackpropFilterOp<Eigen::GpuDevice, T>::operator()(
     compatible_input = input;
   }
 
-  bool useNHWC = (data_format == FORMAT_NHWC &&  (DataTypeToEnum<T>::value ==
-                  DT_FLOAT || DataTypeToEnum<T>::value==DT_HALF));
+  bool use_nhwc = (data_format == FORMAT_NHWC &&  DataTypeToEnum<T>::value ==
+                   DT_HALF);
+#if CUDNN_VERSION < 7500
+  use_nhwc = false;
+#endif
 
   CHECK(padding_rows >= 0 && padding_cols >= 0)
       << "Negative row or col paddings: (" << padding_rows << ", "
@@ -812,15 +816,15 @@ void LaunchConv2DBackpropFilterOp<Eigen::GpuDevice, T>::operator()(
       .set_height(GetTensorDim(compatible_input, data_format, 'H'))
       .set_width(GetTensorDim(compatible_input, data_format, 'W'))
       .set_feature_map_count(dims.in_depth)
-      .set_layout(useNHWC ?
-                  (se::dnn::DataLayout::kBatchYXDepth) : 
+      .set_layout(use_nhwc?
+                  (se::dnn::DataLayout::kBatchYXDepth): 
                   (se::dnn::DataLayout::kBatchDepthYX));
   se::dnn::BatchDescriptor output_desc;
   output_desc.set_count(dims.batch_size)
       .set_height(dims.spatial_dims[0].output_size)
       .set_width(dims.spatial_dims[1].output_size)
       .set_feature_map_count(dims.out_depth)
-      .set_layout(useNHWC ?
+      .set_layout(use_nhwc?
                   (se::dnn::DataLayout::kBatchYXDepth):
                   (se::dnn::DataLayout::kBatchDepthYX));
   se::dnn::FilterDescriptor filter_desc;
@@ -828,7 +832,7 @@ void LaunchConv2DBackpropFilterOp<Eigen::GpuDevice, T>::operator()(
       .set_input_filter_width(dims.spatial_dims[1].filter_size)
       .set_input_feature_map_count(filter_shape.dim_size(2))
       .set_output_feature_map_count(filter_shape.dim_size(3))
-      .set_layout(useNHWC ?
+      .set_layout(use_nhwc?
                   (se::dnn::FilterLayout::kOutputYXInput):
                   (se::dnn::FilterLayout::kOutputInputYX));
   se::dnn::ConvolutionDescriptor conv_desc;
@@ -855,11 +859,11 @@ void LaunchConv2DBackpropFilterOp<Eigen::GpuDevice, T>::operator()(
   // (B x D x R x C) => (B x R x C x D).
 
   Tensor pre_transformed_filter_backprop;
-  TensorShape pre_transformed_filter_backprop_shape = (useNHWC ?
+  TensorShape pre_transformed_filter_backprop_shape = (use_nhwc?
                   TensorShape({dims.out_depth, 
                                dims.spatial_dims[0].filter_size,
                                dims.spatial_dims[1].filter_size,
-                               dims.in_depth}) :
+                               dims.in_depth}):
                   TensorShape({dims.out_depth, dims.in_depth,
                                dims.spatial_dims[0].filter_size,
                                dims.spatial_dims[1].filter_size}));
@@ -869,7 +873,7 @@ void LaunchConv2DBackpropFilterOp<Eigen::GpuDevice, T>::operator()(
                               &pre_transformed_filter_backprop));
 
   Tensor transformed_out_backprop;
-  if (!useNHWC && data_format == FORMAT_NHWC) {
+  if (!use_nhwc && data_format == FORMAT_NHWC) {
     TensorShape nchw_shape = ShapeFromFormat(
         FORMAT_NCHW, dims.batch_size, dims.spatial_dims[0].output_size,
         dims.spatial_dims[1].output_size, dims.out_depth);
@@ -889,7 +893,7 @@ void LaunchConv2DBackpropFilterOp<Eigen::GpuDevice, T>::operator()(
   }
 
   Tensor transformed_input;
-  if (!useNHWC && data_format == FORMAT_NHWC) {
+  if (!use_nhwc && data_format == FORMAT_NHWC) {
     TensorShape nchw_shape = ShapeFromFormat(
         FORMAT_NCHW, GetTensorDim(compatible_input, data_format, 'N'),
         GetTensorDim(compatible_input, data_format, 'H'),
@@ -925,23 +929,23 @@ void LaunchConv2DBackpropFilterOp<Eigen::GpuDevice, T>::operator()(
   int device_id = stream->parent()->device_ordinal();
   DataType dtype = input.dtype();
   ConvParameters conv_parameters = {
-      dims.batch_size,                     // batch
-      dims.in_depth,                       // in_depths
-      {{input_desc.height(),               // in_rows
-        input_desc.width()}},              // in_cols
-      (useNHWC?FORMAT_NHWC:FORMAT_NCHW),   // compute_data_format
-      dims.out_depth,                      // out_depths
-      {{dims.spatial_dims[0].filter_size,  // filter_rows
-        dims.spatial_dims[1].filter_size,  // filter_cols
-        filter_shape.dim_size(2)}},        // filter_depth
-      {{dims.spatial_dims[0].dilation,     // dilation_rows
-        dims.spatial_dims[1].dilation}},   // dilation_cols
-      {{dims.spatial_dims[0].stride,       // stride_rows
-        dims.spatial_dims[1].stride}},     // stride_cols
-      {{padding_rows,                      // padding_rows
-        padding_cols}},                    // padding_cols
-      dtype,                               // tensor datatype
-      device_id,                           // device_id
+      dims.batch_size,                        // batch
+      dims.in_depth,                          // in_depths
+      {{input_desc.height(),                  // in_rows
+        input_desc.width()}},                 // in_cols
+      (use_nhwc? FORMAT_NHWC: FORMAT_NCHW),   // compute_data_format
+      dims.out_depth,                         // out_depths
+      {{dims.spatial_dims[0].filter_size,     // filter_rows
+        dims.spatial_dims[1].filter_size,     // filter_cols
+        filter_shape.dim_size(2)}},           // filter_depth
+      {{dims.spatial_dims[0].dilation,        // dilation_rows
+        dims.spatial_dims[1].dilation}},      // dilation_cols
+      {{dims.spatial_dims[0].stride,          // stride_rows
+        dims.spatial_dims[1].stride}},        // stride_cols
+      {{padding_rows,                         // padding_rows
+        padding_cols}},                       // padding_cols
+      dtype,                                  // tensor datatype
+      device_id,                              // device_id
   };
   AlgorithmConfig algorithm_config;
   if (cudnn_use_autotune && !AutoTuneConvBwdFilter::GetInstance()->Find(
@@ -1010,7 +1014,7 @@ void LaunchConv2DBackpropFilterOp<Eigen::GpuDevice, T>::operator()(
     return;
   }
 
-  if (!useNHWC) {
+  if (!use_nhwc) {
     auto toConstTensor = [](const Tensor& x) -> const Tensor { return x; };
     functor::ReverseTransformFilter<GPUDevice, T, 4>()(
         ctx->eigen_device<GPUDevice>(),

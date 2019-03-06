@@ -24,6 +24,7 @@ limitations under the License.
 #include "tensorflow/core/kernels/conv_2d.h"
 #include "tensorflow/core/kernels/pooling_ops_common_gpu.h"
 #include "tensorflow/core/platform/stream_executor.h"
+#include "cuda/include/cudnn.h"
 #endif  // GOOGLE_CUDA
 
 namespace tensorflow {
@@ -156,10 +157,36 @@ void DnnPoolingOp<T>::Compute(OpKernelContext* context,
     return;
   }
 
+  bool use_nhwc = (data_format == FORMAT_NHWC && DataTypeToEnum<T>::value ==
+                   DT_HALF);
+#if CUDNN_VERSION < 7500
+  use_nhwc = false;
+#endif
+  /// For now, cudnn does not support NHWC format, so we need to convert it
+  /// to NCHW before calling cudnn. We need to get rid of this once it is done
   Tensor transformed_input;
-  transformed_input = tensor_in;
+  if (!use_nhwc && data_format == FORMAT_NHWC) {
+    OP_REQUIRES_OK(context, context->allocate_temp(
+                                DataTypeToEnum<T>::value,
+                                ShapeFromFormat(FORMAT_NCHW, tensor_in.shape(),
+                                                data_format),
+                                &transformed_input));
+    functor::NHWCToNCHW<GPUDevice, T, 4>()(context->eigen_device<Device>(),
+                                           tensor_in.tensor<T, 4>(),
+                                           transformed_input.tensor<T, 4>());
+  } else {
+    transformed_input = tensor_in;
+  }
   Tensor transformed_output;
-  transformed_output = *tensor_out;
+  if (!use_nhwc && data_format == FORMAT_NHWC) {
+    OP_REQUIRES_OK(context, context->allocate_temp(
+                                DataTypeToEnum<T>::value,
+                                ShapeFromFormat(FORMAT_NCHW, tensor_out_shape,
+                                                data_format),
+                                &transformed_output));
+  } else {
+    transformed_output = *tensor_out;
+  }
 
   /// Get ready to call cudnn
   se::dnn::PoolingDescriptor pooling_desc;
@@ -177,18 +204,18 @@ void DnnPoolingOp<T>::Compute(OpKernelContext* context,
       .set_height(params.tensor_in_rows)
       .set_width(params.tensor_in_cols)
       .set_feature_map_count(params.depth)
-      .set_layout(data_format == FORMAT_NCHW ?
-                  (se::dnn::DataLayout::kBatchDepthYX) :
-                  (se::dnn::DataLayout::kBatchYXDepth));
+      .set_layout(use_nhwc?
+                  (se::dnn::DataLayout::kBatchYXDepth):
+                  (se::dnn::DataLayout::kBatchDepthYX));
 
   se::dnn::BatchDescriptor output_desc;
   output_desc.set_count(params.tensor_in_batch)
       .set_height(params.out_height)
       .set_width(params.out_width)
       .set_feature_map_count(params.depth)
-      .set_layout(data_format == FORMAT_NCHW ?
-                  (se::dnn::DataLayout::kBatchDepthYX) :
-                  (se::dnn::DataLayout::kBatchYXDepth));
+      .set_layout(use_nhwc?
+                  (se::dnn::DataLayout::kBatchYXDepth):
+                  (se::dnn::DataLayout::kBatchDepthYX));
 
   auto input_data = AsDeviceMemory(transformed_input.template flat<T>().data(),
                                    transformed_input.template flat<T>().size());
@@ -205,6 +232,15 @@ void DnnPoolingOp<T>::Compute(OpKernelContext* context,
                     .ok();
   OP_REQUIRES(context, status,
               errors::Internal("cudnn PoolForward launch failed"));
+
+  if (!use_nhwc && data_format == FORMAT_NHWC) {
+    /// Transform the output data from NCHW back to NHWC
+    auto toConstTensor = [](const Tensor& x) -> const Tensor { return x; };
+    functor::NCHWToNHWC<GPUDevice, T, 4>()(
+        context->eigen_device<Device>(),
+        toConstTensor(transformed_output).template tensor<T, 4>(),
+        tensor_out->tensor<T, 4>());
+  }
 }
 
 template <typename T>
@@ -232,10 +268,18 @@ void DnnPoolingGradOp<T>::Compute(
     return;
   }
 
+  bool use_nhwc = (data_format == FORMAT_NHWC && DataTypeToEnum<T>::value ==
+                   DT_HALF);
+#if CUDNN_VERSION < 7500
+  use_nhwc = false;
+#endif
+  /// For now, cudnn does not support NHWC format, so we need to convert it
+  /// to NCHW before calling cudnn. We need to get rid of this once it is done
   Tensor transformed_input;
   TensorShape transformed_input_shape;
-  if (!tensor_in) {
-    transformed_input_shape = tensor_in_shape;
+  if (!use_nhwc && data_format == FORMAT_NHWC || !tensor_in) {
+    transformed_input_shape =
+        ShapeFromFormat(FORMAT_NCHW, tensor_in_shape, data_format);
     OP_REQUIRES_OK(context, context->allocate_temp(DataTypeToEnum<T>::value,
                                                    transformed_input_shape,
                                                    &transformed_input));
@@ -244,8 +288,9 @@ void DnnPoolingGradOp<T>::Compute(
   }
   Tensor transformed_output;
   TensorShape transformed_output_shape;
-  if (!tensor_out) {
-    transformed_output_shape = out_backprop.shape();
+  if (!use_nhwc && data_format == FORMAT_NHWC || !tensor_out) {
+    transformed_output_shape =
+        ShapeFromFormat(FORMAT_NCHW, out_backprop.shape(), data_format);
     OP_REQUIRES_OK(context, context->allocate_temp(DataTypeToEnum<T>::value,
                                                    transformed_output_shape,
                                                    &transformed_output));
@@ -253,9 +298,46 @@ void DnnPoolingGradOp<T>::Compute(
     transformed_output = *tensor_out;
   }
   Tensor transformed_input_backprop;
-  transformed_input_backprop = *input_backprop;
+  if (!use_nhwc && data_format == FORMAT_NHWC) {
+    OP_REQUIRES_OK(context,
+                   context->allocate_temp(DataTypeToEnum<T>::value,
+                                          transformed_input_shape,
+                                          &transformed_input_backprop));
+  } else {
+    transformed_input_backprop = *input_backprop;
+  }
   Tensor transformed_output_backprop;
-  transformed_output_backprop = out_backprop;
+  if (!use_nhwc && data_format == FORMAT_NHWC) {
+    OP_REQUIRES_OK(context,
+                   context->allocate_temp(DataTypeToEnum<T>::value,
+                                          transformed_output_shape,
+                                          &transformed_output_backprop));
+  } else {
+    transformed_output_backprop = out_backprop;
+  }
+
+  if (!use_nhwc && data_format == FORMAT_NHWC) {
+    /// Convert the data from NHWC to NCHW if necessary.
+    if (tensor_in) {
+      // For AvgPoolGrad, the original input tensor is not necessary. However,
+      // cudnn still requires them to run, although they do not affect the
+      // results.
+      functor::NHWCToNCHW<GPUDevice, T, 4>()(context->eigen_device<Device>(),
+                                             tensor_in->tensor<T, 4>(),
+                                             transformed_input.tensor<T, 4>());
+    }
+    if (tensor_out) {
+      // For AvgPoolGrad, the original output tensor is not necessary. However,
+      // cudnn still requires them to run, although they do not affect the
+      // results.
+      functor::NHWCToNCHW<GPUDevice, T, 4>()(context->eigen_device<Device>(),
+                                             tensor_out->tensor<T, 4>(),
+                                             transformed_output.tensor<T, 4>());
+    }
+    functor::NHWCToNCHW<GPUDevice, T, 4>()(
+        context->eigen_device<Device>(), out_backprop.tensor<T, 4>(),
+        transformed_output_backprop.tensor<T, 4>());
+  }
 
   /// Get ready to call cudnn
   se::dnn::PoolingDescriptor pooling_desc;
@@ -273,18 +355,18 @@ void DnnPoolingGradOp<T>::Compute(
       .set_height(params.out_height)
       .set_width(params.out_width)
       .set_feature_map_count(params.depth)
-      .set_layout(data_format == FORMAT_NCHW ?
-                  (se::dnn::DataLayout::kBatchDepthYX) :
-                  (se::dnn::DataLayout::kBatchYXDepth));
+      .set_layout(use_nhwc?
+                  (se::dnn::DataLayout::kBatchYXDepth):
+                  (se::dnn::DataLayout::kBatchDepthYX));
 
   se::dnn::BatchDescriptor orig_input_desc;
   orig_input_desc.set_count(params.tensor_in_batch)
       .set_height(params.tensor_in_rows)
       .set_width(params.tensor_in_cols)
       .set_feature_map_count(params.depth)
-      .set_layout(data_format == FORMAT_NCHW ?
-                  (se::dnn::DataLayout::kBatchDepthYX) :
-                  (se::dnn::DataLayout::kBatchYXDepth));
+      .set_layout(use_nhwc?
+                  (se::dnn::DataLayout::kBatchYXDepth):
+                  (se::dnn::DataLayout::kBatchDepthYX));
 
   auto orig_output_data =
       AsDeviceMemory(transformed_output.template flat<T>().data(),
@@ -310,6 +392,15 @@ void DnnPoolingGradOp<T>::Compute(
           .ok();
   OP_REQUIRES(context, status,
               errors::Internal("cudnn PoolBackward launch failed"));
+
+  if (!use_nhwc && data_format == FORMAT_NHWC) {
+    /// Transform the output data from NCHW back to NHWC.
+    auto toConstTensor = [](const Tensor& x) -> const Tensor { return x; };
+    functor::NCHWToNHWC<GPUDevice, T, 4>()(
+        context->eigen_device<Device>(),
+        toConstTensor(transformed_input_backprop).template tensor<T, 4>(),
+        input_backprop->tensor<T, 4>());
+  }
 }
 
 #define DEFINE_DNN_OPS(T)         \

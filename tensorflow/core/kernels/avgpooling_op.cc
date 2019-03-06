@@ -156,10 +156,26 @@ class AvgPoolingOp<GPUDevice, T> : public UnaryOp<T> {
 
     TensorShape output_shape = params.forward_output_shape();
 
-    DnnPoolingOp<T>::Compute(context, se::dnn::PoolingMode::kAverage, ksize_,
-                             stride_, padding_, data_format_, tensor_in,
-                             output_shape,
-                             /*propagate_nans=*/false);
+    bool use_nhwc = (data_format_ == FORMAT_NHWC && DataTypeToEnum<T>::value ==
+                     DT_HALF);
+#if CUDNN_VERSION < 7500
+    use_nhwc = false;
+#endif
+    if (use_nhwc || data_format_ == FORMAT_NCHW) {
+      DnnPoolingOp<T>::Compute(context, se::dnn::PoolingMode::kAverage, ksize_,
+                               stride_, padding_, data_format_, tensor_in,
+                               output_shape,
+                               /*propagate_nans=*/false);
+    } else {
+      Tensor* output = nullptr;
+      OP_REQUIRES_OK(context,
+                     context->allocate_output(0, output_shape, &output));
+      Eigen::PaddingType pt = BrainPadding2EigenPadding(padding_);
+      functor::SpatialAvgPooling<Device, T>()(
+          context->eigen_device<Device>(), output->tensor<T, 4>(),
+          tensor_in.tensor<T, 4>(), params.window_rows, params.window_cols,
+          params.row_stride, params.col_stride, pt);
+    }
   }
 
  private:
@@ -486,10 +502,12 @@ class AvgPoolingGradOpCustomGPUKernel : public OpKernel {
       output_shape.AddDim(shape_vec(i));
     }
 
-    // Known issue (nvbugs/2452540): The cuDNN NHWC backward pooling 
-    // will give wrong results if CUDNN_VERSION == 7.4.1.5 
-#if CUDNN_VERSION == 7401
-    if (data_format_ == FORMAT_NHWC) {
+    bool use_nhwc = (data_format_ == FORMAT_NHWC && DataTypeToEnum<T>::value ==
+                     DT_HALF);
+#if CUDNN_VERSION < 7500
+    use_nhwc = false;
+#endif
+    if (!use_nhwc && data_format_ == FORMAT_NHWC) {
       const int64 out_backprop_batch = out_backprop.dim_size(0);
       const int64 out_backprop_rows = out_backprop.dim_size(1);
       const int64 out_backprop_cols = out_backprop.dim_size(2);
@@ -545,12 +563,6 @@ class AvgPoolingGradOpCustomGPUKernel : public OpKernel {
                                    nullptr, nullptr, out_backprop, output_shape,
                                    /*propagate_nans=*/false);
     }
-#else
-    DnnPoolingGradOp<T>::Compute(context, se::dnn::PoolingMode::kAverage,
-                                 ksize_, stride_, padding_, data_format_,
-                                 nullptr, nullptr, out_backprop, output_shape,
-                                 /*propagate_nans=*/false);
-#endif
   }
 
  private:

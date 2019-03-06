@@ -44,6 +44,7 @@ limitations under the License.
 #include "tensorflow/core/kernels/maxpooling_op_gpu.h"
 #include "tensorflow/core/kernels/pooling_ops_common_gpu.h"
 #include "tensorflow/core/platform/stream_executor.h"
+#include "cuda/include/cudnn.h"
 #endif  // GOOGLE_CUDA
 
 namespace tensorflow {
@@ -1134,8 +1135,13 @@ class MaxPoolingNoMaskOp<GPUDevice, T> : public OpKernel {
                 errors::InvalidArgument(
                     "qint8 should be used with data_format NCHW_VECT_C."));
 
+    bool use_nhwc = (data_format_ == FORMAT_NHWC && DataTypeToEnum<T>::value ==
+                     DT_HALF);
+#if CUDNN_VERSION < 7500
+    use_nhwc = false;
+#endif
     // These is_int8x4 checks avoid linker errors for missing qint8 kernels.
-    if (!is_int8x4 && use_dnn_) {
+    if (!is_int8x4 && use_dnn_ && (use_nhwc || data_format_ == FORMAT_NCHW)) {
       DnnPoolingOp<T>::Compute(context, se::dnn::PoolingMode::kMaximum, ksize_,
                                stride_, padding_, data_format_, tensor_in,
                                out_shape, propagate_nans_);

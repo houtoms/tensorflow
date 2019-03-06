@@ -407,46 +407,14 @@ struct FusedBatchNorm<GPUDevice, T, U> {
     se::DeviceMemory<T> y_ptr;
 
     // Batch norm v1 and v2 use NCHW for the cudnn call.
-    // TODO(kaixih): batch norm v3 has slow perf when inputs dtype is
-    // float for NHWC. So, for this case, we still use NCHW.
-#if CUDNN_VERSION >= 7402
-    if (reserve_space_allocator == nullptr || x.dtype() == DT_FLOAT) {
-      if (tensor_format == FORMAT_NCHW) {
-        y_ptr = StreamExecutorUtil::AsDeviceMemory<T>(*y);
-      } else if (tensor_format == FORMAT_NHWC) {
-        OP_REQUIRES_OK(context, context->allocate_temp(
-                                    DataTypeToEnum<T>::value,
-                                    ShapeFromFormat(FORMAT_NCHW, batch_size,
-                                                    height, width, channels),
-                                    &x_transformed));
-        functor::NHWCToNCHW<GPUDevice, T, 4>()(
-            context->eigen_device<GPUDevice>(),
-            const_cast<const Tensor&>(x_maybe_transformed).tensor<T, 4>(),
-            x_transformed.tensor<T, 4>());
-        x_maybe_transformed = x_transformed;
-
-        OP_REQUIRES_OK(context, context->allocate_temp(
-                                    DataTypeToEnum<T>::value,
-                                    ShapeFromFormat(FORMAT_NCHW, batch_size,
-                                                    height, width, channels),
-                                    &y_transformed));
-        y_ptr = StreamExecutorUtil::AsDeviceMemory<T>(y_transformed);
-      } else {
-        context->SetStatus(
-            errors::Internal("Unsupported tensor format: ", tensor_format));
-        return;
-      }
-    } else {
-      if (tensor_format == FORMAT_NCHW || tensor_format == FORMAT_NHWC) {
-        y_ptr = StreamExecutorUtil::AsDeviceMemory<T>(*y);
-      } else {
-        context->SetStatus(
-            errors::Internal("Unsupported tensor format: ", tensor_format));
-        return;
-      }
-    }
-#else
-    if (tensor_format == FORMAT_NCHW) {
+    // Cudnn 7.4.2 begins to support fast nhwc batch norm; however, for
+    // consistency, we still set 7.5.0.
+    bool use_nhwc = (data_format == FORMAT_NHWC && DataTypeToEnum<T>::value ==
+                     DT_HALF && reserve_space_allocator != nullptr);
+#if CUDNN_VERSION < 7500
+    use_nhwc = false;
+#endif
+    if (use_nhwc || tensor_format == FORMAT_NCHW) {
       y_ptr = StreamExecutorUtil::AsDeviceMemory<T>(*y);
     } else if (tensor_format == FORMAT_NHWC) {
       OP_REQUIRES_OK(context, context->allocate_temp(
@@ -471,24 +439,15 @@ struct FusedBatchNorm<GPUDevice, T, U> {
           errors::Internal("Unsupported tensor format: ", tensor_format));
       return;
     }
-#endif // CUDNN_VERSION
 
     se::dnn::BatchDescriptor x_desc;
     x_desc.set_count(batch_size)
         .set_feature_map_count(channels)
         .set_height(height)
-        .set_width(width);
-#if CUDNN_VERSION >= 7402
-    if (reserve_space_allocator == nullptr || x.dtype() == DT_FLOAT) {
-      x_desc.set_layout(se::dnn::DataLayout::kBatchDepthYX);
-    } else {
-      x_desc.set_layout(tensor_format == FORMAT_NCHW ?
-          (se::dnn::DataLayout::kBatchDepthYX):
-          (se::dnn::DataLayout::kBatchYXDepth));
-    }
-#else
-    x_desc.set_layout(se::dnn::DataLayout::kBatchDepthYX);
-#endif
+        .set_width(width)
+        .set_layout(use_nhwc?
+          (se::dnn::DataLayout::kBatchYXDepth):
+          (se::dnn::DataLayout::kBatchDepthYX));
 
     se::dnn::BatchDescriptor scale_offset_desc;
     scale_offset_desc.set_count(1)
@@ -569,23 +528,12 @@ struct FusedBatchNorm<GPUDevice, T, U> {
           errors::Internal("cuDNN launch failure : input shape (",
                            x.shape().DebugString(), ")"));
     }
-#if CUDNN_VERSION >= 7402
-    if (reserve_space_allocator == nullptr || x.dtype() == DT_FLOAT) {
-      if (tensor_format == FORMAT_NHWC) {
-        functor::NCHWToNHWC<GPUDevice, T, 4>()(
-            context->eigen_device<GPUDevice>(),
-            const_cast<const Tensor&>(y_transformed).tensor<T, 4>(),
-            y->tensor<T, 4>());
-      }
-    }
-#else
-    if (tensor_format == FORMAT_NHWC) {
+    if (!use_nhwc && tensor_format == FORMAT_NHWC) {
       functor::NCHWToNHWC<GPUDevice, T, 4>()(
           context->eigen_device<GPUDevice>(),
           const_cast<const Tensor&>(y_transformed).tensor<T, 4>(),
           y->tensor<T, 4>());
     }
-#endif
   }
 };
 
@@ -624,59 +572,14 @@ struct FusedBatchNormGrad<GPUDevice, T, U> {
     Tensor x_backprop_transformed;
     se::DeviceMemory<T> x_backprop_ptr;
 
-#if CUDNN_VERSION >= 7402
-    if (reserve_space == nullptr || x.dtype() == DT_FLOAT) {
-      if (tensor_format == FORMAT_NCHW) {
-        x_backprop_ptr = StreamExecutorUtil::AsDeviceMemory<T>(*x_backprop);
-      } else if (tensor_format == FORMAT_NHWC) {
-        // Transform inputs from 'NHWC' to 'NCHW'
-        OP_REQUIRES_OK(context, context->allocate_temp(
-                                    DataTypeToEnum<T>::value,
-                                    ShapeFromFormat(FORMAT_NCHW, batch_size,
-                                                    height, width, channels),
-                                    &y_backprop_transformed));
-        functor::NHWCToNCHW<GPUDevice, T, 4>()(
-            context->eigen_device<GPUDevice>(),
-            const_cast<const Tensor&>(y_backprop_maybe_transformed)
-                .tensor<T, 4>(),
-            y_backprop_transformed.tensor<T, 4>());
-        y_backprop_maybe_transformed = y_backprop_transformed;
-
-        OP_REQUIRES_OK(context, context->allocate_temp(
-                                    DataTypeToEnum<T>::value,
-                                    ShapeFromFormat(FORMAT_NCHW, batch_size,
-                                                    height, width, channels),
-                                    &x_transformed));
-        functor::NHWCToNCHW<GPUDevice, T, 4>()(
-            context->eigen_device<GPUDevice>(),
-            const_cast<const Tensor&>(x_maybe_transformed).tensor<T, 4>(),
-            x_transformed.tensor<T, 4>());
-        x_maybe_transformed = x_transformed;
-
-        // Allocate memory for transformed outputs in 'NCHW'
-        OP_REQUIRES_OK(context, context->allocate_temp(
-                                    DataTypeToEnum<T>::value,
-                                    ShapeFromFormat(FORMAT_NCHW, batch_size,
-                                                    height, width, channels),
-                                    &x_backprop_transformed));
-        x_backprop_ptr =
-            StreamExecutorUtil::AsDeviceMemory<T>(x_backprop_transformed);
-      } else {
-        context->SetStatus(
-            errors::Internal("Unsupported tensor format: ", tensor_format));
-        return;
-      }
-    } else {
-      if (tensor_format == FORMAT_NCHW || tensor_format == FORMAT_NHWC) {
-        x_backprop_ptr = StreamExecutorUtil::AsDeviceMemory<T>(*x_backprop);
-      } else {
-        context->SetStatus(
-            errors::Internal("Unsupported tensor format: ", tensor_format));
-        return;
-      }
-    }
-#else
-    if (tensor_format == FORMAT_NCHW) {
+    // Cudnn 7.4.2 begins to support fast nhwc batch norm; however, for
+    // consistency for using nhwc, we still set 7.5.0.
+    bool use_nhwc = (data_format == FORMAT_NHWC && DataTypeToEnum<T>::value ==
+                     DT_HALF && reserve_space_allocator != nullptr);
+#if CUDNN_VERSION < 7500
+    use_nhwc = false;
+#endif
+    if (use_nhwc || tensor_format == FORMAT_NCHW) {
       x_backprop_ptr = StreamExecutorUtil::AsDeviceMemory<T>(*x_backprop);
     } else if (tensor_format == FORMAT_NHWC) {
       // Transform inputs from 'NHWC' to 'NCHW'
@@ -716,24 +619,15 @@ struct FusedBatchNormGrad<GPUDevice, T, U> {
           errors::Internal("Unsupported tensor format: ", tensor_format));
       return;
     }
-#endif // CUDNN_VERSION
 
     se::dnn::BatchDescriptor x_desc;
     x_desc.set_count(batch_size)
         .set_feature_map_count(channels)
         .set_height(height)
-        .set_width(width);
-#if CUDNN_VERSION >= 7402
-    if (reserve_space == nullptr || x.dtype() == DT_FLOAT) {
-      x_desc.set_layout(se::dnn::DataLayout::kBatchDepthYX);
-    } else {
-      x_desc.set_layout(tensor_format == FORMAT_NCHW ?
-          (se::dnn::DataLayout::kBatchDepthYX):
-          (se::dnn::DataLayout::kBatchYXDepth));
-    }
-#else
-    x_desc.set_layout(se::dnn::DataLayout::kBatchDepthYX);
-#endif
+        .set_width(width)
+        .set_layout(use_nhwc?
+          (se::dnn::DataLayout::kBatchYXDepth):
+          (se::dnn::DataLayout::kBatchDepthYX));
 
     se::dnn::BatchDescriptor scale_offset_desc;
     scale_offset_desc.set_count(1)
@@ -782,23 +676,12 @@ struct FusedBatchNormGrad<GPUDevice, T, U> {
           errors::Internal("cuDNN launch failure : input shape (",
                            x.shape().DebugString(), ")"));
     }
-#if CUDNN_VERSION >= 7402
-    if (reserve_space == nullptr || x.dtype() == DT_FLOAT) {
-      if (tensor_format == FORMAT_NHWC) {
-        functor::NCHWToNHWC<GPUDevice, T, 4>()(
-            context->eigen_device<GPUDevice>(),
-            const_cast<const Tensor&>(x_backprop_transformed).tensor<T, 4>(),
-            x_backprop->tensor<T, 4>());
-      }
-    }
-#else
-    if (tensor_format == FORMAT_NHWC) {
+    if (!use_nhwc && tensor_format == FORMAT_NHWC) {
       functor::NCHWToNHWC<GPUDevice, T, 4>()(
           context->eigen_device<GPUDevice>(),
           const_cast<const Tensor&>(x_backprop_transformed).tensor<T, 4>(),
          x_backprop->tensor<T, 4>());
     }
-#endif
   }
 };
 

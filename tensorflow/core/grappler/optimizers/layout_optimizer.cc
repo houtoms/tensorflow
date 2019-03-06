@@ -1982,8 +1982,7 @@ class DataLayoutOptimizer : GraphProcessor {
       if (ops_format_supported.find(graph_->node(i).op()) !=
           ops_format_supported.end()) {
           auto attr = graph_->node(i).attr();
-          if (attr.find("T") != attr.end() && (attr.at("T").type() == DT_FLOAT
-              || attr.at("T").type() == DT_HALF)) {
+          if (attr.find("T") != attr.end() && attr.at("T").type() == DT_HALF) {
             auto nd = graph_->node(i);
             auto device_properties = virtual_placer_.get_device(nd);
             if (device_properties.type() == "GPU" &&
