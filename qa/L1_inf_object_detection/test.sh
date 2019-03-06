@@ -61,7 +61,6 @@ set_test_cases() {
     #mask_rcnn_resnet50_atrous_coco_trt_fp16.json
     #mask_rcnn_resnet50_atrous_coco_trt_fp32.json
   )
-  )
   if [ $is_nano ]; then
     test_cases=(
       ssd_mobilenet_v2_coco_trt_fp16.json
