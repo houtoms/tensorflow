@@ -409,7 +409,7 @@ struct FusedBatchNorm<GPUDevice, T, U> {
     // Batch norm v1 and v2 use NCHW for the cudnn call.
     // Cudnn 7.4.2 begins to support fast nhwc batch norm; however, for
     // consistency, we still set 7.5.0.
-    bool use_nhwc = (data_format == FORMAT_NHWC && DataTypeToEnum<T>::value ==
+    bool use_nhwc = (tensor_format == FORMAT_NHWC && DataTypeToEnum<T>::value ==
                      DT_HALF && reserve_space_allocator != nullptr);
 #if CUDNN_VERSION < 7500
     use_nhwc = false;
@@ -574,8 +574,8 @@ struct FusedBatchNormGrad<GPUDevice, T, U> {
 
     // Cudnn 7.4.2 begins to support fast nhwc batch norm; however, for
     // consistency for using nhwc, we still set 7.5.0.
-    bool use_nhwc = (data_format == FORMAT_NHWC && DataTypeToEnum<T>::value ==
-                     DT_HALF && reserve_space_allocator != nullptr);
+    bool use_nhwc = (tensor_format == FORMAT_NHWC && DataTypeToEnum<T>::value ==
+                     DT_HALF && reserve_space != nullptr);
 #if CUDNN_VERSION < 7500
     use_nhwc = false;
 #endif
