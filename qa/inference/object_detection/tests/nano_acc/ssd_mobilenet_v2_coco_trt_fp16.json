@@ -5,12 +5,15 @@
   },
   "optimization_config": {
     "use_trt": true,
-    "precision_mode": "FP32",
+    "precision_mode": "FP16",
+    "minimum_segment_size": 15,
     "force_nms_cpu": true,
-    "replace_relu6": true,
-    "remove_assert": true,
+    "replace_relu6": false,
+    "remove_assert": false,
     "override_nms_score_threshold": 0.3,
-    "max_batch_size": 1
+    "max_batch_size": 1,
+    "max_workspace_size_bytes": 33554432,
+    "maximum_cached_engines": 10
   },
   "benchmark_config": {
     "images_dir": "/data/coco/coco-2017/coco2017/val2017",
@@ -18,11 +21,9 @@
     "batch_size": 1,
     "image_shape": [600, 600],
     "num_images": 4096,
-    "output_path": "stats/ssd_mobilenet_v2_coco_trt_fp32.json"
+    "output_path": "stats/ssd_mobilenet_v2_coco_trt_fp16.json"
   },
   "assertions": [
-    "statistics['map'] > (0.238 - 0.005)",
-    "statistics['avg_latency_ms'] < (27 + 10)",
-    "statistics['avg_throughput_fps'] > (36 - 3)"
+    "statistics['map'] > (0.238 - 0.005)"
   ]
 }

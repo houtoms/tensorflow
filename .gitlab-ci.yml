@@ -459,10 +459,10 @@ deploy web:
 #     <<: *BASE_WHEEL_METAL
 #     <<: *TX2
 
-jetson-xavier-py2-wheel:
-    stage: build base
-    <<: *BASE_WHEEL_METAL
-    <<: *XAVIER_PY2
+#jetson-xavier-py2-wheel:
+#    stage: build base
+#    <<: *BASE_WHEEL_METAL
+#    <<: *XAVIER_PY2
 
 jetson-xavier-py3.6-wheel:
     stage: build base
@@ -1610,10 +1610,6 @@ L2_inf_image_classification_tftrt_int8--P40_R384_1GPU:
 
 #### NANO ####
 
-L0_inference--py3.6--NANO:
-    <<: *L0_TEST_JETSON
-    <<: *NANO_PY3
-
 L1_inf_object_detection--py3.6--NANO:
     <<: *L1_TEST_JETSON
     <<: *NANO_PY3
@@ -1621,10 +1617,6 @@ L1_inf_object_detection--py3.6--NANO:
 #### TX2 ####
 
 L0_tftrt--py3.6--TX2:
-    <<: *L0_TEST_JETSON
-    <<: *TX2_PY3
-
-L0_inference--py3.6--TX2:
     <<: *L0_TEST_JETSON
     <<: *TX2_PY3
 

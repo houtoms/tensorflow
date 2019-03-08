@@ -1,14 +1,13 @@
 {
   "source_model": {
-    "model_name": "ssd_mobilenet_v2_coco",
-    "output_dir": "/data/tensorflow/object_detection/models"
+    "model_name": "mask_rcnn_resnet50_atrous_coco",
+    "output_dir": "models"
   },
   "optimization_config": {
-    "use_trt": true,
-    "precision_mode": "FP32",
+    "use_trt": false,
     "force_nms_cpu": true,
-    "replace_relu6": true,
-    "remove_assert": true,
+    "replace_relu6": false,
+    "remove_assert": false,
     "override_nms_score_threshold": 0.3,
     "max_batch_size": 1
   },
@@ -18,11 +17,9 @@
     "batch_size": 1,
     "image_shape": [600, 600],
     "num_images": 4096,
-    "output_path": "stats/ssd_mobilenet_v2_coco_trt_fp32.json"
+    "output_path": "stats/mask_rcnn_resnet50_atrous_coco_tf.json"
   },
   "assertions": [
-    "statistics['map'] > (0.238 - 0.005)",
-    "statistics['avg_latency_ms'] < (27 + 10)",
-    "statistics['avg_throughput_fps'] > (36 - 3)"
+    "statistics['map'] > (0.273 - 0.005)"
   ]
 }

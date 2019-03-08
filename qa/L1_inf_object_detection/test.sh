@@ -16,23 +16,29 @@ python setup.py install
 popd
 
 echo Detecting platform...
-is_aarch64=$(lscpu | grep -q ^Architecture:.*aarch64)
-is_8cpu=$(lscpu | grep -q ^CPU\(s\):[^0-9]*8$)
-is_4cpu=$(lscpu | grep -q ^CPU\(s\):[^0-9]*4$)
-if [[ $is_aarch64 && $is_8cpu ]]; then
-  is_xavier=1
-fi
-if [[ $is_aarch64 && $is_4cpu ]]; then
-  is_nano=1
-fi
+lscpu | grep -q ^Architecture:.*aarch64
+is_aarch64=$[!$?]
+lscpu | grep -q ^CPU\(s\):[^0-9]*8
+is_8cpu=$[!$?]
+lscpu | grep -q ^CPU\(s\):[^0-9]*4
+is_4cpu=$[!$?]
+
+is_xavier=$[$is_aarch64 && $is_8cpu]
+is_nano=$[$is_aarch64 && $is_4cpu]
+
+echo $is_nano
 
 echo "Setting test_path..."
 test_path="$SCRIPTS_PATH/tests/generic_acc/${test_case}"
 # There is a different test case dir just for xavier.
 # The only difference between this dir and generic is the performance
 # data that is specific to xavier.
-if [ $is_xavier ]; then
+if [[ "$is_xavier" == 1 ]]; then
   test_path="$SCRIPTS_PATH/tests/xavier_acc_perf/${test_case}"
+fi
+
+if [[ "$is_nano" == 1 ]]; then
+  test_path="$SCRIPTS_PATH/tests/nano_acc/${test_case}"
 fi
 
 set_test_cases() {
@@ -61,8 +67,9 @@ set_test_cases() {
     #mask_rcnn_resnet50_atrous_coco_trt_fp16.json
     #mask_rcnn_resnet50_atrous_coco_trt_fp32.json
   )
-  if [ $is_nano ]; then
+  if [[ "$is_nano" == 1 ]]; then
     test_cases=(
+      ssd_mobilenet_v1_coco_trt_fp16.json
       ssd_mobilenet_v2_coco_trt_fp16.json
       ssdlite_mobilenet_v2_coco_trt_fp16.json
     )
