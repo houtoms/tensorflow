@@ -35,6 +35,7 @@ limitations under the License.
 #include "tensorflow/core/platform/logging.h"
 #include "tensorflow/core/util/padding.h"
 #include "tensorflow/core/util/tensor_format.h"
+#include "tensorflow/core/util/use_cudnn.h"
 
 #if GOOGLE_CUDA
 #include "tensorflow/core/kernels/maxpooling_op_gpu.h"
@@ -156,11 +157,8 @@ class AvgPoolingOp<GPUDevice, T> : public UnaryOp<T> {
 
     TensorShape output_shape = params.forward_output_shape();
 
-    bool use_nhwc = (data_format_ == FORMAT_NHWC && DataTypeToEnum<T>::value ==
-                     DT_HALF);
-#if CUDNN_VERSION < 7500
-    use_nhwc = false;
-#endif
+    bool use_nhwc = CanUseNHWC(data_format_, DataTypeToEnum<T>::value,
+                               CUDNN_VERSION);
     if (use_nhwc || data_format_ == FORMAT_NCHW) {
       DnnPoolingOp<T>::Compute(context, se::dnn::PoolingMode::kAverage, ksize_,
                                stride_, padding_, data_format_, tensor_in,
@@ -502,11 +500,8 @@ class AvgPoolingGradOpCustomGPUKernel : public OpKernel {
       output_shape.AddDim(shape_vec(i));
     }
 
-    bool use_nhwc = (data_format_ == FORMAT_NHWC && DataTypeToEnum<T>::value ==
-                     DT_HALF);
-#if CUDNN_VERSION < 7500
-    use_nhwc = false;
-#endif
+    bool use_nhwc = CanUseNHWC(data_format_, DataTypeToEnum<T>::value,
+                               CUDNN_VERSION);
     if (!use_nhwc && data_format_ == FORMAT_NHWC) {
       const int64 out_backprop_batch = out_backprop.dim_size(0);
       const int64 out_backprop_rows = out_backprop.dim_size(1);

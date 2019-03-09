@@ -680,11 +680,8 @@ void LaunchConv2DOp<GPUDevice, T>::operator()(
     }
   }
 
-  bool use_nhwc = (data_format == FORMAT_NHWC && DataTypeToEnum<T>::value ==
-                   DT_HALF);
-#if CUDNN_VERSION < 7500
-  use_nhwc = false;
-#endif
+  bool use_nhwc = CanUseNHWC(data_format, DataTypeToEnum<T>::value,
+                             CUDNN_VERSION);
   if (!use_nhwc && data_format == FORMAT_NHWC) {
     // Convert the input tensor from NHWC to NCHW.
     TensorShape nchw_shape =

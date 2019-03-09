@@ -1135,11 +1135,8 @@ class MaxPoolingNoMaskOp<GPUDevice, T> : public OpKernel {
                 errors::InvalidArgument(
                     "qint8 should be used with data_format NCHW_VECT_C."));
 
-    bool use_nhwc = (data_format_ == FORMAT_NHWC && DataTypeToEnum<T>::value ==
-                     DT_HALF);
-#if CUDNN_VERSION < 7500
-    use_nhwc = false;
-#endif
+    bool use_nhwc = CanUseNHWC(data_format_, DataTypeToEnum<T>::value,
+                               CUDNN_VERSION);
     // These is_int8x4 checks avoid linker errors for missing qint8 kernels.
     if (!is_int8x4 && use_dnn_ && (use_nhwc || data_format_ == FORMAT_NCHW)) {
       DnnPoolingOp<T>::Compute(context, se::dnn::PoolingMode::kMaximum, ksize_,

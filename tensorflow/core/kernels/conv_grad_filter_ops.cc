@@ -802,11 +802,8 @@ void LaunchConv2DBackpropFilterOp<Eigen::GpuDevice, T>::operator()(
     compatible_input = input;
   }
 
-  bool use_nhwc = (data_format == FORMAT_NHWC &&  DataTypeToEnum<T>::value ==
-                   DT_HALF);
-#if CUDNN_VERSION < 7500
-  use_nhwc = false;
-#endif
+  bool use_nhwc = CanUseNHWC(data_format, DataTypeToEnum<T>::value,
+                             CUDNN_VERSION);
 
   CHECK(padding_rows >= 0 && padding_cols >= 0)
       << "Negative row or col paddings: (" << padding_rows << ", "

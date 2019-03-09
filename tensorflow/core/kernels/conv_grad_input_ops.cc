@@ -842,11 +842,8 @@ void LaunchConv2DBackpropInputOp<GPUDevice, T>::operator()(
     return;
   }
 
-  bool use_nhwc = (data_format == FORMAT_NHWC && DataTypeToEnum<T>::value ==
-                   DT_HALF);
-#if CUDNN_VERSION < 7500
-  use_nhwc = false;
-#endif
+  bool use_nhwc = CanUseNHWC(data_format, DataTypeToEnum<T>::value,
+                             CUDNN_VERSION);
 
   TensorShape compatible_input_shape;
   if (rows_odd || cols_odd) {

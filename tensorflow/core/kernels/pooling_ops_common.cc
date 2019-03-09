@@ -19,6 +19,7 @@ limitations under the License.
 #include "tensorflow/core/common_runtime/device.h"
 #include "tensorflow/core/framework/register_types.h"
 #include "tensorflow/core/framework/tensor.h"
+#include "tensorflow/core/util/use_cudnn.h"
 
 #if GOOGLE_CUDA
 #include "tensorflow/core/kernels/conv_2d.h"
@@ -157,11 +158,8 @@ void DnnPoolingOp<T>::Compute(OpKernelContext* context,
     return;
   }
 
-  bool use_nhwc = (data_format == FORMAT_NHWC && DataTypeToEnum<T>::value ==
-                   DT_HALF);
-#if CUDNN_VERSION < 7500
-  use_nhwc = false;
-#endif
+  bool use_nhwc = CanUseNHWC(data_format, DataTypeToEnum<T>::value,
+                             CUDNN_VERSION);
   /// For now, cudnn does not support NHWC format, so we need to convert it
   /// to NCHW before calling cudnn. We need to get rid of this once it is done
   Tensor transformed_input;
@@ -268,11 +266,8 @@ void DnnPoolingGradOp<T>::Compute(
     return;
   }
 
-  bool use_nhwc = (data_format == FORMAT_NHWC && DataTypeToEnum<T>::value ==
-                   DT_HALF);
-#if CUDNN_VERSION < 7500
-  use_nhwc = false;
-#endif
+  bool use_nhwc = CanUseNHWC(data_format, DataTypeToEnum<T>::value,
+                             CUDNN_VERSION);
   /// For now, cudnn does not support NHWC format, so we need to convert it
   /// to NCHW before calling cudnn. We need to get rid of this once it is done
   Tensor transformed_input;
