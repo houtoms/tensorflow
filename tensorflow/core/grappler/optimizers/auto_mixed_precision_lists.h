@@ -13,8 +13,8 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
-#ifndef TENSORFLOW_CORE_GRAPPLER_OPTIMIZERS_AMP_OPTIMIZER_LISTS_H_
-#define TENSORFLOW_CORE_GRAPPLER_OPTIMIZERS_AMP_OPTIMIZER_LISTS_H_
+#ifndef TENSORFLOW_CORE_GRAPPLER_OPTIMIZERS_AUTO_MIXED_PRECISION_LISTS_H_
+#define TENSORFLOW_CORE_GRAPPLER_OPTIMIZERS_AUTO_MIXED_PRECISION_LISTS_H_
 
 #include <set>
 #include "tensorflow/core/lib/strings/str_util.h"
@@ -29,7 +29,7 @@ limitations under the License.
 namespace tensorflow {
 namespace grappler {
 
-class AMPOptimizerLists {
+class AutoMixedPrecisionLists {
  private:
   static void UpdateList(std::set<string>* list, const string& to_add,
                          const string& to_remove) {
@@ -50,50 +50,65 @@ class AMPOptimizerLists {
   }
 
  public:
+  // Returns the set of ops that are considered numerically-safe (for execution
+  // in fp16) and performance-critical. These ops are always converted to fp16.
   static std::set<string> WhiteList() {
     string to_add, to_remove;
-    ReadStringFromEnvVar("TF_AMP_WHITELIST_ADD", "", &to_add);
-    ReadStringFromEnvVar("TF_AMP_WHITELIST_REMOVE", "", &to_remove);
+    ReadStringFromEnvVar("TF_AUTO_MIXED_PRECISION_GRAPH_REWRITE_WHITELIST_ADD",
+                         "", &to_add);
+    ReadStringFromEnvVar(
+        "TF_AUTO_MIXED_PRECISION_GRAPH_REWRITE_WHITELIST_REMOVE", "",
+        &to_remove);
 
     auto list = std::set<string> {
 #if CUDA_VERSION >= 9010 // Fp16 BatchMatMul is slow before CUDA 9.1.
         "BatchMatMul",
 #endif
+        "BlockLSTM",
+        "BlockLSTMGrad",
         "Conv2D",
         "Conv2DBackpropFilter",
         "Conv2DBackpropInput",
-        "Conv3D",
-        "Conv3DBackpropFilter",
-        "Conv3DBackpropFilterV2",
-        "Conv3DBackpropInput",
-        "Conv3DBackpropInputV2",
+        // TODO(benbarsdell): Enable these when Tensor Core kernels are
+        // available for 3D convolutions.
+        // "Conv3D",
+        // "Conv3DBackpropFilter",
+        // "Conv3DBackpropFilterV2",
+        // "Conv3DBackpropInput",
+        // "Conv3DBackpropInputV2",
         "CudnnRNN",
         "CudnnRNNBackprop",
         "CudnnRNNBackpropV2",
         "CudnnRNNBackpropV3",
         "CudnnRNNV2",
         "CudnnRNNV3",
-        // TODO(carl): when Tensor Core kernels for DepthwiseConv are available,
-        // re-consider adding to whitelist. For now, avoid fp16 execution
-        // because TF kernels use internal fp16 accumulation.
+        "GRUBlockCell",
+        "GRUBlockCellGrad",
+        "LSTMBlockCell",
+        "LSTMBlockCellGrad",
+        // TODO(benbarsdell): Enable these when fast and safe fp16 kernels are
+        // available for depthwise convolutions.
         // "DepthwiseConv2dNative",
         // "DepthwiseConv2dNativeBackpropFilter",
         // "DepthwiseConv2dNativeBackpropInput",
-        "FusedPadConv2D",
-        "FusedResizeAndPadConv2D",
         "MatMul",
     };
     UpdateList(&list, to_add, to_remove);
     return list;
   }
 
+  // Returns the set of ops that are considered numerically-safe (for execution
+  // in fp16), but which may be made unsafe by an upstream blacklist op.
   static std::set<string> GrayList() {
     if (IsPseudoFastMath()) {
       return std::set<string>{};
     }
     string to_add, to_remove;
-    ReadStringFromEnvVar("TF_AMP_GRAYLIST_ADD", "", &to_add);
-    ReadStringFromEnvVar("TF_AMP_GRAYLIST_REMOVE", "", &to_remove);
+    ReadStringFromEnvVar("TF_AUTO_MIXED_PRECISION_GRAPH_REWRITE_GRAYLIST_ADD",
+                         "", &to_add);
+    ReadStringFromEnvVar(
+        "TF_AUTO_MIXED_PRECISION_GRAPH_REWRITE_GRAYLIST_REMOVE", "",
+        &to_remove);
 
     auto list = std::set<string>{
         "Add",
@@ -126,7 +141,6 @@ class AMPOptimizerLists {
         "SoftplusGrad",
         "Sqrt",
         "Sub",
-        "Sum",
         "Tanh",
         "TanhGrad",
     };
@@ -134,13 +148,19 @@ class AMPOptimizerLists {
     return list;
   }
 
+  // Returns the set of ops that are considered numerically-dangerous (i.e.,
+  // unsafe for execution in fp16) and whose effects may also be observed in
+  // downstream nodes (e.g., in Exp -> Add, the Add is unsafe due to the Exp).
   static std::set<string> BlackList() {
     if (IsPseudoFastMath()) {
       return std::set<string>{};
     }
     string to_add, to_remove;
-    ReadStringFromEnvVar("TF_AMP_BLACKLIST_ADD", "", &to_add);
-    ReadStringFromEnvVar("TF_AMP_BLACKLIST_REMOVE", "", &to_remove);
+    ReadStringFromEnvVar("TF_AUTO_MIXED_PRECISION_GRAPH_REWRITE_BLACKLIST_ADD",
+                         "", &to_add);
+    ReadStringFromEnvVar(
+        "TF_AUTO_MIXED_PRECISION_GRAPH_REWRITE_BLACKLIST_REMOVE", "",
+        &to_remove);
 
     auto list = std::set<string>{
         "Exp",
@@ -155,18 +175,25 @@ class AMPOptimizerLists {
         "Softmax",
         "SoftmaxCrossEntropyWithLogits",
         "SparseSoftmaxCrossEntropyWithLogits",
+        "Sum",
     };
     UpdateList(&list, to_add, to_remove);
     return list;
   }
 
-  static std::set<string> PassThroughList() {
+  // Returns the set of ops that do not have numerically-significant effects
+  // (i.e., they are always considered safe for execution in fp16 precision).
+  static std::set<string> ClearList() {
     if (IsPseudoFastMath()) {
       return std::set<string>{};
     }
     string to_add, to_remove;
-    ReadStringFromEnvVar("TF_AMP_PASSTHROUGHLIST_ADD", "", &to_add);
-    ReadStringFromEnvVar("TF_AMP_PASSTHROUGHLIST_REMOVE", "", &to_remove);
+    ReadStringFromEnvVar(
+        "TF_AUTO_MIXED_PRECISION_GRAPH_REWRITE_CLEARLIST_ADD", "",
+        &to_add);
+    ReadStringFromEnvVar(
+        "TF_AUTO_MIXED_PRECISION_GRAPH_REWRITE_CLEARLIST_REMOVE", "",
+        &to_remove);
 
     auto list = std::set<string> {
         "Abs",
@@ -221,6 +248,7 @@ class AMPOptimizerLists {
         "Neg",
         "NextIteration",
         "NotEqual",
+        "OneHot",
         "OnesLike",
         "Pack",
         "Pad",
@@ -278,4 +306,4 @@ class AMPOptimizerLists {
 }
 }
 
-#endif  // TENSORFLOW_CORE_GRAPPLER_OPTIMIZERS_AMP_OPTIMIZER_LISTS_H_
+#endif  // TENSORFLOW_CORE_GRAPPLER_OPTIMIZERS_AUTO_MIXED_PRECISION_LISTS_H_

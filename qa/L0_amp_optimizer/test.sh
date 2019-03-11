@@ -4,7 +4,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null && pwd)"
 OUTPUT_DIR="$SCRIPT_DIR/outputs"
 mkdir -p $OUTPUT_DIR
 TEST_LIST="$OUTPUT_DIR/tests.list"
-TARGETS="tests(//tensorflow/python:amp_optimizer_test)"
+TARGETS="tests(//tensorflow/python:auto_mixed_precision_test)"
 
 current_arch=`uname -m`
 if [[ $current_arch == "aarch64" ]]; then
@@ -16,7 +16,7 @@ else
 fi
 
 cd $SCRIPT_DIR/../..
-bazel query "attr(size, small, $TARGETS) union attr(size, medium, $TARGETS) except (attr(tags, no_gpu, $TARGETS) $ARM_EXCEPT union attr(data, '/*\.so', $TARGETS))" > "$TEST_LIST"
+bazel query "attr(size, small, $TARGETS) union attr(size, medium, $TARGETS)" > "$TEST_LIST"
 
 GPUS=$(nvidia-smi -L | wc -l)
 echo Running tests on $GPUS GPUs

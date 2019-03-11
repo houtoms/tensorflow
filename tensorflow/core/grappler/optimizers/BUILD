@@ -494,11 +494,11 @@ tf_cuda_cc_test(
 )
 
 cc_library(
-    name = "amp_optimizer",
-    srcs = ["amp_optimizer.cc"],
+    name = "auto_mixed_precision",
+    srcs = ["auto_mixed_precision.cc"],
     hdrs = [
-        "amp_optimizer.h",
-        "amp_optimizer_lists.h",
+        "auto_mixed_precision.h",
+        "auto_mixed_precision_lists.h",
     ],
     visibility = ["//visibility:public"],
     deps = [
@@ -518,10 +518,10 @@ cc_library(
 )
 
 tf_cuda_cc_test(
-    name = "amp_optimizer_test",
-    srcs = ["amp_optimizer_test.cc"],
+    name = "auto_mixed_precision_test",
+    srcs = ["auto_mixed_precision_test.cc"],
     deps = [
-        ":amp_optimizer",
+        ":auto_mixed_precision",
         "//tensorflow/core:framework",
         "//tensorflow/core:lib",
         "//tensorflow/core:test",
@@ -541,7 +541,7 @@ cc_library(
     ],
     visibility = ["//visibility:public"],
     deps = [
-        ":amp_optimizer",
+        ":auto_mixed_precision",
         ":arithmetic_optimizer",
         ":auto_parallel",
         ":constant_folding",
