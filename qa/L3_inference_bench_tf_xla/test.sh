@@ -92,8 +92,7 @@ set_models
 set_batch_sizes
 
 pushd $EXAMPLE_PATH
-sed -i -e "s/tf_config = tf.ConfigProto()/tf_config = tf.ConfigProto()\n    tf_config.graph_options.optimizer_options.global_jit_level = tf.OptimizerOptions.ON_1/g" image_classification.py
-sed -i -e "s/results = run(/for node in frozen_graph.node:\n        node.device = '\/job:localhost\/replica:0\/task:0\/device:XLA_GPU:0'\n    results = run(/g" image_classification.py
+sed -z -i -e "s/tf_config = tf.ConfigProto()/tf_config = tf.ConfigProto()\n    tf_config.graph_options.optimizer_options.global_jit_level = tf.OptimizerOptions.ON_1/g" image_classification.py
 popd
 
 run_inference $models $batch_sizes
@@ -107,6 +106,5 @@ batch_sizes=( 1 8 32 )
 run_inference $models $batch_sizes
 
 pushd $EXAMPLE_PATH
-sed -i -e "s/tf_config = tf.ConfigProto()\n    tf_config.graph_options.optimizer_options.global_jit_level = tf.OptimizerOptions.ON_1/tf_config = tf.ConfigProto()/g" image_classification.py
-sed -i -e "s/for node in frozen_graph.node:\n        node.device = '\/job:localhost\/replica:0\/task:0\/device:XLA_GPU:0'\n    results = run(/results = run(/g" image_classification.py
+sed -z -i -e "s/tf_config = tf.ConfigProto()\n    tf_config.graph_options.optimizer_options.global_jit_level = tf.OptimizerOptions.ON_1/tf_config = tf.ConfigProto()/g" image_classification.py
 popd
