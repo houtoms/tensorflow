@@ -46,7 +46,7 @@ set_test_cases() {
     ssd_mobilenet_v1_coco_trt_fp16.json
     ssd_mobilenet_v1_coco_trt_fp32.json
     ssd_mobilenet_v2_coco_tf.json
-    ssd_mobilenet_v2_coco_trt_fp16.jso
+    ssd_mobilenet_v2_coco_trt_fp16.json
     ssd_mobilenet_v2_coco_trt_fp32.json
     ssdlite_mobilenet_v2_coco_tf.json
     ssdlite_mobilenet_v2_coco_trt_fp16.json
