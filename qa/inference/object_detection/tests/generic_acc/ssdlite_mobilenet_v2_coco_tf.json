@@ -1,7 +1,7 @@
 {
   "source_model": {
     "model_name": "ssdlite_mobilenet_v2_coco",
-    "output_dir": "models"
+    "output_dir": "/data/tensorflow/object_detection/models"
   },
   "optimization_config": {
     "use_trt": false,

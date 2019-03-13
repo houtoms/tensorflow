@@ -1,7 +1,7 @@
 {
   "source_model": {
     "model_name": "mask_rcnn_resnet50_atrous_coco",
-    "output_dir": "models"
+    "output_dir": "/data/tensorflow/object_detection/models"
   },
   "optimization_config": {
     "use_trt": false,
