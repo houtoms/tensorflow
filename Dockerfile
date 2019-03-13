@@ -63,6 +63,7 @@ RUN pip install --no-cache-dir --upgrade \
 # other OpenSeq2Seq dependencies
 RUN pip install --no-cache-dir --upgrade \
         resampy \
+        llvmlite==0.27.0 \
         python_speech_features \
         pandas==0.23.0 \
         six \
