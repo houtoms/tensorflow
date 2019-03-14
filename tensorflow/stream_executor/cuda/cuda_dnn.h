@@ -262,8 +262,7 @@ class CudnnSupport : public dnn::DnnSupport {
       const dnn::BatchDescriptor& x_desc,
       const dnn::BatchDescriptor& scale_offset_desc, const double epsilon,
       DeviceMemory<Eigen::half>* x_backprop,
-      DeviceMemory<float>* scale_backprop,
-      DeviceMemory<float>* offset_backprop,
+      DeviceMemory<float>* scale_backprop, DeviceMemory<float>* offset_backprop,
       DeviceMemory<uint8>* reserve_space_data,
       ScratchAllocator* workspace_allocator) override;
 
@@ -586,8 +585,7 @@ class CudnnSupport : public dnn::DnnSupport {
       const DeviceMemory<U>& inv_var, const dnn::BatchDescriptor& x_desc,
       const dnn::BatchDescriptor& scale_offset_desc, const double epsilon,
       DeviceMemory<T>* x_backprop, DeviceMemory<U>* scale_backprop,
-      DeviceMemory<U>* offset_backprop,
-      DeviceMemory<uint8>* reserve_space_data,
+      DeviceMemory<U>* offset_backprop, DeviceMemory<uint8>* reserve_space_data,
       ScratchAllocator* workspace_allocator);
 
   template <typename ElementType, typename BiasType, typename ScaleType>
