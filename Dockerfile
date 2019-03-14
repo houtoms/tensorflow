@@ -49,31 +49,32 @@ RUN curl -O https://bootstrap.pypa.io/get-pip.py && \
 # nltk version specified per OpenSeq2Seq requirements
 RUN pip install --no-cache-dir --upgrade \
         numpy==1.14.5 \
-        pexpect \
-        psutil \
+        pexpect==4.6.0 \
+        psutil==5.6.1 \
         nltk==3.2.5 \
-        future \
-        jupyterlab \
-        mock \
-        portpicker \
-        h5py \
+        future==0.17.1 \
+        jupyterlab==0.35.4 \
+        mock==2.0.0 \
+        portpicker==1.3.1 \
+        h5py==2.9.0 \
         keras_preprocessing==1.0.5 \
         keras_applications==1.0.6
 
 # other OpenSeq2Seq dependencies
 RUN pip install --no-cache-dir --upgrade \
-        resampy \
-        llvmlite==0.27.0 \
-        python_speech_features \
+        resampy==0.2.1 \
+        numba==0.43.0 \
+        llvmlite==0.28.0 \
+        python_speech_features==0.6 \
         pandas==0.23.0 \
-        six \
-        mpi4py \
+        six==1.12.0 \
+        mpi4py==3.0.1 \
         librosa==0.6.1 \
-        matplotlib \
+        matplotlib==3.0.3 \
         joblib==0.11 \
         sentencepiece==0.1.6
 # sacrebleu does not install cleanly with python2.
-RUN test ${PYVER%.*} -eq 2 || pip install --no-cache-dir --upgrade sacrebleu
+RUN test ${PYVER%.*} -eq 2 || pip install --no-cache-dir --upgrade sacrebleu==1.2.20
 
 # Set up Bazel.
 # Running bazel inside a `docker build` command causes trouble, cf:
