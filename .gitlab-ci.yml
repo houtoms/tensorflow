@@ -109,6 +109,8 @@ py3-base:
               "COPY jetson/   /opt/${CI_PROJECT_NAME}/jetson/\n"
               "COPY qa/   /opt/${CI_PROJECT_NAME}/qa/\n"
               "COPY --from=build-scripts / /nvidia/\n"
+              "$(test "${VIRTUAL}" -eq 1 -a -n "${CUDA_DRIVER_VERSION}" && echo "ENV CUDA_DRIVER_VERSION=\"${CUDA_DRIVER_VERSION}\""  )\n"
+              "$(test "${VIRTUAL}" -eq 1 -a -n "${CUDA_VERSION}"   && echo "ENV CUDA_VERSION=\"${CUDA_VERSION}\"     CUDA_VIRTUAL=1"  )\n"
               "$(test "${VIRTUAL}" -eq 1 -a -n "${NCCL_VERSION}"   && echo "ENV NCCL_VERSION=\"${NCCL_VERSION}\"     NCCL_VIRTUAL=1"  )\n"
               "$(test "${VIRTUAL}" -eq 1 -a -n "${CUBLAS_VERSION}" && echo "ENV CUBLAS_VERSION=\"${CUBLAS_VERSION}\" CUBLAS_VIRTUAL=1")\n"
               "$(test "${VIRTUAL}" -eq 1 -a -n "${CUDNN_VERSION}"  && echo "ENV CUDNN_VERSION=\"${CUDNN_VERSION}\"   CUDNN_VIRTUAL=1" )\n"
