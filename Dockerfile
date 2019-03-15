@@ -53,7 +53,7 @@ RUN pip install --no-cache-dir --upgrade \
         psutil==5.6.1 \
         nltk==3.2.5 \
         future==0.17.1 \
-        jupyterlab==0.35.4 \
+        jupyterlab==$(test ${PYVER%.*} -eq 2 && echo 0.33.12 || echo 0.35.4) \
         mock==2.0.0 \
         portpicker==1.3.1 \
         h5py==2.9.0 \
@@ -70,11 +70,10 @@ RUN pip install --no-cache-dir --upgrade \
         six==1.12.0 \
         mpi4py==3.0.1 \
         librosa==0.6.1 \
-        matplotlib==3.0.3 \
+        matplotlib==$(test ${PYVER%.*} -eq 2 && echo 2.2.4 || echo 3.0.3) \
         joblib==0.11 \
-        sentencepiece==0.1.6
-# sacrebleu does not install cleanly with python2.
-RUN test ${PYVER%.*} -eq 2 || pip install --no-cache-dir --upgrade sacrebleu==1.2.20
+        sentencepiece==0.1.6 \
+        $(test ${PYVER%.*} -eq 3 && echo "sacrebleu==1.2.20" || echo "")
 
 # Set up Bazel.
 # Running bazel inside a `docker build` command causes trouble, cf:
