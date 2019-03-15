@@ -41,6 +41,7 @@ set_models() {
   )
   if ! $JETSON ; then
     models+=(nasnet_large)
+    models+=(nasnet_mobile)
     models+=(vgg_16)
     models+=(vgg_19)
   fi
