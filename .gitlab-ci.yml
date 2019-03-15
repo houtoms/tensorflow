@@ -947,6 +947,14 @@ L2_models_cifar10--T4_R410_1GPU:
     <<: *L2_TEST
     <<: *T4_R410_1GPU
 
+L1_inf_image_classification_tftrt_fp16--T4_R410_1GPU:
+    <<: *L1_TEST
+    <<: *T4_R410_1GPU
+
+L1_inf_object_detection--T4_R410_1GPU:
+    <<: *L1_TEST
+    <<: *T4_R410_1GPU
+
 L2_inf_image_classification_tftrt_int8--T4_R410_1GPU:
     <<: *L2_TEST
     <<: *T4_R410_1GPU
