@@ -23,4 +23,4 @@
         url = ../../JoC/RN50v15_TF
 [submodule "nvidia-examples/NCF"]
 	path = nvidia-examples/NCF
-	url = https://gitlab-master.nvidia.com/dl/JoC/NCF_TF
+	url = ../../JoC/NCF_TF
