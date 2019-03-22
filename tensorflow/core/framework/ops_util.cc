@@ -74,8 +74,13 @@ string SanitizeThreadSuffix(string suffix) {
 }
 
 bool IsFasterTime(float new_time, float old_time) {
-  if (new_time < old_time && fabs(new_time - old_time) / old_time > 0.03) {
-      return true;
+  const char* epsilon_str = getenv("TF_AUTOTUNE_EPSILON");
+  float epsilon_ = 0.03;
+  if (epsilon_str != nullptr) {
+    strings::safe_strtof(epsilon_str, &epsilon_);
+  }
+  if (new_time < old_time && fabs(new_time - old_time) / old_time > epsilon_) {
+    return true;
   }
   return false;
 }
