@@ -149,17 +149,18 @@ ENV TF_ADJUST_HUE_FUSED=1 \
 EXPOSE 6006
 
 # Horovod with fp16 patch
-ENV HOROVOD_GPU_ALLREDUCE=NCCL \
-    HOROVOD_NCCL_INCLUDE=/usr/include \
-    HOROVOD_NCCL_LIB=/usr/lib/x86_64-linux-gnu \
-    HOROVOD_NCCL_LINK=SHARED \
-    HOROVOD_WITHOUT_PYTORCH=1
-RUN cd /opt/tensorflow/third_party/horovod && \
-    ln -s /usr/local/cuda/lib64/stubs/libcuda.so ./libcuda.so.1 && \
-    export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$PWD && \
-    python setup.py install && \
-    python setup.py clean && \
-    rm ./libcuda.so.1
+RUN export HOROVOD_GPU_ALLREDUCE=NCCL \
+ && export HOROVOD_NCCL_INCLUDE=/usr/include \
+ && export HOROVOD_NCCL_LIB=/usr/lib/x86_64-linux-gnu \
+ && export HOROVOD_NCCL_LINK=SHARED \
+ && export HOROVOD_WITHOUT_PYTORCH=1 \
+ && export HOROVOD_WITHOUT_MXNET=1 \
+ && cd /opt/tensorflow/third_party/horovod \
+ && ln -s /usr/local/cuda/lib64/stubs/libcuda.so ./libcuda.so.1 \
+ && export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$PWD \
+ && python setup.py install \
+ && python setup.py clean \
+ && rm ./libcuda.so.1
 
 # OpenSeq2Seq CTC Decoder & KenLM
 RUN cd /opt/tensorflow/nvidia-examples/OpenSeq2Seq && \
