@@ -26,7 +26,7 @@ namespace {
 
 void CompileWithVersion(XlaOpKernelContext* ctx, bool epsilon_,
                         TensorFormat data_format_, bool is_training_,
-                        bool use_v3) override {
+                        bool use_v3) {
   xla::PrimitiveType input_type;
   OP_REQUIRES_OK(ctx,
                  DataTypeToPrimitiveType(ctx->input_type(0), &input_type));
