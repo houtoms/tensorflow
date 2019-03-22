@@ -163,7 +163,8 @@ RUN export HOROVOD_GPU_ALLREDUCE=NCCL \
  && rm ./libcuda.so.1
 
 # OpenSeq2Seq CTC Decoder & KenLM
-RUN cd /opt/tensorflow/nvidia-examples/OpenSeq2Seq && \
+RUN patch -p0 < openseq2seq.patch && \
+    cd /opt/tensorflow/nvidia-examples/OpenSeq2Seq && \
     ./scripts/install_kenlm.sh && \
     cd /opt/tensorflow && \
     ln -s nvidia-examples/OpenSeq2Seq/ctc_decoder_with_lm ./ && \
