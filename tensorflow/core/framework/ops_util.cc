@@ -73,4 +73,11 @@ string SanitizeThreadSuffix(string suffix) {
   return clean;
 }
 
+bool IsFasterTime(float new_time, float old_time) {
+  if (old_time < new_time && fabs(new_time - old_time) / old_time > 0.03) {
+      return true;
+  }
+  return false;
+}
+
 }  // namespace tensorflow

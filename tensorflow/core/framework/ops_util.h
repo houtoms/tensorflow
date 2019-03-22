@@ -111,6 +111,9 @@ gtl::InlinedVector<T, 8> ComputeEigenStrides(const EigenDimensions& shape) {
   return strides;
 }
 
+// Helper to decide if the new_time (ms) is smaller than the old_time
+bool IsFasterTime(float new_time, float old_time);
+
 }  // namespace tensorflow
 
 #endif  // TENSORFLOW_CORE_FRAMEWORK_OPS_UTIL_H_
