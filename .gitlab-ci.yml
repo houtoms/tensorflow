@@ -109,6 +109,8 @@ py3-base:
               "COPY jetson/   /opt/${CI_PROJECT_NAME}/jetson/\n"
               "COPY qa/   /opt/${CI_PROJECT_NAME}/qa/\n"
               "COPY --from=build-scripts / /nvidia/\n"
+              "$(test "${VIRTUAL}" -eq 1 -a -n "${CUDA_DRIVER_VERSION}" && echo "ENV CUDA_DRIVER_VERSION=\"${CUDA_DRIVER_VERSION}\""  )\n"
+              "$(test "${VIRTUAL}" -eq 1 -a -n "${CUDA_VERSION}"   && echo "ENV CUDA_VERSION=\"${CUDA_VERSION}\"     CUDA_VIRTUAL=1"  )\n"
               "$(test "${VIRTUAL}" -eq 1 -a -n "${NCCL_VERSION}"   && echo "ENV NCCL_VERSION=\"${NCCL_VERSION}\"     NCCL_VIRTUAL=1"  )\n"
               "$(test "${VIRTUAL}" -eq 1 -a -n "${CUBLAS_VERSION}" && echo "ENV CUBLAS_VERSION=\"${CUBLAS_VERSION}\" CUBLAS_VIRTUAL=1")\n"
               "$(test "${VIRTUAL}" -eq 1 -a -n "${CUDNN_VERSION}"  && echo "ENV CUDNN_VERSION=\"${CUDNN_VERSION}\"   CUDNN_VIRTUAL=1" )\n"
@@ -166,7 +168,6 @@ py3-devel:
     except:
     - api
     - external
-    - pipelines
     - schedules
     - tags
     - triggers
@@ -378,6 +379,16 @@ deploy web:
     only:
     - /^.*-devel$/
 
+.NANO_PY2: &NANO_PY2
+    tags:
+    - NANO
+    - PY2
+
+.NANO_PY3: &NANO_PY3
+    tags:
+    - NANO
+    - PY3
+
 .TX2_PY2: &TX2_PY2
     tags:
     - TX2
@@ -391,13 +402,11 @@ deploy web:
 .XAVIER: &XAVIER
     tags:
     - XAVIER
-    - JP42
     - PY3
 
 .XAVIER_PY2: &XAVIER_PY2
     tags:
     - XAVIER
-    - JP42
     - PY2
 
 .V100_R410_16GPU: &V100_R410_16GPU
@@ -450,10 +459,10 @@ deploy web:
 #     <<: *BASE_WHEEL_METAL
 #     <<: *TX2
 
-jetson-xavier-py2-wheel:
-    stage: build base
-    <<: *BASE_WHEEL_METAL
-    <<: *XAVIER_PY2
+#jetson-xavier-py2-wheel:
+#    stage: build base
+#    <<: *BASE_WHEEL_METAL
+#    <<: *XAVIER_PY2
 
 jetson-xavier-py3.6-wheel:
     stage: build base
@@ -641,6 +650,10 @@ L0_inference--P100_R384_4GPU:
     <<: *P100_R384_4GPU
 
 L0_python_kernel_tests--P100_R384_4GPU:
+    <<: *L0_TEST
+    <<: *P100_R384_4GPU
+
+L0_amp_optimizer--P100_R384_4GPU:
     <<: *L0_TEST
     <<: *P100_R384_4GPU
 
@@ -919,6 +932,14 @@ L2_models_cifar10--T4_R410_1GPU:
     <<: *L2_TEST
     <<: *T4_R410_1GPU
 
+L1_inf_image_classification_tftrt_fp16--T4_R410_1GPU:
+    <<: *L1_TEST
+    <<: *T4_R410_1GPU
+
+L1_inf_object_detection--T4_R410_1GPU:
+    <<: *L1_TEST
+    <<: *T4_R410_1GPU
+
 L2_inf_image_classification_tftrt_int8--T4_R410_1GPU:
     <<: *L2_TEST
     <<: *T4_R410_1GPU
@@ -1091,6 +1112,7 @@ L0_os2s_ctc--V100_R384_1GPU:
 L0_seq2seq--V100_R384_1GPU:
     <<: *L0_TEST
     <<: *V100_R384_1GPU
+    allow_failure: false
 
 L0_tftrt--V100_R384_1GPU:
     <<: *L0_TEST
@@ -1101,6 +1123,10 @@ L0_inference--V100_R384_1GPU:
     <<: *V100_R384_1GPU
 
 L0_python_kernel_tests--V100_R384_4GPU:
+    <<: *L0_TEST
+    <<: *V100_R384_4GPU
+
+L0_amp_optimizer--V100_R384_4GPU:
     <<: *L0_TEST
     <<: *V100_R384_4GPU
 
@@ -1582,153 +1608,19 @@ L2_inf_image_classification_tftrt_int8--P40_R384_1GPU:
     <<: *L2_TEST
     <<: *P40_R384_1GPU
 
+#### NANO ####
+
+L1_inf_object_detection--py3.6--NANO:
+    <<: *L1_TEST_JETSON
+    <<: *NANO_PY3
+
 #### TX2 ####
-
-L0_models_alexnet--py2.7--TX2:
-    <<: *L0_TEST_JETSON
-    <<: *TX2_PY2
-
-L0_models_imagenet--py2.7--TX2:
-    <<: *L0_TEST_JETSON
-    <<: *TX2_PY2
-
-L0_models_mnist--py2.7--TX2:
-    <<: *L0_TEST_JETSON
-    <<: *TX2_PY2
-
-L0_convnet_benchmarks_alexnet--py2.7--TX2:
-    <<: *L0_TEST_JETSON
-    <<: *TX2_PY2
-    variables:
-      TEST_WORK_DIR: "./qa/L0_convnet_benchmarks"
-      TEST_SCRIPT: "./test-alexnet.sh"
-
-L0_convnet_benchmarks_googlenet--py2.7--TX2:
-    <<: *L0_TEST_JETSON
-    <<: *TX2_PY2
-    variables:
-      TEST_WORK_DIR: "./qa/L0_convnet_benchmarks"
-      TEST_SCRIPT: "./test-googlenet.sh"
-
-L0_convnet_benchmarks_overfeat--py2.7--TX2:
-    <<: *L0_TEST_JETSON
-    <<: *TX2_PY2
-    variables:
-      TEST_WORK_DIR: "./qa/L0_convnet_benchmarks"
-      TEST_SCRIPT: "./test-overfeat.sh"
-
-L0_convnet_benchmarks_vgga--py2.7--TX2:
-    <<: *L0_TEST_JETSON
-    <<: *TX2_PY2
-    variables:
-      TEST_WORK_DIR: "./qa/L0_convnet_benchmarks"
-      TEST_SCRIPT: "./test-vgga.sh"
-
-L0_tftrt--py2.7--TX2:
-    <<: *L0_TEST_JETSON
-    <<: *TX2_PY2
-
-L0_inference--py2.7--TX2:
-    <<: *L0_TEST_JETSON
-    <<: *TX2_PY2
-
-L0_python_kernel_tests--py2.7--TX2:
-    <<: *L0_TEST_JETSON
-    <<: *TX2_PY2
-
-L0_models_alexnet--py3.6--TX2:
-    <<: *L0_TEST_JETSON
-    <<: *TX2_PY3
-
-L0_models_imagenet--py3.6--TX2:
-    <<: *L0_TEST_JETSON
-    <<: *TX2_PY3
-
-L0_models_mnist--py3.6--TX2:
-    <<: *L0_TEST_JETSON
-    <<: *TX2_PY3
-
-L0_convnet_benchmarks_alexnet--py3.6--TX2:
-    <<: *L0_TEST_JETSON
-    <<: *TX2_PY3
-    variables:
-      TEST_WORK_DIR: "./qa/L0_convnet_benchmarks"
-      TEST_SCRIPT: "./test-alexnet.sh"
-
-L0_convnet_benchmarks_googlenet--py3.6--TX2:
-    <<: *L0_TEST_JETSON
-    <<: *TX2_PY3
-    variables:
-      TEST_WORK_DIR: "./qa/L0_convnet_benchmarks"
-      TEST_SCRIPT: "./test-googlenet.sh"
-
-L0_convnet_benchmarks_overfeat--py3.6--TX2:
-    <<: *L0_TEST_JETSON
-    <<: *TX2_PY3
-    variables:
-      TEST_WORK_DIR: "./qa/L0_convnet_benchmarks"
-      TEST_SCRIPT: "./test-overfeat.sh"
-
-L0_convnet_benchmarks_vgga--py3.6--TX2:
-    <<: *L0_TEST_JETSON
-    <<: *TX2_PY3
-    variables:
-      TEST_WORK_DIR: "./qa/L0_convnet_benchmarks"
-      TEST_SCRIPT: "./test-vgga.sh"
 
 L0_tftrt--py3.6--TX2:
     <<: *L0_TEST_JETSON
     <<: *TX2_PY3
 
-L0_inference--py3.6--TX2:
-    <<: *L0_TEST_JETSON
-    <<: *TX2_PY3
-
-L0_python_kernel_tests--py3.6--TX2:
-    <<: *L0_TEST_JETSON
-    <<: *TX2_PY3
-
 #### XAVIER ####
-
-L0_models_alexnet--py3.6--XAVIER:
-    <<: *L0_TEST_JETSON
-    <<: *XAVIER
-
-L0_models_imagenet--py3.6--XAVIER:
-    <<: *L0_TEST_JETSON
-    <<: *XAVIER
-
-L0_models_mnist--py3.6--XAVIER:
-    <<: *L0_TEST_JETSON
-    <<: *XAVIER
-
-L0_convnet_benchmarks_alexnet--py3.6--XAVIER:
-    <<: *L0_TEST_JETSON
-    <<: *XAVIER
-    variables:
-      TEST_WORK_DIR: "./qa/L0_convnet_benchmarks"
-      TEST_SCRIPT: "./test-alexnet.sh"
-
-L0_convnet_benchmarks_googlenet--py3.6--XAVIER:
-    <<: *L0_TEST_JETSON
-    <<: *XAVIER
-    variables:
-      TEST_WORK_DIR: "./qa/L0_convnet_benchmarks"
-      TEST_SCRIPT: "./test-googlenet.sh"
-
-L0_convnet_benchmarks_overfeat--py3.6--XAVIER:
-    <<: *L0_TEST_JETSON
-    <<: *XAVIER
-    variables:
-      TEST_WORK_DIR: "./qa/L0_convnet_benchmarks"
-      TEST_SCRIPT: "./test-overfeat.sh"
-
-L0_convnet_benchmarks_vgga--py3.6--XAVIER:
-    <<: *L0_TEST_JETSON
-    <<: *XAVIER
-    variables:
-      TEST_WORK_DIR: "./qa/L0_convnet_benchmarks"
-      TEST_SCRIPT: "./test-vgga.sh"
 
 L0_tftrt--py3.6--XAVIER:
     <<: *L0_TEST_JETSON
@@ -1736,18 +1628,6 @@ L0_tftrt--py3.6--XAVIER:
 
 L0_inference--py3.6--XAVIER:
     <<: *L0_TEST_JETSON
-    <<: *XAVIER
-
-L0_python_kernel_tests--py3.6--XAVIER:
-    <<: *L0_TEST_JETSON
-    <<: *XAVIER
-
-L1_kernel_tests--py3.6--XAVIER:
-    <<: *L1_TEST_JETSON
-    <<: *XAVIER
-
-L1_xla_tests--py3.6--XAVIER:
-    <<: *L1_TEST_JETSON
     <<: *XAVIER
 
 L1_inf_object_detection--py3.6--XAVIER:
@@ -1765,47 +1645,3 @@ L1_inf_image_classification_tftrt_fp16--py3.6--XAVIER:
 L3_self_tests--py3.6--XAVIER:
     <<: *L3_TEST_JETSON
     <<: *XAVIER
-
-L0_models_alexnet--py2--XAVIER:
-    <<: *L0_TEST_JETSON
-    <<: *XAVIER_PY2
-
-L0_models_imagenet--py2--XAVIER:
-    <<: *L0_TEST_JETSON
-    <<: *XAVIER_PY2
-
-L0_models_mnist--py2--XAVIER:
-    <<: *L0_TEST_JETSON
-    <<: *XAVIER_PY2
-
-L0_tftrt--py2--XAVIER:
-    <<: *L0_TEST_JETSON
-    <<: *XAVIER_PY2
-
-L0_inference--py2--XAVIER:
-    <<: *L0_TEST_JETSON
-    <<: *XAVIER_PY2
-
-L0_python_kernel_tests--py2--XAVIER:
-    <<: *L0_TEST_JETSON
-    <<: *XAVIER_PY2
-
-L1_inf_image_classification_tf--py2--XAVIER:
-    <<: *L1_TEST_JETSON
-    <<: *XAVIER_PY2
-
-L1_inf_image_classification_tftrt--py2--XAVIER:
-    <<: *L1_TEST_JETSON
-    <<: *XAVIER_PY2
-
-L1_inf_image_classification_tftrt_fp16--py2--XAVIER:
-    <<: *L1_TEST_JETSON
-    <<: *XAVIER_PY2
-
-L1_inf_object_detection--py2--XAVIER:
-    <<: *L1_TEST_JETSON
-    <<: *XAVIER_PY2
-
-L2_inf_image_classification_tftrt_int8--py2--XAVIER:
-    <<: *L2_TEST_JETSON
-    <<: *XAVIER_PY2

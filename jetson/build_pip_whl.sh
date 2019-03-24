@@ -24,7 +24,7 @@ source ./tf_env${PYVER}/bin/activate
 
 # Install required Python packages
 # TODO: Hardcoded package versions must be kept in sync with the container
-pip${PYVER} install numpy==1.14.5 enum34 mock h5py keras_applications==1.0.6 keras_preprocessing==1.0.5
+pip${PYVER} install numpy==1.16.1 enum34 mock h5py==2.9.0 keras_applications==1.0.6 keras_preprocessing==1.0.5
 
 # Set configuration options and run configure script
 source jetson/auto_conf.sh

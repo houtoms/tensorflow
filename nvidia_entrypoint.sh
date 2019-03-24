@@ -9,8 +9,8 @@ cat <<EOF
 NVIDIA Release ${NVIDIA_TENSORFLOW_VERSION} (build ${NVIDIA_BUILD_ID})
 TensorFlow Version ${TENSORFLOW_VERSION}
 
-Container image Copyright (c) 2018, NVIDIA CORPORATION.  All rights reserved.
-Copyright 2017-2018 The TensorFlow Authors.  All rights reserved.
+Container image Copyright (c) 2019, NVIDIA CORPORATION.  All rights reserved.
+Copyright 2017-2019 The TensorFlow Authors.  All rights reserved.
 
 Various files include modifications (c) NVIDIA CORPORATION.  All rights reserved.
 NVIDIA modifications are covered by the license terms that apply to the underlying project or file.
@@ -24,9 +24,9 @@ if [[ "$(find /usr -name libcuda.so.1 | grep -v "compat") " == " " || "$(ls /dev
 else
   ( /usr/local/bin/checkSMVER.sh )  
   DRIVER_VERSION=$(sed -n 's/^NVRM.*Kernel Module *\([0-9.]*\).*$/\1/p' /proc/driver/nvidia/version 2>/dev/null || true)
-  if [[ ! "$DRIVER_VERSION" =~ ^[0-9]*.[0-9]*$ ]]; then
+  if [[ ! "$DRIVER_VERSION" =~ ^[0-9]*.[0-9]*(.[0-9]*)?$ ]]; then
     echo "Failed to detect NVIDIA driver version."
-  elif [[ "${DRIVER_VERSION%.*}" -lt "${CUDA_DRIVER_VERSION%.*}" ]]; then
+  elif [[ "${DRIVER_VERSION%%.*}" -lt "${CUDA_DRIVER_VERSION%%.*}" ]]; then
     if [[ "${_CUDA_COMPAT_STATUS}" == "CUDA Driver OK" ]]; then
       echo
       echo "NOTE: Legacy NVIDIA Driver detected.  Compatibility mode ENABLED."

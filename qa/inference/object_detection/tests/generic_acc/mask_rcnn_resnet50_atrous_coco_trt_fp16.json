@@ -1,0 +1,27 @@
+{
+  "source_model": {
+    "model_name": "mask_rcnn_resnet50_atrous_coco",
+    "output_dir": "models"
+  },
+  "optimization_config": {
+    "use_trt": true,
+    "precision_mode": "FP16",
+    "minimum_segment_size": 15,
+    "force_nms_cpu": true,
+    "replace_relu6": false,
+    "remove_assert": false,
+    "override_nms_score_threshold": 0.3,
+    "max_batch_size": 1
+  },
+  "benchmark_config": {
+    "images_dir": "/data/coco/coco-2017/coco2017/val2017",
+    "annotation_path": "/data/coco/coco-2017/coco2017/annotations/instances_val2017.json",
+    "batch_size": 1,
+    "image_shape": [600, 600],
+    "num_images": 4096,
+    "output_path": "stats/mask_rcnn_resnet50_atrous_coco_trt_fp16.json"
+  },
+  "assertions": [
+    "statistics['map'] > (0.273 - 0.005)"
+  ]
+}

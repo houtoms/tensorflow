@@ -101,6 +101,8 @@ def parse_cmdline(init_vals, custom_parser=None):
                    help="""Use DALI for input pipeline, available values are
                    [CPU|GPU] which tell which version of the pipeline run.
                    Default is GPU""")
+    p.add_argument('--use_xla', action='store_true',
+                   help="""Whether to enable xla execution.""")
     p.add_argument('--predict', action='store_true',
                    default=False,
                    help="""Use the script only for prediction""")
@@ -138,6 +140,8 @@ def parse_cmdline(init_vals, custom_parser=None):
     del FLAGS.precision
     vals['use_dali'] = FLAGS.use_dali
     del FLAGS.use_dali
+    vals['use_xla'] = FLAGS.use_xla
+    del FLAGS.use_xla
     vals['predict'] = FLAGS.predict
     del FLAGS.predict
 

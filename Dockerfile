@@ -49,30 +49,31 @@ RUN curl -O https://bootstrap.pypa.io/get-pip.py && \
 # nltk version specified per OpenSeq2Seq requirements
 RUN pip install --no-cache-dir --upgrade \
         numpy==1.14.5 \
-        pexpect \
-        psutil \
+        pexpect==4.6.0 \
+        psutil==5.6.1 \
         nltk==3.2.5 \
-        future \
-        jupyterlab \
-        mock \
-        portpicker \
-        h5py \
+        future==0.17.1 \
+        jupyterlab==$(test ${PYVER%.*} -eq 2 && echo 0.33.12 || echo 0.35.4) \
+        mock==2.0.0 \
+        portpicker==1.3.1 \
+        h5py==2.9.0 \
         keras_preprocessing==1.0.5 \
         keras_applications==1.0.6
 
 # other OpenSeq2Seq dependencies
 RUN pip install --no-cache-dir --upgrade \
-        resampy \
-        python_speech_features \
+        resampy==0.2.1 \
+        numba==0.43.0 \
+        llvmlite==0.28.0 \
+        python_speech_features==0.6 \
         pandas==0.23.0 \
-        six \
-        mpi4py \
+        six==1.12.0 \
+        mpi4py==3.0.1 \
         librosa==0.6.1 \
-        matplotlib \
+        matplotlib==$(test ${PYVER%.*} -eq 2 && echo 2.2.4 || echo 3.0.3) \
         joblib==0.11 \
-        sentencepiece==0.1.6
-# sacrebleu does not install cleanly with python2.
-RUN test ${PYVER%.*} -eq 2 || pip install --no-cache-dir --upgrade sacrebleu
+        sentencepiece==0.1.6 \
+        $(test ${PYVER%.*} -eq 3 && echo "sacrebleu==1.2.20" || echo "")
 
 # Set up Bazel.
 # Running bazel inside a `docker build` command causes trouble, cf:
@@ -118,19 +119,20 @@ ENV CUDA_TOOLKIT_PATH=/usr/local/cuda \
 # Build and install TF
 RUN ./nvbuild.sh --testlist --python$PYVER
 
-RUN git clone https://github.com/tensorflow/estimator -b r1.13 /opt/estimator && \
-    cd /opt/estimator && \
-    ln -fs /usr/local/cuda/lib64/stubs/libcuda.so /usr/local/cuda/lib64/stubs/libcuda.so.1 && \
-    export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/cuda/lib64/stubs && \
-    bazel build //tensorflow_estimator/tools/pip_package:build_pip_package && \
-    bazel-bin/tensorflow_estimator/tools/pip_package/build_pip_package /tmp/estimator_pip && \
-    pip install --no-cache-dir --upgrade /tmp/estimator_pip/*.whl && \
-    rm -rf ${HOME}/.cache/bazel /tmp/estimator_pip /usr/local/cuda/lib64/stubs/libcuda.so.1 && \
-    bazel clean --expunge
+# Estimator is installed from pip as a TF dependency
+#RUN git clone https://github.com/tensorflow/estimator -b r1.13 /opt/estimator && \
+#    cd /opt/estimator && \
+#    ln -fs /usr/local/cuda/lib64/stubs/libcuda.so /usr/local/cuda/lib64/stubs/libcuda.so.1 && \
+#    export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/cuda/lib64/stubs && \
+#    bazel build //tensorflow_estimator/tools/pip_package:build_pip_package && \
+#    bazel-bin/tensorflow_estimator/tools/pip_package/build_pip_package /tmp/estimator_pip && \
+#    pip install --no-cache-dir --upgrade /tmp/estimator_pip/*.whl && \
+#    rm -rf ${HOME}/.cache/bazel /tmp/estimator_pip /usr/local/cuda/lib64/stubs/libcuda.so.1 && \
+#    bazel clean --expunge
 
 # Install DALI and build TF plugin, we need to have TF present already
-ENV DALI_VERSION=0.6.1 \
-    DALI_BUILD=608405
+ENV DALI_VERSION=0.8.0 \
+    DALI_BUILD=680097
 RUN pip install --no-cache-dir --upgrade \
                 --extra-index-url https://developer.download.nvidia.com/compute/redist \
                 --extra-index-url http://sqrl/dldata/pip-simple --trusted-host sqrl \
@@ -147,20 +149,22 @@ ENV TF_ADJUST_HUE_FUSED=1 \
 EXPOSE 6006
 
 # Horovod with fp16 patch
-ENV HOROVOD_GPU_ALLREDUCE=NCCL \
-    HOROVOD_NCCL_INCLUDE=/usr/include \
-    HOROVOD_NCCL_LIB=/usr/lib/x86_64-linux-gnu \
-    HOROVOD_NCCL_LINK=SHARED \
-    HOROVOD_WITHOUT_PYTORCH=1
-RUN cd /opt/tensorflow/third_party/horovod && \
-    ln -s /usr/local/cuda/lib64/stubs/libcuda.so ./libcuda.so.1 && \
-    export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$PWD && \
-    python setup.py install && \
-    python setup.py clean && \
-    rm ./libcuda.so.1
+RUN export HOROVOD_GPU_ALLREDUCE=NCCL \
+ && export HOROVOD_NCCL_INCLUDE=/usr/include \
+ && export HOROVOD_NCCL_LIB=/usr/lib/x86_64-linux-gnu \
+ && export HOROVOD_NCCL_LINK=SHARED \
+ && export HOROVOD_WITHOUT_PYTORCH=1 \
+ && export HOROVOD_WITHOUT_MXNET=1 \
+ && cd /opt/tensorflow/third_party/horovod \
+ && ln -s /usr/local/cuda/lib64/stubs/libcuda.so ./libcuda.so.1 \
+ && export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$PWD \
+ && python setup.py install \
+ && python setup.py clean \
+ && rm ./libcuda.so.1
 
 # OpenSeq2Seq CTC Decoder & KenLM
-RUN cd /opt/tensorflow/nvidia-examples/OpenSeq2Seq && \
+RUN patch -p0 < openseq2seq.patch && \
+    cd /opt/tensorflow/nvidia-examples/OpenSeq2Seq && \
     ./scripts/install_kenlm.sh && \
     cd /opt/tensorflow && \
     ln -s nvidia-examples/OpenSeq2Seq/ctc_decoder_with_lm ./ && \
