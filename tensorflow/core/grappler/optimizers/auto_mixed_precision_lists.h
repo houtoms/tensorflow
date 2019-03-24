@@ -128,6 +128,8 @@ class AutoMixedPrecisionLists {
         "FloorDiv",
         "FusedBatchNormV2",
         "FusedBatchNormGradV2",
+        "FusedBatchNormV3",
+        "FusedBatchNormGradV3",
         "Inv",
         "LeakyRelu",
         "LeakyReluGrad",
