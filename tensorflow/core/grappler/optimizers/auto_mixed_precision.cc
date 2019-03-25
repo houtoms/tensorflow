@@ -234,7 +234,9 @@ class NodeTypeAttrMap {
     DCHECK(is_initialized()) << "NodeTypeAttrMap is not initialized";
     absl::flat_hash_set<TypeAttrId> type_attrs;
     const auto iter = type2io_.find(&node);
-    CHECK(iter != type2io_.end());
+    if (iter == type2io_.end()) {
+      return type_attrs;
+    }
     for (const auto& key_value : iter->second) {
       TypeAttrId type_attr = key_value.first;
       type_attrs.insert(key_value.first);
@@ -891,7 +893,8 @@ class AutoMixedPrecisionImpl {
   AutoMixedPrecisionImpl(Cluster* cluster,
                          const std::unordered_set<string>& nodes_to_preserve,
                          GraphDef* graph, string id)
-      : virtual_placer_(cluster),
+      : cluster_(cluster),
+        virtual_placer_(cluster),
         nodes_to_preserve_(nodes_to_preserve),
         graph_(graph),
         id_(id),
@@ -940,7 +943,9 @@ class AutoMixedPrecisionImpl {
   void MakeCastsWhiteIfAllOutputsWhite(
       absl::flat_hash_set<int>* white_set) const;
   Status ChangeTypeAttrsAndAddCasts(const absl::flat_hash_set<int>& white_set);
+  Status AddNumericChecks(const absl::flat_hash_set<int>& white_set);
 
+  Cluster* cluster_;
   VirtualPlacer virtual_placer_;
   std::unordered_set<string> nodes_to_preserve_;
   GraphDef* graph_;
@@ -953,6 +958,7 @@ class AutoMixedPrecisionImpl {
   std::set<string> fp16_blacklist_;
   std::set<string> fp16_graylist_;
   std::set<string> fp16_clearlist_;
+  std::set<string> numeric_check_list_;
   absl::flat_hash_set<const NodeDef*> should_process_nodes_;
 };
 
@@ -1138,6 +1144,7 @@ Status AutoMixedPrecisionImpl::Optimize() {
   fp16_blacklist_ = AutoMixedPrecisionLists::BlackList();
   fp16_graylist_ = AutoMixedPrecisionLists::GrayList();
   fp16_clearlist_ = AutoMixedPrecisionLists::ClearList();
+  numeric_check_list_ = AutoMixedPrecisionLists::NumericCheckList();
   TF_RETURN_IF_ERROR(ValidateLists(fp16_whitelist_, fp16_blacklist_,
                                    fp16_graylist_, fp16_clearlist_));
 
@@ -1265,6 +1272,10 @@ Status AutoMixedPrecisionImpl::Optimize() {
              "ops at paint boundaries";
   TF_RETURN_IF_ERROR(ChangeTypeAttrsAndAddCasts(white_set));
   VLOG(2) << "Finished final pass";
+
+  VLOG(2) << "Insert Nodes to check NaN or Inf.";
+  TF_RETURN_IF_ERROR(AddNumericChecks(white_set));
+  VLOG(2) << "Finished inertion";
 
   TF_RETURN_IF_ERROR(PrintDebugLogs(/* is_preop = */ false, timestamp));
 
@@ -1660,6 +1671,219 @@ Status AutoMixedPrecisionImpl::ChangeTypeAttrsAndAddCasts(
   LOG(INFO) << "Converted " << num_nodes_changed << "/" << num_nodes_preop
             << " nodes to float16 precision using " << num_nonvar_casts_to_fp16
             << " cast(s) to float16 (excluding Const and Variable casts)";
+  return Status::OK();
+}
+
+bool ShouldCheckNumeric(string op, const std::set<string>& numeric_check_list) {
+  // Never touch control flow ops, as it will produce illegal graphs
+  static std::unordered_set<string> control_flow_ops = {
+      "Enter",     "Exit",      "Merge",    "NextIteration",
+      "RefEnter",  "RefExit",   "RefMerge", "RefNextIteration",
+      "RefSelect", "RefSwitch", "Switch"};
+  if (control_flow_ops.count(op)) {
+    return false;
+  }
+
+  if (numeric_check_list.count(op)) {
+    return true;
+  } else {
+    return false;
+  }
+}
+
+// Build a subgraph as follows and insert print between the Identity nodes
+// to detect NaN and Inf.
+//
+// src -> IsFinite -> All -> Switch:1 (condition)
+//
+// src -> Switch (false) -> Identity -> Identity -> Merge (graph_out)
+//               (true)                          ->
+void ConstructNumericCheckSubgraph(MutableGraphView& graph_view,
+                                   const MutableGraphView::OutputPort& src,
+                                   const string& host_device,
+                                   NodeDef*& graph_out) {
+  auto build_node = [&src](
+      const string& name, const string& op,
+      const std::vector<std::pair<string, int>>& inputs) -> NodeDef {
+
+    string op_name = strings::StrCat(src.node->name(), "-", src.port_id, "-",
+                                     name, "-", kSuffix);
+    NodeDef node;
+    node.set_name(op_name);
+    node.set_op(op);
+    node.set_device(src.node->device());
+    for (auto in : inputs) {
+      string in_name = in.second >= 0
+                           ? strings::StrCat(in.first, ":", in.second)
+                           : strings::StrCat("^", in.first);  // control
+      node.add_input(in_name);
+    }
+    return node;
+  };
+
+  // src -> IsFinite -> All
+  NodeDef* is_finite = graph_view.AddNode(build_node(
+      "IsFinite", "IsFinite", {std::make_pair(src.node->name(), src.port_id)}));
+  (*is_finite->mutable_attr())["T"].set_type(DT_HALF);
+
+  AttrValue attr_value_zero;
+  TensorProto* tp_zero = attr_value_zero.mutable_tensor();
+  tp_zero->add_int_val(0);
+  tp_zero->set_dtype(DT_INT32);
+  NodeDef* range_start = graph_view.AddNode(build_node(
+      "range-start", "Const", {std::make_pair(src.node->name(), -1)}));
+  range_start->mutable_attr()->insert({"value", attr_value_zero});
+  (*range_start->mutable_attr())["dtype"].set_type(DT_INT32);
+
+  AttrValue attr_value_one;
+  TensorProto* tp_one = attr_value_one.mutable_tensor();
+  tp_one->add_int_val(1);
+  tp_one->set_dtype(DT_INT32);
+  tp_one->mutable_tensor_shape();
+  NodeDef* range_delta = graph_view.AddNode(build_node(
+      "range-delta", "Const", {std::make_pair(src.node->name(), -1)}));
+  range_delta->mutable_attr()->insert({"value", attr_value_one});
+  (*range_delta->mutable_attr())["dtype"].set_type(DT_INT32);
+
+  NodeDef* range_limit = graph_view.AddNode(build_node(
+      "range-limit", "Rank", {std::make_pair(is_finite->name(), 0)}));
+  (*range_limit->mutable_attr())["T"].set_type(DT_BOOL);
+
+  NodeDef* range = graph_view.AddNode(
+      build_node("range", "Range", {std::make_pair(range_start->name(), 0),
+                                    std::make_pair(range_limit->name(), 0),
+                                    std::make_pair(range_delta->name(), 0)}));
+  (*range->mutable_attr())["Tidx"].set_type(DT_INT32);
+
+  NodeDef* all_finite = graph_view.AddNode(
+      build_node("AllFinite", "All", {std::make_pair(is_finite->name(), 0),
+                                      std::make_pair(range->name(), 0)}));
+  (*all_finite->mutable_attr())["Tidx"].set_type(DT_INT32);
+  (*all_finite->mutable_attr())["keep_dims"].set_b(false);
+
+  // src -> Switch (false) -> Identity -> Identity -> Merge (graph_out)
+  //               (true)                          ->
+  NodeDef* switch_node = graph_view.AddNode(build_node(
+      "Switch", "Switch", {std::make_pair(src.node->name(), src.port_id),
+                           std::make_pair(all_finite->name(), 0)}));
+  (*switch_node->mutable_attr())["T"].set_type(DT_HALF);
+
+  NodeDef* switch_f = graph_view.AddNode(build_node(
+      "SwitchFalse", "Identity", {std::make_pair(switch_node->name(), 0)}));
+  (*switch_f->mutable_attr())["T"].set_type(DT_HALF);
+
+  NodeDef* string_format = graph_view.AddNode(build_node(
+      "StringFormat", "StringFormat", {std::make_pair(switch_f->name(), -1)}));
+  (*string_format->mutable_attr())["T"].mutable_list();
+  (*string_format->mutable_attr())["template"].set_s(
+      strings::StrCat("See NaN or Inf from ", src.node->op(), " node ",
+                      src.node->name(), ":", src.port_id));
+  (*string_format->mutable_attr())["placeholder"].set_s("{}");
+  (*string_format->mutable_attr())["summarize"].set_i(3);
+  string_format->set_device(host_device);
+
+  NodeDef* print = graph_view.AddNode(build_node(
+      "PrintV2", "PrintV2", {std::make_pair(string_format->name(), 0)}));
+  (*print->mutable_attr())["output_stream"].set_s("stderr");
+  print->set_device(host_device);
+
+  NodeDef* post_print = graph_view.AddNode(
+      build_node("PostPrint", "Identity", {std::make_pair(switch_f->name(), 0),
+                                           std::make_pair(print->name(), -1)}));
+  (*post_print->mutable_attr())["T"].set_type(DT_HALF);
+
+  NodeDef* merge = graph_view.AddNode(
+      build_node("Merge", "Merge", {std::make_pair(post_print->name(), 0),
+                                    std::make_pair(switch_node->name(), 1)}));
+  (*merge->mutable_attr())["T"].set_type(DT_HALF);
+  (*merge->mutable_attr())["N"].set_i(2);
+
+  graph_out = merge;
+}
+
+// Subrountine borrowed from pin_to_host_optimizer.cc
+string TryFindHostDevice(const gtl::FlatSet<string>& devices,
+                         bool has_device_cpu, const string& device) {
+  // Force this node onto the CPU.
+  if (device.empty() && has_device_cpu) {
+    return "/device:CPU:0";
+  } else if (str_util::StrContains(device, DEVICE_GPU)) {
+    // Sometimes the cluster can have:
+    //   devices = {"/device:CPU:0", "/device:XLA_GPU:0"}
+    // and we need to handle them properly.
+    for (const auto& device_match :
+         {std::pair<string, string>("GPU", "CPU:0"),
+          std::pair<string, string>("/device", "/device:CPU:0")}) {
+      const string device_host =
+          strings::StrCat(device.substr(0, device.rfind(device_match.first)),
+                          device_match.second);
+      if (devices.find(device_host) != devices.end()) {
+        return device_host;
+      }
+    }
+  }
+
+  // We couldn't find an appropriate Host device, return no device.
+  return "";
+}
+
+// Add subgraphs to check NaN and Inf
+Status AutoMixedPrecisionImpl::AddNumericChecks(
+    const absl::flat_hash_set<int>& white_set) {
+  bool is_enable;
+  TF_CHECK_OK(ReadBoolFromEnvVar("TF_AUTO_MIXED_PRECISION_ADD_NUMERIC_CHECK",
+                                 /*default_val=*/false, &is_enable));
+  if (!is_enable) {
+    return Status::OK();
+  }
+
+  const string kDeviceCPU = "/device:CPU:0";
+  gtl::FlatSet<string> devices;
+  if (cluster_) {
+    const std::vector<string> device_names = cluster_->GetDeviceNames();
+    devices.insert(device_names.begin(), device_names.end());
+  } else {
+    devices = {kDeviceCPU};
+  }
+  const bool has_device_cpu = devices.find(kDeviceCPU) != devices.end();
+
+  int num_nodes = graph_->node_size();
+  for (int node_idx = 0; node_idx < num_nodes; ++node_idx) {
+    NodeDef* node = graph_->mutable_node(node_idx);
+
+    string host_device =
+        TryFindHostDevice(devices, has_device_cpu, node->device());
+    if (host_device.empty()) {
+      continue;
+    }
+
+    for (const TypeAttrId& type_attr : node_type_map_.GetTypeAttrs(*node)) {
+      int node_type_idx =
+          graph_type_view_.GetNodeIndex(node->name(), type_attr).value();
+      bool src_is_white = white_set.count(node_type_idx);
+      if (!src_is_white ||
+          !ShouldCheckNumeric(node->op(), numeric_check_list_)) {
+        continue;
+      }
+
+      for (int output_port : node_type_map_.GetOutputPorts(*node, type_attr)) {
+        MutableGraphView::OutputPort src(node, output_port);
+        auto fanout = graph_view_.GetFanout(src);
+
+        NodeDef* subgraph_out;
+        ConstructNumericCheckSubgraph(graph_view_, src, host_device,
+                                      subgraph_out);
+
+        // Merge -> Consumers
+        for (const MutableGraphView::InputPort& dst : fanout) {
+          auto src = graph_view_.GetRegularFanin(dst);
+          graph_view_.UpdateFanin(dst.node->name(),
+                                  std::make_pair(src.node->name(), src.port_id),
+                                  std::make_pair(subgraph_out->name(), 0));
+        }
+      }
+    }
+  }
   return Status::OK();
 }
 

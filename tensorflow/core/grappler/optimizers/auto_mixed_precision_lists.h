@@ -301,6 +301,29 @@ class AutoMixedPrecisionLists {
     UpdateList(&list, to_add, to_remove);
     return list;
   }
+
+  static std::set<string> NumericCheckList() {
+    auto whitelist = WhiteList();
+    auto graylist = GrayList();
+
+    // By default, check whitelist and graylist.
+    std::set<string> list;
+    for (auto i : whitelist) {
+      list.insert(i);
+    }
+    for (auto i : graylist) {
+      list.insert(i);
+    }
+
+    string to_add, to_remove;
+    ReadStringFromEnvVar(
+        "TF_AUTO_MIXED_PRECISION_NUMERICCHECKLIST_ADD", "", &to_add);
+    ReadStringFromEnvVar(
+        "TF_AUTO_MIXED_PRECISION_NUMERICCHECKLIST_REMOVE", "", &to_remove);
+    UpdateList(&list, to_add, to_remove);
+
+    return list;
+  }
 };
 
 }
