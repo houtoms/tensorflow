@@ -65,6 +65,8 @@ string ToString(FilterTensorFormat format) {
       return "OIHW";
     case FORMAT_OIHW_VECT_I:
       return "OIHW_VECT_I";
+    case FORMAT_OHWI:
+      return "OHWI";
     default:
       LOG(FATAL) << "Invalid Filter Format: " << static_cast<int32>(format);
       return "INVALID_FORMAT";

@@ -55,6 +55,7 @@ limitations under the License.
 #if GOOGLE_CUDA
 #include "tensorflow/core/kernels/conv_ops_gpu.h"
 #include "tensorflow/core/platform/stream_executor.h"
+#include "cuda/include/cudnn.h"
 #endif  // GOOGLE_CUDA
 
 namespace tensorflow {
@@ -679,7 +680,9 @@ void LaunchConv2DOp<GPUDevice, T>::operator()(
     }
   }
 
-  if (data_format == FORMAT_NHWC) {
+  bool use_nhwc = CanUseNHWC(data_format, DataTypeToEnum<T>::value,
+                             CUDNN_VERSION);
+  if (!use_nhwc && data_format == FORMAT_NHWC) {
     // Convert the input tensor from NHWC to NCHW.
     TensorShape nchw_shape =
         ShapeFromFormat(FORMAT_NCHW, in_batch, in_rows, in_cols, in_depths);
@@ -706,18 +709,25 @@ void LaunchConv2DOp<GPUDevice, T>::operator()(
       .set_feature_map_count(in_depths)
       .set_height(in_rows)
       .set_width(in_cols)
-      .set_layout(se::dnn::DataLayout::kBatchDepthYX);
+      .set_layout(use_nhwc?
+                  (se::dnn::DataLayout::kBatchYXDepth): 
+                  (se::dnn::DataLayout::kBatchDepthYX));
   se::dnn::BatchDescriptor output_desc;
   output_desc.set_count(out_batch)
       .set_height(out_rows)
       .set_width(out_cols)
       .set_feature_map_count(out_depths)
-      .set_layout(se::dnn::DataLayout::kBatchDepthYX);
+      .set_layout(use_nhwc?
+                  (se::dnn::DataLayout::kBatchYXDepth):
+                  (se::dnn::DataLayout::kBatchDepthYX));
   se::dnn::FilterDescriptor filter_desc;
   filter_desc.set_input_filter_height(patch_rows)
       .set_input_filter_width(patch_cols)
       .set_input_feature_map_count(patch_depths)
-      .set_output_feature_map_count(filter.dim_size(3));
+      .set_output_feature_map_count(filter.dim_size(3))
+      .set_layout(use_nhwc?
+                  (se::dnn::FilterLayout::kOutputYXInput):
+                  (se::dnn::FilterLayout::kOutputInputYX));
   se::dnn::ConvolutionDescriptor conv_desc;
   conv_desc.set_vertical_dilation_rate(row_dilation)
       .set_horizontal_dilation_rate(col_dilation)
@@ -728,18 +738,22 @@ void LaunchConv2DOp<GPUDevice, T>::operator()(
       .set_group_count(in_depths / patch_depths);
 
   Tensor transformed_filter;
+  TensorShape transformed_filter_shape = (use_nhwc? 
+      TensorShape({filter.dim_size(3), filter.dim_size(0),
+                   filter.dim_size(1), filter.dim_size(2)}):
+      TensorShape({filter.dim_size(3), filter.dim_size(2),
+                   filter.dim_size(0), filter.dim_size(1)}));
   OP_REQUIRES_OK(ctx, ctx->allocate_temp(
                           DataTypeToEnum<T>::value,
-                          TensorShape({filter.dim_size(3), filter.dim_size(2),
-                                       filter.dim_size(0), filter.dim_size(1)}),
+                          transformed_filter_shape,
                           &transformed_filter));
   functor::TransformFilter<GPUDevice, T, int, 4>()(
-      ctx->eigen_device<GPUDevice>(), FORMAT_OIHW,
+      ctx->eigen_device<GPUDevice>(), (use_nhwc? FORMAT_OHWI: FORMAT_OIHW),
       To32Bit(filter.tensor<T, 4>()),
       To32Bit(transformed_filter.tensor<T, 4>()));
 
   Tensor transformed_output;
-  if (data_format == FORMAT_NHWC) {
+  if (!use_nhwc && data_format == FORMAT_NHWC) {
     // Only allocate temporary memory when a layout transformation is needed.
     OP_REQUIRES_OK(
         ctx, ctx->allocate_temp(DataTypeToEnum<T>::value,
@@ -767,23 +781,23 @@ void LaunchConv2DOp<GPUDevice, T>::operator()(
   int device_id = stream->parent()->device_ordinal();
   DataType dtype = input.dtype();
   ConvParameters conv_parameters = {
-      in_batch,          // batch
-      in_depths,         // in_depths
-      {{in_rows,         // in_rows
-        in_cols}},       // in_cols
-      FORMAT_NCHW,       // compute_data_format
-      out_depths,        // out_depths
-      {{patch_rows,      // filter_rows
-        patch_cols,      // filter_cols
-        patch_depths}},  // filter_depths
-      {{row_dilation,    // dilation_rows
-        col_dilation}},  // dilation_cols
-      {{row_stride,      // stride_rows
-        col_stride}},    // stride_cols
-      {{padding_rows,    // padding_rows
-        padding_cols}},  // padding_cols
-      dtype,             // tensor datatype
-      device_id,         // device_id
+      in_batch,                             // batch
+      in_depths,                            // in_depths
+      {{in_rows,                            // in_rows
+        in_cols}},                          // in_cols
+      (use_nhwc? FORMAT_NHWC: FORMAT_NCHW), // compute_data_format
+      out_depths,                           // out_depths
+      {{patch_rows,                         // filter_rows
+        patch_cols,                         // filter_cols
+        patch_depths}},                     // filter_depths
+      {{row_dilation,                       // dilation_rows
+        col_dilation}},                     // dilation_cols
+      {{row_stride,                         // stride_rows
+        col_stride}},                       // stride_cols
+      {{padding_rows,                       // padding_rows
+        padding_cols}},                     // padding_cols
+      dtype,                                // tensor datatype
+      device_id,                            // device_id
   };
   AlgorithmConfig algorithm_config;
   if (cudnn_use_autotune &&
@@ -857,11 +871,13 @@ void LaunchConv2DOp<GPUDevice, T>::operator()(
   }
 
   // Convert the output tensor back from NCHW to NHWC.
-  if (data_format == FORMAT_NHWC) {
+  if (!use_nhwc && data_format == FORMAT_NHWC) {
     functor::NCHWToNHWC<GPUDevice, T, 4>()(
         ctx->eigen_device<GPUDevice>(),
         const_cast<const Tensor&>(transformed_output).tensor<T, 4>(),
         output->tensor<T, 4>());
+  } else {
+    *output = transformed_output;
   }
 }
 

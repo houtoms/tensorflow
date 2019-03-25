@@ -243,7 +243,8 @@ bool FindConv2DWithBatchNorm(const RemapperContext& ctx, const NodeDef* node,
   if (!HasDataType(node, DT_FLOAT)) return false;
 
   // V2 has a separate data type for the scale/offset/mean/variance inputs.
-  if (node->op() == "FusedBatchNormV2" && !HasDataType(node, DT_FLOAT, "U"))
+  if ((node->op() == "FusedBatchNormV2" ||
+       node->op() == "FusedBatchNormV3") && !HasDataType(node, DT_FLOAT, "U"))
     return false;
 
   // Check that batch normalization is in inference mode.
