@@ -1127,6 +1127,7 @@ tf_kernel_library(
     srcs = ["cudnn_rnn_ops.cc"],
     visibility = ["//visibility:public"],
     deps = [
+        ":ops_util",
         ":gpu_util_hdrs",
         "//tensorflow/core:cudnn_rnn_ops_op_lib",
         "//tensorflow/core:framework",
@@ -3203,6 +3204,7 @@ tf_kernel_library(
     }),
     deps = MATH_DEPS + [
         ":eigen_contraction_kernel",
+        ":ops_util",
         ":gpu_util_hdrs",
     ] + select({
         ":xsmm": ["@libxsmm_archive//:xsmm_avx"],

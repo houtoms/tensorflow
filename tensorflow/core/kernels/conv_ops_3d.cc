@@ -461,13 +461,13 @@ struct LaunchConvOp<GPUDevice, T> {
                 .ok();
         if (cudnn_launch_status) {
           if (profile_result.is_valid()) {
-            if (profile_result.elapsed_time_in_ms() <
-                best_result.elapsed_time_in_ms()) {
+            if (IsFasterTime(profile_result.elapsed_time_in_ms(),
+                             best_result.elapsed_time_in_ms())) {
               best_result = profile_result;
             }
             if (scratch_allocator.TotalByteSize() == 0 &&
-                profile_result.elapsed_time_in_ms() <
-                    best_result_no_scratch.elapsed_time_in_ms()) {
+                IsFasterTime(profile_result.elapsed_time_in_ms(),
+                             best_result_no_scratch.elapsed_time_in_ms())) {
               best_result_no_scratch = profile_result;
             }
           }

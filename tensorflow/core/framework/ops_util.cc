@@ -73,4 +73,16 @@ string SanitizeThreadSuffix(string suffix) {
   return clean;
 }
 
+bool IsFasterTime(float new_time, float old_time) {
+  const char* epsilon_str = getenv("TF_AUTOTUNE_EPSILON");
+  float epsilon_ = 0.03;
+  if (epsilon_str != nullptr) {
+    strings::safe_strtof(epsilon_str, &epsilon_);
+  }
+  if ((old_time - new_time) / old_time > epsilon_) {
+    return true;
+  }
+  return false;
+}
+
 }  // namespace tensorflow
