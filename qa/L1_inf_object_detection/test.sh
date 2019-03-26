@@ -22,11 +22,15 @@ lscpu | grep -q ^CPU\(s\):[^0-9]*8
 is_8cpu=$[!$?]
 lscpu | grep -q ^CPU\(s\):[^0-9]*4
 is_4cpu=$[!$?]
+lscpu | grep -q ^CPU\(s\):[^0-9]*6
+is_6cpu=$[!$?]
 
 is_xavier=$[$is_aarch64 && $is_8cpu]
 is_nano=$[$is_aarch64 && $is_4cpu]
+is_tx2=$[$is_aarch64 && $is_6cpu]
 
-echo $is_nano
+echo $is_tx2
+
 
 echo "Setting test_path..."
 test_path="$SCRIPTS_PATH/tests/generic_acc/${test_case}"
@@ -74,6 +78,15 @@ set_test_cases() {
       ssdlite_mobilenet_v2_coco_trt_fp16.json
     )
   fi
+  
+  if [[ "$is_tx2" == 1 ]]; then
+    test_cases=(
+      ssd_mobilenet_v1_coco_trt_fp16.json
+      ssd_mobilenet_v2_coco_trt_fp16.json
+      ssdlite_mobilenet_v2_coco_trt_fp16.json
+    )
+  fi
+
 }
 
 set_test_cases
