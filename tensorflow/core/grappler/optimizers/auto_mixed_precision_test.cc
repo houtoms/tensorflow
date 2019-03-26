@@ -371,10 +371,10 @@ TEST_F(AutoMixedPrecisionTest, FusedBatchNorm) {
   GraphView output_view(&output);
   EXPECT_EQ(output.node_size(), graph.node_size() + 2);
   EXPECT_EQ(output_view.GetNode("W1")->attr().at("T").type(), DT_HALF);
-  EXPECT_EQ(output_view.GetNode("BN1")->op(), "FusedBatchNormV2");
+  EXPECT_EQ(output_view.GetNode("BN1")->op(), "FusedBatchNormV3");
   EXPECT_EQ(output_view.GetNode("BN1")->attr().at("T").type(), DT_HALF);
   EXPECT_EQ(output_view.GetNode("BN1")->attr().at("U").type(), DT_FLOAT);
-  EXPECT_EQ(output_view.GetNode("BNG1")->op(), "FusedBatchNormGradV2");
+  EXPECT_EQ(output_view.GetNode("BNG1")->op(), "FusedBatchNormGradV3");
   EXPECT_EQ(output_view.GetNode("BNG1")->attr().at("T").type(), DT_HALF);
   EXPECT_EQ(output_view.GetNode("BNG1")->attr().at("U").type(), DT_FLOAT);
   EXPECT_EQ(output_view.GetNode("G1")->attr().at("T").type(), DT_HALF);
