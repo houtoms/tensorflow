@@ -427,6 +427,12 @@ deploy web:
     - R410
     - 1GPU
 
+.V100_R410_8GPU: &V100_R410_8GPU
+    tags:
+    - V100
+    - R410
+    - 8GPU
+
 .TU102_R410_1GPU: &TU102_R410_1GPU
     tags:
     - TU102
@@ -1667,3 +1673,23 @@ L1_inf_image_classification_tftrt_fp16--py3.6--XAVIER:
 L3_self_tests--py3.6--XAVIER:
     <<: *L3_TEST_JETSON
     <<: *XAVIER
+
+#### JoC GNMT ####
+
+L2_joc_GNMT_benchmark_fp16--V100_R410_8GPU:
+    <<: *L2_TEST
+    <<: *V100_R410_8GPU
+
+L2_joc_GNMT_benchmark_fp32--V100_R410_8GPU:
+    <<: *L2_TEST
+    <<: *V100_R410_8GPU
+
+L3_joc_GNMT_convergence_fp16--V100_R410_8GPU:
+    <<: *L3_TEST
+    <<: *V100_R410_8GPU
+
+L3_joc_GNMT_convergence_fp32--V100_R410_8GPU:
+    <<: *L3_TEST
+    <<: *V100_R410_8GPU
+
+##################

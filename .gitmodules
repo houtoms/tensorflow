@@ -24,3 +24,6 @@
 [submodule "nvidia-examples/NCF"]
 	path = nvidia-examples/NCF
 	url = ../../JoC/NCF_TF
+[submodule "nvidia-examples/gnmt_v2"]
+	path = nvidia-examples/gnmt_v2
+	url = ../../JoC/GNMT_TF
