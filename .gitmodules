@@ -21,3 +21,6 @@
 [submodule "nvidia-examples/resnet50v1.5"]
         path = nvidia-examples/resnet50v1.5
         url = ../../JoC/RN50v15_TF
+[submodule "nvidia-examples/NCF"]
+	path = nvidia-examples/NCF
+	url = ../../JoC/NCF_TF

@@ -179,6 +179,9 @@ RUN patch -p0 < openseq2seq.patch && \
     rm .tf_configure.bazelrc /usr/local/cuda/lib64/stubs/libcuda.so.1 && \
     rm -rf ${HOME}/.cache/bazel /tmp/*
 
+# NCF
+RUN cd /opt/tensorflow/nvidia-examples/NCF && pip install --no-cache-dir -r requirements.txt
+
 WORKDIR /workspace
 COPY NVREADME.md README.md
 COPY docker-examples docker-examples
