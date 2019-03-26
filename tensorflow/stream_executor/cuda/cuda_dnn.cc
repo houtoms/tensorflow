@@ -1543,6 +1543,7 @@ port::StatusOr<DeviceMemory<uint8>> CreateRnnWorkspace(
   return workspace_allocator->AllocateBytes(stream, workspace_size_in_bytes);
 }
 
+#if CUDNN_VERSION >= 7402
 port::StatusOr<DeviceMemory<uint8>> CreateBatchNormForwardWorkspace(
     Stream* stream, const CudnnHandle& cudnn,
     const cudnnBatchNormMode_t& mode,
@@ -1591,6 +1592,7 @@ port::StatusOr<DeviceMemory<uint8>> CreateBatchNormBackwardWorkspace(
   }
   return workspace_allocator->AllocateBytes(stream, workspace_size_in_bytes);
 }
+#endif
 
 }  // namespace
 
