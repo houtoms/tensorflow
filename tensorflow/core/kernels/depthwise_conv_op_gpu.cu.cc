@@ -125,7 +125,7 @@ __global__ void __launch_bounds__(1024, 2)
               multiplier +
               depth_multiplier *
                   (in_channel + in_depth * (filter_col + filter_offset_temp));
-          sum += static_cast<S>(ldg(input + input_offset) * ldg(filter + filter_offset));
+          sum += static_cast<S>(ldg(input + input_offset)) * static_cast<S>(ldg(filter + filter_offset));
         }
       }
     } else {
@@ -147,7 +147,7 @@ __global__ void __launch_bounds__(1024, 2)
                 multiplier +
                 depth_multiplier *
                     (in_channel + in_depth * (filter_col + filter_offset_temp));
-            sum += static_cast<S>(ldg(input + input_offset) * ldg(filter + filter_offset));
+            sum += static_cast<S>(ldg(input + input_offset)) * static_cast<S>(ldg(filter + filter_offset));
           }
         }
       }
@@ -403,7 +403,7 @@ __global__ void __launch_bounds__(1024, 2)
               multiplier +
               depth_multiplier *
                   (in_channel + in_depth * (filter_col + filter_offset_temp));
-          sum += static_cast<S>(ldg(input + input_offset) * ldg(filter + filter_offset));
+          sum += static_cast<S>(ldg(input + input_offset)) * static_cast<S>(ldg(filter + filter_offset));
         }
       }
     } else {
@@ -430,7 +430,7 @@ __global__ void __launch_bounds__(1024, 2)
                 multiplier +
                 depth_multiplier *
                     (in_channel + in_depth * (filter_col + filter_offset_temp));
-            sum += static_cast<S>(ldg(input + input_offset) * ldg(filter + filter_offset));
+            sum += static_cast<S>(ldg(input + input_offset)) * static_cast<S>(ldg(filter + filter_offset));
           }
         }
       }
