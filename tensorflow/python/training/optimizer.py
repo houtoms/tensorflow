@@ -611,11 +611,14 @@ class Optimizer(
       if len(current_scope) != 0:
         current_scope += '/'
       base_name = current_scope + 'skip_check/' + name
-      apply_step = graph.get_tensor_by_name(base_name + '-apply:0')
-      skip_step = graph.get_tensor_by_name(base_name + '-skip:0')
-      with ops.control_dependencies([cond]):
-        step, _ = gen_control_flow_ops.merge([apply_step, skip_step], name=name)
-        return step
+      try:
+        apply_step = graph.get_tensor_by_name(base_name + '-apply:0')
+        skip_step = graph.get_tensor_by_name(base_name + '-skip:0')
+        with ops.control_dependencies([cond]):
+          step, _ = gen_control_flow_ops.merge([apply_step, skip_step], name=name)
+          return step
+      except Exception:
+        pass
 
     return array_ops.identity(cond, name=name)
 
