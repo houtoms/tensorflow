@@ -1648,6 +1648,10 @@ L0_tftrt--py3.6--TX2:
     <<: *L0_TEST_JETSON
     <<: *TX2_PY3
 
+L1_inf_object_detection--py3.6--TX2:
+    <<: *L1_TEST_JETSON
+    <<: *TX2_PY3
+
 #### XAVIER ####
 
 L0_tftrt--py3.6--XAVIER:
