@@ -1182,7 +1182,7 @@ class Conv2DTest(test.TestCase):
           err = np.fabs(jacob_t - reference_jacob_t).max()
 
         tf_logging.info("conv_2d gradient error = ", err)
-        self.assertLess(err, 0.002)
+        self.assertLess(err, 0.0025)
 
   def testInputGradientValidPaddingStrideOne(self):
     for (data_format, use_gpu) in GetTestConfigs():
