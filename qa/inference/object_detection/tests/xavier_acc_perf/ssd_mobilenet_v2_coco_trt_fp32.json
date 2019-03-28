@@ -11,7 +11,7 @@
     "remove_assert": true,
     "override_nms_score_threshold": 0.3,
     "max_batch_size": 1,
-    "max_workspace_size_bytes": 1 << 25
+    "max_workspace_size_bytes": 33554432
   },
   "benchmark_config": {
     "images_dir": "/data/coco/coco-2017/coco2017/val2017",
