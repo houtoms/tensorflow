@@ -187,6 +187,12 @@ COPY NVREADME.md README.md
 COPY docker-examples docker-examples
 RUN chmod -R a+w /workspace
 
+# Extra defensive wiring for CUDA Compat lib
+RUN ln -sf ${_CUDA_COMPAT_PATH}/lib.real ${_CUDA_COMPAT_PATH}/lib \
+ && echo ${_CUDA_COMPAT_PATH}/lib > /etc/ld.so.conf.d/00-cuda-compat.conf \
+ && ldconfig \
+ && rm -f ${_CUDA_COMPAT_PATH}/lib
+
 COPY nvidia_entrypoint.sh /usr/local/bin
 ENTRYPOINT ["/usr/local/bin/nvidia_entrypoint.sh"]
 
