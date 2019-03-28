@@ -917,7 +917,7 @@ class AutoMixedPrecisionImpl {
   bool ShouldProcess(const NodeDef& node) const;
   bool NodeHasFP16KernelForTypeAttr(const NodeDef& node, TypeAttrId taid) const;
   bool IsIdentityAfterVariable(const NodeDef& node) const;
-  void ConvertBatchNormOpsToV2();
+  void ConvertBatchNormOpsToV3();
   bool SupportsFloat16(const NodeTypeId& node_type) const;
   NodeDef* GetTailOfChain(const NodeDef& node, const string& op) const;
   Status AddDataStructureOpsToMap(
@@ -1097,20 +1097,20 @@ bool AutoMixedPrecisionImpl::SupportsFloat16(
 
 // TODO(mconley): Make this change the node's name (to aid debugging). Need to
 // make sure that doing this won't break anything.
-void AutoMixedPrecisionImpl::ConvertBatchNormOpsToV2() {
+void AutoMixedPrecisionImpl::ConvertBatchNormOpsToV3() {
   for (int node_idx = 0; node_idx < (int)graph_->node_size(); ++node_idx) {
     NodeDef* node = graph_->mutable_node(node_idx);
     if (!ShouldProcess(*node)) continue;
     bool changed = false;
     if (node->op() == "FusedBatchNorm") {
       VLOG(2) << "Changing op of " << node->op() << " node " << node->name()
-              << " to FusedBatchNormV2";
-      node->set_op("FusedBatchNormV2");
+              << " to FusedBatchNormV3";
+      node->set_op("FusedBatchNormV3");
       changed = true;
     } else if (node->op() == "FusedBatchNormGrad") {
       VLOG(2) << "Changing op of " << node->op() << " node " << node->name()
-              << " to FusedBatchNormGradV2";
-      node->set_op("FusedBatchNormGradV2");
+              << " to FusedBatchNormGradV3";
+      node->set_op("FusedBatchNormGradV3");
       changed = true;
     }
     if (changed) {
@@ -1163,8 +1163,8 @@ Status AutoMixedPrecisionImpl::Optimize() {
     }
   }
 
-  VLOG(2) << "Converting FusedBatchNorm* ops to V2";
-  ConvertBatchNormOpsToV2();
+  VLOG(2) << "Converting FusedBatchNorm* ops to V3";
+  ConvertBatchNormOpsToV3();
 
   VLOG(2) << "Building node type map for graph";
   TF_RETURN_IF_ERROR(node_type_map_.Init(*graph_));
