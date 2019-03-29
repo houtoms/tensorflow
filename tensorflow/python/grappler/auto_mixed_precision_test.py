@@ -25,6 +25,8 @@ from tensorflow.python.framework import constant_op
 from tensorflow.python.framework import random_seed
 from tensorflow.python.framework import dtypes
 from tensorflow.python.framework import ops
+from tensorflow.python.grappler.auto_mixed_precision_scope\
+import auto_mixed_precision_scope
 from tensorflow.python.ops import array_ops
 from tensorflow.python.ops import control_flow_ops
 from tensorflow.python.ops import init_ops
@@ -526,6 +528,54 @@ class AutoMixedPrecisionTest(test.TestCase):
 
   def testPropagationThroughIntertwinedLoop10(self):
     self._run_intertwined_loop_test('g', 'g', 'GWG', 'G', 'g', 'g', 3, 2)
+
+  def testScopeDisable(self):
+    if test.is_gpu_available(cuda_only=True,
+                             min_cuda_compute_capability=self.MIN_GPU_ARCH):
+      random_seed.set_random_seed(0)
+      x = _input([8, 8])
+      w1 = _make_node_with_color('w', x, 'W_1')
+      with auto_mixed_precision_scope(False):
+        g1 = _make_node_with_color('g', w1, 'G_1')
+        w2 = _make_node_with_color('w', g1, 'W_2')
+      c1 = _make_node_with_color('c', w2, 'C_1')
+
+      output = _make_node_with_color('c', c1)
+
+      output_val_ref, output_val, cost_graph = self._run(output)
+      node_map = _build_node_map(cost_graph.node)
+      num_to_fp16, num_to_fp32 = _count_casts(cost_graph.node)
+
+      self._assert_output_fp16(node_map, 'W_1')
+      self.assertEqual(num_to_fp16, 2) # Before w1
+      self.assertEqual(num_to_fp32, 1) # After w1
+      self.assertAllClose(output_val_ref, output_val, atol=1e-3, rtol=1e-3)
+
+  def testNestedScope(self):
+    if test.is_gpu_available(cuda_only=True,
+                             min_cuda_compute_capability=self.MIN_GPU_ARCH):
+      random_seed.set_random_seed(0)
+      x = _input([8, 8])
+      with auto_mixed_precision_scope(False):
+        w1 = _make_node_with_color('w', x, 'W_1')
+        g1 = _make_node_with_color('g', w1, 'G_1')
+        c1 = _make_node_with_color('c', g1, 'C_1')
+        with auto_mixed_precision_scope(True):
+          w2 = _make_node_with_color('w', c1, 'W_2')
+          c2 = _make_node_with_color('c', w2, 'C_2')
+
+      output = _make_node_with_color('c', c2)
+
+      output_val_ref, output_val, cost_graph = self._run(output)
+      node_map = _build_node_map(cost_graph.node)
+      num_to_fp16, num_to_fp32 = _count_casts(cost_graph.node)
+
+      self._assert_output_fp16(node_map, 'W_2')
+      self._assert_output_fp16(node_map, 'C_2')
+      self.assertEqual(num_to_fp16, 2) # Before w2
+      self.assertEqual(num_to_fp32, 1) # After c2
+      self.assertAllClose(output_val_ref, output_val, atol=1e-3, rtol=1e-3)
+
 
 if __name__ == '__main__':
   test.main()

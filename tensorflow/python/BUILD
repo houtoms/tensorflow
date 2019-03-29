@@ -88,6 +88,7 @@ py_library(
     ],
     deps = [
         ":array_ops",
+        ":auto_mixed_precision_scope",
         ":bitwise_ops",
         ":boosted_trees_ops",
         ":check_ops",
@@ -5863,6 +5864,14 @@ py_test(
     ],
 )
 
+py_library(
+    name = "auto_mixed_precision_scope",
+    visibility = ["//visibility:public"],
+    srcs = ["grappler/auto_mixed_precision_scope.py"],
+    srcs_version = "PY2AND3",
+    tags = ["grappler"],
+)
+
 cuda_py_test(
     name = "auto_mixed_precision_test",
     size = "small",
@@ -5873,6 +5882,7 @@ cuda_py_test(
         ":client_testlib",
         ":framework_for_generated_wrappers",
         ":array_ops",
+        ":auto_mixed_precision_scope",
         ":constant_op",
         ":dtypes",
         ":math_ops",
