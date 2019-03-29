@@ -12,6 +12,7 @@ ENV NVIDIA_TENSORFLOW_VERSION=${NVIDIA_TENSORFLOW_VERSION}
 ARG PYVER=3.5
 
 # libboost-*-dev and cmake needed for OpenSeq2Seq CTC Decoder/KenLM
+# libgoogle-glog-dev and libjsoncpp-dev are needed DLprof
 RUN apt-get update && apt-get install -y --no-install-recommends \
         pkg-config \
         python$PYVER \
@@ -26,6 +27,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         libboost-system-dev \
         libboost-thread-dev \
         libboost-test-dev \
+        libgoogle-glog-dev \
+        libjsoncpp-dev \
         cmake && \
     rm -rf /var/lib/apt/lists/*
 
@@ -145,8 +148,26 @@ ENV TF_ADJUST_HUE_FUSED=1 \
     TF_AUTOTUNE_THRESHOLD=2 \
     LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/lib/tensorflow
 
-# TensorBoard
+# Install and expose TensorBoard
+RUN TENSORBOARD_VERSION=1.13.1+nv && \
+    TENSORBOARD_BUILD=19.4_py${PYVER%.*} && \
+    mkdir /tmp/tb_install/ && cd /tmp/tb_install/ && \
+    wget http://sqrl/dldata/tensorboard/releases/tensorboard_${TENSORBOARD_VERSION}${TENSORBOARD_BUILD}.tgz && \
+    tar -xzf tensorboard_${TENSORBOARD_VERSION}${TENSORBOARD_BUILD}.tgz && \
+    pip uninstall -y tensorboard && \
+    pip install pip/tensorboard-${TENSORBOARD_VERSION}-py${PYVER%.*}-none-any.whl && \
+    rm -rf /tmp/tb_install
 EXPOSE 6006
+
+# Install DLprof
+RUN DLPROF_VERSION=0.3.2_19.04 && \
+    mkdir /tmp/dlprof_install && cd /tmp/dlprof_install && \
+    wget http://sqrl/dldata/dlprof/releases/dlprof_${DLPROF_VERSION}.tgz && \
+    tar -xzf dlprof_${DLPROF_VERSION}.tgz && \
+    mkdir /opt/dlprof && mv bin/* /opt/dlprof && \
+    cp /opt/dlprof/README.md /workspace/DLPROF_README.md && \
+    ln -s /opt/dlprof/dlprof /usr/local/bin/dlprof && \
+    rm -rf /tmp/dlprof_install
 
 # Horovod with fp16 patch
 RUN export HOROVOD_GPU_ALLREDUCE=NCCL \
