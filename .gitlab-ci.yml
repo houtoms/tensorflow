@@ -37,7 +37,8 @@ before_script:
       elif [ "${PYVER}" == "2" ]; then
         export PYVER="2.7";
       fi;
-      echo "${PYVER}"
+    - echo "${CI_COMMIT_REF_NAME}"
+    - echo "${IMAGE_NAME_PREFIX}"
     - export TENSORFLOW_VERSION=$(grep "_VERSION =" tensorflow/tools/pip_package/setup.py | head -n1| cut -d " " -f 3 | cut -d "'" -f 2 ) && echo "${TENSORFLOW_VERSION}"
     - export NV_DOCKER_ARGS="curl -s http://localhost:3476/docker/cli?dev=${RUNNER_GPUS//,/+}"     && echo "${NV_DOCKER_ARGS}"
     - export RELEASE_BRANCH_NAME=${CI_COMMIT_REF_NAME%%-devel}                                     && echo "${RELEASE_BRANCH_NAME}"
@@ -1279,7 +1280,33 @@ L3_joc_RN50_convergence_fp16--V100_R410_8GPU:
 L3_joc_RN50_convergence_fp32--V100_R410_8GPU:
     <<: *L3_TEST
     <<: *V100_R410_8GPU
-    
+
+############################
+
+L1_joc_UNet_Indus_inferbench_fp16--V100_R410_1GPU:
+  <<: *L1_TEST
+  <<: *V100_R410_1GPU
+
+L1_joc_UNet_Indus_inferbench_fp32--V100_R410_1GPU:
+  <<: *L1_TEST
+  <<: *V100_R410_1GPU
+
+L1_joc_UNet_Indus_trainbench_fp16--V100_R410_8GPU:
+  <<: *L1_TEST
+  <<: *V100_R410_8GPU
+
+L1_joc_UNet_Indus_trainbench_fp32--V100_R410_8GPU:
+  <<: *L1_TEST
+  <<: *V100_R410_8GPU
+
+L3_joc_UNet_Indus_convergence_fp16--V100_R410_8GPU:
+  <<: *L3_TEST
+  <<: *V100_R410_8GPU
+
+L3_joc_UNet_Indus_convergence_fp32--V100_R410_8GPU:
+  <<: *L3_TEST
+  <<: *V100_R410_8GPU
+
 ############################
 
 L2_joc_NCF_fp16--V100_R384_8GPU:
