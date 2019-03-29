@@ -27,3 +27,6 @@
 [submodule "nvidia-examples/gnmt_v2"]
 	path = nvidia-examples/gnmt_v2
 	url = ../../JoC/GNMT_TF
+[submodule "nvidia-examples/UNet_Industrial"]
+	path = nvidia-examples/UNet_Industrial
+	url = ../../JoC/unet_industrial_tf
