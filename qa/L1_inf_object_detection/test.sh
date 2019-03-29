@@ -16,17 +16,19 @@ python setup.py install
 popd
 
 echo Detecting platform...
-lscpu | grep -q ^Architecture:.*aarch64
-is_aarch64=$[!$?]
-lscpu | grep -q ^CPU\(s\):[^0-9]*8
-is_8cpu=$[!$?]
-lscpu | grep -q ^CPU\(s\):[^0-9]*4
-is_4cpu=$[!$?]
+is_aarch64=$(lscpu | grep ^Architecture:.*aarch64)
+is_8cpu=$(lscpu | grep ^CPU\(s\):[^0-9]*8$)
+is_6cpu=$(lscpu | grep ^CPU\(s\):[^0-9]*6$)
+is_4cpu=$(lscpu | grep ^CPU\(s\):[^0-9]*4$)
 
-is_xavier=$[$is_aarch64 && $is_8cpu]
-is_nano=$[$is_aarch64 && $is_4cpu]
 
-echo $is_nano
+if [[ $is_aarch64 && $is_8cpu ]]; then
+  is_xavier=1
+elif [[ $is_aarch64 && $is_6cpu ]]; then
+  is_tx2=1
+elif [[ $is_aarch64 && $is_4cpu ]]; then
+  is_nano=1
+fi
 
 echo "Setting test_path..."
 test_path="$SCRIPTS_PATH/tests/generic_acc/${test_case}"
@@ -35,45 +37,44 @@ test_path="$SCRIPTS_PATH/tests/generic_acc/${test_case}"
 # data that is specific to xavier.
 if [[ "$is_xavier" == 1 ]]; then
   test_path="$SCRIPTS_PATH/tests/xavier_acc_perf/${test_case}"
-fi
-
-if [[ "$is_nano" == 1 ]]; then
+elif [[ "$is_nano" == 1 ]]; then
   test_path="$SCRIPTS_PATH/tests/nano_acc/${test_case}"
 fi
 
 set_test_cases() {
   # Name of test cases for xavier and other GPUs are the same, but
   # they are stored in different directories.
-  test_cases=(
-    ssd_inception_v2_coco_tf.json
-    ssd_inception_v2_coco_trt_fp16.json
-    ssd_inception_v2_coco_trt_fp32.json
-    ssd_mobilenet_v1_coco_tf.json
-    ssd_mobilenet_v1_coco_trt_fp16.json
-    ssd_mobilenet_v1_coco_trt_fp32.json
-    ssd_mobilenet_v2_coco_tf.json
-    ssd_mobilenet_v2_coco_trt_fp16.json
-    ssd_mobilenet_v2_coco_trt_fp32.json
-    ssdlite_mobilenet_v2_coco_tf.json
-    ssdlite_mobilenet_v2_coco_trt_fp16.json
-    ssdlite_mobilenet_v2_coco_trt_fp32.json
-    faster_rcnn_resnet50_coco_tf.json
-    mask_rcnn_resnet50_atrous_coco_tf.json
-    #faster_rcnn_resnet50_coco_trt_fp16.json
-    #faster_rcnn_resnet50_coco_trt_fp32.json
-    #faster_rcnn_nas_tf.json
-    #faster_rcnn_nas_trt_fp16.json
-    #faster_rcnn_nas_trt_fp32.json
-    #mask_rcnn_resnet50_atrous_coco_trt_fp16.json
-    #mask_rcnn_resnet50_atrous_coco_trt_fp32.json
-  )
-  if [[ "$is_nano" == 1 ]]; then
+  if [[ $is_aarch64 ]]; then
     test_cases=(
       ssd_mobilenet_v1_coco_trt_fp16.json
       ssd_mobilenet_v2_coco_trt_fp16.json
       ssdlite_mobilenet_v2_coco_trt_fp16.json
     )
-  fi
+  else
+    test_cases=(
+      ssd_inception_v2_coco_tf.json
+      ssd_inception_v2_coco_trt_fp16.json
+      ssd_inception_v2_coco_trt_fp32.json
+      ssd_mobilenet_v1_coco_tf.json
+      ssd_mobilenet_v1_coco_trt_fp16.json
+      ssd_mobilenet_v1_coco_trt_fp32.json
+      ssd_mobilenet_v2_coco_tf.json
+      ssd_mobilenet_v2_coco_trt_fp16.json
+      ssd_mobilenet_v2_coco_trt_fp32.json
+      ssdlite_mobilenet_v2_coco_tf.json
+      ssdlite_mobilenet_v2_coco_trt_fp16.json
+      ssdlite_mobilenet_v2_coco_trt_fp32.json
+      faster_rcnn_resnet50_coco_tf.json
+      mask_rcnn_resnet50_atrous_coco_tf.json
+      #faster_rcnn_resnet50_coco_trt_fp16.json
+      #faster_rcnn_resnet50_coco_trt_fp32.json
+      #faster_rcnn_nas_tf.json
+      #faster_rcnn_nas_trt_fp16.json
+      #faster_rcnn_nas_trt_fp32.json
+      #mask_rcnn_resnet50_atrous_coco_trt_fp16.json
+      #mask_rcnn_resnet50_atrous_coco_trt_fp32.json
+   )
+ fi
 }
 
 set_test_cases
