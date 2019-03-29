@@ -135,7 +135,7 @@ Status TrtCandidateSelector::IsTensorRTCandidate(const tensorflow::Node* node) {
       "Sum",
       "Tanh",
       "TopKV2",
-//      "Transpose",
+      "Transpose",
   };
   bool is_supported_op_type =
       (candidate_ops.count(node->type_string()) ||
