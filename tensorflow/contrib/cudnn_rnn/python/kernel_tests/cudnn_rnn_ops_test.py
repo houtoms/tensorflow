@@ -21,6 +21,7 @@ from __future__ import print_function
 import collections
 import itertools
 import os
+import sys
 import unittest
 
 from absl.testing import parameterized
@@ -71,7 +72,8 @@ def RunLSTM(sess,
             is_training=True,
             dropout=0.,
             num_dirs=True,
-            dtype=dtypes.float32):
+            dtype=dtypes.float32,
+            num_proj=None):
   # TODO(jamesqin): add multi-layer tests.
   # TODO(jamesqin): add multi-dir tests
   assert num_layers == 1
@@ -82,6 +84,7 @@ def RunLSTM(sess,
   # set graph level random seed and numpy random seed.
   random_seed.set_random_seed(0)
   np.random.seed(0)
+  use_proj = (num_proj is not None and num_proj != 0)
 
   inputs = variable_scope.get_variable(
       "inputs",
@@ -91,7 +94,8 @@ def RunLSTM(sess,
   initial_h_op = variable_scope.get_variable(
       "initial_h_op",
       initializer=np.random.rand(batch_size,
-                                 num_units).astype(dtype.as_numpy_dtype),
+                                 num_proj if use_proj else num_units)
+      .astype(dtype.as_numpy_dtype),
       dtype=dtype)
   initial_c_op = variable_scope.get_variable(
       "initial_c_op",
@@ -105,13 +109,19 @@ def RunLSTM(sess,
   with variable_scope.variable_scope("test", initializer=initializer):
     w = variable_scope.get_variable(
         "rnn/lstm_cell/kernel",
-        shape=[input_size + num_units, num_units * 4],
+        shape=[input_size + (num_proj if use_proj else num_units),
+               num_units * 4],
         dtype=dtype)
     b = variable_scope.get_variable(
         "rnn/lstm_cell/bias", shape=[num_units * 4], dtype=dtype)
+    if use_proj:
+      pw = variable_scope.get_variable(
+          "rnn/lstm_cell/projection/kernel",
+          shape=[num_units, num_proj], dtype=dtype)
 
     # canonical lstm. must set forget_bias to 0. to align with cudnn lstm.
-    cell = rnn_cell_impl.LSTMCell(num_units, forget_bias=0., reuse=True)
+    cell = rnn_cell_impl.LSTMCell(num_units, forget_bias=0., reuse=True,
+                                  num_proj=num_proj if use_proj else None)
     outputs_op, state_tuple_op = rnn.dynamic_rnn(
         cell,
         inputs,
@@ -123,8 +133,12 @@ def RunLSTM(sess,
 
   # Convert to cudnn opaque param.
   format_converter = cudnn_rnn_ops.CudnnParamsFormatConverterLSTM(
-      num_layers, num_units, input_size)
-  opaque_params = format_converter.tf_canonical_to_opaque([w, b])
+      num_layers, num_units, input_size,
+      num_proj=num_proj if use_proj else None)
+  if use_proj:
+    opaque_params = format_converter.tf_canonical_to_opaque([w, b], [pw,])
+  else:
+    opaque_params = format_converter.tf_canonical_to_opaque([w, b])
 
   cu_initial_h_op = array_ops.expand_dims(initial_h_op, axis=0)
   cu_initial_c_op = array_ops.expand_dims(initial_c_op, axis=0)
@@ -135,16 +149,22 @@ def RunLSTM(sess,
       opaque_params,
       dropout=dropout,
       is_training=is_training,
-      rnn_mode=cudnn_rnn_ops.CUDNN_LSTM)
+      rnn_mode=cudnn_rnn_ops.CUDNN_LSTM,
+      num_proj=num_proj if use_proj else None)
   # Remove the trivial 1st dimension.
   cu_state_tuple_op = rnn_cell_impl.LSTMStateTuple(
       c=array_ops.squeeze(cu_c_op, axis=0),
       h=array_ops.squeeze(cu_h_op, axis=0))
 
   if is_training:
-    (inp_grad_op, hgrad_op,
-     cgrad_op, wgrad_op, bgrad_op) = gradients_impl.gradients(
-         outputs_op, [inputs, initial_h_op, initial_c_op, w, b])
+    if use_proj:
+      (inp_grad_op, hgrad_op,
+       cgrad_op, wgrad_op, bgrad_op, pwgrad_op) = gradients_impl.gradients(
+           outputs_op, [inputs, initial_h_op, initial_c_op, w, b, pw])
+    else:
+      (inp_grad_op, hgrad_op,
+       cgrad_op, wgrad_op, bgrad_op) = gradients_impl.gradients(
+           outputs_op, [inputs, initial_h_op, initial_c_op, w, b])
 
     (cu_inp_grad_op, cu_hgrad_op,
      cu_cgrad_op, opaque_grad_op) = gradients_impl.gradients(
@@ -155,10 +175,16 @@ def RunLSTM(sess,
     # Remove the trivial 1st dimension
     cu_cgrad_op = array_ops.squeeze(cu_cgrad_op, axis=0)
 
-    cu_wgrad_op, cu_bgrad_op = format_converter.opaque_to_tf_canonical(
-        opaque_grad_op)
+    if use_proj:
+      cu_wgrad_op, cu_bgrad_op, cu_pwgrad_op = \
+          format_converter.opaque_to_tf_canonical(opaque_grad_op)
+    else:
+      cu_wgrad_op, cu_bgrad_op = format_converter.opaque_to_tf_canonical(
+          opaque_grad_op)
     cu_wgrad_op = cu_wgrad_op[0]
     cu_bgrad_op = cu_bgrad_op[0]
+    if use_proj:
+      cu_pwgrad_op = cu_pwgrad_op[0]
     # cudnn lstm has 2 biases each gate. When converting to tf canonical format,
     # the two biases are summed into one. Thus here bias gradient should be
     # halved when comparing with tf lstm.
@@ -168,15 +194,27 @@ def RunLSTM(sess,
   sess.run(init_op)
 
   if is_training:
-    outputs, state_tuple, inp_grad, state_grad, wgrad, bgrad = sess.run([
-        outputs_op, state_tuple_op, inp_grad_op,
-        (hgrad_op, cgrad_op), wgrad_op, bgrad_op
-    ])
-    (cu_outputs, cu_state_tuple, cu_inp_grad, cu_state_grad, cu_wgrad,
-     cu_bgrad) = sess.run([
-         cu_outputs_op, cu_state_tuple_op, cu_inp_grad_op,
-         (cu_hgrad_op, cu_cgrad_op), cu_wgrad_op, cu_bgrad_op
-     ])
+    if use_proj:
+      outputs, state_tuple, inp_grad, state_grad, wgrad, bgrad, pwgrad = \
+      sess.run([
+          outputs_op, state_tuple_op, inp_grad_op,
+          (hgrad_op, cgrad_op), wgrad_op, bgrad_op, pwgrad_op
+      ])
+      (cu_outputs, cu_state_tuple, cu_inp_grad, cu_state_grad, cu_wgrad,
+       cu_bgrad, cu_pwgrad) = sess.run([
+           cu_outputs_op, cu_state_tuple_op, cu_inp_grad_op,
+           (cu_hgrad_op, cu_cgrad_op), cu_wgrad_op, cu_bgrad_op, cu_pwgrad_op
+       ])
+    else:
+      outputs, state_tuple, inp_grad, state_grad, wgrad, bgrad = sess.run([
+          outputs_op, state_tuple_op, inp_grad_op,
+          (hgrad_op, cgrad_op), wgrad_op, bgrad_op
+      ])
+      (cu_outputs, cu_state_tuple, cu_inp_grad, cu_state_grad, cu_wgrad,
+       cu_bgrad) = sess.run([
+           cu_outputs_op, cu_state_tuple_op, cu_inp_grad_op,
+           (cu_hgrad_op, cu_cgrad_op), cu_wgrad_op, cu_bgrad_op
+       ])
 
     logging.vlog(1, "outputs: %s" % outputs)
     logging.vlog(1, "cu_outputs: %s" % cu_outputs)
@@ -188,11 +226,20 @@ def RunLSTM(sess,
     logging.vlog(1, "cu_state_grad: %s" % str(cu_state_grad))
     logging.vlog(1, "wgrad: %s" % str(wgrad))
     logging.vlog(1, "bgrad: %s" % str(bgrad))
+    if use_proj:
+      logging.vlog(1, "pwgrad: %s" % str(bgrad))
     logging.vlog(1, "cu_wgrad: %s" % str(cu_wgrad))
     logging.vlog(1, "cu_bgrad: %s" % str(cu_bgrad))
-    return (outputs, cu_outputs, state_tuple, cu_state_tuple, inp_grad,
-            cu_inp_grad, state_grad, cu_state_grad, wgrad, bgrad, cu_wgrad,
-            cu_bgrad)
+    if use_proj:
+      logging.vlog(1, "cu_pwgrad: %s" % str(cu_bgrad))
+    if use_proj:
+      return (outputs, cu_outputs, state_tuple, cu_state_tuple, inp_grad,
+              cu_inp_grad, state_grad, cu_state_grad, wgrad, bgrad, pwgrad,
+              cu_wgrad, cu_bgrad, cu_pwgrad)
+    else:
+      return (outputs, cu_outputs, state_tuple, cu_state_tuple, inp_grad,
+              cu_inp_grad, state_grad, cu_state_grad, wgrad, bgrad, cu_wgrad,
+              cu_bgrad)
   else:
     outputs, state_tuple = sess.run([outputs_op, state_tuple_op])
     cu_outputs, cu_state_tuple = sess.run([cu_outputs_op, cu_state_tuple_op])
@@ -326,11 +373,19 @@ class CudnnLSTMTest(TensorFlowTestCase, parameterized.TestCase):
                             num_layers,
                             dtype,
                             rtol=4e-6,
-                            atol=4e-6):
+                            atol=4e-6,
+                            num_proj=None):
     with self.session(use_gpu=True) as sess:
-      (outputs, cu_outputs, state_tuple, cu_state_tuple, inp_grad, cu_inp_grad,
-       state_grad, cu_state_grad, wgrad, bgrad, cu_wgrad, cu_bgrad) = RunLSTM(
-           sess, num_units, input_size, batch_size, time, num_layers)
+      if num_proj is not None and num_proj != 0:
+        (outputs, cu_outputs, state_tuple, cu_state_tuple, inp_grad,
+         cu_inp_grad, state_grad, cu_state_grad, wgrad, bgrad, pwgrad, cu_wgrad,
+         cu_bgrad, cu_pwgrad) = RunLSTM(sess, num_units, input_size, batch_size,
+                                        time, num_layers, num_proj=num_proj)
+      else:
+        (outputs, cu_outputs, state_tuple, cu_state_tuple, inp_grad,
+         cu_inp_grad, state_grad, cu_state_grad, wgrad, bgrad, cu_wgrad,
+         cu_bgrad) = RunLSTM(sess, num_units, input_size, batch_size, time,
+                             num_layers, num_proj=num_proj)
 
       self.assertAllClose(outputs, cu_outputs, rtol=rtol, atol=atol)
       for s, cu_s in zip(state_tuple, cu_state_tuple):
@@ -340,23 +395,41 @@ class CudnnLSTMTest(TensorFlowTestCase, parameterized.TestCase):
       self.assertAllClose(inp_grad, cu_inp_grad, rtol=rtol, atol=atol)
       self.assertAllClose(bgrad, cu_bgrad, rtol=rtol, atol=atol)
       self.assertAllClose(wgrad, cu_wgrad, rtol=rtol, atol=atol)
+      if num_proj is not None and num_proj != 0:
+        self.assertAllClose(pwgrad, cu_pwgrad, rtol=rtol, atol=atol)
 
-  @parameterized.named_parameters(*NAMED_RNN_TESTCASES)
+  @parameterized.named_parameters(
+      ExpandNamedTestCases(
+          NAMED_RNN_TESTCASES, **{
+              "use_proj": [False, True],
+          }))
   @unittest.skipUnless(test.is_built_with_cuda(),
                        "Test only applicable when running on GPUs")
-  def test_training(self, num_units, input_size, batch_size, time, num_layers):
+  def test_training(self, num_units, input_size, batch_size, time, num_layers,
+                    use_proj):
     if not context.context().num_gpus():
       self.skipTest("No GPUs found")
+    num_proj = num_units // 2
+    if use_proj and num_proj == 0:
+      self.skipTest("num_proj cannot be 0")
     self._test_training_helper(num_units, input_size, batch_size, time,
-                               num_layers, dtypes.float32, rtol=5e-6, atol=5e-6)
+                               num_layers, dtypes.float32, rtol=5e-6, atol=5e-6,
+                               num_proj=num_proj if use_proj else None)
 
-  @parameterized.named_parameters(*NAMED_RNN_TESTCASES)
+  @parameterized.named_parameters(
+      ExpandNamedTestCases(
+          NAMED_RNN_TESTCASES, **{
+              "use_proj": [False, True],
+          }))
   @unittest.skipUnless(test.is_built_with_cuda(),
                        "Test only applicable when running on GPUs")
   def test_training_fp16(self, num_units, input_size, batch_size, time,
-                         num_layers):
+                         num_layers, use_proj):
     if not context.context().num_gpus():
       self.skipTest("No GPUs found")
+    num_proj = num_units // 2
+    if use_proj and num_proj == 0:
+      self.skipTest("num_proj cannot be 0")
     self._test_training_helper(
         num_units,
         input_size,
@@ -365,37 +438,23 @@ class CudnnLSTMTest(TensorFlowTestCase, parameterized.TestCase):
         num_layers,
         dtypes.float16,
         rtol=5e-3,
-        atol=5e-4)
+        atol=5e-4,
+        num_proj=num_proj if use_proj else None)
 
-  @parameterized.named_parameters(*NAMED_RNN_TESTCASES)
+  @parameterized.named_parameters(
+      ExpandNamedTestCases(
+          NAMED_RNN_TESTCASES, **{
+              "use_proj": [False, True],
+          }))
   @unittest.skipUnless(test.is_built_with_cuda(),
                        "Test only applicable when running on GPUs")
-  def test_inference(self, num_units, input_size, batch_size, time, num_layers):
+  def test_inference(self, num_units, input_size, batch_size, time, num_layers,
+                     use_proj):
     if not context.context().num_gpus():
       self.skipTest("No GPUs found")
-    with self.session(use_gpu=True) as sess:
-      (outputs, cu_outputs, state_tuple, cu_state_tuple) = RunLSTM(
-          sess,
-          num_units,
-          input_size,
-          batch_size,
-          time,
-          num_layers,
-          is_training=False)
-
-      self.assertAllClose(outputs, cu_outputs)
-      # h
-      self.assertAllClose(state_tuple.h, cu_state_tuple.h)
-      # c
-      self.assertAllClose(state_tuple.c, cu_state_tuple.c)
-
-  @parameterized.named_parameters(*NAMED_RNN_TESTCASES)
-  @unittest.skipUnless(test.is_built_with_cuda(),
-                       "Test only applicable when running on GPUs")
-  def test_inference_fp16(self, num_units, input_size, batch_size, time,
-                          num_layers):
-    if not context.context().num_gpus():
-      self.skipTest("No GPUs found")
+    num_proj = num_units // 2
+    if use_proj and num_proj == 0:
+      self.skipTest("num_proj cannot be 0")
     with self.session(use_gpu=True) as sess:
       (outputs, cu_outputs, state_tuple, cu_state_tuple) = RunLSTM(
           sess,
@@ -405,9 +464,41 @@ class CudnnLSTMTest(TensorFlowTestCase, parameterized.TestCase):
           time,
           num_layers,
           is_training=False,
-          dtype=dtypes.float16)
+          num_proj=num_proj if use_proj else None)
 
-      rtol, atol = 5e-3, 5e-4
+      self.assertAllClose(outputs, cu_outputs)
+      # h
+      self.assertAllClose(state_tuple.h, cu_state_tuple.h)
+      # c
+      self.assertAllClose(state_tuple.c, cu_state_tuple.c)
+
+  @parameterized.named_parameters(
+      ExpandNamedTestCases(
+          NAMED_RNN_TESTCASES, **{
+              "use_proj": [False, True],
+          }))
+  @unittest.skipUnless(test.is_built_with_cuda(),
+                       "Test only applicable when running on GPUs")
+  def test_inference_fp16(self, num_units, input_size, batch_size, time,
+                          num_layers, use_proj):
+    if not context.context().num_gpus():
+      self.skipTest("No GPUs found")
+    num_proj = num_units // 2
+    if use_proj and num_proj == 0:
+      self.skipTest("num_proj cannot be 0")
+    with self.session(use_gpu=True) as sess:
+      (outputs, cu_outputs, state_tuple, cu_state_tuple) = RunLSTM(
+          sess,
+          num_units,
+          input_size,
+          batch_size,
+          time,
+          num_layers,
+          is_training=False,
+          dtype=dtypes.float16,
+          num_proj=num_proj if use_proj else None)
+
+      rtol, atol = 6e-3, 7e-4
       self.assertAllClose(outputs, cu_outputs, rtol=rtol, atol=atol)
       # h
       self.assertAllClose(
@@ -416,14 +507,21 @@ class CudnnLSTMTest(TensorFlowTestCase, parameterized.TestCase):
       self.assertAllClose(
           state_tuple.c, cu_state_tuple.c, rtol=rtol, atol=atol)
 
-  @parameterized.named_parameters(*NAMED_RNN_TESTCASES)
+  @parameterized.named_parameters(
+      ExpandNamedTestCases(
+          NAMED_RNN_TESTCASES, **{
+              "use_proj": [False, True],
+          }))
   @unittest.skipUnless(test.is_built_with_cuda(),
                        "Test only applicable when running on GPUs")
   def test_inference_with_dropout(self, num_units, input_size, batch_size, time,
-                                  num_layers):
+                                  num_layers, use_proj):
     """Validates that dropout does not affect Cudnn Rnn inference."""
     if not context.context().num_gpus():
       self.skipTest("No GPUs found")
+    num_proj = num_units // 2
+    if use_proj and num_proj == 0:
+      self.skipTest("num_proj cannot be 0")
     # Hand-picked dropouts are used below (0. and 1.)
     with ops.Graph().as_default() as g:
       with self.session(use_gpu=True, graph=g) as sess:
@@ -436,7 +534,8 @@ class CudnnLSTMTest(TensorFlowTestCase, parameterized.TestCase):
             time,
             num_layers,
             is_training=False,
-            dropout=0.)
+            dropout=0.,
+            num_proj=num_proj if use_proj else None)
 
     with ops.Graph().as_default() as g:
       with self.session(use_gpu=True, graph=g) as sess:
@@ -448,7 +547,8 @@ class CudnnLSTMTest(TensorFlowTestCase, parameterized.TestCase):
             time,
             num_layers,
             is_training=False,
-            dropout=1.)
+            dropout=1.,
+            num_proj=num_proj if use_proj else None)
 
     self.assertAllClose(cu_outputs, cu_outputs2)
     # h
@@ -693,7 +793,7 @@ class CudnnGRUTest(TensorFlowTestCase, parameterized.TestCase):
           is_training=False,
           dtype=dtypes.float16)
 
-      rtol, atol = 5e-3, 5e-4
+      rtol, atol = 6e-3, 7e-4
       self.assertAllClose(outputs, cu_outputs, rtol=rtol, atol=atol)
       self.assertAllClose(h, cu_h, rtol=rtol, atol=atol)
 
@@ -739,40 +839,62 @@ class CudnnParamsFormatConverterTest(TensorFlowTestCase,
                                      parameterized.TestCase):
   """Class for testing various format converters."""
 
-  def _test_lstm_helper(self, num_units, input_size, num_layers, direction):
+  def _test_lstm_helper(self, num_units, input_size, num_layers, direction,
+                        num_proj=None):
+    use_proj = (num_proj is not None and num_proj != 0)
     with self.session(use_gpu=True) as sess:
       random_seed.set_random_seed(0)
       np.random.seed(0)
 
       num_dirs = 1 if direction == cudnn_rnn_ops.CUDNN_RNN_UNIDIRECTION else 2
       format_converter = cudnn_rnn_ops.CudnnParamsFormatConverterLSTM(
-          num_layers, num_units, input_size, direction=direction)
+          num_layers, num_units, input_size, direction=direction,
+          num_proj=num_proj if use_proj else None)
 
-      ws, bs = [], []
+      ws, bs, pws = [], [], []
       for _ in range(num_layers * num_dirs):
         w = constant_op.constant(
-            np.random.rand(input_size + num_units, 4 * num_units),
+            np.random.rand(input_size + (num_proj if use_proj else num_units),
+                           4 * num_units),
             dtype=dtypes.float32)
         b = constant_op.constant(
             np.random.rand(4 * num_units), dtype=dtypes.float32)
         ws.append(w)
         bs.append(b)
+        if use_proj:
+          pw = constant_op.constant(
+              np.random.rand(num_units, num_proj), dtype=dtypes.float32)
+          pws.append(pw)
 
-      opaque_params = format_converter.tf_canonical_to_opaque(ws + bs)
+      if use_proj:
+        opaque_params = format_converter.tf_canonical_to_opaque(ws + bs, pws)
+      else:
+        opaque_params = format_converter.tf_canonical_to_opaque(ws + bs)
       opaque_params_size = cudnn_rnn_ops.cudnn_rnn_opaque_params_size(
           cudnn_rnn_ops.CUDNN_LSTM,
           num_layers,
           num_units,
           input_size,
-          direction=direction)
+          direction=direction,
+          num_proj=num_proj if use_proj else None)
 
-      ws_r, bs_r = format_converter.opaque_to_tf_canonical(opaque_params)
+      if use_proj:
+        ws_r, bs_r, pws_r = format_converter.opaque_to_tf_canonical(
+            opaque_params)
+        ws, ws_r, pws, bs, bs_r, pws_r = sess.run([ws, ws_r, pws, bs, bs_r,
+                                                   pws_r])
+      else:
+        ws_r, bs_r = format_converter.opaque_to_tf_canonical(opaque_params)
+        ws, ws_r, bs, bs_r = sess.run([ws, ws_r, bs, bs_r])
 
       # Test tf_canonical_to_opaque() followed by opaque_to_tf_canonical()
       # returns the original input.
-      ws, ws_r, bs, bs_r = sess.run([ws, ws_r, bs, bs_r])
       for w, w_r in zip(ws, ws_r):
         self.assertAllClose(w, w_r)
+      if use_proj:
+        for pw, pw_r in zip(pws, pws_r):
+          np.set_printoptions(threshold=sys.maxsize)
+          self.assertAllClose(pw, pw_r)
       for b, b_r in zip(bs, bs_r):
         self.assertAllClose(b, b_r)
 
@@ -799,11 +921,41 @@ class CudnnParamsFormatConverterTest(TensorFlowTestCase,
                                   for c in NAMED_RNN_TESTCASES)
   @unittest.skipUnless(test.is_built_with_cuda(),
                        "Test only applicable when running on GPUs")
+  def test_lstmp(self, num_units, input_size, num_layers):
+    if not context.context().num_gpus():
+      self.skipTest("No GPUs found")
+    num_proj = num_units // 2
+    if num_proj == 0:
+      self.skipTest("num_proj cannot be 0")
+    self._test_lstm_helper(num_units, input_size, num_layers,
+                           cudnn_rnn_ops.CUDNN_RNN_UNIDIRECTION,
+                           num_proj=num_proj)
+
+  @parameterized.named_parameters((c["testcase_name"], c["num_units"],
+                                   c["input_size"], c["num_layers"])
+                                  for c in NAMED_RNN_TESTCASES)
+  @unittest.skipUnless(test.is_built_with_cuda(),
+                       "Test only applicable when running on GPUs")
   def test_lstm_bidi(self, num_units, input_size, num_layers):
     if not context.context().num_gpus():
       self.skipTest("No GPUs found")
     self._test_lstm_helper(num_units, input_size, num_layers,
                            cudnn_rnn_ops.CUDNN_RNN_BIDIRECTION)
+
+  @parameterized.named_parameters((c["testcase_name"], c["num_units"],
+                                   c["input_size"], c["num_layers"])
+                                  for c in NAMED_RNN_TESTCASES)
+  @unittest.skipUnless(test.is_built_with_cuda(),
+                       "Test only applicable when running on GPUs")
+  def test_lstmp_bidi(self, num_units, input_size, num_layers):
+    if not context.context().num_gpus():
+      self.skipTest("No GPUs found")
+    num_proj = num_units // 2
+    if num_proj == 0:
+      self.skipTest("num_proj cannot be 0")
+    self._test_lstm_helper(num_units, input_size, num_layers,
+                           cudnn_rnn_ops.CUDNN_RNN_BIDIRECTION,
+                           num_proj=num_proj)
 
   def _test_gru_helper(self, num_units, input_size, num_layers, direction):
     with self.session(use_gpu=True) as sess:

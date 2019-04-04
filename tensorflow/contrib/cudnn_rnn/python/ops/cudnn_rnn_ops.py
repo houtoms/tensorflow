@@ -184,6 +184,7 @@ class CudnnParamsFormatConverter(object):
                num_layers,
                num_units,
                input_size,
+               num_proj=None,
                input_mode=CUDNN_INPUT_LINEAR_MODE,
                direction=CUDNN_RNN_UNIDIRECTION):
     """Constructor.
@@ -193,6 +194,8 @@ class CudnnParamsFormatConverter(object):
       num_units: the number of units within the RNN model.
       input_size: the size of the input, it could be different from the
         num_units.
+      num_proj: The output dimensionality for the projection matrices.
+        If None or 0, no projection is performed.
       input_mode: indicate whether there is a linear projection between the
         input and the actual computation before the first layer. It could be one
         of 'linear_input', 'skip_input' or 'auto_select'. * 'linear_input'
@@ -207,14 +210,17 @@ class CudnnParamsFormatConverter(object):
     self._input_size = input_size
     self._num_units = num_units
     self._input_mode = input_mode
+    self._num_proj = num_proj
+    self._use_proj = self._num_proj is not None and self._num_proj != 0
     self._direction = direction
     self._num_dirs = 1 if self._direction == CUDNN_RNN_UNIDIRECTION else 2
     self._num_params = (
         self._num_params_per_layer * self._num_layers * self._num_dirs)
 
-  def tf_canonical_to_opaque(self, tf_canonicals):
+  def tf_canonical_to_opaque(self, tf_canonicals, weights_proj=None):
     r"""Converts tf canonical weights to cudnn opaque param."""
-    cu_weights, cu_biases = self._tf_canonical_to_cu_canonical(tf_canonicals)
+    cu_weights, cu_biases = self._tf_canonical_to_cu_canonical(tf_canonicals,
+                                                               weights_proj)
     cu_weights = [array_ops.reshape(w, [-1]) for w in cu_weights]
     opaque_params = self._cu_canonical_to_opaque(cu_weights, cu_biases)
     return opaque_params
@@ -222,8 +228,14 @@ class CudnnParamsFormatConverter(object):
   def opaque_to_tf_canonical(self, opaque_param):
     r"""Converts cudnn opaque param to tf canonical weights."""
     cu_weights, cu_biases = self._opaque_to_cu_canonical(opaque_param)
-    weights, biases = self._cu_canonical_to_tf_canonical(cu_weights, cu_biases)
-    return weights, biases
+    if self._use_proj:
+      weights, biases, weights_proj = self._cu_canonical_to_tf_canonical(
+          cu_weights, cu_biases)
+      return weights, biases, weights_proj
+    else:
+      weights, biases = self._cu_canonical_to_tf_canonical(
+          cu_weights, cu_biases)
+      return weights, biases
 
   def _opaque_to_cu_canonical(self, opaque_param):
     """Converts opaque params to Cudnn canonical format.
@@ -235,15 +247,31 @@ class CudnnParamsFormatConverter(object):
       2 list for weights and biases respectively.
     """
     with ops.device("/gpu:0"):
-      weights, biases = gen_cudnn_rnn_ops.cudnn_rnn_params_to_canonical(
-          num_layers=self._num_layers,
-          num_units=self._num_units,
-          input_size=self._input_size,
-          params=opaque_param,
-          num_params=self._num_params,
-          rnn_mode=self._rnn_mode,
-          input_mode=self._input_mode,
-          direction=self._direction)
+      if self._use_proj:
+        num_params_weights = (self._num_params +
+                              1 * self._num_layers * self._num_dirs)
+        num_params_biases = self._num_params
+        weights, biases = gen_cudnn_rnn_ops.cudnn_rnn_params_to_canonical_v2(
+            num_layers=self._num_layers,
+            num_units=self._num_units,
+            input_size=self._input_size,
+            params=opaque_param,
+            rnn_mode=self._rnn_mode,
+            input_mode=self._input_mode,
+            direction=self._direction,
+            num_params_weights=num_params_weights,
+            num_params_bias=num_params_biases,
+            num_proj=self._num_proj)
+      else:
+        weights, biases = gen_cudnn_rnn_ops.cudnn_rnn_params_to_canonical(
+            num_layers=self._num_layers,
+            num_units=self._num_units,
+            input_size=self._input_size,
+            params=opaque_param,
+            num_params=self._num_params,
+            rnn_mode=self._rnn_mode,
+            input_mode=self._input_mode,
+            direction=self._direction)
       return (weights, biases)
 
   def _cu_canonical_to_opaque(self, cu_weights, cu_biases):
@@ -256,15 +284,27 @@ class CudnnParamsFormatConverter(object):
       a single opaque tensor.
     """
     with ops.device("/gpu:0"):
-      return gen_cudnn_rnn_ops.cudnn_rnn_canonical_to_params(
-          num_layers=self._num_layers,
-          num_units=self._num_units,
-          input_size=self._input_size,
-          weights=cu_weights,
-          biases=cu_biases,
-          rnn_mode=self._rnn_mode,
-          input_mode=self._input_mode,
-          direction=self._direction)
+      if self._use_proj:
+        return gen_cudnn_rnn_ops.cudnn_rnn_canonical_to_params_v2(
+            num_layers=self._num_layers,
+            num_units=self._num_units,
+            input_size=self._input_size,
+            weights=cu_weights,
+            biases=cu_biases,
+            rnn_mode=self._rnn_mode,
+            input_mode=self._input_mode,
+            num_proj=self._num_proj,
+            direction=self._direction)
+      else:
+        return gen_cudnn_rnn_ops.cudnn_rnn_canonical_to_params(
+            num_layers=self._num_layers,
+            num_units=self._num_units,
+            input_size=self._input_size,
+            weights=cu_weights,
+            biases=cu_biases,
+            rnn_mode=self._rnn_mode,
+            input_mode=self._input_mode,
+            direction=self._direction)
 
   def _cu_canonical_to_tf_canonical(self, cu_weights, cu_biases):
     r"""Transform from Cudnn canonical to tf canonical.
@@ -289,9 +329,11 @@ class CudnnParamsFormatConverter(object):
       1 tuple, tf canonical weights and biases.
     """
     tf_weights, tf_biases = [], []
+    tf_weights_proj = []
 
     layer_weights_num = self._num_params_per_layer * self._num_dirs
     layer_biases_num = layer_weights_num
+    layer_weights_num += (1 * self._num_dirs) if self._use_proj else 0
 
     for i in range(self._num_layers):
       layer_weights = cu_weights[i * layer_weights_num:(i + 1) *
@@ -299,7 +341,7 @@ class CudnnParamsFormatConverter(object):
       layer_biases = cu_biases[i * layer_biases_num:(i + 1) * layer_biases_num]
       if self._direction == CUDNN_RNN_UNIDIRECTION:
         self._cu_canonical_to_tf_canonical_single_layer(
-            layer_weights, layer_biases, tf_weights, tf_biases)
+            layer_weights, layer_biases, tf_weights, tf_biases, tf_weights_proj)
       else:
         fw_weights = layer_weights[:len(layer_weights) // 2]
         bw_weights = layer_weights[len(layer_weights) // 2:]
@@ -311,6 +353,7 @@ class CudnnParamsFormatConverter(object):
             fw_biases,
             tf_weights,
             tf_biases,
+            tf_weights_proj,
         )
 
         self._cu_canonical_to_tf_canonical_single_layer(
@@ -318,11 +361,16 @@ class CudnnParamsFormatConverter(object):
             bw_biases,
             tf_weights,
             tf_biases,
+            tf_weights_proj,
         )
-    return (tf_weights, tf_biases)
+    if self._use_proj:
+      return (tf_weights, tf_biases, tf_weights_proj)
+    else:
+      return (tf_weights, tf_biases)
 
   def _cu_canonical_to_tf_canonical_single_layer(self, cu_weights, cu_biases,
-                                                 tf_weights, tf_biases):
+                                                 tf_weights, tf_biases,
+                                                 tf_weigths_proj=None):
     r"""Transform single layer Cudnn canonicals to tf canonicals.
 
     The elements of cu_weights, cu_biases are laid out in the following format:
@@ -337,7 +385,7 @@ class CudnnParamsFormatConverter(object):
     """
     raise NotImplementedError("Abstract method")
 
-  def _tf_canonical_to_cu_canonical(self, tf_canonicals):
+  def _tf_canonical_to_cu_canonical(self, tf_canonicals, weights_proj):
     r"""Transform from tf canonical to Cudnn canonical.
 
     This is the reverse routine of _TransformCanonical().
@@ -356,6 +404,7 @@ class CudnnParamsFormatConverter(object):
            ---------------
            |fwd   |bak   |
            ---------------
+      weights_proj: (optional) weights matrices for projection
     Returns:
       2 lists: the recovered cudnn canonical weights and biases.
     """
@@ -370,6 +419,9 @@ class CudnnParamsFormatConverter(object):
       layer_biases = biases[i * layer_biases_num:(i + 1) * layer_biases_num]
       if self._direction == CUDNN_RNN_UNIDIRECTION:
         cu_weights.extend(self._tf_to_cudnn_weights(i, *layer_weights))
+        if weights_proj is not None:
+          pw = array_ops.transpose(weights_proj[i])
+          cu_weights.append(pw)
         cu_biases.extend(self._tf_to_cudnn_biases(*layer_biases))
       else:
         fw_weights, bw_weights = layer_weights[:len(
@@ -377,9 +429,15 @@ class CudnnParamsFormatConverter(object):
         fw_biases, bw_biases = layer_biases[:len(
             layer_biases) // 2], layer_biases[len(layer_biases) // 2:]
         cu_weights.extend(self._tf_to_cudnn_weights(i, *fw_weights))
+        if weights_proj is not None:
+          pw0 = array_ops.transpose(weights_proj[2*i+0])
+          cu_weights.append(pw0)
         cu_biases.extend(self._tf_to_cudnn_biases(*fw_biases))
 
         cu_weights.extend(self._tf_to_cudnn_weights(i, *bw_weights))
+        if weights_proj is not None:
+          pw1 = array_ops.transpose(weights_proj[2*i+1])
+          cu_weights.append(pw1)
         cu_biases.extend(self._tf_to_cudnn_biases(*bw_biases))
     return cu_weights, cu_biases
 
@@ -415,7 +473,10 @@ class CudnnParamsFormatConverterLSTM(CudnnParamsFormatConverter):
 
   def _cudnn_to_tf_weights(self, *cu_weights):
     r"""Stitching cudnn canonical weights to generate tf canonical weights."""
-    w_i, w_f, w_c, w_o, r_i, r_f, r_c, r_o = cu_weights
+    if self._use_proj:
+      w_i, w_f, w_c, w_o, r_i, r_f, r_c, r_o, pw = cu_weights
+    else:
+      w_i, w_f, w_c, w_o, r_i, r_f, r_c, r_o = cu_weights
 
     # pylint: disable=invalid-name
     W_i = array_ops.concat([w_i, r_i], axis=1)
@@ -425,7 +486,11 @@ class CudnnParamsFormatConverterLSTM(CudnnParamsFormatConverter):
     # pylint: enable=invalid-name
     # Cudnn LSTM weights are in ifco order, other tf LSTMs are in icfo order.
     reordered = self._cudnn_to_tf_gate_params(* [W_i, W_f, W_c, W_o])
-    return (array_ops.transpose(array_ops.concat(reordered, axis=0)),)
+    if self._use_proj:
+      return (array_ops.transpose(array_ops.concat(reordered, axis=0)),
+              array_ops.transpose(pw))
+    else:
+      return (array_ops.transpose(array_ops.concat(reordered, axis=0)),)
 
   def _tf_to_cudnn_weights(self, layer, *tf_weights):
     r"""Reverse the operations in StitchWeights()."""
@@ -434,7 +499,7 @@ class CudnnParamsFormatConverterLSTM(CudnnParamsFormatConverter):
     if layer == 0:
       input_weight_width = input_size
     else:
-      input_weight_width = num_units
+      input_weight_width = self._num_proj if self._use_proj else num_units
       if self._direction == CUDNN_RNN_BIDIRECTION:
         input_weight_width *= 2
 
@@ -443,11 +508,15 @@ class CudnnParamsFormatConverterLSTM(CudnnParamsFormatConverter):
     # pylint: disable=invalid-name
     W_i, W_f, W_c, W_o = self._tf_to_cudnn_gate_params(*array_ops.split(
         w, 4, axis=0))
-
-    w_i, r_i = array_ops.split(W_i, [input_weight_width, num_units], axis=1)
-    w_c, r_c = array_ops.split(W_c, [input_weight_width, num_units], axis=1)
-    w_f, r_f = array_ops.split(W_f, [input_weight_width, num_units], axis=1)
-    w_o, r_o = array_ops.split(W_o, [input_weight_width, num_units], axis=1)
+    hidden_state_width = self._num_proj if self._use_proj else num_units
+    w_i, r_i = array_ops.split(W_i, [input_weight_width, hidden_state_width],
+                               axis=1)
+    w_c, r_c = array_ops.split(W_c, [input_weight_width, hidden_state_width],
+                               axis=1)
+    w_f, r_f = array_ops.split(W_f, [input_weight_width, hidden_state_width],
+                               axis=1)
+    w_o, r_o = array_ops.split(W_o, [input_weight_width, hidden_state_width],
+                               axis=1)
     return w_i, w_f, w_c, w_o, r_i, r_f, r_c, r_o
     # pylint: enable=invalid-name
 
@@ -483,10 +552,16 @@ class CudnnParamsFormatConverterLSTM(CudnnParamsFormatConverter):
     return b_wi, b_wf, b_wc, b_wo, b_ri, b_rf, b_rc, b_ro
 
   def _cu_canonical_to_tf_canonical_single_layer(self, cu_weights, cu_biases,
-                                                 tf_weights, tf_biases):
-    (w,) = self._cudnn_to_tf_weights(*cu_weights)
+                                                 tf_weights, tf_biases,
+                                                 tf_weights_proj=None):
+    if self._use_proj:
+      (w, pw) = self._cudnn_to_tf_weights(*cu_weights)
+      tf_weights.append(w)
+      tf_weights_proj.append(pw)
+    else:
+      (w,) = self._cudnn_to_tf_weights(*cu_weights)
+      tf_weights.append(w)
     (b,) = self._cudnn_to_tf_biases(*cu_biases)
-    tf_weights.append(w)
     tf_biases.append(b)
 
 
@@ -554,7 +629,8 @@ class CudnnParamsFormatConverterGRU(CudnnParamsFormatConverter):
     return b_wi, b_wr, b_wh, b_ri, b_rr, b_rh
 
   def _cu_canonical_to_tf_canonical_single_layer(self, cu_weights, cu_biases,
-                                                 tf_weights, tf_biases):
+                                                 tf_weights, tf_biases,
+                                                 tf_weights_proj=None):
     # pylint: disable=invalid-name
     W_ir, w_h, r_h = self._cudnn_to_tf_weights(*cu_weights)
     b_ir, b_wh, b_rh = self._cudnn_to_tf_biases(*cu_biases)
@@ -727,8 +803,9 @@ class CudnnOpaqueParamsSaveable(saver.BaseSaverBuilder.SaveableObject):
   def format_converter(self):
     if self._format_converter is None:
       self._format_converter = self._format_converter_cls(
-          self._num_layers, self._num_units, self._input_size, self._input_mode,
-          self._direction)
+          self._num_layers, self._num_units, self._input_size,
+          input_mode=self._input_mode,
+          direction=self._direction)
     return self._format_converter
 
   def restore(self, restored_tensors, restored_shapes):
@@ -960,6 +1037,7 @@ def _cudnn_rnn(inputs,
                dropout=0.,
                seed=0,
                sequence_lengths=None,
+               num_proj=None,
                name=None):
   """Cudnn RNN.
 
@@ -986,9 +1064,11 @@ def _cudnn_rnn(inputs,
     dropout: whether to enable dropout. With it is 0, dropout is disabled.
     seed: the op seed used for initializing dropout. See `tf.set_random_seed`
         for behavior.
-    sequence_lengths: an int32 array representing the variable sequence lengths 
-      in a batch. The size of the array has to equal to the batch_size. If not 
-      provided, the same sequence length will be assumed. 
+    sequence_lengths: an int32 array representing the variable sequence lengths
+      in a batch. The size of the array has to equal to the batch_size. If not
+      provided, the same sequence length will be assumed.
+    num_proj: The output dimensionality for the projection matrices.
+      If None or 0, no projection is performed.
     name: name of the operation.
   Returns:
     outputs, output_h, output_c
@@ -1015,10 +1095,16 @@ def _cudnn_rnn(inputs,
       "name": name
   }
   if sequence_lengths is not None:
-    if sequence_lengths.dtype != dtypes.int32:
-      raise ValueError("Invalid sequence_lengths dtype: %s", sequence_lengths.dtype)
     args["sequence_lengths"] = sequence_lengths
-    outputs, output_h, output_c, _ = gen_cudnn_rnn_ops.cudnn_rnn_var_seq_len(**args)
+    args["num_proj"] = 0 if num_proj is None else num_proj
+    outputs, output_h, output_c, _ = gen_cudnn_rnn_ops.cudnn_rnnv4(**args)
+  elif num_proj is not None and num_proj != 0:
+    batch_size = array_ops.shape(inputs)[1]
+    max_time = array_ops.shape(inputs)[0]
+    sequence_lengths = array_ops.fill([batch_size], max_time)
+    args["sequence_lengths"] = sequence_lengths
+    args["num_proj"] = num_proj
+    outputs, output_h, output_c, _ = gen_cudnn_rnn_ops.cudnn_rnnv4(**args)
   elif use_cudnn_v2 != "1":
     outputs, output_h, output_c, _ = gen_cudnn_rnn_ops.cudnn_rnn(**args)
   else:
@@ -1036,6 +1122,7 @@ def cudnn_lstm(inputs,
                dropout=0.,
                seed=0,
                sequence_lengths=None,
+               num_proj=None,
                name=None):
   """Cudnn LSTM.
 
@@ -1061,15 +1148,18 @@ def cudnn_lstm(inputs,
     dropout: whether to enable dropout. With it is 0, dropout is disabled.
     seed: the op seed used for initializing dropout. See `tf.set_random_seed`
         for behavior.
-    sequence_lengths: an int32 array representing the variable sequence lengths 
-      in a batch. The size of the array has to equal to the batch_size. If not 
-      provided, the same sequence length will be assumed. 
+    num_proj: The output dimensionality for the projection matrices.
+        If None or 0, no projection is performed.
+    sequence_lengths: an int32 array representing the variable sequence lengths
+        in a batch. The size of the array has to equal to the batch_size. If not
+        provided, the same sequence length will be assumed.
     name: name of the operation.
   Returns:
     outputs, output_h, output_c
   """
   return _cudnn_rnn(inputs, input_h, input_c, params, is_training, CUDNN_LSTM,
-                    input_mode, direction, dropout, seed, sequence_lengths, name)
+                    input_mode, direction, dropout, seed, sequence_lengths,
+                    num_proj, name)
 
 
 def _cudnn_rnn_no_input_c(inputs,
@@ -1106,9 +1196,9 @@ def _cudnn_rnn_no_input_c(inputs,
     dropout: whether to enable dropout. With it is 0, dropout is disabled.
     seed: the op seed used for initializing dropout. See `tf.set_random_seed`
         for behavior.
-    sequence_lengths: an int32 array representing the variable sequence lengths 
-      in a batch. The size of the array has to equal to the batch_size. If not 
-      provided, the same sequence length will be assumed. 
+    sequence_lengths: an int32 array representing the variable sequence lengths
+      in a batch. The size of the array has to equal to the batch_size. If not
+      provided, the same sequence length will be assumed.
     name: name of the operation.
   Returns:
     outputs, output_h
@@ -1116,7 +1206,8 @@ def _cudnn_rnn_no_input_c(inputs,
   input_c = array_ops.constant([], dtype=input_h.dtype)
   outputs, output_h, _ = _cudnn_rnn(inputs, input_h, input_c, params,
                                     is_training, rnn_mode, input_mode,
-                                    direction, dropout, seed, sequence_lengths, name)
+                                    direction, dropout, seed, sequence_lengths,
+                                    None, name)
   return outputs, output_h
 
 
@@ -1152,16 +1243,16 @@ def cudnn_gru(inputs,
     dropout: whether to enable dropout. With it is 0, dropout is disabled.
     seed: the op seed used for initializing dropout. See `tf.set_random_seed`
         for behavior.
-    sequence_lengths: an int32 array representing the variable sequence lengths 
-      in a batch. The size of the array has to equal to the batch_size. If not 
-      provided, the same sequence length will be assumed. 
+    sequence_lengths: an int32 array representing the variable sequence lengths
+      in a batch. The size of the array has to equal to the batch_size. If not
+      provided, the same sequence length will be assumed.
     name: name of the operation.
   Returns:
     outputs, output_h
   """
   return _cudnn_rnn_no_input_c(inputs, input_h, params, is_training, CUDNN_GRU,
-                               input_mode, direction, dropout, seed, sequence_lengths, name)
-
+                               input_mode, direction, dropout, seed,
+                               sequence_lengths, name)
 
 def cudnn_rnn_relu(inputs,
                    input_h,
@@ -1195,9 +1286,9 @@ def cudnn_rnn_relu(inputs,
     dropout: whether to enable dropout. With it is 0, dropout is disabled.
     seed: the op seed used for initializing dropout. See `tf.set_random_seed`
         for behavior.
-    sequence_lengths: an int32 array representing the variable sequence lengths 
-      in a batch. The size of the array has to equal to the batch_size. If not 
-      provided, the same sequence length will be assumed. 
+    sequence_lengths: an int32 array representing the variable sequence lengths
+      in a batch. The size of the array has to equal to the batch_size. If not
+      provided, the same sequence length will be assumed.
     name: name of the operation.
   Returns:
     outputs, output_h
@@ -1239,9 +1330,9 @@ def cudnn_rnn_tanh(inputs,
     dropout: whether to enable dropout. With it is 0, dropout is disabled.
     seed: the op seed used for initializing dropout. See `tf.set_random_seed`
         for behavior.
-    sequence_lengths: an int32 array representing the variable sequence lengths 
-      in a batch. The size of the array has to equal to the batch_size. If not 
-      provided, the same sequence length will be assumed. 
+    sequence_lengths: an int32 array representing the variable sequence lengths
+      in a batch. The size of the array has to equal to the batch_size. If not
+      provided, the same sequence length will be assumed.
     name: name of the operation.
   Returns:
     outputs, output_h
@@ -1260,6 +1351,7 @@ def cudnn_rnn_opaque_params_to_canonical(rnn_mode,
                                          direction=CUDNN_RNN_UNIDIRECTION,
                                          dropout=0,
                                          seed=0,
+                                         num_proj=None,
                                          name=None):
   """Convert cudnn opaque params to canonical.
 
@@ -1284,6 +1376,8 @@ def cudnn_rnn_opaque_params_to_canonical(rnn_mode,
     dropout: whether to enable dropout. With it is 0, dropout is disabled.
     seed: the op seed used for initializing dropout. See `tf.set_random_seed`
         for behavior.
+    num_proj: The output dimensionality for the projection matrices.
+        If None or 0, no projection is performed.
     name: name of the operation.
   Returns:
     weights list and bias list
@@ -1296,19 +1390,39 @@ def cudnn_rnn_opaque_params_to_canonical(rnn_mode,
   check_input_mode(input_mode)
   num_params = _get_num_params(rnn_mode, num_layers, direction)
   seed, seed2 = random_seed.get_seed(seed)
-  weights, biases = gen_cudnn_rnn_ops.cudnn_rnn_params_to_canonical(
-      rnn_mode=rnn_mode,
-      num_layers=num_layers,
-      num_units=num_units,
-      input_size=input_size,
-      params=params,
-      input_mode=input_mode,
-      direction=direction,
-      dropout=dropout,
-      seed=seed,
-      seed2=seed2,
-      num_params=num_params,
-      name=name)
+  num_dirs = 1 if direction == CUDNN_RNN_UNIDIRECTION else 2
+  if num_proj is not None and num_proj != 0:
+    num_params_weights = (num_params + 1 * num_layers * num_dirs)
+    num_params_biases = num_params
+    weights, biases = gen_cudnn_rnn_ops.cudnn_rnn_params_to_canonical_v2(
+        rnn_mode=rnn_mode,
+        num_layers=num_layers,
+        num_units=num_units,
+        input_size=input_size,
+        params=params,
+        input_mode=input_mode,
+        direction=direction,
+        dropout=dropout,
+        seed=seed,
+        seed2=seed2,
+        num_params_weights=num_params_weights,
+        num_params_bias=num_params_biases,
+        num_proj=num_proj,
+        name=name)
+  else:
+    weights, biases = gen_cudnn_rnn_ops.cudnn_rnn_params_to_canonical(
+        rnn_mode=rnn_mode,
+        num_layers=num_layers,
+        num_units=num_units,
+        input_size=input_size,
+        params=params,
+        input_mode=input_mode,
+        direction=direction,
+        dropout=dropout,
+        seed=seed,
+        seed2=seed2,
+        num_params=num_params,
+        name=name)
   return weights, biases
 
 
@@ -1322,6 +1436,7 @@ def cudnn_rnn_canonical_to_opaque_params(rnn_mode,
                                          direction=CUDNN_RNN_UNIDIRECTION,
                                          dropout=0,
                                          seed=0,
+                                         num_proj=None,
                                          name=None):
   """Converts params from the canonical format to a specific format of cuDNN.
 
@@ -1347,6 +1462,8 @@ def cudnn_rnn_canonical_to_opaque_params(rnn_mode,
     dropout: whether to enable dropout. With it is 0, dropout is disabled.
     seed: the op seed used for initializing dropout. See `tf.set_random_seed`
         for behavior.
+    num_proj: The output dimensionality for the projection matrices.
+        If None or 0, no projection is performed.
     name: name of the operation.
   Returns:
     an opaque Cudnn param.
@@ -1357,25 +1474,41 @@ def cudnn_rnn_canonical_to_opaque_params(rnn_mode,
   check_direction(direction)
   check_input_mode(input_mode)
   seed, seed2 = random_seed.get_seed(seed)
-  return gen_cudnn_rnn_ops.cudnn_rnn_canonical_to_params(
-      rnn_mode=rnn_mode,
-      num_layers=num_layers,
-      num_units=num_units,
-      input_size=input_size,
-      weights=weights,
-      biases=biases,
-      input_mode=input_mode,
-      direction=direction,
-      dropout=dropout,
-      seed=seed,
-      seed2=seed2,
-      name=name)
-
+  if num_proj is not None and num_proj != 0:
+    return gen_cudnn_rnn_ops.cudnn_rnn_canonical_to_params_v2(
+        rnn_mode=rnn_mode,
+        num_layers=num_layers,
+        num_units=num_units,
+        input_size=input_size,
+        weights=weights,
+        biases=biases,
+        input_mode=input_mode,
+        direction=direction,
+        dropout=dropout,
+        seed=seed,
+        seed2=seed2,
+        num_proj=num_proj,
+        name=name)
+  else:
+    return gen_cudnn_rnn_ops.cudnn_rnn_canonical_to_params(
+        rnn_mode=rnn_mode,
+        num_layers=num_layers,
+        num_units=num_units,
+        input_size=input_size,
+        weights=weights,
+        biases=biases,
+        input_mode=input_mode,
+        direction=direction,
+        dropout=dropout,
+        seed=seed,
+        seed2=seed2,
+        name=name)
 
 def cudnn_rnn_opaque_params_size(rnn_mode,
                                  num_layers,
                                  num_units,
                                  input_size,
+                                 num_proj=None,
                                  input_mode=CUDNN_INPUT_LINEAR_MODE,
                                  direction=CUDNN_RNN_UNIDIRECTION,
                                  dtype=dtypes.float32,
@@ -1391,6 +1524,8 @@ def cudnn_rnn_opaque_params_size(rnn_mode,
     num_units: the number of units within the RNN model.
     input_size: the size of the input, it could be different from the
         num_units.
+    num_proj: The output dimensionality for the projection matrices.
+        If None or 0, no projection is performed.
     input_mode: indicate whether there is a linear projection between the
         input and the actual computation before the first layer. It could be
         'linear_input', 'skip_input' or 'auto_select'.
@@ -1415,19 +1550,35 @@ def cudnn_rnn_opaque_params_size(rnn_mode,
   check_direction(direction)
   check_input_mode(input_mode)
   seed, seed2 = random_seed.get_seed(seed)
-  return gen_cudnn_rnn_ops.cudnn_rnn_params_size(
-      rnn_mode=rnn_mode,
-      num_layers=num_layers,
-      num_units=num_units,
-      input_size=input_size,
-      T=dtype,
-      S=dtypes.int32,
-      dropout=dropout,
-      seed=seed,
-      seed2=seed2,
-      input_mode=input_mode,
-      direction=direction,
-      name=name)[0]
+  if num_proj is not None and num_proj != 0:
+    return gen_cudnn_rnn_ops.cudnn_rnn_params_size_v2(
+        rnn_mode=rnn_mode,
+        num_layers=num_layers,
+        num_units=num_units,
+        input_size=input_size,
+        num_proj=num_proj,
+        T=dtype,
+        S=dtypes.int32,
+        dropout=dropout,
+        seed=seed,
+        seed2=seed2,
+        input_mode=input_mode,
+        direction=direction,
+        name=name)[0]
+  else:
+    return gen_cudnn_rnn_ops.cudnn_rnn_params_size(
+        rnn_mode=rnn_mode,
+        num_layers=num_layers,
+        num_units=num_units,
+        input_size=input_size,
+        T=dtype,
+        S=dtypes.int32,
+        dropout=dropout,
+        seed=seed,
+        seed2=seed2,
+        input_mode=input_mode,
+        direction=direction,
+        name=name)[0]
 
 
 class _CudnnRNN(object):
@@ -1448,7 +1599,8 @@ class _CudnnRNN(object):
                direction=CUDNN_RNN_UNIDIRECTION,
                dtype=dtypes.float32,
                dropout=0.,
-               seed=0):
+               seed=0,
+               num_proj=None):
     """Creates a CudnnRNN model from model spec.
 
     Args:
@@ -1472,6 +1624,8 @@ class _CudnnRNN(object):
       dropout: whether to enable dropout. With it is 0, dropout is disabled.
       seed: the op seed used for initializing dropout. See `tf.set_random_seed`
           for behavior.
+      num_proj: The output dimensionality for the projection matrices.
+          If None or 0, no projection is performed.
     Raises:
       ValueError: if direction is invalid.
     """
@@ -1484,6 +1638,7 @@ class _CudnnRNN(object):
     self._dtype = dtype
     self._dropout = dropout
     self._seed = seed
+    self._num_proj = num_proj
 
   @property
   def input_mode(self):
@@ -1509,6 +1664,10 @@ class _CudnnRNN(object):
   def direction(self):
     return self._direction
 
+  @property
+  def num_proj(self):
+    return self._num_proj
+
   def params_size(self):
     """Calculates the size of the opaque parameter buffer needed for this model.
 
@@ -1520,6 +1679,7 @@ class _CudnnRNN(object):
         num_layers=self._num_layers,
         num_units=self._num_units,
         input_size=self._input_size,
+        num_proj=self._num_proj,
         dtype=self._dtype,
         dropout=self._dropout,
         seed=self._seed,
@@ -1527,7 +1687,7 @@ class _CudnnRNN(object):
         direction=self._direction)
 
   def __call__(self, input_data, input_h, input_c, params, is_training=True,
-          sequence_lengths=None):
+               sequence_lengths=None):
     """Runs the forward step for the RNN model.
 
     Args:
@@ -1539,9 +1699,9 @@ class _CudnnRNN(object):
         A Tensor of the same shape as input_h.
       params: the parameter buffer created for this model.
       is_training: whether this operation will be used in training or inference.
-      sequence_lengths: an int32 array representing the variable sequence lengths 
-        in a batch. The size of the array has to equal to the batch_size. If not 
-        provided, the same sequence length will be assumed. 
+      sequence_lengths: an int32 array representing the variable sequence
+        lengths in a batch. The size of the array has to equal to the
+        batch_size. If not provided, the same sequence length will be assumed.
     Returns:
       output: the output sequence.
       output_h: the final state for h.
@@ -1558,7 +1718,8 @@ class _CudnnRNN(object):
         direction=self._direction,
         dropout=self._dropout,
         seed=self._seed,
-        sequence_lengths=sequence_lengths)
+        sequence_lengths=sequence_lengths,
+        num_proj=self._num_proj)
 
   def params_to_canonical(self, params):
     """Converts params from a specific format of cuDNN to the canonical format.
@@ -1578,7 +1739,8 @@ class _CudnnRNN(object):
         input_mode=self._input_mode,
         direction=self._direction,
         dropout=self._dropout,
-        seed=self._seed)
+        seed=self._seed,
+        num_proj=self._num_proj)
 
   def canonical_to_params(self, weights, biases):
     """Converts params from the canonical format to a specific format of cuDNN.
@@ -1600,7 +1762,8 @@ class _CudnnRNN(object):
         input_mode=self._input_mode,
         direction=self._direction,
         dropout=self._dropout,
-        seed=self._seed)
+        seed=self._seed,
+        num_proj=self._num_proj)
 
 
 class CudnnLSTM(_CudnnRNN):
@@ -1618,7 +1781,8 @@ class CudnnLSTM(_CudnnRNN):
                direction=CUDNN_RNN_UNIDIRECTION,
                dtype=dtypes.float32,
                dropout=0.,
-               seed=0):
+               seed=0,
+               num_proj=None):
     """Creates a Cudnn LSTM model from model spec.
 
     Args:
@@ -1637,6 +1801,8 @@ class CudnnLSTM(_CudnnRNN):
       dtype: dtype of params, tf.float32 or tf.float64.
       dropout: whether to enable dropout. With it is 0, dropout is disabled.
       seed: the seed used for initializing dropout.
+      num_proj: The output dimensionality for the projection matrices.
+          If None or 0, no projection is performed.
     """
     super(CudnnLSTM, self).__init__(
         CUDNN_LSTM,
@@ -1647,10 +1813,11 @@ class CudnnLSTM(_CudnnRNN):
         direction=direction,
         dtype=dtype,
         dropout=dropout,
-        seed=seed)
+        seed=seed,
+        num_proj=num_proj)
 
-  def __call__(self, input_data, input_h, input_c, params, is_training=True, 
-          sequence_lengths=None):
+  def __call__(self, input_data, input_h, input_c, params, is_training=True,
+               sequence_lengths=None):
     """Runs the forward step for the Cudnn LSTM model.
 
     Args:
@@ -1662,16 +1829,16 @@ class CudnnLSTM(_CudnnRNN):
         input_h.
       params: the parameter buffer created for this model.
       is_training: whether this operation will be used in training or inference.
-      sequence_lengths: an int32 array representing the variable sequence lengths 
-        in a batch. The size of the array has to equal to the batch_size. If not 
-        provided, the same sequence length will be assumed. 
+      sequence_lengths: an int32 array representing the variable sequence
+        lengths in a batch. The size of the array has to equal to the
+        batch_size. If not provided, the same sequence length will be assumed.
     Returns:
       output: the output sequence.
       output_h: the final state for h.
       output_c: the final state for c.
     """
     output, output_h, output_c = super(CudnnLSTM, self).__call__(
-        input_data, input_h, input_c, params, is_training=is_training, 
+        input_data, input_h, input_c, params, is_training=is_training,
         sequence_lengths=sequence_lengths)
     return (output, output_h, output_c)
 
@@ -1726,7 +1893,8 @@ class _CudnnRNNNoInputC(_CudnnRNN):
         dropout=dropout,
         seed=seed)
 
-  def __call__(self, input_data, input_h, params, is_training=True, sequence_lengths=None):
+  def __call__(self, input_data, input_h, params, is_training=True,
+               sequence_lengths=None):
     """Runs the forward step for the Cudnn LSTM model.
 
     Args:
@@ -1736,9 +1904,9 @@ class _CudnnRNNNoInputC(_CudnnRNN):
         batch_size, num_units].
       params: the parameter buffer created for this model.
       is_training: whether this operation will be used in training or inference.
-      sequence_lengths: an int32 array representing the variable sequence lengths 
-        in a batch. The size of the array has to equal to the batch_size. If not 
-        provided, the same sequence length will be assumed. 
+      sequence_lengths: an int32 array representing the variable sequence
+        lengths in a batch. The size of the array has to equal to the
+        batch_size. If not provided, the same sequence length will be assumed.
     Returns:
       output: the output sequence.
       output_h: the final state for h.
