@@ -114,23 +114,29 @@ Status BestCudnnConvAlgorithm(absl::Span<const AutotuneResult> results,
   const AutotuneResult* best_result = std::min_element(
       results.begin(), results.end(),
       [](const AutotuneResult& lhs, const AutotuneResult& rhs) {
-        return std::make_tuple(
-                   !lhs.has_success(),
-                   proto_utils::FromDurationProto(lhs.success().run_time())) <
-               std::make_tuple(
-                   !rhs.has_success(),
-                   proto_utils::FromDurationProto(rhs.success().run_time()));
+        if (!lhs.has_success() != !rhs.has_success()) {
+            return !lhs.has_success() < !rhs.has_success();
+        } else {
+            double a = absl::ToDoubleMilliseconds(
+                proto_utils::FromDurationProto(lhs.success().run_time()));
+            double b = absl::ToDoubleMilliseconds(
+                proto_utils::FromDurationProto(rhs.success().run_time()));
+            return IsTimeLessThan(a, b);
+        }
       });
 
   const AutotuneResult* best_result_no_scratch = std::min_element(
       results.begin(), results.end(),
       [](const AutotuneResult& lhs, const AutotuneResult& rhs) {
-        return std::make_tuple(
-                   !lhs.has_success(), lhs.success().scratch_bytes(),
-                   proto_utils::FromDurationProto(lhs.success().run_time())) <
-               std::make_tuple(
-                   !rhs.has_success(), rhs.success().scratch_bytes(),
-                   proto_utils::FromDurationProto(rhs.success().run_time()));
+        if (!lhs.has_success() != !rhs.has_success()) {
+            return !lhs.has_success() < !rhs.has_success();
+        } else {
+            double a = absl::ToDoubleMilliseconds(
+                proto_utils::FromDurationProto(lhs.success().run_time()));
+            double b = absl::ToDoubleMilliseconds(
+                proto_utils::FromDurationProto(rhs.success().run_time()));
+            return IsTimeLessThan(a, b);
+        }
       });
 
   if (best_result == results.end() || !best_result->has_success()) {
