@@ -21,7 +21,6 @@ from __future__ import print_function
 import collections
 import itertools
 import os
-import sys
 import unittest
 
 from absl.testing import parameterized
@@ -893,7 +892,6 @@ class CudnnParamsFormatConverterTest(TensorFlowTestCase,
         self.assertAllClose(w, w_r)
       if use_proj:
         for pw, pw_r in zip(pws, pws_r):
-          np.set_printoptions(threshold=sys.maxsize)
           self.assertAllClose(pw, pw_r)
       for b, b_r in zip(bs, bs_r):
         self.assertAllClose(b, b_r)
