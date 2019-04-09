@@ -83,7 +83,6 @@ def RunLSTM(sess,
   # set graph level random seed and numpy random seed.
   random_seed.set_random_seed(0)
   np.random.seed(0)
-  use_proj = (num_proj is not None and num_proj != 0)
 
   inputs = variable_scope.get_variable(
       "inputs",
@@ -93,7 +92,7 @@ def RunLSTM(sess,
   initial_h_op = variable_scope.get_variable(
       "initial_h_op",
       initializer=np.random.rand(batch_size,
-                                 num_proj if use_proj else num_units)
+                                 num_proj if num_proj else num_units)
       .astype(dtype.as_numpy_dtype),
       dtype=dtype)
   initial_c_op = variable_scope.get_variable(
@@ -108,19 +107,19 @@ def RunLSTM(sess,
   with variable_scope.variable_scope("test", initializer=initializer):
     w = variable_scope.get_variable(
         "rnn/lstm_cell/kernel",
-        shape=[input_size + (num_proj if use_proj else num_units),
+        shape=[input_size + (num_proj if num_proj else num_units),
                num_units * 4],
         dtype=dtype)
     b = variable_scope.get_variable(
         "rnn/lstm_cell/bias", shape=[num_units * 4], dtype=dtype)
-    if use_proj:
+    if num_proj:
       pw = variable_scope.get_variable(
           "rnn/lstm_cell/projection/kernel",
           shape=[num_units, num_proj], dtype=dtype)
 
     # canonical lstm. must set forget_bias to 0. to align with cudnn lstm.
     cell = rnn_cell_impl.LSTMCell(num_units, forget_bias=0., reuse=True,
-                                  num_proj=num_proj if use_proj else None)
+                                  num_proj=num_proj if num_proj else None)
     outputs_op, state_tuple_op = rnn.dynamic_rnn(
         cell,
         inputs,
@@ -133,8 +132,8 @@ def RunLSTM(sess,
   # Convert to cudnn opaque param.
   format_converter = cudnn_rnn_ops.CudnnParamsFormatConverterLSTM(
       num_layers, num_units, input_size,
-      num_proj=num_proj if use_proj else None)
-  if use_proj:
+      num_proj=num_proj if num_proj else None)
+  if num_proj:
     opaque_params = format_converter.tf_canonical_to_opaque([w, b], [pw,])
   else:
     opaque_params = format_converter.tf_canonical_to_opaque([w, b])
@@ -149,14 +148,14 @@ def RunLSTM(sess,
       dropout=dropout,
       is_training=is_training,
       rnn_mode=cudnn_rnn_ops.CUDNN_LSTM,
-      num_proj=num_proj if use_proj else None)
+      num_proj=num_proj if num_proj else None)
   # Remove the trivial 1st dimension.
   cu_state_tuple_op = rnn_cell_impl.LSTMStateTuple(
       c=array_ops.squeeze(cu_c_op, axis=0),
       h=array_ops.squeeze(cu_h_op, axis=0))
 
   if is_training:
-    if use_proj:
+    if num_proj:
       (inp_grad_op, hgrad_op,
        cgrad_op, wgrad_op, bgrad_op, pwgrad_op) = gradients_impl.gradients(
            outputs_op, [inputs, initial_h_op, initial_c_op, w, b, pw])
@@ -174,7 +173,7 @@ def RunLSTM(sess,
     # Remove the trivial 1st dimension
     cu_cgrad_op = array_ops.squeeze(cu_cgrad_op, axis=0)
 
-    if use_proj:
+    if num_proj:
       cu_wgrad_op, cu_bgrad_op, cu_pwgrad_op = \
           format_converter.opaque_to_tf_canonical(opaque_grad_op)
     else:
@@ -182,7 +181,7 @@ def RunLSTM(sess,
           opaque_grad_op)
     cu_wgrad_op = cu_wgrad_op[0]
     cu_bgrad_op = cu_bgrad_op[0]
-    if use_proj:
+    if num_proj:
       cu_pwgrad_op = cu_pwgrad_op[0]
     # cudnn lstm has 2 biases each gate. When converting to tf canonical format,
     # the two biases are summed into one. Thus here bias gradient should be
@@ -193,7 +192,7 @@ def RunLSTM(sess,
   sess.run(init_op)
 
   if is_training:
-    if use_proj:
+    if num_proj:
       outputs, state_tuple, inp_grad, state_grad, wgrad, bgrad, pwgrad = \
       sess.run([
           outputs_op, state_tuple_op, inp_grad_op,
@@ -225,13 +224,13 @@ def RunLSTM(sess,
     logging.vlog(1, "cu_state_grad: %s" % str(cu_state_grad))
     logging.vlog(1, "wgrad: %s" % str(wgrad))
     logging.vlog(1, "bgrad: %s" % str(bgrad))
-    if use_proj:
+    if num_proj:
       logging.vlog(1, "pwgrad: %s" % str(bgrad))
     logging.vlog(1, "cu_wgrad: %s" % str(cu_wgrad))
     logging.vlog(1, "cu_bgrad: %s" % str(cu_bgrad))
-    if use_proj:
+    if num_proj:
       logging.vlog(1, "cu_pwgrad: %s" % str(cu_bgrad))
-    if use_proj:
+    if num_proj:
       return (outputs, cu_outputs, state_tuple, cu_state_tuple, inp_grad,
               cu_inp_grad, state_grad, cu_state_grad, wgrad, bgrad, pwgrad,
               cu_wgrad, cu_bgrad, cu_pwgrad)
@@ -840,7 +839,6 @@ class CudnnParamsFormatConverterTest(TensorFlowTestCase,
 
   def _test_lstm_helper(self, num_units, input_size, num_layers, direction,
                         num_proj=None):
-    use_proj = (num_proj is not None and num_proj != 0)
     with self.session(use_gpu=True) as sess:
       random_seed.set_random_seed(0)
       np.random.seed(0)
@@ -848,24 +846,24 @@ class CudnnParamsFormatConverterTest(TensorFlowTestCase,
       num_dirs = 1 if direction == cudnn_rnn_ops.CUDNN_RNN_UNIDIRECTION else 2
       format_converter = cudnn_rnn_ops.CudnnParamsFormatConverterLSTM(
           num_layers, num_units, input_size, direction=direction,
-          num_proj=num_proj if use_proj else None)
+          num_proj=num_proj if num_proj else None)
 
       ws, bs, pws = [], [], []
       for _ in range(num_layers * num_dirs):
         w = constant_op.constant(
-            np.random.rand(input_size + (num_proj if use_proj else num_units),
+            np.random.rand(input_size + (num_proj if num_proj else num_units),
                            4 * num_units),
             dtype=dtypes.float32)
         b = constant_op.constant(
             np.random.rand(4 * num_units), dtype=dtypes.float32)
         ws.append(w)
         bs.append(b)
-        if use_proj:
+        if num_proj:
           pw = constant_op.constant(
               np.random.rand(num_units, num_proj), dtype=dtypes.float32)
           pws.append(pw)
 
-      if use_proj:
+      if num_proj:
         opaque_params = format_converter.tf_canonical_to_opaque(ws + bs, pws)
       else:
         opaque_params = format_converter.tf_canonical_to_opaque(ws + bs)
@@ -875,9 +873,9 @@ class CudnnParamsFormatConverterTest(TensorFlowTestCase,
           num_units,
           input_size,
           direction=direction,
-          num_proj=num_proj if use_proj else None)
+          num_proj=num_proj if num_proj else None)
 
-      if use_proj:
+      if num_proj:
         ws_r, bs_r, pws_r = format_converter.opaque_to_tf_canonical(
             opaque_params)
         ws, ws_r, pws, bs, bs_r, pws_r = sess.run([ws, ws_r, pws, bs, bs_r,
@@ -890,7 +888,7 @@ class CudnnParamsFormatConverterTest(TensorFlowTestCase,
       # returns the original input.
       for w, w_r in zip(ws, ws_r):
         self.assertAllClose(w, w_r)
-      if use_proj:
+      if num_proj:
         for pw, pw_r in zip(pws, pws_r):
           self.assertAllClose(pw, pw_r)
       for b, b_r in zip(bs, bs_r):

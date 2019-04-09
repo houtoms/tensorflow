@@ -211,7 +211,6 @@ class CudnnParamsFormatConverter(object):
     self._num_units = num_units
     self._input_mode = input_mode
     self._num_proj = num_proj
-    self._use_proj = self._num_proj is not None and self._num_proj != 0
     self._direction = direction
     self._num_dirs = 1 if self._direction == CUDNN_RNN_UNIDIRECTION else 2
     self._num_params = (
@@ -228,7 +227,7 @@ class CudnnParamsFormatConverter(object):
   def opaque_to_tf_canonical(self, opaque_param):
     r"""Converts cudnn opaque param to tf canonical weights."""
     cu_weights, cu_biases = self._opaque_to_cu_canonical(opaque_param)
-    if self._use_proj:
+    if self._num_proj:
       weights, biases, weights_proj = self._cu_canonical_to_tf_canonical(
           cu_weights, cu_biases)
       return weights, biases, weights_proj
@@ -247,7 +246,7 @@ class CudnnParamsFormatConverter(object):
       2 list for weights and biases respectively.
     """
     with ops.device("/gpu:0"):
-      if self._use_proj:
+      if self._num_proj:
         num_params_weights = (self._num_params +
                               1 * self._num_layers * self._num_dirs)
         num_params_biases = self._num_params
@@ -284,7 +283,7 @@ class CudnnParamsFormatConverter(object):
       a single opaque tensor.
     """
     with ops.device("/gpu:0"):
-      if self._use_proj:
+      if self._num_proj:
         return gen_cudnn_rnn_ops.cudnn_rnn_canonical_to_params_v2(
             num_layers=self._num_layers,
             num_units=self._num_units,
@@ -333,7 +332,7 @@ class CudnnParamsFormatConverter(object):
 
     layer_weights_num = self._num_params_per_layer * self._num_dirs
     layer_biases_num = layer_weights_num
-    layer_weights_num += (1 * self._num_dirs) if self._use_proj else 0
+    layer_weights_num += (1 * self._num_dirs) if self._num_proj else 0
 
     for i in range(self._num_layers):
       layer_weights = cu_weights[i * layer_weights_num:(i + 1) *
@@ -363,7 +362,7 @@ class CudnnParamsFormatConverter(object):
             tf_biases,
             tf_weights_proj,
         )
-    if self._use_proj:
+    if self._num_proj:
       return (tf_weights, tf_biases, tf_weights_proj)
     else:
       return (tf_weights, tf_biases)
@@ -473,7 +472,7 @@ class CudnnParamsFormatConverterLSTM(CudnnParamsFormatConverter):
 
   def _cudnn_to_tf_weights(self, *cu_weights):
     r"""Stitching cudnn canonical weights to generate tf canonical weights."""
-    if self._use_proj:
+    if self._num_proj:
       w_i, w_f, w_c, w_o, r_i, r_f, r_c, r_o, pw = cu_weights
     else:
       w_i, w_f, w_c, w_o, r_i, r_f, r_c, r_o = cu_weights
@@ -486,7 +485,7 @@ class CudnnParamsFormatConverterLSTM(CudnnParamsFormatConverter):
     # pylint: enable=invalid-name
     # Cudnn LSTM weights are in ifco order, other tf LSTMs are in icfo order.
     reordered = self._cudnn_to_tf_gate_params(* [W_i, W_f, W_c, W_o])
-    if self._use_proj:
+    if self._num_proj:
       return (array_ops.transpose(array_ops.concat(reordered, axis=0)),
               array_ops.transpose(pw))
     else:
@@ -499,7 +498,7 @@ class CudnnParamsFormatConverterLSTM(CudnnParamsFormatConverter):
     if layer == 0:
       input_weight_width = input_size
     else:
-      input_weight_width = self._num_proj if self._use_proj else num_units
+      input_weight_width = self._num_proj if self._num_proj else num_units
       if self._direction == CUDNN_RNN_BIDIRECTION:
         input_weight_width *= 2
 
@@ -508,7 +507,7 @@ class CudnnParamsFormatConverterLSTM(CudnnParamsFormatConverter):
     # pylint: disable=invalid-name
     W_i, W_f, W_c, W_o = self._tf_to_cudnn_gate_params(*array_ops.split(
         w, 4, axis=0))
-    hidden_state_width = self._num_proj if self._use_proj else num_units
+    hidden_state_width = self._num_proj if self._num_proj else num_units
     w_i, r_i = array_ops.split(W_i, [input_weight_width, hidden_state_width],
                                axis=1)
     w_c, r_c = array_ops.split(W_c, [input_weight_width, hidden_state_width],
@@ -554,7 +553,7 @@ class CudnnParamsFormatConverterLSTM(CudnnParamsFormatConverter):
   def _cu_canonical_to_tf_canonical_single_layer(self, cu_weights, cu_biases,
                                                  tf_weights, tf_biases,
                                                  tf_weights_proj=None):
-    if self._use_proj:
+    if self._num_proj:
       (w, pw) = self._cudnn_to_tf_weights(*cu_weights)
       tf_weights.append(w)
       tf_weights_proj.append(pw)
