@@ -22,8 +22,11 @@ import collections
 import numbers
 
 import numpy as np
+import uuid
 
 from tensorflow.python.eager import context
+from tensorflow.python.eager import function
+from tensorflow.python.framework import device
 from tensorflow.python.framework import dtypes
 from tensorflow.python.framework import errors_impl
 from tensorflow.python.framework import graph_util
@@ -51,6 +54,11 @@ from tensorflow.python.util.deprecation import deprecated_args
 from tensorflow.python.util.deprecation import deprecated_argument_lookup
 
 from tensorflow.python.util.tf_export import tf_export
+
+_DEFUN_API_NAME_ATTRIBUTE = 'api_implements'
+_DEFUN_DEVICE_ATTRIBUTE = 'api_preferred_device'
+_CPU_DEVICE_NAME = 'CPU'
+_GPU_DEVICE_NAME = 'GPU'
 
 # Aliases for some automatically-generated names.
 local_response_normalization = gen_nn_ops.lrn
@@ -142,6 +150,108 @@ def _non_atrous_convolution(
         name=scope)
     return op(input, filter)
 
+class _AtrousConvolution(object):
+  """Helper class for _non_atrous_convolution.
+
+  Note that this class assumes that shapes of input and filter passed to
+  __call__ are compatible with input_shape and filter_shape passed to the
+  constructor.
+
+  Arguments:
+    input_shape: static input shape, i.e. input.get_shape().
+    filter_shape: static filter shape, i.e. filter.get_shape().
+    padding: see _non_atrous_convolution.
+    data_format: see _non_atrous_convolution.
+    strides: see _non_atrous_convolution.
+    name: see _non_atrous_convolution.
+  """
+
+  def __init__(
+      self,
+      input_shape,
+      filter_shape,  # pylint: disable=redefined-builtin
+      padding,
+      data_format=None,
+      strides=None,
+      dilation_rate=None,
+      name=None):
+    filter_shape = filter_shape.with_rank(input_shape.ndims)
+    self.padding = padding
+    self.name = name
+    input_shape = input_shape.with_rank(filter_shape.ndims)
+    if input_shape.ndims is None:
+      raise ValueError("Rank of convolution must be known")
+    if input_shape.ndims < 3 or input_shape.ndims > 5:
+      raise ValueError(
+          "`input` and `filter` must have rank at least 3 and at most 5")
+    conv_dims = input_shape.ndims - 2
+    if strides is None:
+      strides = [1] * conv_dims
+    elif len(strides) != conv_dims:
+      raise ValueError("len(strides)=%d, but should be %d" % (len(strides),
+                                                              conv_dims))
+    self.dilations = dilation_rate
+    if conv_dims == 1:
+      # conv1d uses the 2-d data format names
+      if data_format is None:
+        data_format = "NWC"
+      elif data_format not in {"NCW", "NWC", "NCHW", "NHWC"}:
+        raise ValueError("data_format must be \"NWC\" or \"NCW\".")
+      self.strides = strides[0]
+      self.data_format = data_format
+      self.conv_op = self._conv1d
+    elif conv_dims == 2:
+      if data_format is None or data_format == "NHWC":
+        data_format = "NHWC"
+        strides = [1] + list(strides) + [1]
+      elif data_format == "NCHW":
+        strides = [1, 1] + list(strides)
+      else:
+        raise ValueError("data_format must be \"NHWC\" or \"NCHW\".")
+      self.strides = strides
+      self.data_format = data_format
+      self.conv_op = conv2d
+    elif conv_dims == 3:
+      if data_format is None or data_format == "NDHWC":
+        strides = [1] + list(strides) + [1]
+      elif data_format == "NCDHW":
+        strides = [1, 1] + list(strides)
+      else:
+        raise ValueError("data_format must be \"NDHWC\" or \"NCDHW\". Have: %s"
+                         % data_format)
+      channel_index = 1 if data_format.startswith("NC") else 4
+      self.dilations = _get_sequence(dilation_rate, 3, channel_index,
+                                     "dilations")
+      self.strides = strides
+      self.data_format = data_format
+      self.conv_op = gen_nn_ops.conv3d
+
+  # Note that we need this adapter since argument names for conv1d don't match
+  # those for gen_nn_ops.conv2d and gen_nn_ops.conv3d.
+  # pylint: disable=redefined-builtin
+  def _conv1d(self, input, filter, strides, padding, data_format, dilations,
+              name):
+    return conv1d(
+        value=input,
+        filters=filter,
+        stride=strides,
+        padding=padding,
+        data_format=data_format,
+	dilations=dilations,
+        name=name)
+
+  # pylint: enable=redefined-builtin
+
+  def __call__(self, inp, filter):  # pylint: disable=redefined-builtin
+    print("YYY atrousConvolution called")
+    return self.conv_op(
+        input=inp,
+        filter=filter,
+        strides=self.strides,
+        padding=self.padding,
+        data_format=self.data_format,
+	dilations=self.dilations,
+        name=self.name)
 
 class _NonAtrousConvolution(object):
   """Helper class for _non_atrous_convolution.
@@ -229,6 +339,7 @@ class _NonAtrousConvolution(object):
   # pylint: enable=redefined-builtin
 
   def __call__(self, inp, filter):  # pylint: disable=redefined-builtin
+    print("YYY NonAtrousConvolution called")
     return self.conv_op(
         input=inp,
         filter=filter,
@@ -482,6 +593,90 @@ def with_space_to_batch(
       data_format=data_format)
   return new_op(input, None)
 
+class _WithSpaceToBatch2(object):
+  """Helper class for with_space_to_batch.
+
+  Note that this class assumes that shapes of input and filter passed to
+  __call__ are compatible with input_shape and filter_shape passed to the
+  constructor.
+
+  Arguments
+    input_shape: static shape of input. i.e. input.get_shape().
+    dilation_rate: see with_space_to_batch
+    padding: see with_space_to_batch
+    build_op: Function that maps (num_spatial_dims, paddings) -> (function that
+      maps (input, filter) -> output).
+    filter_shape: see with_space_to_batch
+    spatial_dims: see with_space_to_batch
+    data_format: see with_space_to_batch
+  """
+
+  def __init__(self,
+               input_shape,
+               dilation_rate,
+               padding,
+               build_op,
+               filter_shape=None,
+               spatial_dims=None,
+               data_format=None):
+    """Helper class for _with_space_to_batch."""
+    dilation_rate = ops.convert_to_tensor(
+        dilation_rate, dtypes.int32, name="dilation_rate")
+    try:
+      rate_shape = dilation_rate.get_shape().with_rank(1)
+    except ValueError:
+      raise ValueError("rate must be rank 1")
+
+    if not dilation_rate.get_shape().is_fully_defined():
+      raise ValueError("rate must have known shape")
+
+    num_spatial_dims = rate_shape.dims[0].value
+
+    if data_format is not None and data_format.startswith("NC"):
+      starting_spatial_dim = 2
+    else:
+      starting_spatial_dim = 1
+
+    if spatial_dims is None:
+      spatial_dims = range(starting_spatial_dim,
+                           num_spatial_dims + starting_spatial_dim)
+    orig_spatial_dims = list(spatial_dims)
+    spatial_dims = sorted(set(int(x) for x in orig_spatial_dims))
+    if spatial_dims != orig_spatial_dims or any(x < 1 for x in spatial_dims):
+      raise ValueError(
+          "spatial_dims must be a montonically increasing sequence of positive "
+          "integers")
+
+    if data_format is not None and data_format.startswith("NC"):
+      expected_input_rank = spatial_dims[-1]
+    else:
+      expected_input_rank = spatial_dims[-1] + 1
+
+    try:
+      input_shape.with_rank_at_least(expected_input_rank)
+    except ValueError:
+      raise ValueError(
+          "input tensor must have rank %d at least" % (expected_input_rank))
+
+    const_rate = tensor_util.constant_value(dilation_rate)
+    rate_or_const_rate = dilation_rate
+    can_use_fused = False
+    if input_shape.ndims is not None:
+      conv_dims = input_shape.ndims - 2
+      can_use_fused = conv_dims <= 2
+    else:
+      raise ValueError("cudnn dilation only supports 1D or 2D inputs")
+    if const_rate is not None:
+      rate_or_const_rate = const_rate
+      if np.any(const_rate < 1):
+        raise ValueError("dilation_rate must be positive")
+      if can_use_fused or np.all(const_rate == 1):
+        self.call = build_op(num_spatial_dims, padding)
+        return
+
+  def __call__(self, inp, filter):  # pylint: disable=redefined-builtin
+    print("XXX call cudnn version")
+    return self.call(inp, filter)
 
 class _WithSpaceToBatch(object):
   """Helper class for with_space_to_batch.
@@ -636,6 +831,7 @@ class _WithSpaceToBatch(object):
     return result_converted
 
   def __call__(self, inp, filter):  # pylint: disable=redefined-builtin
+    print("XXX call standard version")
     return self.call(inp, filter)
 
 
@@ -1025,6 +1221,21 @@ def convolution_internal(
           data_format=data_format)
       return op(input, filters)
 
+def _get_context_device_type():
+  """Parse the current context and return the device type, eg CPU/GPU."""
+  current_device = context.context().device_name
+  if current_device is None:
+    return None
+  return device.DeviceSpec.from_string(current_device).device_type
+
+def _generate_defun_backend(unique_api_name, preferred_device, func):
+  function_attributes = {
+      _DEFUN_API_NAME_ATTRIBUTE: unique_api_name,
+      _DEFUN_DEVICE_ATTRIBUTE: preferred_device,
+  }
+  return function.defun_with_attributes(func=func,
+                                        attributes=function_attributes,
+                                        autograph=False)
 
 class Convolution(object):
   """Helper class for convolution.
@@ -1097,7 +1308,7 @@ class Convolution(object):
     self.padding = padding
     self.name = name
     self.dilation_rate = dilation_rate
-    self.conv_op = _WithSpaceToBatch(
+    self.conv_op_standard = _WithSpaceToBatch(
         input_shape,
         dilation_rate=dilation_rate,
         padding=padding,
@@ -1105,6 +1316,15 @@ class Convolution(object):
         filter_shape=filter_shape,
         spatial_dims=spatial_dims,
         data_format=data_format)
+    self.conv_op_cudnn = _WithSpaceToBatch2(
+        input_shape,
+        dilation_rate=dilation_rate,
+        padding=padding,
+        build_op=self._build_op2,
+        filter_shape=filter_shape,
+        spatial_dims=spatial_dims,
+        data_format=data_format)
+    
 
   def _build_op(self, _, padding):
     return _NonAtrousConvolution(
@@ -1113,6 +1333,16 @@ class Convolution(object):
         padding=padding,
         data_format=self.data_format,
         strides=self.strides,
+        name=self.name)
+
+  def _build_op2(self, _, padding):
+    return _AtrousConvolution(
+        self.input_shape,
+        filter_shape=self.filter_shape,
+        padding=padding,
+        data_format=self.data_format,
+        strides=self.strides,
+	dilation_rate=self.dilation_rate,
         name=self.name)
 
   def __call__(self, inp, filter):  # pylint: disable=redefined-builtin
@@ -1131,7 +1361,30 @@ class Convolution(object):
           name=self.name,
           call_from_convolution=False)
     else:
-      return self.conv_op(inp, filter)
+      params = {'inp': inp, 'filter': filter}
+      if context.executing_eagerly():
+        device_type = _get_context_device_type()
+        can_use_gpu = (
+            # Either user specified GPU or unspecified but GPU is available.
+            (device_type == _GPU_DEVICE_NAME
+             or (device_type is None and context.num_gpus() > 0)))
+        # Under eager context, check the device placement and prefer the
+        if can_use_gpu:
+          res = self.conv_op_cudnn(**params)
+        else:
+          res = self.conv_op_standard(**params)
+      else:
+        api_name = 'conv_' + str(uuid.uuid4())
+        print("XXX api_name:", api_name)
+        conv_op_standard = _generate_defun_backend(
+            api_name, _CPU_DEVICE_NAME, self.conv_op_standard)
+        #api_name = 'conv_' + str(uuid.uuid4())
+        #print("XXX api_name:", api_name)
+        conv_op_cudnn = _generate_defun_backend(
+            api_name, _GPU_DEVICE_NAME, self.conv_op_cudnn)
+        res = conv_op_standard(**params) 
+        function.register(conv_op_cudnn, **params)
+      return res 
     # copybara:strip_end
     # copybara:insert return self.conv_op(inp, filter)
 
