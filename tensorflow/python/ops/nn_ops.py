@@ -804,6 +804,8 @@ class _WithSpaceToBatch(object):
       filter_shape = array_ops.shape(filter)
       base_paddings = _with_space_to_batch_base_paddings(
           filter_shape, self.num_spatial_dims, self.rate_or_const_rate)
+    #base_paddings = array_ops.stop_gradient(base_paddings)
+    #self.dilation_rate = array_ops.stop_gradient(self.dilation_rate)
     paddings, crops = array_ops.required_space_to_batch_paddings(
         input_shape=input_spatial_shape,
         base_paddings=base_paddings,
@@ -813,11 +815,13 @@ class _WithSpaceToBatch(object):
                                                 spatial_dims)
     paddings = _with_space_to_batch_adjust(paddings, 0, spatial_dims)
     crops = _with_space_to_batch_adjust(crops, 0, spatial_dims)
+    #paddings = array_ops.stop_gradient(paddings)
     input_converted = array_ops.space_to_batch_nd(
         input=inp, block_shape=dilation_rate, paddings=paddings)
 
     result = self.op(input_converted, filter)
 
+    #crops = array_ops.stop_gradient(crops)
     result_converted = array_ops.batch_to_space_nd(
         input=result, block_shape=dilation_rate, crops=crops)
 
@@ -1233,6 +1237,7 @@ def _generate_defun_backend(unique_api_name, preferred_device, func):
       _DEFUN_API_NAME_ATTRIBUTE: unique_api_name,
       _DEFUN_DEVICE_ATTRIBUTE: preferred_device,
   }
+  print("PPP register", func, "to", unique_api_name)
   return function.defun_with_attributes(func=func,
                                         attributes=function_attributes,
                                         autograph=False)
@@ -1376,6 +1381,8 @@ class Convolution(object):
       else:
         api_name = 'conv_' + str(uuid.uuid4())
         print("XXX api_name:", api_name)
+        print("XXX inp shapes:", inp.get_shape())
+        print("XXX filter shapes:", filter.get_shape())
         conv_op_standard = _generate_defun_backend(
             api_name, _CPU_DEVICE_NAME, self.conv_op_standard)
         #api_name = 'conv_' + str(uuid.uuid4())

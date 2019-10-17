@@ -105,9 +105,58 @@ bool IsSameSignature(const FunctionDef& f1, const FunctionDef& f2,
   const auto& sig2 = f2.signature();
   // Functions have positional semantics, so we don't check for names.
   if (check_inputs) {
-    if (sig1.input_arg_size() != sig2.input_arg_size()) return false;
+    std::cout << "UUU check_inputs" << std::endl;
+    std::cout << "UUU sig1 input_arg_size: " << sig1.input_arg_size() << std::endl;
+    std::cout << "UUU sig2 input_arg_size: " << sig2.input_arg_size() << std::endl;
+    std::cout << "UUU sig1: " << std::endl;
+    for (int k = 0; k < sig1.input_arg_size(); ++k) {
+      std::cout << sig1.input_arg(k).type() << " ";
+      std::cout << sig1.input_arg(k).name() << " ";
+      std::cout << sig1.input_arg(k).description() << " ";
+      std::cout << sig1.input_arg(k).type_attr() << " ";
+      std::cout << sig1.input_arg(k).number_attr() << " ";
+      std::cout << sig1.input_arg(k).type_list_attr() << " ";
+      std::cout << sig1.input_arg(k).is_ref() << " ";
+      std::cout << std::endl;
+    }
+    std::cout << "UUU sig1 output: " << std::endl;
+    for (int k = 0; k < sig1.output_arg_size(); ++k) {
+      std::cout << sig1.output_arg(k).type() << " ";
+      std::cout << sig1.output_arg(k).name() << " ";
+      std::cout << sig1.output_arg(k).description() << " ";
+      std::cout << sig1.output_arg(k).type_attr() << " ";
+      std::cout << sig1.output_arg(k).number_attr() << " ";
+      std::cout << sig1.output_arg(k).type_list_attr() << " ";
+      std::cout << sig1.output_arg(k).is_ref() << " ";
+      std::cout << std::endl;
+    }
+    std::cout << "UUU sig2: " << std::endl;
+    for (int k = 0; k < sig2.input_arg_size(); ++k) {
+      std::cout << sig2.input_arg(k).type() << " ";
+      std::cout << sig2.input_arg(k).name() << " ";
+      std::cout << sig2.input_arg(k).description() << " ";
+      std::cout << sig2.input_arg(k).type_attr() << " ";
+      std::cout << sig2.input_arg(k).number_attr() << " ";
+      std::cout << sig2.input_arg(k).type_list_attr() << " ";
+      std::cout << sig2.input_arg(k).is_ref() << " ";
+      std::cout << std::endl;
+    }
+    std::cout << "UUU sig2 output: " << std::endl;
+    for (int k = 0; k < sig2.output_arg_size(); ++k) {
+      std::cout << sig2.output_arg(k).type() << " ";
+      std::cout << sig2.output_arg(k).name() << " ";
+      std::cout << sig2.output_arg(k).description() << " ";
+      std::cout << sig2.output_arg(k).type_attr() << " ";
+      std::cout << sig2.output_arg(k).number_attr() << " ";
+      std::cout << sig2.output_arg(k).type_list_attr() << " ";
+      std::cout << sig2.output_arg(k).is_ref() << " ";
+      std::cout << std::endl;
+    }
+    // if (sig1.input_arg_size() != sig2.input_arg_size()) return false;
+    std::cout << "UUU input_arg_size is same" << std::endl;
     for (int k = 0; k < sig1.input_arg_size(); ++k) {
       if (!IsSameArgDef(sig1.input_arg(k), sig2.input_arg(k))) return false;
+      std::cout << "UUU IsSameArgDef" << k << " is same" << std::endl;
     }
   }
   if (check_outputs) {
@@ -123,6 +172,7 @@ bool IsSameSignature(const FunctionDef& f1, const FunctionDef& f2,
 Status ValidateSignature(const string& interface_name,
                          const std::vector<const FunctionDef*>& equiv_funcs,
                          const FunctionApiInfo::FunctionType function_type) {
+  std::cout << "UUU equiv_funcs size " << equiv_funcs.size() << std::endl;
   if (equiv_funcs.size() < 2) return Status::OK();
   for (size_t k = 1; k < equiv_funcs.size(); ++k) {
     const bool check_input =
@@ -131,6 +181,8 @@ Status ValidateSignature(const string& interface_name,
     const bool check_output =
         (function_type == FunctionApiInfo::FunctionType::INFERENCE ||
          function_type == FunctionApiInfo::FunctionType::BACKWARD);
+    std::cout << "UUU check_input: " << std::boolalpha << check_input << std::endl;
+    std::cout << "UUU check_output: " << std::boolalpha << check_output << std::endl;
     if (!IsSameSignature(*equiv_funcs[0], *equiv_funcs[k], check_input,
                          check_output)) {
       return errors::InvalidArgument(
@@ -146,6 +198,7 @@ Status ValidateSignatures(
     const std::unordered_map<string, std::vector<const FunctionDef*>>&
         intf_to_func,
     const FunctionApiInfo::FunctionType function_type) {
+  std::cout << "UUU intf_to_func size " << intf_to_func.size() << std::endl;
   for (const auto& item : intf_to_func)
     TF_RETURN_IF_ERROR(
         ValidateSignature(item.first, item.second, function_type));
@@ -188,12 +241,16 @@ Status FunctionLibraryApiInfo::Init(
     }
     func_info_[function_name] = std::move(func_info);
   }
+  std::cout << "UUU store functions to vectors" << std::endl;
   TF_RETURN_IF_ERROR(ValidateSignatures(
       infer_funcs, FunctionApiInfo::FunctionType::INFERENCE));
+  std::cout << "UUU ValidateSignatures Infer" << std::endl;
   TF_RETURN_IF_ERROR(
       ValidateSignatures(fwd_funcs, FunctionApiInfo::FunctionType::FORWARD));
+  std::cout << "UUU ValidateSignatures forward" << std::endl;
   TF_RETURN_IF_ERROR(
       ValidateSignatures(bwd_funcs, FunctionApiInfo::FunctionType::BACKWARD));
+  std::cout << "UUU ValidateSignatures backward" << std::endl;
   return Status::OK();
 }
 

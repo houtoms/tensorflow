@@ -1456,11 +1456,14 @@ Status FunctionOptimizer::RunFunctionOptimizerPass(
 
 Status FunctionOptimizer::Optimize(Cluster*, const GrapplerItem& item,
                                    GraphDef* optimized_graph) {
+  std::cout << "FFF Optimize()" << std::endl;
   // Nothing to do here.
   if (item.graph.library().function_size() == 0) {
+    std::cout << "FFF Nothing to do" << std::endl;
     return errors::Aborted("Nothing to do.");
   }
 
+  std::cout << "FFF to RunFunctionOptimizerPass" << std::endl;
   TF_RETURN_IF_ERROR(RunFunctionOptimizerPass(item, optimized_graph));
 
   return Status::OK();
