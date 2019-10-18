@@ -243,7 +243,7 @@ class _AtrousConvolution(object):
   # pylint: enable=redefined-builtin
 
   def __call__(self, inp, filter):  # pylint: disable=redefined-builtin
-    print("YYY atrousConvolution called")
+    print("[YYY] AtrousConvolution called")
     return self.conv_op(
         input=inp,
         filter=filter,
@@ -339,7 +339,7 @@ class _NonAtrousConvolution(object):
   # pylint: enable=redefined-builtin
 
   def __call__(self, inp, filter):  # pylint: disable=redefined-builtin
-    print("YYY NonAtrousConvolution called")
+    print("[YYY] NonAtrousConvolution called")
     return self.conv_op(
         input=inp,
         filter=filter,
@@ -616,6 +616,7 @@ class _WithSpaceToBatch2(object):
                dilation_rate,
                padding,
                build_op,
+               build_op_real,
                filter_shape=None,
                spatial_dims=None,
                data_format=None):
@@ -671,11 +672,160 @@ class _WithSpaceToBatch2(object):
       if np.any(const_rate < 1):
         raise ValueError("dilation_rate must be positive")
       if can_use_fused or np.all(const_rate == 1):
-        self.call = build_op(num_spatial_dims, padding)
+        # DUMMY OPERATION 
+        if padding == "SAME":
+          if filter_shape is None:
+            raise ValueError("filter_shape must be specified for SAME padding")
+          filter_shape = ops.convert_to_tensor(filter_shape, name="filter_shape")
+          const_filter_shape = tensor_util.constant_value(filter_shape)
+          if const_filter_shape is not None:
+            filter_shape = const_filter_shape
+            self.base_paddings = _with_space_to_batch_base_paddings(
+                const_filter_shape, num_spatial_dims, rate_or_const_rate)
+          else:
+            self.num_spatial_dims = num_spatial_dims
+            self.rate_or_const_rate = rate_or_const_rate
+            self.base_paddings = None
+        elif padding == "VALID":
+          self.base_paddings = np.zeros([num_spatial_dims, 2], np.int32)
+        else:
+          raise ValueError("Invalid padding method %r" % padding)
+        self.input_shape = input_shape
+        self.spatial_dims = spatial_dims
+        self.dilation_rate = dilation_rate
+        self.data_format = data_format
+        # DUMMY OPERATION END
+
+
+        #self.call = build_op(num_spatial_dims, padding)
+
+        self.op = build_op(num_spatial_dims, padding)
+        self.call = self._with_space_to_batch_call
         return
 
+    if padding == "SAME":
+      if filter_shape is None:
+        raise ValueError("filter_shape must be specified for SAME padding")
+      filter_shape = ops.convert_to_tensor(filter_shape, name="filter_shape")
+      const_filter_shape = tensor_util.constant_value(filter_shape)
+      if const_filter_shape is not None:
+        filter_shape = const_filter_shape
+        self.base_paddings = _with_space_to_batch_base_paddings(
+            const_filter_shape, num_spatial_dims, rate_or_const_rate)
+      else:
+        self.num_spatial_dims = num_spatial_dims
+        self.rate_or_const_rate = rate_or_const_rate
+        self.base_paddings = None
+    elif padding == "VALID":
+      self.base_paddings = np.zeros([num_spatial_dims, 2], np.int32)
+    else:
+      raise ValueError("Invalid padding method %r" % padding)
+
+    self.input_shape = input_shape
+    self.spatial_dims = spatial_dims
+    self.dilation_rate = dilation_rate
+    self.data_format = data_format
+    self.op = build_op_real(num_spatial_dims, "VALID")
+    self.call = self._with_space_to_batch_call_real
+
+  def _with_space_to_batch_call(self, inp, filter):  # pylint: disable=redefined-builtin
+    """Call functionality for with_space_to_batch."""
+    # Handle input whose shape is unknown during graph creation.
+    input_spatial_shape = None
+    input_shape = self.input_shape
+    spatial_dims = self.spatial_dims
+    if input_shape.ndims is not None:
+      input_shape_list = input_shape.as_list()
+      input_spatial_shape = [input_shape_list[i] for i in spatial_dims]
+    if input_spatial_shape is None or None in input_spatial_shape:
+      input_shape_tensor = array_ops.shape(inp)
+      input_spatial_shape = array_ops.stack(
+          [input_shape_tensor[i] for i in spatial_dims])
+
+    base_paddings = self.base_paddings
+    if base_paddings is None:
+      # base_paddings could not be computed at build time since static filter
+      # shape was not fully defined.
+      filter_shape = array_ops.shape(filter)
+      base_paddings = _with_space_to_batch_base_paddings(
+          filter_shape, self.num_spatial_dims, self.rate_or_const_rate)
+    paddings, crops = array_ops.required_space_to_batch_paddings(
+        input_shape=input_spatial_shape,
+        base_paddings=base_paddings,
+        block_shape=self.dilation_rate)
+
+    #dilation_rate = _with_space_to_batch_adjust(self.dilation_rate, 1,
+    #                                            spatial_dims)
+    #paddings = _with_space_to_batch_adjust(paddings, 0, spatial_dims)
+    #crops = _with_space_to_batch_adjust(crops, 0, spatial_dims)
+    #input_converted = array_ops.space_to_batch_nd(
+    #    input=inp, block_shape=dilation_rate, paddings=paddings)
+
+    result = self.op(inp, filter)
+
+    #result_converted = array_ops.batch_to_space_nd(
+    #    input=result, block_shape=dilation_rate, crops=crops)
+
+    ## Recover channel information for output shape if channels are not last.
+    #if self.data_format is not None and self.data_format.startswith("NC"):
+    #  if not result_converted.shape.dims[1].value and filter is not None:
+    #    output_shape = result_converted.shape.as_list()
+    #    output_shape[1] = filter.shape[-1]
+    #    result_converted.set_shape(output_shape)
+
+    #return result_converted
+    return result
+
+  def _with_space_to_batch_call_real(self, inp, filter):  # pylint: disable=redefined-builtin
+    """Call functionality for with_space_to_batch."""
+    # Handle input whose shape is unknown during graph creation.
+    input_spatial_shape = None
+    input_shape = self.input_shape
+    spatial_dims = self.spatial_dims
+    if input_shape.ndims is not None:
+      input_shape_list = input_shape.as_list()
+      input_spatial_shape = [input_shape_list[i] for i in spatial_dims]
+    if input_spatial_shape is None or None in input_spatial_shape:
+      input_shape_tensor = array_ops.shape(inp)
+      input_spatial_shape = array_ops.stack(
+          [input_shape_tensor[i] for i in spatial_dims])
+
+    base_paddings = self.base_paddings
+    if base_paddings is None:
+      # base_paddings could not be computed at build time since static filter
+      # shape was not fully defined.
+      filter_shape = array_ops.shape(filter)
+      base_paddings = _with_space_to_batch_base_paddings(
+          filter_shape, self.num_spatial_dims, self.rate_or_const_rate)
+    paddings, crops = array_ops.required_space_to_batch_paddings(
+        input_shape=input_spatial_shape,
+        base_paddings=base_paddings,
+        block_shape=self.dilation_rate)
+
+    dilation_rate = _with_space_to_batch_adjust(self.dilation_rate, 1,
+                                                spatial_dims)
+    paddings = _with_space_to_batch_adjust(paddings, 0, spatial_dims)
+    crops = _with_space_to_batch_adjust(crops, 0, spatial_dims)
+    input_converted = array_ops.space_to_batch_nd(
+        input=inp, block_shape=dilation_rate, paddings=paddings)
+
+    result = self.op(input_converted, filter)
+
+    result_converted = array_ops.batch_to_space_nd(
+        input=result, block_shape=dilation_rate, crops=crops)
+
+    # Recover channel information for output shape if channels are not last.
+    if self.data_format is not None and self.data_format.startswith("NC"):
+      if not result_converted.shape.dims[1].value and filter is not None:
+        output_shape = result_converted.shape.as_list()
+        output_shape[1] = filter.shape[-1]
+        result_converted.set_shape(output_shape)
+
+    return result_converted
+
   def __call__(self, inp, filter):  # pylint: disable=redefined-builtin
-    print("XXX call cudnn version")
+    print("[XXX] call cudnn version")
+    
     return self.call(inp, filter)
 
 class _WithSpaceToBatch(object):
@@ -804,8 +954,6 @@ class _WithSpaceToBatch(object):
       filter_shape = array_ops.shape(filter)
       base_paddings = _with_space_to_batch_base_paddings(
           filter_shape, self.num_spatial_dims, self.rate_or_const_rate)
-    #base_paddings = array_ops.stop_gradient(base_paddings)
-    #self.dilation_rate = array_ops.stop_gradient(self.dilation_rate)
     paddings, crops = array_ops.required_space_to_batch_paddings(
         input_shape=input_spatial_shape,
         base_paddings=base_paddings,
@@ -815,13 +963,11 @@ class _WithSpaceToBatch(object):
                                                 spatial_dims)
     paddings = _with_space_to_batch_adjust(paddings, 0, spatial_dims)
     crops = _with_space_to_batch_adjust(crops, 0, spatial_dims)
-    #paddings = array_ops.stop_gradient(paddings)
     input_converted = array_ops.space_to_batch_nd(
         input=inp, block_shape=dilation_rate, paddings=paddings)
 
     result = self.op(input_converted, filter)
 
-    #crops = array_ops.stop_gradient(crops)
     result_converted = array_ops.batch_to_space_nd(
         input=result, block_shape=dilation_rate, crops=crops)
 
@@ -835,7 +981,7 @@ class _WithSpaceToBatch(object):
     return result_converted
 
   def __call__(self, inp, filter):  # pylint: disable=redefined-builtin
-    print("XXX call standard version")
+    print("[XXX] call standard version")
     return self.call(inp, filter)
 
 
@@ -1326,6 +1472,7 @@ class Convolution(object):
         dilation_rate=dilation_rate,
         padding=padding,
         build_op=self._build_op2,
+        build_op_real=self._build_op,
         filter_shape=filter_shape,
         spatial_dims=spatial_dims,
         data_format=data_format)
@@ -1380,13 +1527,11 @@ class Convolution(object):
           res = self.conv_op_standard(**params)
       else:
         api_name = 'conv_' + str(uuid.uuid4())
-        print("XXX api_name:", api_name)
-        print("XXX inp shapes:", inp.get_shape())
-        print("XXX filter shapes:", filter.get_shape())
+        print("[FUNC] api_name:", api_name)
+        print("[FUNC] inp shapes:", inp.get_shape())
+        print("[FUNC] filter shapes:", filter.get_shape())
         conv_op_standard = _generate_defun_backend(
             api_name, _CPU_DEVICE_NAME, self.conv_op_standard)
-        #api_name = 'conv_' + str(uuid.uuid4())
-        #print("XXX api_name:", api_name)
         conv_op_cudnn = _generate_defun_backend(
             api_name, _GPU_DEVICE_NAME, self.conv_op_cudnn)
         res = conv_op_standard(**params) 

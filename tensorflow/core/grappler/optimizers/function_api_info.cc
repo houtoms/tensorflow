@@ -103,56 +103,57 @@ bool IsSameSignature(const FunctionDef& f1, const FunctionDef& f2,
                      const bool check_inputs, const bool check_outputs) {
   const auto& sig1 = f1.signature();
   const auto& sig2 = f2.signature();
+  std::cout << "UUU check_inputs: " << std::boolalpha << check_inputs << std::endl;
+  std::cout << "UUU check_outputs: " << std::boolalpha << check_outputs << std::endl;
+  std::cout << "UUU sig1 input_arg_size: " << sig1.input_arg_size() << std::endl;
+  std::cout << "UUU sig2 input_arg_size: " << sig2.input_arg_size() << std::endl;
+  std::cout << "UUU sig1: " << std::endl;
+  for (int k = 0; k < sig1.input_arg_size(); ++k) {
+    std::cout << sig1.input_arg(k).type() << " ";
+    std::cout << sig1.input_arg(k).name() << " ";
+    std::cout << sig1.input_arg(k).description() << " ";
+    std::cout << sig1.input_arg(k).type_attr() << " ";
+    std::cout << sig1.input_arg(k).number_attr() << " ";
+    std::cout << sig1.input_arg(k).type_list_attr() << " ";
+    std::cout << sig1.input_arg(k).is_ref() << " ";
+    std::cout << std::endl;
+  }
+  std::cout << "UUU sig1 output: " << std::endl;
+  for (int k = 0; k < sig1.output_arg_size(); ++k) {
+    std::cout << sig1.output_arg(k).type() << " ";
+    std::cout << sig1.output_arg(k).name() << " ";
+    std::cout << sig1.output_arg(k).description() << " ";
+    std::cout << sig1.output_arg(k).type_attr() << " ";
+    std::cout << sig1.output_arg(k).number_attr() << " ";
+    std::cout << sig1.output_arg(k).type_list_attr() << " ";
+    std::cout << sig1.output_arg(k).is_ref() << " ";
+    std::cout << std::endl;
+  }
+  std::cout << "UUU sig2: " << std::endl;
+  for (int k = 0; k < sig2.input_arg_size(); ++k) {
+    std::cout << sig2.input_arg(k).type() << " ";
+    std::cout << sig2.input_arg(k).name() << " ";
+    std::cout << sig2.input_arg(k).description() << " ";
+    std::cout << sig2.input_arg(k).type_attr() << " ";
+    std::cout << sig2.input_arg(k).number_attr() << " ";
+    std::cout << sig2.input_arg(k).type_list_attr() << " ";
+    std::cout << sig2.input_arg(k).is_ref() << " ";
+    std::cout << std::endl;
+  }
+  std::cout << "UUU sig2 output: " << std::endl;
+  for (int k = 0; k < sig2.output_arg_size(); ++k) {
+    std::cout << sig2.output_arg(k).type() << " ";
+    std::cout << sig2.output_arg(k).name() << " ";
+    std::cout << sig2.output_arg(k).description() << " ";
+    std::cout << sig2.output_arg(k).type_attr() << " ";
+    std::cout << sig2.output_arg(k).number_attr() << " ";
+    std::cout << sig2.output_arg(k).type_list_attr() << " ";
+    std::cout << sig2.output_arg(k).is_ref() << " ";
+    std::cout << std::endl;
+  }
   // Functions have positional semantics, so we don't check for names.
   if (check_inputs) {
-    std::cout << "UUU check_inputs" << std::endl;
-    std::cout << "UUU sig1 input_arg_size: " << sig1.input_arg_size() << std::endl;
-    std::cout << "UUU sig2 input_arg_size: " << sig2.input_arg_size() << std::endl;
-    std::cout << "UUU sig1: " << std::endl;
-    for (int k = 0; k < sig1.input_arg_size(); ++k) {
-      std::cout << sig1.input_arg(k).type() << " ";
-      std::cout << sig1.input_arg(k).name() << " ";
-      std::cout << sig1.input_arg(k).description() << " ";
-      std::cout << sig1.input_arg(k).type_attr() << " ";
-      std::cout << sig1.input_arg(k).number_attr() << " ";
-      std::cout << sig1.input_arg(k).type_list_attr() << " ";
-      std::cout << sig1.input_arg(k).is_ref() << " ";
-      std::cout << std::endl;
-    }
-    std::cout << "UUU sig1 output: " << std::endl;
-    for (int k = 0; k < sig1.output_arg_size(); ++k) {
-      std::cout << sig1.output_arg(k).type() << " ";
-      std::cout << sig1.output_arg(k).name() << " ";
-      std::cout << sig1.output_arg(k).description() << " ";
-      std::cout << sig1.output_arg(k).type_attr() << " ";
-      std::cout << sig1.output_arg(k).number_attr() << " ";
-      std::cout << sig1.output_arg(k).type_list_attr() << " ";
-      std::cout << sig1.output_arg(k).is_ref() << " ";
-      std::cout << std::endl;
-    }
-    std::cout << "UUU sig2: " << std::endl;
-    for (int k = 0; k < sig2.input_arg_size(); ++k) {
-      std::cout << sig2.input_arg(k).type() << " ";
-      std::cout << sig2.input_arg(k).name() << " ";
-      std::cout << sig2.input_arg(k).description() << " ";
-      std::cout << sig2.input_arg(k).type_attr() << " ";
-      std::cout << sig2.input_arg(k).number_attr() << " ";
-      std::cout << sig2.input_arg(k).type_list_attr() << " ";
-      std::cout << sig2.input_arg(k).is_ref() << " ";
-      std::cout << std::endl;
-    }
-    std::cout << "UUU sig2 output: " << std::endl;
-    for (int k = 0; k < sig2.output_arg_size(); ++k) {
-      std::cout << sig2.output_arg(k).type() << " ";
-      std::cout << sig2.output_arg(k).name() << " ";
-      std::cout << sig2.output_arg(k).description() << " ";
-      std::cout << sig2.output_arg(k).type_attr() << " ";
-      std::cout << sig2.output_arg(k).number_attr() << " ";
-      std::cout << sig2.output_arg(k).type_list_attr() << " ";
-      std::cout << sig2.output_arg(k).is_ref() << " ";
-      std::cout << std::endl;
-    }
-    // if (sig1.input_arg_size() != sig2.input_arg_size()) return false;
+    if (sig1.input_arg_size() != sig2.input_arg_size()) return false;
     std::cout << "UUU input_arg_size is same" << std::endl;
     for (int k = 0; k < sig1.input_arg_size(); ++k) {
       if (!IsSameArgDef(sig1.input_arg(k), sig2.input_arg(k))) return false;
