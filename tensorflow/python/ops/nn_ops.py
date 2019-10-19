@@ -141,7 +141,7 @@ def _non_atrous_convolution(
     input_shape = input.get_shape()
     filter = ops.convert_to_tensor(filter, name="filter")  # pylint: disable=redefined-builtin
     filter_shape = filter.get_shape()
-    op = _NonAtrousConvolution(
+    op = _Convolution(
         input_shape,
         filter_shape=filter_shape,
         padding=padding,
@@ -150,8 +150,10 @@ def _non_atrous_convolution(
         name=scope)
     return op(input, filter)
 
-class _AtrousConvolution(object):
-  """Helper class for _non_atrous_convolution.
+
+class _Convolution(object):
+  """Helper class for _non_atrous_convolution. It also support direct atrous
+  convolution via cuDNN if the dilations is given.
 
   Note that this class assumes that shapes of input and filter passed to
   __call__ are compatible with input_shape and filter_shape passed to the
@@ -164,6 +166,7 @@ class _AtrousConvolution(object):
     data_format: see _non_atrous_convolution.
     strides: see _non_atrous_convolution.
     name: see _non_atrous_convolution.
+    dilation_rate: see with_space_to_batch
   """
 
   def __init__(
@@ -173,8 +176,8 @@ class _AtrousConvolution(object):
       padding,
       data_format=None,
       strides=None,
-      dilation_rate=None,
-      name=None):
+      name=None,
+      dilation_rate=None):
     filter_shape = filter_shape.with_rank(input_shape.ndims)
     self.padding = padding
     self.name = name
@@ -219,134 +222,38 @@ class _AtrousConvolution(object):
       else:
         raise ValueError("data_format must be \"NDHWC\" or \"NCDHW\". Have: %s"
                          % data_format)
+      self.strides = strides
       channel_index = 1 if data_format.startswith("NC") else 4
       self.dilations = _get_sequence(dilation_rate, 3, channel_index,
                                      "dilations")
-      self.strides = strides
       self.data_format = data_format
       self.conv_op = gen_nn_ops.conv3d
 
   # Note that we need this adapter since argument names for conv1d don't match
   # those for gen_nn_ops.conv2d and gen_nn_ops.conv3d.
   # pylint: disable=redefined-builtin
-  def _conv1d(self, input, filter, strides, padding, data_format, dilations,
-              name):
+  def _conv1d(self, input, filter, strides, padding, data_format, name,
+              dilations):
     return conv1d(
         value=input,
         filters=filter,
         stride=strides,
         padding=padding,
         data_format=data_format,
-	dilations=dilations,
-        name=name)
+        name=name,
+        dilations=dilations)
 
   # pylint: enable=redefined-builtin
 
   def __call__(self, inp, filter):  # pylint: disable=redefined-builtin
-    print("[YYY] AtrousConvolution called")
     return self.conv_op(
         input=inp,
         filter=filter,
         strides=self.strides,
         padding=self.padding,
         data_format=self.data_format,
-	dilations=self.dilations,
-        name=self.name)
-
-class _NonAtrousConvolution(object):
-  """Helper class for _non_atrous_convolution.
-
-  Note that this class assumes that shapes of input and filter passed to
-  __call__ are compatible with input_shape and filter_shape passed to the
-  constructor.
-
-  Arguments:
-    input_shape: static input shape, i.e. input.get_shape().
-    filter_shape: static filter shape, i.e. filter.get_shape().
-    padding: see _non_atrous_convolution.
-    data_format: see _non_atrous_convolution.
-    strides: see _non_atrous_convolution.
-    name: see _non_atrous_convolution.
-  """
-
-  def __init__(
-      self,
-      input_shape,
-      filter_shape,  # pylint: disable=redefined-builtin
-      padding,
-      data_format=None,
-      strides=None,
-      name=None):
-    filter_shape = filter_shape.with_rank(input_shape.ndims)
-    self.padding = padding
-    self.name = name
-    input_shape = input_shape.with_rank(filter_shape.ndims)
-    if input_shape.ndims is None:
-      raise ValueError("Rank of convolution must be known")
-    if input_shape.ndims < 3 or input_shape.ndims > 5:
-      raise ValueError(
-          "`input` and `filter` must have rank at least 3 and at most 5")
-    conv_dims = input_shape.ndims - 2
-    if strides is None:
-      strides = [1] * conv_dims
-    elif len(strides) != conv_dims:
-      raise ValueError("len(strides)=%d, but should be %d" % (len(strides),
-                                                              conv_dims))
-    if conv_dims == 1:
-      # conv1d uses the 2-d data format names
-      if data_format is None:
-        data_format = "NWC"
-      elif data_format not in {"NCW", "NWC", "NCHW", "NHWC"}:
-        raise ValueError("data_format must be \"NWC\" or \"NCW\".")
-      self.strides = strides[0]
-      self.data_format = data_format
-      self.conv_op = self._conv1d
-    elif conv_dims == 2:
-      if data_format is None or data_format == "NHWC":
-        data_format = "NHWC"
-        strides = [1] + list(strides) + [1]
-      elif data_format == "NCHW":
-        strides = [1, 1] + list(strides)
-      else:
-        raise ValueError("data_format must be \"NHWC\" or \"NCHW\".")
-      self.strides = strides
-      self.data_format = data_format
-      self.conv_op = conv2d
-    elif conv_dims == 3:
-      if data_format is None or data_format == "NDHWC":
-        strides = [1] + list(strides) + [1]
-      elif data_format == "NCDHW":
-        strides = [1, 1] + list(strides)
-      else:
-        raise ValueError("data_format must be \"NDHWC\" or \"NCDHW\". Have: %s"
-                         % data_format)
-      self.strides = strides
-      self.data_format = data_format
-      self.conv_op = gen_nn_ops.conv3d
-
-  # Note that we need this adapter since argument names for conv1d don't match
-  # those for gen_nn_ops.conv2d and gen_nn_ops.conv3d.
-  # pylint: disable=redefined-builtin
-  def _conv1d(self, input, filter, strides, padding, data_format, name):
-    return conv1d(
-        value=input,
-        filters=filter,
-        stride=strides,
-        padding=padding,
-        data_format=data_format,
-        name=name)
-
-  # pylint: enable=redefined-builtin
-
-  def __call__(self, inp, filter):  # pylint: disable=redefined-builtin
-    print("[YYY] NonAtrousConvolution called")
-    return self.conv_op(
-        input=inp,
-        filter=filter,
-        strides=self.strides,
-        padding=self.padding,
-        data_format=self.data_format,
-        name=self.name)
+        name=self.name,
+	dilations=self.dilations)
 
 
 @tf_export("nn.dilation2d", v1=[])
@@ -593,240 +500,6 @@ def with_space_to_batch(
       data_format=data_format)
   return new_op(input, None)
 
-class _WithSpaceToBatch2(object):
-  """Helper class for with_space_to_batch.
-
-  Note that this class assumes that shapes of input and filter passed to
-  __call__ are compatible with input_shape and filter_shape passed to the
-  constructor.
-
-  Arguments
-    input_shape: static shape of input. i.e. input.get_shape().
-    dilation_rate: see with_space_to_batch
-    padding: see with_space_to_batch
-    build_op: Function that maps (num_spatial_dims, paddings) -> (function that
-      maps (input, filter) -> output).
-    filter_shape: see with_space_to_batch
-    spatial_dims: see with_space_to_batch
-    data_format: see with_space_to_batch
-  """
-
-  def __init__(self,
-               input_shape,
-               dilation_rate,
-               padding,
-               build_op,
-               build_op_real,
-               filter_shape=None,
-               spatial_dims=None,
-               data_format=None):
-    """Helper class for _with_space_to_batch."""
-    dilation_rate = ops.convert_to_tensor(
-        dilation_rate, dtypes.int32, name="dilation_rate")
-    try:
-      rate_shape = dilation_rate.get_shape().with_rank(1)
-    except ValueError:
-      raise ValueError("rate must be rank 1")
-
-    if not dilation_rate.get_shape().is_fully_defined():
-      raise ValueError("rate must have known shape")
-
-    num_spatial_dims = rate_shape.dims[0].value
-
-    if data_format is not None and data_format.startswith("NC"):
-      starting_spatial_dim = 2
-    else:
-      starting_spatial_dim = 1
-
-    if spatial_dims is None:
-      spatial_dims = range(starting_spatial_dim,
-                           num_spatial_dims + starting_spatial_dim)
-    orig_spatial_dims = list(spatial_dims)
-    spatial_dims = sorted(set(int(x) for x in orig_spatial_dims))
-    if spatial_dims != orig_spatial_dims or any(x < 1 for x in spatial_dims):
-      raise ValueError(
-          "spatial_dims must be a montonically increasing sequence of positive "
-          "integers")
-
-    if data_format is not None and data_format.startswith("NC"):
-      expected_input_rank = spatial_dims[-1]
-    else:
-      expected_input_rank = spatial_dims[-1] + 1
-
-    try:
-      input_shape.with_rank_at_least(expected_input_rank)
-    except ValueError:
-      raise ValueError(
-          "input tensor must have rank %d at least" % (expected_input_rank))
-
-    const_rate = tensor_util.constant_value(dilation_rate)
-    rate_or_const_rate = dilation_rate
-    can_use_fused = False
-    if input_shape.ndims is not None:
-      conv_dims = input_shape.ndims - 2
-      can_use_fused = conv_dims <= 2
-    else:
-      raise ValueError("cudnn dilation only supports 1D or 2D inputs")
-    if const_rate is not None:
-      rate_or_const_rate = const_rate
-      if np.any(const_rate < 1):
-        raise ValueError("dilation_rate must be positive")
-      if can_use_fused or np.all(const_rate == 1):
-        # DUMMY OPERATION 
-        if padding == "SAME":
-          if filter_shape is None:
-            raise ValueError("filter_shape must be specified for SAME padding")
-          filter_shape = ops.convert_to_tensor(filter_shape, name="filter_shape")
-          const_filter_shape = tensor_util.constant_value(filter_shape)
-          if const_filter_shape is not None:
-            filter_shape = const_filter_shape
-            self.base_paddings = _with_space_to_batch_base_paddings(
-                const_filter_shape, num_spatial_dims, rate_or_const_rate)
-          else:
-            self.num_spatial_dims = num_spatial_dims
-            self.rate_or_const_rate = rate_or_const_rate
-            self.base_paddings = None
-        elif padding == "VALID":
-          self.base_paddings = np.zeros([num_spatial_dims, 2], np.int32)
-        else:
-          raise ValueError("Invalid padding method %r" % padding)
-        self.input_shape = input_shape
-        self.spatial_dims = spatial_dims
-        self.dilation_rate = dilation_rate
-        self.data_format = data_format
-        # DUMMY OPERATION END
-
-
-        #self.call = build_op(num_spatial_dims, padding)
-
-        self.op = build_op(num_spatial_dims, padding)
-        self.call = self._with_space_to_batch_call
-        return
-
-    if padding == "SAME":
-      if filter_shape is None:
-        raise ValueError("filter_shape must be specified for SAME padding")
-      filter_shape = ops.convert_to_tensor(filter_shape, name="filter_shape")
-      const_filter_shape = tensor_util.constant_value(filter_shape)
-      if const_filter_shape is not None:
-        filter_shape = const_filter_shape
-        self.base_paddings = _with_space_to_batch_base_paddings(
-            const_filter_shape, num_spatial_dims, rate_or_const_rate)
-      else:
-        self.num_spatial_dims = num_spatial_dims
-        self.rate_or_const_rate = rate_or_const_rate
-        self.base_paddings = None
-    elif padding == "VALID":
-      self.base_paddings = np.zeros([num_spatial_dims, 2], np.int32)
-    else:
-      raise ValueError("Invalid padding method %r" % padding)
-
-    self.input_shape = input_shape
-    self.spatial_dims = spatial_dims
-    self.dilation_rate = dilation_rate
-    self.data_format = data_format
-    self.op = build_op_real(num_spatial_dims, "VALID")
-    self.call = self._with_space_to_batch_call_real
-
-  def _with_space_to_batch_call(self, inp, filter):  # pylint: disable=redefined-builtin
-    """Call functionality for with_space_to_batch."""
-    # Handle input whose shape is unknown during graph creation.
-    input_spatial_shape = None
-    input_shape = self.input_shape
-    spatial_dims = self.spatial_dims
-    if input_shape.ndims is not None:
-      input_shape_list = input_shape.as_list()
-      input_spatial_shape = [input_shape_list[i] for i in spatial_dims]
-    if input_spatial_shape is None or None in input_spatial_shape:
-      input_shape_tensor = array_ops.shape(inp)
-      input_spatial_shape = array_ops.stack(
-          [input_shape_tensor[i] for i in spatial_dims])
-
-    base_paddings = self.base_paddings
-    if base_paddings is None:
-      # base_paddings could not be computed at build time since static filter
-      # shape was not fully defined.
-      filter_shape = array_ops.shape(filter)
-      base_paddings = _with_space_to_batch_base_paddings(
-          filter_shape, self.num_spatial_dims, self.rate_or_const_rate)
-    paddings, crops = array_ops.required_space_to_batch_paddings(
-        input_shape=input_spatial_shape,
-        base_paddings=base_paddings,
-        block_shape=self.dilation_rate)
-
-    #dilation_rate = _with_space_to_batch_adjust(self.dilation_rate, 1,
-    #                                            spatial_dims)
-    #paddings = _with_space_to_batch_adjust(paddings, 0, spatial_dims)
-    #crops = _with_space_to_batch_adjust(crops, 0, spatial_dims)
-    #input_converted = array_ops.space_to_batch_nd(
-    #    input=inp, block_shape=dilation_rate, paddings=paddings)
-
-    result = self.op(inp, filter)
-
-    #result_converted = array_ops.batch_to_space_nd(
-    #    input=result, block_shape=dilation_rate, crops=crops)
-
-    ## Recover channel information for output shape if channels are not last.
-    #if self.data_format is not None and self.data_format.startswith("NC"):
-    #  if not result_converted.shape.dims[1].value and filter is not None:
-    #    output_shape = result_converted.shape.as_list()
-    #    output_shape[1] = filter.shape[-1]
-    #    result_converted.set_shape(output_shape)
-
-    #return result_converted
-    return result
-
-  def _with_space_to_batch_call_real(self, inp, filter):  # pylint: disable=redefined-builtin
-    """Call functionality for with_space_to_batch."""
-    # Handle input whose shape is unknown during graph creation.
-    input_spatial_shape = None
-    input_shape = self.input_shape
-    spatial_dims = self.spatial_dims
-    if input_shape.ndims is not None:
-      input_shape_list = input_shape.as_list()
-      input_spatial_shape = [input_shape_list[i] for i in spatial_dims]
-    if input_spatial_shape is None or None in input_spatial_shape:
-      input_shape_tensor = array_ops.shape(inp)
-      input_spatial_shape = array_ops.stack(
-          [input_shape_tensor[i] for i in spatial_dims])
-
-    base_paddings = self.base_paddings
-    if base_paddings is None:
-      # base_paddings could not be computed at build time since static filter
-      # shape was not fully defined.
-      filter_shape = array_ops.shape(filter)
-      base_paddings = _with_space_to_batch_base_paddings(
-          filter_shape, self.num_spatial_dims, self.rate_or_const_rate)
-    paddings, crops = array_ops.required_space_to_batch_paddings(
-        input_shape=input_spatial_shape,
-        base_paddings=base_paddings,
-        block_shape=self.dilation_rate)
-
-    dilation_rate = _with_space_to_batch_adjust(self.dilation_rate, 1,
-                                                spatial_dims)
-    paddings = _with_space_to_batch_adjust(paddings, 0, spatial_dims)
-    crops = _with_space_to_batch_adjust(crops, 0, spatial_dims)
-    input_converted = array_ops.space_to_batch_nd(
-        input=inp, block_shape=dilation_rate, paddings=paddings)
-
-    result = self.op(input_converted, filter)
-
-    result_converted = array_ops.batch_to_space_nd(
-        input=result, block_shape=dilation_rate, crops=crops)
-
-    # Recover channel information for output shape if channels are not last.
-    if self.data_format is not None and self.data_format.startswith("NC"):
-      if not result_converted.shape.dims[1].value and filter is not None:
-        output_shape = result_converted.shape.as_list()
-        output_shape[1] = filter.shape[-1]
-        result_converted.set_shape(output_shape)
-
-    return result_converted
-
-  def __call__(self, inp, filter):  # pylint: disable=redefined-builtin
-    print("[XXX] call cudnn version")
-    
-    return self.call(inp, filter)
 
 class _WithSpaceToBatch(object):
   """Helper class for with_space_to_batch.
@@ -844,6 +517,9 @@ class _WithSpaceToBatch(object):
     filter_shape: see with_space_to_batch
     spatial_dims: see with_space_to_batch
     data_format: see with_space_to_batch
+    build_op_dilation: Function that maps (num_spatial_dims, paddings) ->
+      (function that maps (input, filter) -> output). It supports dilation rates
+      larger than 1.
   """
 
   def __init__(self,
@@ -853,7 +529,8 @@ class _WithSpaceToBatch(object):
                build_op,
                filter_shape=None,
                spatial_dims=None,
-               data_format=None):
+               data_format=None,
+               build_op_dilation=None):
     """Helper class for _with_space_to_batch."""
     dilation_rate = ops.convert_to_tensor(
         dilation_rate, dtypes.int32, name="dilation_rate")
@@ -933,6 +610,17 @@ class _WithSpaceToBatch(object):
     self.op = build_op(num_spatial_dims, "VALID")
     self.call = self._with_space_to_batch_call
 
+    # We check if the direct dilated convolution can be used. If yes, we will
+    # replace the self.op with build_op_dilation. We only support direct cuDNN
+    # dilated convolution for 1D and 2D conv.
+    can_use_fused = False if build_op_dilation is None else True
+    if input_shape.ndims is not None:
+      conv_dims = input_shape.ndims - 2
+      can_use_fused = can_use_fused and conv_dims <= 2
+    if can_use_fused:
+      self.op = build_op_dilation(num_spatial_dims, padding)
+      self.call = self._direct_call
+
   def _with_space_to_batch_call(self, inp, filter):  # pylint: disable=redefined-builtin
     """Call functionality for with_space_to_batch."""
     # Handle input whose shape is unknown during graph creation.
@@ -980,8 +668,27 @@ class _WithSpaceToBatch(object):
 
     return result_converted
 
+  def _direct_call(self, inp, filter):  # pylint: disable=redefined-builtin
+    """Call functionality for directed dilated convolution."""
+    # We need to make sure the signatures of _direct_call same with
+    # _with_space_to_batch_call for the implementation selector. Therefore, we
+    # conduct a dummy call of required_space_to_batch_paddings to ensure the two
+    # input tensor input_shape and base_paddings are still there.
+    spatial_dims = self.spatial_dims
+    input_shape_tensor = array_ops.shape(inp)
+    input_spatial_shape = array_ops.stack(
+        [input_shape_tensor[i] for i in spatial_dims])
+    base_paddings = self.base_paddings
+    paddings, crops = array_ops.required_space_to_batch_paddings(
+        input_shape=input_spatial_shape,
+        base_paddings=base_paddings,
+        block_shape=self.dilation_rate)
+
+    result = self.op(inp, filter)
+
+    return result
+
   def __call__(self, inp, filter):  # pylint: disable=redefined-builtin
-    print("[XXX] call standard version")
     return self.call(inp, filter)
 
 
@@ -1467,19 +1174,18 @@ class Convolution(object):
         filter_shape=filter_shape,
         spatial_dims=spatial_dims,
         data_format=data_format)
-    self.conv_op_cudnn = _WithSpaceToBatch2(
+    self.conv_op_cudnn = _WithSpaceToBatch(
         input_shape,
         dilation_rate=dilation_rate,
         padding=padding,
-        build_op=self._build_op2,
-        build_op_real=self._build_op,
+        build_op=self._build_op,
         filter_shape=filter_shape,
         spatial_dims=spatial_dims,
-        data_format=data_format)
-    
+        data_format=data_format,
+        build_op_dilation=self._build_op_dilation)
 
   def _build_op(self, _, padding):
-    return _NonAtrousConvolution(
+    return _Convolution(
         self.input_shape,
         filter_shape=self.filter_shape,
         padding=padding,
@@ -1487,8 +1193,8 @@ class Convolution(object):
         strides=self.strides,
         name=self.name)
 
-  def _build_op2(self, _, padding):
-    return _AtrousConvolution(
+  def _build_op_dilation(self, _, padding):
+    return _Convolution(
         self.input_shape,
         filter_shape=self.filter_shape,
         padding=padding,
@@ -1527,16 +1233,13 @@ class Convolution(object):
           res = self.conv_op_standard(**params)
       else:
         api_name = 'conv_' + str(uuid.uuid4())
-        print("[FUNC] api_name:", api_name)
-        print("[FUNC] inp shapes:", inp.get_shape())
-        print("[FUNC] filter shapes:", filter.get_shape())
         conv_op_standard = _generate_defun_backend(
             api_name, _CPU_DEVICE_NAME, self.conv_op_standard)
         conv_op_cudnn = _generate_defun_backend(
             api_name, _GPU_DEVICE_NAME, self.conv_op_cudnn)
-        res = conv_op_standard(**params) 
+        res = conv_op_standard(**params)
         function.register(conv_op_cudnn, **params)
-      return res 
+      return res
     # copybara:strip_end
     # copybara:insert return self.conv_op(inp, filter)
 
