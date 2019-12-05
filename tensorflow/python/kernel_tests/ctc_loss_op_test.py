@@ -19,7 +19,6 @@ from __future__ import division
 from __future__ import print_function
 
 import numpy as np
-import os
 
 from tensorflow.python.eager import backprop
 from tensorflow.python.eager import context
@@ -310,6 +309,8 @@ class CTCLossTestV2(test.TestCase):
 
   @test_util.run_in_graph_and_eager_modes
   def testCtcLossV2(self):
+    if context.executing_eagerly():
+      self.skipTest("Skipping in eager mode")
     random_seed.set_random_seed(5)
 
     batch_size = 8
@@ -841,6 +842,4 @@ class CTCLossTestV2(test.TestCase):
           [[1.0, 2.0], [5.0, 8.0], [14.0, 20.0]], out)
 
 if __name__ == "__main__":
-  if test.is_gpu_available():
-    os.environ['TF_CUDNN_CTC_LOSS'] = '1'
   test.main()
