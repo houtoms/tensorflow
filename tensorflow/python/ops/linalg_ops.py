@@ -64,7 +64,8 @@ def _RegularizedGramianCholesky(matrix, l2_regularizer, first_kind):
   """
 
   gramian = math_ops.matmul(
-      matrix, matrix, adjoint_a=first_kind, adjoint_b=not first_kind)
+      matrix, matrix, adjoint_a=first_kind, adjoint_b=not first_kind,
+      allow_fast_math=False)
   if isinstance(l2_regularizer, ops.Tensor) or l2_regularizer != 0:
     matrix_shape = array_ops.shape(matrix)
     batch_shape = matrix_shape[:-2]
@@ -335,13 +336,15 @@ def matrix_solve_ls(matrix, rhs, l2_regularizer=0.0, fast=True, name=None):
     """Computes (A^H*A + l2_regularizer)^{-1} * A^H * rhs."""
     chol = _RegularizedGramianCholesky(
         matrix, l2_regularizer=l2_regularizer, first_kind=True)
-    return cholesky_solve(chol, math_ops.matmul(matrix, rhs, adjoint_a=True))
+    return cholesky_solve(chol, math_ops.matmul(matrix, rhs, adjoint_a=True,
+                                                allow_fast_math=False))
 
   def _underdetermined(matrix, rhs, l2_regularizer):
     """Computes A^H * (A*A^H + l2_regularizer)^{-1} * rhs."""
     chol = _RegularizedGramianCholesky(
         matrix, l2_regularizer=l2_regularizer, first_kind=False)
-    return math_ops.matmul(matrix, cholesky_solve(chol, rhs), adjoint_a=True)
+    return math_ops.matmul(matrix, cholesky_solve(chol, rhs), adjoint_a=True,
+                           allow_fast_math=False)
 
   def _composite_impl(matrix, rhs, l2_regularizer):
     """Composite implementation of matrix_solve_ls that supports GPU."""

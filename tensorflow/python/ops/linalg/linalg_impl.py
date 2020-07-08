@@ -138,9 +138,9 @@ def _matrix_exp_pade3(matrix):
       array_ops.shape(matrix)[-2],
       batch_shape=array_ops.shape(matrix)[:-2],
       dtype=matrix.dtype)
-  matrix_2 = math_ops.matmul(matrix, matrix)
+  matrix_2 = math_ops.matmul(matrix, matrix, allow_fast_math=False)
   tmp = matrix_2 + b[1] * ident
-  matrix_u = math_ops.matmul(matrix, tmp)
+  matrix_u = math_ops.matmul(matrix, tmp, allow_fast_math=False)
   matrix_v = b[2] * matrix_2 + b[0] * ident
   return matrix_u, matrix_v
 
@@ -153,10 +153,10 @@ def _matrix_exp_pade5(matrix):
       array_ops.shape(matrix)[-2],
       batch_shape=array_ops.shape(matrix)[:-2],
       dtype=matrix.dtype)
-  matrix_2 = math_ops.matmul(matrix, matrix)
-  matrix_4 = math_ops.matmul(matrix_2, matrix_2)
+  matrix_2 = math_ops.matmul(matrix, matrix, allow_fast_math=False)
+  matrix_4 = math_ops.matmul(matrix_2, matrix_2, allow_fast_math=False)
   tmp = matrix_4 + b[3] * matrix_2 + b[1] * ident
-  matrix_u = math_ops.matmul(matrix, tmp)
+  matrix_u = math_ops.matmul(matrix, tmp, allow_fast_math=False)
   matrix_v = b[4] * matrix_4 + b[2] * matrix_2 + b[0] * ident
   return matrix_u, matrix_v
 
@@ -169,11 +169,11 @@ def _matrix_exp_pade7(matrix):
       array_ops.shape(matrix)[-2],
       batch_shape=array_ops.shape(matrix)[:-2],
       dtype=matrix.dtype)
-  matrix_2 = math_ops.matmul(matrix, matrix)
-  matrix_4 = math_ops.matmul(matrix_2, matrix_2)
-  matrix_6 = math_ops.matmul(matrix_4, matrix_2)
+  matrix_2 = math_ops.matmul(matrix, matrix, allow_fast_math=False)
+  matrix_4 = math_ops.matmul(matrix_2, matrix_2, allow_fast_math=False)
+  matrix_6 = math_ops.matmul(matrix_4, matrix_2, allow_fast_math=False)
   tmp = matrix_6 + b[5] * matrix_4 + b[3] * matrix_2 + b[1] * ident
-  matrix_u = math_ops.matmul(matrix, tmp)
+  matrix_u = math_ops.matmul(matrix, tmp, allow_fast_math=False)
   matrix_v = b[6] * matrix_6 + b[4] * matrix_4 + b[2] * matrix_2 + b[0] * ident
   return matrix_u, matrix_v
 
@@ -189,14 +189,14 @@ def _matrix_exp_pade9(matrix):
       array_ops.shape(matrix)[-2],
       batch_shape=array_ops.shape(matrix)[:-2],
       dtype=matrix.dtype)
-  matrix_2 = math_ops.matmul(matrix, matrix)
-  matrix_4 = math_ops.matmul(matrix_2, matrix_2)
-  matrix_6 = math_ops.matmul(matrix_4, matrix_2)
-  matrix_8 = math_ops.matmul(matrix_6, matrix_2)
+  matrix_2 = math_ops.matmul(matrix, matrix, allow_fast_math=False)
+  matrix_4 = math_ops.matmul(matrix_2, matrix_2, allow_fast_math=False)
+  matrix_6 = math_ops.matmul(matrix_4, matrix_2, allow_fast_math=False)
+  matrix_8 = math_ops.matmul(matrix_6, matrix_2, allow_fast_math=False)
   tmp = (
       matrix_8 + b[7] * matrix_6 + b[5] * matrix_4 + b[3] * matrix_2 +
       b[1] * ident)
-  matrix_u = math_ops.matmul(matrix, tmp)
+  matrix_u = math_ops.matmul(matrix, tmp, allow_fast_math=False)
   matrix_v = (
       b[8] * matrix_8 + b[6] * matrix_6 + b[4] * matrix_4 + b[2] * matrix_2 +
       b[0] * ident)
@@ -215,17 +215,18 @@ def _matrix_exp_pade13(matrix):
       array_ops.shape(matrix)[-2],
       batch_shape=array_ops.shape(matrix)[:-2],
       dtype=matrix.dtype)
-  matrix_2 = math_ops.matmul(matrix, matrix)
-  matrix_4 = math_ops.matmul(matrix_2, matrix_2)
-  matrix_6 = math_ops.matmul(matrix_4, matrix_2)
+  matrix_2 = math_ops.matmul(matrix, matrix, allow_fast_math=False)
+  matrix_4 = math_ops.matmul(matrix_2, matrix_2, allow_fast_math=False)
+  matrix_6 = math_ops.matmul(matrix_4, matrix_2, allow_fast_math=False)
   tmp_u = (
-      math_ops.matmul(matrix_6, matrix_6 + b[11] * matrix_4 + b[9] * matrix_2) +
+      math_ops.matmul(matrix_6, matrix_6 + b[11] * matrix_4 + b[9] * matrix_2,
+                      allow_fast_math=False) +
       b[7] * matrix_6 + b[5] * matrix_4 + b[3] * matrix_2 + b[1] * ident)
-  matrix_u = math_ops.matmul(matrix, tmp_u)
+  matrix_u = math_ops.matmul(matrix, tmp_u, allow_fast_math=False)
   tmp_v = b[12] * matrix_6 + b[10] * matrix_4 + b[8] * matrix_2
   matrix_v = (
-      math_ops.matmul(matrix_6, tmp_v) + b[6] * matrix_6 + b[4] * matrix_4 +
-      b[2] * matrix_2 + b[0] * ident)
+      math_ops.matmul(matrix_6, tmp_v, allow_fast_math=False) +
+      b[6] * matrix_6 + b[4] * matrix_4 + b[2] * matrix_2 + b[0] * ident)
   return matrix_u, matrix_v
 
 
@@ -330,7 +331,8 @@ def matrix_exponential(input, name=None):  # pylint: disable=redefined-builtin
 
     def b(i, r):
       return i + 1, array_ops.where_v2(
-          math_ops.less(i, squarings), math_ops.matmul(r, r), r)
+          math_ops.less(i, squarings), math_ops.matmul(
+                                           r, r, allow_fast_math=False), r)
 
     _, result = control_flow_ops.while_loop(c, b, [i, result])
     if not matrix.shape.is_fully_defined():

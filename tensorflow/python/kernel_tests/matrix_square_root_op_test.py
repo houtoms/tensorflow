@@ -36,7 +36,7 @@ class SquareRootOpTest(test.TestCase):
 
     # Verify that matmul(sqrtm(A), sqrtm(A)) = A
     sqrt = gen_linalg_ops.matrix_square_root(matrix)
-    square = math_ops.matmul(sqrt, sqrt)
+    square = math_ops.matmul(sqrt, sqrt, allow_fast_math=False)
     self.assertShapeEqual(matrix, square)
     self.assertAllClose(matrix, square, rtol=1e-4, atol=1e-3)
 

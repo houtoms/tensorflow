@@ -62,17 +62,29 @@ class BatchMatmulOpTest(test.TestCase):
     y = y_in if not adjoint_b else y_in.reshape(y_t_shape)
     is_floating = x.dtype != np.int32
     tol = 100 * np.finfo(x.dtype).eps if is_floating else 0
+    allow_fast_math = False
+    if test_util.is_gpu_available(cuda_only=True,
+        min_cuda_compute_capability=(8, 0)) and x.dtype == np.float32:
+      allow_fast_math = True
+      tol = 100 * np.finfo(np.float16).eps if is_floating else 0
+      ref_x = math_ops.cast(x, np.float16)
+      ref_y = math_ops.cast(y, np.float16)
+    else:
+      ref_x = x
+      ref_y = y
     with self.cached_session(use_gpu=is_floating) as sess:
       if static_shape:
-        z0 = math_ops.matmul(x, y, adjoint_a=adjoint_a, adjoint_b=adjoint_b)
+        z0 = math_ops.matmul(x, y, adjoint_a=adjoint_a, adjoint_b=adjoint_b,
+                             allow_fast_math=allow_fast_math)
         z0_val = self.evaluate(z0)
       else:
         x_ph = array_ops.placeholder(x.dtype)
         y_ph = array_ops.placeholder(y.dtype)
         z0 = math_ops.matmul(
-            x_ph, y_ph, adjoint_a=adjoint_a, adjoint_b=adjoint_b)
+            x_ph, y_ph, adjoint_a=adjoint_a, adjoint_b=adjoint_b,
+            allow_fast_math=allow_fast_math)
         z0_val = sess.run(z0, feed_dict={x_ph: x, y_ph: y})
-      z1 = self._npBatchMatmul(x, y, adjoint_a, adjoint_b)
+      z1 = self._npBatchMatmul(ref_x, ref_y, adjoint_a, adjoint_b)
       self.assertAllClose(z0_val, z1, rtol=tol, atol=tol)
 
   def _testNonEmpty(self, dtype, adjoint_a, adjoint_b, use_static_shape):

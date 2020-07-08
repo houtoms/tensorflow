@@ -97,11 +97,16 @@ def _GetMatMulTest(a_np_, b_np_, use_static_shape_, **kwargs_):
         res = math_ops.matmul(a, b, **kwargs_)
         tf_val = sess.run(res, feed_dict={a: effective_a_np, b: effective_b_np})
 
+    float_tol=3e-5
+    if test_util.is_gpu_available(cuda_only=True,
+        min_cuda_compute_capability=(8, 0)) and a_np_.dtype == np.float32:
+      float_tol=0.2
+
     self.assertAllCloseAccordingToType(
         tf_val,
         np_val,
-        float_rtol=3e-5,
-        float_atol=3e-5,
+        float_rtol=float_tol,
+        float_atol=float_tol,
         half_rtol=0.2,
         half_atol=0.2)
 

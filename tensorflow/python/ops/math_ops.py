@@ -3067,6 +3067,7 @@ def matmul(a,
            adjoint_b=False,
            a_is_sparse=False,
            b_is_sparse=False,
+           allow_fast_math=None,
            name=None):
   """Multiplies matrix `a` by matrix `b`, producing `a` * `b`.
 
@@ -3160,6 +3161,9 @@ def matmul(a,
       that assume most values in `a` are zero.
       See `tf.sparse.sparse_dense_matmul`
       for some support for `tf.sparse.SparseTensor` multiplication.
+    allow_fast_math: If `True`, the execution is performed with TensorFloat-32
+      (TF32) when possible. If `False`, TF32 is not used. The default is
+      `None`, meaning this op follows the global setting regarding TF32.
     name: Name for the operation (optional).
 
   Returns:
@@ -3200,6 +3204,14 @@ def matmul(a,
         (a_shape is None or len(a_shape) > 2) or
         (b_shape is None or len(b_shape) > 2))
 
+    # -1: use global setting; 1: enable fast math; 0: disable fast math.
+    if allow_fast_math is None:
+      fast_math = -1
+    elif allow_fast_math:
+      fast_math = 1
+    else:
+      fast_math = 0
+
     if (not a_is_sparse and
         not b_is_sparse) and output_may_have_non_empty_batch_shape:
       # BatchMatmul does not support transpose, so we conjugate the matrix and
@@ -3210,8 +3222,9 @@ def matmul(a,
       if transpose_b:
         b = conj(b)
         adjoint_b = True
-      return gen_math_ops.batch_mat_mul_v2(
-          a, b, adj_x=adjoint_a, adj_y=adjoint_b, name=name)
+      return gen_math_ops.batch_mat_mul_v3(
+          a, b, adj_x=adjoint_a, adj_y=adjoint_b, allow_fast_math=fast_math,
+          name=name)
 
     # Neither matmul nor sparse_matmul support adjoint, so we conjugate
     # the matrix and use transpose instead. Conj() is a noop for real
@@ -3248,8 +3261,9 @@ def matmul(a,
         ret = cast(ret, dtypes.bfloat16)
       return ret
     else:
-      return gen_math_ops.mat_mul(
-          a, b, transpose_a=transpose_a, transpose_b=transpose_b, name=name)
+      return gen_math_ops.mat_mul_v2(
+          a, b, transpose_a=transpose_a, transpose_b=transpose_b,
+          allow_fast_math=fast_math, name=name)
 
 
 @tf_export("linalg.matvec")
@@ -4520,7 +4534,7 @@ def tensordot(a, b, axes, name=None):
     a_reshape, a_free_dims, a_free_dims_static = _tensordot_reshape(a, a_axes)
     b_reshape, b_free_dims, b_free_dims_static = _tensordot_reshape(
         b, b_axes, True)
-    ab_matmul = matmul(a_reshape, b_reshape)
+    ab_matmul = matmul(a_reshape, b_reshape, allow_fast_math=False)
     if isinstance(a_free_dims, list) and isinstance(b_free_dims, list):
       if (ab_matmul.get_shape().is_fully_defined() and
           ab_matmul.get_shape().as_list() == a_free_dims + b_free_dims):
