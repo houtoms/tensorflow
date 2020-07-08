@@ -730,7 +730,8 @@ class ConvolutionOrthogonal(Initializer):
     if self.seed:
       self.seed += 1
     c = math_ops.multiply(q, mask)
-    return math_ops.matmul(c, array_ops.matrix_transpose(c))
+    return math_ops.matmul(c, array_ops.matrix_transpose(c),
+                           allow_fast_math=False)
 
 
 class ConvolutionOrthogonal2D(ConvolutionOrthogonal):
@@ -805,10 +806,11 @@ class ConvolutionOrthogonal2D(ConvolutionOrthogonal):
     n = p1.shape.as_list()[0]
     kernel2x2 = {}
     eye = linalg_ops_impl.eye(n, dtype=self.dtype)
-    kernel2x2[0, 0] = math_ops.matmul(p1, p2)
-    kernel2x2[0, 1] = math_ops.matmul(p1, (eye - p2))
-    kernel2x2[1, 0] = math_ops.matmul((eye - p1), p2)
-    kernel2x2[1, 1] = math_ops.matmul((eye - p1), (eye - p2))
+    kernel2x2[0, 0] = math_ops.matmul(p1, p2, allow_fast_math=False)
+    kernel2x2[0, 1] = math_ops.matmul(p1, (eye - p2), allow_fast_math=False)
+    kernel2x2[1, 0] = math_ops.matmul((eye - p1), p2, allow_fast_math=False)
+    kernel2x2[1, 1] = math_ops.matmul((eye - p1), (eye - p2),
+                                      allow_fast_math=False)
 
     return kernel2x2
 
@@ -841,7 +843,8 @@ class ConvolutionOrthogonal2D(ConvolutionOrthogonal):
           for index2 in range(min(k, j + 1)):
             if (i - index1) < l and (j - index2) < l:
               result[i, j] += math_ops.matmul(m1[index1, index2],
-                                              m2[i - index1, j - index2])
+                                              m2[i - index1, j - index2],
+                                              allow_fast_math=False)
     return result
 
   def _orthogonal_kernel(self, ksize, cin, cout):
@@ -872,7 +875,7 @@ class ConvolutionOrthogonal2D(ConvolutionOrthogonal):
       p = self._matrix_conv(p, temp)
     for i in range(ksize):
       for j in range(ksize):
-        p[i, j] = math_ops.matmul(orth, p[i, j])
+        p[i, j] = math_ops.matmul(orth, p[i, j], allow_fast_math=False)
 
     return self._dict_to_tensor(p, ksize, ksize)
 
@@ -969,7 +972,8 @@ class ConvolutionOrthogonal1D(ConvolutionOrthogonal):
       result[i] = array_ops.zeros([n, n], self.dtype)
       for index in range(min(k, i + 1)):
         if (i - index) < l:
-          result[i] += math_ops.matmul(m1[index], m2[i - index])
+          result[i] += math_ops.matmul(m1[index], m2[i - index],
+                                       allow_fast_math=False)
     return result
 
   def _orthogonal_kernel(self, ksize, cin, cout):
@@ -997,7 +1001,7 @@ class ConvolutionOrthogonal1D(ConvolutionOrthogonal):
       temp = self._block_orth(self._symmetric_projection(cout))
       p = self._matrix_conv(p, temp)
     for i in range(ksize):
-      p[i] = math_ops.matmul(orth, p[i])
+      p[i] = math_ops.matmul(orth, p[i], allow_fast_math=False)
 
     return self._dict_to_tensor(p, ksize)
 
@@ -1080,7 +1084,8 @@ class ConvolutionOrthogonal3D(ConvolutionOrthogonal):
     kernel2x2x2 = {}
 
     def matmul(p1, p2, p3):
-      return math_ops.matmul(math_ops.matmul(p1, p2), p3)
+      return math_ops.matmul(math_ops.matmul(p1, p2, allow_fast_math=False), p3,
+                             allow_fast_math=False)
 
     def cast(i, p):
       """Return p or (1-p)."""
@@ -1125,7 +1130,8 @@ class ConvolutionOrthogonal3D(ConvolutionOrthogonal):
                 if (i - index1) < l and (j - index2) < l and (r - index3) < l:
                   result[i, j, r] += math_ops.matmul(
                       m1[index1, index2, index3],
-                      m2[i - index1, j - index2, r - index3])
+                      m2[i - index1, j - index2, r - index3],
+                      allow_fast_math=False)
     return result
 
   def _orthogonal_kernel(self, ksize, cin, cout):
@@ -1160,7 +1166,7 @@ class ConvolutionOrthogonal3D(ConvolutionOrthogonal):
     for i in range(ksize):
       for j in range(ksize):
         for k in range(ksize):
-          p[i, j, k] = math_ops.matmul(orth, p[i, j, k])
+          p[i, j, k] = math_ops.matmul(orth, p[i, j, k], allow_fast_math=False)
 
     return self._dict_to_tensor(p, ksize, ksize, ksize)
 

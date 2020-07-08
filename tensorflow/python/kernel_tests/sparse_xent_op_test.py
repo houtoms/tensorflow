@@ -235,7 +235,7 @@ class SparseXentTest(test.TestCase):
       op_names = [
           op.op_def.name for op in sess.graph.get_operations() if op.op_def
       ]
-      self.assertIn("BatchMatMulV2", op_names)
+      self.assertIn("BatchMatMulV3", op_names)
 
     self.assertLess(err, 5e-8)
 

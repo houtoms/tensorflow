@@ -271,7 +271,8 @@ class Dirichlet(distribution.Distribution):
     x = self._variance_scale_term() * self._mean()
     return array_ops.matrix_set_diag(
         -math_ops.matmul(x[..., array_ops.newaxis],
-                         x[..., array_ops.newaxis, :]),  # outer prod
+                         x[..., array_ops.newaxis, :],
+                         allow_fast_math=False),  # outer prod
         self._variance())
 
   def _variance(self):

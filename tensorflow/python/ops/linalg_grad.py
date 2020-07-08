@@ -52,7 +52,8 @@ def _MatrixInverseGrad(op, grad):
   """Gradient for MatrixInverse."""
   ainv = op.outputs[0]
   return -math_ops.matmul(
-      ainv, math_ops.matmul(grad, ainv, adjoint_b=True), adjoint_a=True)
+      ainv, math_ops.matmul(grad, ainv, adjoint_b=True, allow_fast_math=False),
+      adjoint_a=True, allow_fast_math=False)
 
 
 @ops.RegisterGradient("Einsum")
@@ -472,13 +473,14 @@ def _CholeskyGrad(op, grad):
                                                      batch_shape=batch_shape,
                                                      dtype=l.dtype))
 
-  middle = math_ops.matmul(l, grad, adjoint_a=True)
+  middle = math_ops.matmul(l, grad, adjoint_a=True, allow_fast_math=False)
   middle = array_ops.matrix_set_diag(middle,
                                      0.5 * array_ops.matrix_diag_part(middle))
   middle = array_ops.matrix_band_part(middle, -1, 0)
 
   grad_a = math_ops.matmul(
-      math_ops.matmul(l_inverse, middle, adjoint_a=True), l_inverse)
+      math_ops.matmul(l_inverse, middle, adjoint_a=True,
+                      allow_fast_math=False), l_inverse, allow_fast_math=False)
 
   grad_a += _linalg.adjoint(grad_a)
   return grad_a * 0.5
@@ -508,14 +510,16 @@ def _QrGrad(op, dq, dr):
     """Gradient for matrix orders num_rows >= num_cols
     and full_matrices is false.
     """
-    qdq = math_ops.matmul(q, dq, adjoint_a=True)
+    qdq = math_ops.matmul(q, dq, adjoint_a=True, allow_fast_math=False)
     qdq_ = qdq - _linalg.adjoint(qdq)
-    rdr = math_ops.matmul(r, dr, adjoint_b=True)
+    rdr = math_ops.matmul(r, dr, adjoint_b=True, allow_fast_math=False)
     rdr_ = rdr - _linalg.adjoint(rdr)
     tril = array_ops.matrix_band_part(qdq_ + rdr_, -1, 0)
 
-    grad_a = math_ops.matmul(q, dr + _TriangularSolve(tril, r))
-    grad_b = _TriangularSolve(dq - math_ops.matmul(q, qdq), r)
+    grad_a = math_ops.matmul(q, dr + _TriangularSolve(tril, r),
+                             allow_fast_math=False)
+    grad_b = _TriangularSolve(dq - math_ops.matmul(q, qdq,
+                                                   allow_fast_math=False), r)
     return grad_a + grad_b
 
   num_rows, num_cols = q.shape.dims[-2].value, r.shape.dims[-1]
@@ -529,9 +533,10 @@ def _QrGrad(op, dq, dr):
   u = r[..., :, :num_rows]
   dv = dr[..., :, num_rows:]
   du = dr[..., :, :num_rows]
-  dy = math_ops.matmul(q, dv)
+  dy = math_ops.matmul(q, dv, allow_fast_math=False)
   dx = _QrGradSquareAndDeepMatrices(q, u,
-                                    dq + math_ops.matmul(y, dv, adjoint_b=True),
+                                    dq + math_ops.matmul(y, dv, adjoint_b=True,
+                                                         allow_fast_math=False),
                                     du)
   return array_ops.concat([dx, dy], axis=-1)
 
@@ -544,9 +549,9 @@ def _MatrixSolveGrad(op, grad):
   c = op.outputs[0]
   grad_b = linalg_ops.matrix_solve(a, grad, adjoint=not adjoint_a)
   if adjoint_a:
-    grad_a = -math_ops.matmul(c, grad_b, adjoint_b=True)
+    grad_a = -math_ops.matmul(c, grad_b, adjoint_b=True, allow_fast_math=False)
   else:
-    grad_a = -math_ops.matmul(grad_b, c, adjoint_b=True)
+    grad_a = -math_ops.matmul(grad_b, c, adjoint_b=True, allow_fast_math=False)
   return (grad_a, grad_b)
 
 
@@ -579,10 +584,11 @@ def _MatrixSolveLsGrad(op, grad):
     # pylint: enable=protected-access
     # Temporary z = (A^T * A + lambda * I)^{-1} * grad.
     z = linalg_ops.cholesky_solve(chol, grad)
-    xzt = math_ops.matmul(x, z, adjoint_b=True)
+    xzt = math_ops.matmul(x, z, adjoint_b=True, allow_fast_math=False)
     zx_sym = xzt + array_ops.matrix_transpose(xzt)
-    grad_a = -math_ops.matmul(a, zx_sym) + math_ops.matmul(b, z, adjoint_b=True)
-    grad_b = math_ops.matmul(a, z)
+    grad_a = (-math_ops.matmul(a, zx_sym, allow_fast_math=False) +
+              math_ops.matmul(b, z, adjoint_b=True, allow_fast_math=False))
+    grad_b = math_ops.matmul(a, z, allow_fast_math=False)
     return (grad_a, grad_b, None)
 
   def _Underdetermined(op, grad):
@@ -601,13 +607,15 @@ def _MatrixSolveLsGrad(op, grad):
     chol = linalg_ops._RegularizedGramianCholesky(
         a, l2_regularizer=l2_regularizer, first_kind=False)
     # pylint: enable=protected-access
-    grad_b = linalg_ops.cholesky_solve(chol, math_ops.matmul(a, grad))
+    grad_b = linalg_ops.cholesky_solve(
+                 chol, math_ops.matmul(a, grad, allow_fast_math=False))
     # Temporary tmp = (A * A^T + lambda * I)^{-1} * B.
     tmp = linalg_ops.cholesky_solve(chol, b)
-    a1 = math_ops.matmul(tmp, a, adjoint_a=True)
-    a1 = -math_ops.matmul(grad_b, a1)
-    a2 = grad - math_ops.matmul(a, grad_b, adjoint_a=True)
-    a2 = math_ops.matmul(tmp, a2, adjoint_b=True)
+    a1 = math_ops.matmul(tmp, a, adjoint_a=True, allow_fast_math=False)
+    a1 = -math_ops.matmul(grad_b, a1, allow_fast_math=False)
+    a2 = grad - math_ops.matmul(a, grad_b, adjoint_a=True,
+                                allow_fast_math=False)
+    a2 = math_ops.matmul(tmp, a2, adjoint_b=True, allow_fast_math=False)
     grad_a = a1 + a2
     return (grad_a, grad_b, None)
 
@@ -641,9 +649,9 @@ def _BandedTriangularSolveGrad(op, grad):
   grad_b = linalg_ops.banded_triangular_solve(
       a, grad, lower=lower_a, adjoint=not adjoint_a)
   if adjoint_a:
-    grad_a = -math_ops.matmul(c, grad_b, adjoint_b=True)
+    grad_a = -math_ops.matmul(c, grad_b, adjoint_b=True, allow_fast_math=False)
   else:
-    grad_a = -math_ops.matmul(grad_b, c, adjoint_b=True)
+    grad_a = -math_ops.matmul(grad_b, c, adjoint_b=True, allow_fast_math=False)
   if lower_a:
     grad_a = array_ops.matrix_diag_part(
         grad_a, k=(-(num_bands - 1), 0), align="LEFT_RIGHT")
@@ -673,9 +681,9 @@ def _MatrixTriangularSolveGrad(op, grad):
   grad_b = linalg_ops.matrix_triangular_solve(
       a, grad, lower=lower_a, adjoint=not adjoint_a)
   if adjoint_a:
-    grad_a = -math_ops.matmul(c, grad_b, adjoint_b=True)
+    grad_a = -math_ops.matmul(c, grad_b, adjoint_b=True, allow_fast_math=False)
   else:
-    grad_a = -math_ops.matmul(grad_b, c, adjoint_b=True)
+    grad_a = -math_ops.matmul(grad_b, c, adjoint_b=True, allow_fast_math=False)
   if lower_a:
     grad_a = array_ops.matrix_band_part(grad_a, -1, 0)
   else:
@@ -730,17 +738,20 @@ def _EigGrad(op, grad_e, grad_v):
               array_ops.expand_dims(e, -2) - array_ops.expand_dims(e, -1)),
           array_ops.zeros_like(e))
       f = math_ops.conj(f)
-      vgv = math_ops.matmul(vt, grad_v)
+      vgv = math_ops.matmul(vt, grad_v, allow_fast_math=False)
       mid = array_ops.matrix_diag(grad_e)
       diag_grad_part = array_ops.matrix_diag(
           array_ops.matrix_diag_part(
               math_ops.cast(math_ops.real(vgv), vgv.dtype)))
-      mid += f * (vgv - math_ops.matmul(math_ops.matmul(vt, v), diag_grad_part))
+      mid += f * (vgv - math_ops.matmul(math_ops.matmul(
+                                            vt, v, allow_fast_math=False),
+                                        diag_grad_part, allow_fast_math=False))
       # vt is formally invertible as long as the original matrix is
       # diagonalizable. However, in practice, vt may
       # be ill-conditioned when matrix original matrix is close to
       # non-diagonalizable one
-      grad_a = linalg_ops.matrix_solve(vt, math_ops.matmul(mid, vt))
+      grad_a = linalg_ops.matrix_solve(vt, math_ops.matmul(
+                                               mid, vt, allow_fast_math=False))
     else:
       _, v = linalg_ops.eig(op.inputs[0])
       vt = _linalg.adjoint(v)
@@ -749,7 +760,8 @@ def _EigGrad(op, grad_e, grad_v):
       # be ill-conditioned when matrix original matrix is close to
       # non-diagonalizable one
       grad_a = linalg_ops.matrix_solve(
-          vt, math_ops.matmul(array_ops.matrix_diag(grad_e), vt))
+          vt, math_ops.matmul(array_ops.matrix_diag(grad_e), vt,
+                              allow_fast_math=False))
     return math_ops.cast(grad_a, op.inputs[0].dtype)
 
 
@@ -777,16 +789,18 @@ def _SelfAdjointEigV2Grad(op, grad_e, grad_v):
           v,
           math_ops.matmul(
               array_ops.matrix_diag(grad_e) +
-              f * math_ops.matmul(v, grad_v, adjoint_a=True),
+              f * math_ops.matmul(v, grad_v, adjoint_a=True,
+                                  allow_fast_math=False),
               v,
-              adjoint_b=True))
+              adjoint_b=True, allow_fast_math=False), allow_fast_math=False)
     else:
       _, v = linalg_ops.self_adjoint_eig(op.inputs[0])
       grad_a = math_ops.matmul(v,
                                math_ops.matmul(
                                    array_ops.matrix_diag(grad_e),
                                    v,
-                                   adjoint_b=True))
+                                   adjoint_b=True, allow_fast_math=False),
+                               allow_fast_math=False)
     # The forward op only depends on the lower triangular part of a, so here we
     # symmetrize and take the lower triangle
     grad_a = array_ops.matrix_band_part(grad_a + _linalg.adjoint(grad_a), -1, 0)
@@ -814,7 +828,9 @@ def _SvdGrad(op, grad_s, grad_u, grad_v):
 
   if not op.get_attr("compute_uv"):
     s, u, v = linalg_ops.svd(a, compute_uv=True)
-    grad_a = math_ops.matmul(u, math_ops.matmul(grad_s_mat, v, adjoint_b=True))
+    grad_a = math_ops.matmul(u, math_ops.matmul(grad_s_mat, v, adjoint_b=True,
+                                                allow_fast_math=False),
+                             allow_fast_math=False)
     grad_a.set_shape(a_shape)
     return grad_a
 
@@ -876,43 +892,52 @@ def _SvdGrad(op, grad_s, grad_u, grad_v):
     v1 = v[..., :, :m]
     grad_v1 = grad_v[..., :, :m]
 
-    u_gu = math_ops.matmul(u, grad_u, adjoint_a=True)
-    v_gv = math_ops.matmul(v1, grad_v1, adjoint_a=True)
+    u_gu = math_ops.matmul(u, grad_u, adjoint_a=True, allow_fast_math=False)
+    v_gv = math_ops.matmul(v1, grad_v1, adjoint_a=True, allow_fast_math=False)
 
     f_u = f * u_gu
     f_v = f * v_gv
 
     term1_nouv = (
-        grad_s_mat + math_ops.matmul(f_u + _linalg.adjoint(f_u), s_mat) +
-        math_ops.matmul(s_mat, f_v + _linalg.adjoint(f_v)))
+        grad_s_mat + math_ops.matmul(f_u + _linalg.adjoint(f_u), s_mat,
+                                     allow_fast_math=False) +
+        math_ops.matmul(s_mat, f_v + _linalg.adjoint(f_v),
+                        allow_fast_math=False))
 
-    term1 = math_ops.matmul(u, math_ops.matmul(term1_nouv, v1, adjoint_b=True))
+    term1 = math_ops.matmul(u, math_ops.matmul(term1_nouv, v1, adjoint_b=True,
+                                               allow_fast_math=False),
+                            allow_fast_math=False)
 
     if m == n:
       grad_a_before_transpose = term1
     else:
       gv1t = array_ops.matrix_transpose(grad_v1, conjugate=True)
-      gv1t_v1 = math_ops.matmul(gv1t, v1)
-      term2_nous = gv1t - math_ops.matmul(gv1t_v1, v1, adjoint_b=True)
+      gv1t_v1 = math_ops.matmul(gv1t, v1, allow_fast_math=False)
+      term2_nous = gv1t - math_ops.matmul(gv1t_v1, v1, adjoint_b=True,
+                                          allow_fast_math=False)
 
       if full_matrices:
         v2 = v[..., :, m:n]
         grad_v2 = grad_v[..., :, m:n]
 
-        v1t_gv2 = math_ops.matmul(v1, grad_v2, adjoint_a=True)
-        term2_nous -= math_ops.matmul(v1t_gv2, v2, adjoint_b=True)
+        v1t_gv2 = math_ops.matmul(v1, grad_v2, adjoint_a=True,
+                                  allow_fast_math=False)
+        term2_nous -= math_ops.matmul(v1t_gv2, v2, adjoint_b=True,
+                                      allow_fast_math=False)
 
-      u_s_inv = math_ops.matmul(u, s_inv_mat)
-      term2 = math_ops.matmul(u_s_inv, term2_nous)
+      u_s_inv = math_ops.matmul(u, s_inv_mat, allow_fast_math=False)
+      term2 = math_ops.matmul(u_s_inv, term2_nous, allow_fast_math=False)
 
       grad_a_before_transpose = term1 + term2
 
     if a.dtype.is_complex:
       eye = _linalg.eye(s_shape[-1], batch_shape=s_shape[:-1], dtype=a.dtype)
       l = eye * v_gv
-      term3_nouv = math_ops.matmul(s_inv_mat, _linalg.adjoint(l) - l)
+      term3_nouv = math_ops.matmul(s_inv_mat, _linalg.adjoint(l) - l,
+                                   allow_fast_math=False)
       term3 = 1 / 2. * math_ops.matmul(
-          u, math_ops.matmul(term3_nouv, v1, adjoint_b=True))
+          u, math_ops.matmul(term3_nouv, v1, adjoint_b=True,
+                             allow_fast_math=False), allow_fast_math=False)
 
       grad_a_before_transpose += term3
 

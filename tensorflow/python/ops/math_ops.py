@@ -4545,7 +4545,7 @@ def tensordot(a, b, axes, name=None):
     a_reshape, a_free_dims, a_free_dims_static = _tensordot_reshape(a, a_axes)
     b_reshape, b_free_dims, b_free_dims_static = _tensordot_reshape(
         b, b_axes, True)
-    ab_matmul = matmul(a_reshape, b_reshape)
+    ab_matmul = matmul(a_reshape, b_reshape, allow_fast_math=False)
     if isinstance(a_free_dims, list) and isinstance(b_free_dims, list):
       if (ab_matmul.get_shape().is_fully_defined() and
           ab_matmul.get_shape().as_list() == a_free_dims + b_free_dims):
