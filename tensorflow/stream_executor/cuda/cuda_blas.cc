@@ -402,6 +402,8 @@ bool CUDABlas::DoBlasInternalImpl(FuncT cublas_func, Stream *stream,
 #if CUBLAS_VER_MAJOR >= 11
   // The allow_fast_match support three settings: 0 - respect the global
   // setting; 1 - use TF32 math type; 2 - use default math type;
+  printf("XXX: math_type: %d, allow_fast_math: %d, global: %d\n",
+          math_type, allow_fast_math, tensorflow::tf32_execution_allowed());
   if (math_type == CUBLAS_TF32_TENSOR_OP_MATH &&
       ((allow_fast_math == -1 && tensorflow::tf32_execution_allowed()) ||
        (allow_fast_math == 1))) {

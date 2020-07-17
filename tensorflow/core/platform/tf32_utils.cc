@@ -16,6 +16,7 @@ limitations under the License.
 #include "tensorflow/core/platform/tf32_utils.h"
 
 #include <atomic>
+#include <iostream>
 
 namespace tensorflow {
 
@@ -25,6 +26,6 @@ static std::atomic<bool> tf32_allowed{false};
 
 void allow_tf32_execution(bool allowed) { tf32_allowed = allowed; }
 
-bool tf32_execution_allowed() { return tf32_allowed; }
+bool tf32_execution_allowed() { std::cout << "XXX tf32_allowed address: " << static_cast<void*>(&tf32_allowed) << std::endl; return tf32_allowed; }
 
 }  // namespace tensorflow
